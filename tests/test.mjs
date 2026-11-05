@@ -1425,7 +1425,12 @@ test('valeur estimée d\'un deck : Cardmarket × exemplaires, terrains de base e
   const v = C.dkValue(t, k => meta[k]);
   assert.deepEqual({ cents: v.cents, known: v.known, total: v.total, noPrice: v.noPrice }, { cents: 230, known: 2, total: 4, noPrice: 1 }, '150 + 2 × 40 ; Mana Vault sans prix ; Forest et SB ignorés');
   assert.deepEqual(v.missing.map(c => c.name), ['Edgar Markov'], 'à lire sur Scryfall');
+  assert.equal(v.wait, 1, 'Edgar Markov : ni prix ni fiche');
   assert.equal(C.dkValue('', k => null).total, 0);
+  // règle unique (builder.js › dkPx) : le relevé du jour d'abord, la tendance de la fiche sinon ; commandant compris même sans fiche
+  const day = { 'sol ring': 120, 'edgar markov': 900 }, w = C.dkValue(t, k => meta[k], k => day[k] || 0);
+  assert.deepEqual({ cents: w.cents, known: w.known, noPrice: w.noPrice, wait: w.wait }, { cents: 120 + 900 + 80, known: 3, noPrice: 1, wait: 0 }, 'Sol Ring au relevé (1,20 et non 1,50), Edgar Markov au relevé sans fiche, Arcane Signet à la fiche');
+  assert.deepEqual(w.missing.map(c => c.name), ['Edgar Markov'], 'fiche toujours à lire (image, couleurs)');
 });
 
 test('couleurs d\'un deck : d\'après ses terrains de base (ordre WUBRG, enneigés compris, Wastes ignorés)', () => {

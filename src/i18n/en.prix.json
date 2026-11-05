@@ -1,0 +1,9 @@
+{
+  "valeur estimée {p}": "estimated value {p}",
+  "Valeur estimée : prix du jour de l'impression la moins chère": "Estimated value: today's price of the cheapest printing",
+  "prix du jour (impression la moins chère) de {n} carte sur {total} (terrains de base exclus, cartes possédées comprises)": "today's price (cheapest printing) for {n} card of {total} (basic lands excluded, owned cards included)",
+  "prix du jour (impression la moins chère) de {n} cartes sur {total} (terrains de base exclus, cartes possédées comprises)": "today's price (cheapest printing) for {n} cards of {total} (basic lands excluded, owned cards included)",
+  "Valeur estimée · prix du jour de l'impression la moins chère": "Estimated value · today's price of the cheapest printing",
+  "prix du jour": "today's price",
+  "prix du jour de l'impression la moins chère": "today's price of the cheapest printing"
+}

@@ -21,7 +21,7 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
     const low = DW_GAUGES.find(([r]) => r !== 'land' && x.roles & DW_RB[r] && prof[r] <= tgt[r][0]);
     const sur = DW_GAUGES.find(([r]) => r !== 'land' && x.roles & DW_RB[r] && prof[r] > tgt[r][1]);
     if (low) s += 0.5; if (sur) s -= 0.15;
-    const price = dwPrice(c.key, x);
+    const price = dwPrice(c.key, x, true);      // carte du deck : son prix dans la valeur du deck (dwProfile)
     if (x.fl & 1 && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }
     else if (x.fl & 4 && set.br <= 3) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
     else if (over && price > 500 && collQty(c.key) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }

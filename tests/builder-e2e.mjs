@@ -7,6 +7,7 @@ const world = await startWorld({ port: 18960 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const seed = collText => `try { localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: ${JSON.stringify(collText)}, u: 1, s: '', b: null })); } catch (e) {}`;
 const tc = (p, sel) => p.$eval(sel, e => e.textContent.replace(/\s+/g, ' ').trim());
+const norm = t => String(t).replace(/\s+/g, ' ').trim();
 const errsOf = [];
 const step = (p, k, tgt, d) => p.click(`.bd-row[data-k="${k}"][data-t="${tgt}"] [data-d="${d}"]`);
 const tab = async (p, v) => { await p.click(`#bdSeg .seg-opt[data-v="${v}"]`); await p.waitForTimeout(80); };
@@ -109,17 +110,38 @@ ok('modifier un deck : l\'éditeur relit le texte, retire à 0, met à jour sans
   // valeur : Burn = 4 Arcane Signet (0,40 € chacune, collection) ; la réserve n'est pas comptée
   await p.waitForFunction(() => /≈ 1,60/.test(document.querySelector('.deck[data-id] .deck-meta') ? [...document.querySelectorAll('.deck')].find(d => d.querySelector('.deck-name').textContent === 'Burn').querySelector('.deck-meta').textContent : ''), null, { timeout: 8000 });
   await p.click('.deck:has-text("Burn") [data-act="more"]'); await p.waitForSelector('#dkVal b', { timeout: 8000 });
-  assert.match(await txt(p, '#dkVal'), /≈ 1,60\s*€ valeur estimée · Standard · prix tendance Cardmarket de 1 carte sur 1/, 'deck monté : valeur affichée quand même');
+  assert.match(await txt(p, '#dkVal'), /≈ 1,60\s*€ valeur estimée · Standard · prix du jour \(impression la moins chère\) de 1 carte sur 1/, 'deck monté : valeur affichée quand même');
   assert.equal(await p.evaluate(() => engIsOn(allDecks().find(d => d.name === 'Burn').id)), true);
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
   // image en grand depuis l'éditeur
   await p.click('.deck:has-text("Vampires") [data-act="open"]'); await p.waitForSelector('.dv.on [data-act="builder"]'); await p.click('.dv.on [data-act="builder"]'); await p.waitForSelector('.bd.on');
   await p.waitForSelector('.bd-row[data-k="craterhoof behemoth"] .thumb img.ok', { timeout: 10000 });
   assert.match(await txt(p, '#bdSum'), /≈ \d/, 'valeur estimée dans le résumé de l\'éditeur');
+  // même deck, même chiffre : en-tête de l'éditeur, coach (dwProfile), Mes decks, viewer (estimation) ; relevé du jour (impression la moins chère) prioritaire sur la tendance de la fiche
+  const val0 = await tc(p, '#bdSum .bd-val');
+  const want = await p.evaluate(() => {
+    window.__pxt0 = PXT; PXT = { t: Date.now(), at: '2026-11-05', map: new Map([['sol ring', { e: 90, u: 0 }], ['craterhoof behemoth', { e: 2345, u: 0 }], ['edgar markov', { e: 777, u: 0 }]]) }; pxRepaint();
+    return ('≈ ' + fmt(90 + 2345 + 777 + dmOf('arcane signet').eu, mkCur())).replace(/\s+/g, ' ');      // Arcane Signet absente du relevé : tendance de sa fiche ; commandant compris
+  });
+  const head = await tc(p, '#bdSum .bd-val'); assert.notEqual(head, val0, 'le relevé du jour change la valeur'); assert.equal(head, want, 'en-tête : relevé du jour, sinon fiche');
+  assert.equal(await p.evaluate(() => ('≈ ' + fmt(dwProfile().cents, mkCur())).replace(/\s+/g, ' ')), head, 'coach : le même total que l\'en-tête');
+  assert.equal(await p.getAttribute('#bdSum .bd-val', 'title'), 'Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
   await p.click('.bd-row[data-k="craterhoof behemoth"] .thumb'); await p.waitForSelector('.imgv', { timeout: 4000 });
   assert.match(await txt(p, '.imgv'), /Craterhoof Behemoth/, 'image de la carte en grand'); await p.keyboard.press('Escape'); await p.waitForTimeout(400);
   await p.click('.bd [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 3000 });
+  if (await p.$('.dvw.on')) { await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.dvw.on'), null, { timeout: 3000 }); }
+  await decks(p);
+  const vamp = () => p.evaluate(() => { const d = [...document.querySelectorAll('.deck')].find(x => /Vampires/.test(x.querySelector('.deck-name').textContent)); const m = /≈ [^·]+/.exec(d.querySelector('.deck-line').textContent); return m ? m[0].replace(/\s+/g, ' ').trim() : ''; });
+  await p.waitForFunction(w => [...document.querySelectorAll('.deck')].some(x => /Vampires/.test(x.textContent) && x.querySelector('.deck-line').textContent.replace(/\s+/g, ' ').includes(w.replace(/\s+/g, ' '))), head, { timeout: 5000 });
+  assert.equal(await vamp(), head, 'Mes decks : le même chiffre que l\'en-tête');
+  assert.equal(await p.$eval('.deck:has-text("Vampires") .deck-line span[title]', e => e.title), 'Valeur estimée : prix du jour de l\'impression la moins chère');
+  await p.click('.deck:has-text("Vampires") [data-act="open"]'); await p.waitForSelector('.dvw.on .dv-amt');
+  await p.waitForFunction(() => !document.querySelector('.dv-amt[data-tw]'), null, { timeout: 8000 });
+  assert.equal(norm(await tc(p, '.dvw.on .dv-eur')), head, 'viewer (valeur estimée) : le même chiffre'); assert.match(await tc(p, '.dvw.on .dv-crit'), /Valeur estimée · prix du jour de l'impression la moins chère/);
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.dvw.on'), null, { timeout: 3000 });
+  await p.evaluate(() => { PXT = window.__pxt0; pxRepaint(); });
   ok('format à côté du nom, valeur estimée même pour un deck monté (liste, feuille, éditeur), vignette → image en grand');
+  ok('même deck, même valeur estimée (relevé du jour, sinon fiche) : en-tête de l\'éditeur, coach, Mes decks, viewer');
 }
 
 /* ── D) Le deck créé se charge comme les autres (prix, viewer) ────────────────────────────── */

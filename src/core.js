@@ -1096,15 +1096,18 @@ function dkParse(text) {
   const meta = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^\/\/\s*Deck Deal \w+\s*:/i.test(l) && !COVER_RE.test(l));      // tags, origine, suivi des cartes manquantes
   return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text), meta };
 }
-/** Valeur estimée d'un deck : prix tendance Cardmarket (centimes) × exemplaires de chaque carte du deck, terrains de base et réserve exclus, cartes possédées comprises.
- *  metaOf(clé) → infos de la carte { eu } ; null/undefined = pas encore lue (à chercher : « missing »). → { cents, known (cartes chiffrées), total (cartes différentes), missing: [{ key, name }], noPrice (lues mais sans prix) } */
-function dkValue(text, metaOf) {
-  let cents = 0, known = 0, noPrice = 0; const missing = [], cards = parseDeck(text).cards;
+/** Valeur estimée d'un deck : prix de chaque carte (centimes) × exemplaires, commandant compris, terrains de base et réserve exclus, cartes possédées comprises.
+ *  metaOf(clé) → infos de la carte { eu } ; null/undefined = pas encore lue (à chercher : « missing »). pxOf(clé) → prix estimé (centimes, 0 si inconnu : builder.js › dkPx,
+ *  relevé du jour sinon tendance de la fiche), prioritaire sur metaOf(clé).eu ; sans pxOf : la fiche seule.
+ *  → { cents, known (cartes chiffrées), total (cartes différentes), missing: [{ key, name }] (fiches à lire), noPrice (lues mais sans prix), wait (ni prix ni fiche : la valeur peut encore monter) } */
+function dkValue(text, metaOf, pxOf) {
+  let cents = 0, known = 0, noPrice = 0, wait = 0; const missing = [], cards = parseDeck(text).cards;
   for (const c of cards) {
-    const k = ownKey(c.key), m = metaOf(k);
-    if (!m) missing.push({ key: k, name: c.name }); else if (Number.isFinite(m.eu)) { cents += m.eu * c.qty; known++; } else noPrice++;
+    const k = ownKey(c.key), m = metaOf(k), p = pxOf ? pxOf(k) : 0;
+    if (!m) missing.push({ key: k, name: c.name });
+    if (p > 0) { cents += p * c.qty; known++; } else if (!m) wait++; else if (Number.isFinite(m.eu)) { cents += m.eu * c.qty; known++; } else noPrice++;
   }
-  return { cents: Math.round(cents), known, total: cards.length, missing, noPrice };
+  return { cents: Math.round(cents), known, total: cards.length, missing, noPrice, wait };
 }
 /** Taille d'un deck comptée comme le viewer : tous les exemplaires, commandant et terrains de base compris, réserve « SB: » à part.
  *  size : 100 si le format Commander est connu (noté par le créateur ou en-tête « Commander »), sinon 0. → { n, size } */

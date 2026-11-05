@@ -172,13 +172,13 @@ function cardImgL(k, n, u, l, fixed) {
 /** Attributs src (+ data-lk) à écrire dans un <img …> : cardImgL. */
 const cardImgA = (k, n, u, l, fixed) => { const r = cardImgL(k, n, u, l, fixed); return `src="${esc(r.src)}"${r.lk ? ` data-lk="${esc(r.lk)}"` : ''}`; };
 function deckCard(d, i) {
-  const dl = priceDelta(d.history), fresh = !D.seen.has(d.id), fk = deckFmt(d), dv = dkValue(d.text, dmOf), vt = dv.total && !dv.missing.length ? dkValueText(dv) : '';
+  const dl = priceDelta(d.history), fresh = !D.seen.has(d.id), fk = deckFmt(d), dv = dkEst(d.text), vt = dv.total && !dv.wait && dv.ready ? dkValueText(dv) : '';      // chaque carte chiffrée ou lue, relevé du jour essayé : le chiffre ne bougera plus
   const cv = dkCoverCard(d.text, dmOf), art = coverUrl(cv), hue = hash32(d.id) % 360;
   return `<div class="deck${fresh ? ' fresh' : ''}" data-id="${esc(d.id)}" data-active="${d.id === S.deckId ? 1 : 0}" style="--i:${i}">
     <button class="deck-main" type="button" data-act="open"><span class="dvc-art deck-art tilt" style="--h:${hue}"><b>${esc((d.name.trim()[0] || '?').toUpperCase())}</b>${art ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(cv.key, cv.name, art)}>` : ''}<span class="deck-price">${dl ? `<b>${fmt(dl.total)}</b>${deltaChip(d.history)}` : ''}</span></span>
       <span class="deck-top"><span class="deck-name">${esc(d.name)}</span></span>
       <span class="deck-tags">${fk ? `<span class="deck-fmt ${fk}">${DK_FORMATS[fk].label}</span>` : ''}${pips(d.text)}${dkTags(d.text).slice(0, 3).map(t => `<span class="deck-tag">${esc(t)}</span>`).join('')}</span>
-      <span class="deck-meta"><span class="deck-line">${esc(dkCountText(d.text))}${vt ? ' · <span title="' + T('Valeur estimée : prix tendance Cardmarket') + '">' + esc(vt) + '</span>' : ''}${engIsOn(d.id) ? ' · <b class="mounted">' + T('monté') + '</b>' : ''}</span><span class="deck-ago">${esc(relTime(d.updatedAt))}</span></span></button>
+      <span class="deck-meta"><span class="deck-line">${esc(dkCountText(d.text))}${vt ? ' · <span title="' + T('Valeur estimée : prix du jour de l\'impression la moins chère') + '">' + esc(vt) + '</span>' : ''}${engIsOn(d.id) ? ' · <b class="mounted">' + T('monté') + '</b>' : ''}</span><span class="deck-ago">${esc(relTime(d.updatedAt))}</span></span></button>
     <button class="deck-more" type="button" data-act="more" aria-label="${T('Options de {name}', { name: esc(d.name) })}"><svg class="i"><use href="#i-more"/></svg></button></div>`;
 }
 /** Écran « Mes decks » s'il est ouvert (et le nombre de decks dans les onglets de la section Decks). */
@@ -187,7 +187,7 @@ function renderDecks() {
   dksPaint();
   paintSync(); updateSaveButtons(); homeSoon(); dvDecksChanged();      // deck d'un lien ou d'EDHREC ouvert : « ✓ Dans mes decks » suit la liste
 }
-let dvT = 0;
+let dvT = 0, DK_VALP = null;      // DK_VALP : repeint de la valeur dans la feuille d'un deck ouverte (openDeckSheet)
 /** Lit en arrière-plan les fiches des cartes des decks affichés (hors collection) : image de présentation d'abord, puis prix pour la valeur estimée. */
 function dvSoon(decks, delay) {
   clearTimeout(dvT); if (!decks.length) return;
@@ -385,13 +385,16 @@ function openDeckSheet(id) {
       if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
       haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack();
     };
-    const valEl = $('#dkVal', api.body);      // valeur estimée du deck (Cardmarket), même monté : pas besoin de chercher des offres
-    const paintVal = fetched => {
-      const cur = findDeck(id) || d, v = dkValue(cur.text, dmOf), fk = deckFmt(cur);
-      valEl.innerHTML = v.known ? `<b>${esc(dkValueText(v))}</b><span>${T('valeur estimée')}${fk ? ' · ' + DK_FORMATS[fk].label : ''} · ${TN(v.known, 'prix tendance Cardmarket de {n} carte sur {total} (terrains de base exclus, cartes possédées comprises)', 'prix tendance Cardmarket de {n} cartes sur {total} (terrains de base exclus, cartes possédées comprises)', { total: v.total })}</span>`
-        : v.missing.length && !fetched ? '<span>' + T('Estimation de la valeur du deck…') + '</span>' : '<span>' + T('Valeur estimée indisponible (prix des cartes non lus : réessaie en ligne).') + '</span>';
+    const valEl = $('#dkVal', api.body);      // valeur estimée du deck (builder.js › dkEst : même chiffre que l'éditeur et le viewer), même monté : pas besoin de chercher des offres
+    let fetched = false;
+    const paintVal = () => {
+      if (!valEl.isConnected) { if (DK_VALP === paintVal) DK_VALP = null; return; }
+      const cur = findDeck(id) || d, v = dkEst(cur.text), fk = deckFmt(cur);
+      valEl.innerHTML = v.known && v.ready ? `<b>${esc(dkValueText(v))}</b><span>${T('valeur estimée')}${fk ? ' · ' + DK_FORMATS[fk].label : ''} · ${TN(v.known, 'prix du jour (impression la moins chère) de {n} carte sur {total} (terrains de base exclus, cartes possédées comprises)', 'prix du jour (impression la moins chère) de {n} cartes sur {total} (terrains de base exclus, cartes possédées comprises)', { total: v.total })}</span>`
+        : !v.ready || (v.wait && !fetched) ? '<span>' + T('Estimation de la valeur du deck…') + '</span>' : '<span>' + T('Valeur estimée indisponible (prix des cartes non lus : réessaie en ligne).') + '</span>';
     };
-    paintVal(false); dmLoad().then(() => { paintVal(false); return dmFetch(dkValue((findDeck(id) || d).text, dmOf).missing); }).then(() => paintVal(true));
+    DK_VALP = paintVal;      // relevé du jour arrivé pendant que la feuille est ouverte (builder.js › pxRepaint) : repeinte
+    paintVal(); dmLoad().then(() => { paintVal(); return dmFetch(dkValue((findDeck(id) || d).text, dmOf).missing); }).then(() => { fetched = true; paintVal(); });
     $('#dkOwn', api.body).onclick = () => {
       const cur = findDeck(id) || d, cards = parseDeck(cur.text).cards; if (!cards.length) return;
       const before = COLL.map, n = cards.reduce((a, c) => a + c.qty, 0);
@@ -493,7 +496,7 @@ function openCoverPicker(id, done) {
     const pool = () => {
       const t = (findDeck(id) || d0).text, pd = parseDeck(t), cm = new Set(commanderKeys(t)), seen = new Set(), out = [];
       for (const c of [...pd.cards, ...dkSideCards(t)]) { const k = ownKey(c.key); if (!seen.has(k)) { seen.add(k); out.push({ key: k, name: c.name, cmd: cm.has(c.key) }); } }
-      const eu = c => { const m = dmOf(c.key); return m && Number.isFinite(m.eu) ? m.eu : -1; };
+      const eu = c => dkPx(c.key) || -1;      // les plus chères d'abord (valeur estimée : dkPx)
       return out.sort((a, b) => (b.cmd - a.cmd) || (eu(b) - eu(a)) || a.name.localeCompare(b.name));
     };
     const paint = () => {
