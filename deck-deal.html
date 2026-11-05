@@ -2818,6 +2818,7 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .ds-prog{display:flex;flex-direction:column;gap:10px;padding:4px 0}
 .ds-big{height:10px}
 .ds-now{margin:0;font-size:13px;color:var(--ink-2);min-height:1.3em}
+.ds-eta{margin:-6px 0 0;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .ds-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .ds-steps li{display:flex;flex-direction:column;gap:1px;padding-left:24px;position:relative;font-size:14px}
 .ds-steps li::before{content:'';position:absolute;left:2px;top:3px;width:12px;height:12px;border-radius:50%;border:2px solid var(--line)}
@@ -7978,8 +7979,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '821bf0f2';
-const I18N_FILES = {"de":"i18n/de.30ab8901.js","en":"i18n/en.97a9f564.js","es":"i18n/es.093fd6ab.js","it":"i18n/it.d77cf968.js","pt":"i18n/pt.9bbc1d0b.js"};
+const DD_BUILD = 'f04e8418';
+const I18N_FILES = {"de":"i18n/de.cb307143.js","en":"i18n/en.05f7bf05.js","es":"i18n/es.3e64efdf.js","it":"i18n/it.2d91cb7b.js","pt":"i18n/pt.e7e7aaa6.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -28353,6 +28354,28 @@ function dwInfo(pack, set, cmd) {
 }
 /** Graine d'une carte pour un tirage : bruit de Gumbel (même graine, même tirage). */
 function dwNoise(k, seed) { let h = (seed | 0) ^ 0x9e3779b9; for (let i = 0; i < k.length; i++) h = Math.imul(h ^ k.charCodeAt(i), 2654435761); h ^= h >>> 15; const u = ((h >>> 0) % 1e6 + 0.5) / 1e6; return -Math.log(-Math.log(u)) - 0.5772; }
+/** dwNoise gardé pour la graine en cours (la génération relit les mêmes cartes des centaines de fois). */
+const DW_NOISEC = { seed: null, m: null };
+function dwNoiseOf(k, seed) { if (DW_NOISEC.seed !== seed) { DW_NOISEC.seed = seed; DW_NOISEC.m = new Map(); } let v = DW_NOISEC.m.get(k); if (v === undefined) DW_NOISEC.m.set(k, v = dwNoise(k, seed)); return v; }
+/** Candidates d'une liste (dwInfo) qui passent les filtres fixes (dans la base, couleurs du commandant, interdites, bracket, exclusions du joueur) : [[k, o, x, terrain]].
+ *  Gardé tant que la liste, la base et ces réglages ne changent pas : la génération appelle dwSuggest des centaines de fois (rapide, même sur téléphone). */
+const DW_SUGC = { C: null, src: null, key: '', l: null, w: null };
+function dwSugPool(C, ci, set, wide) {
+  const k0 = dwPopK(set), key = [[...ci].join(''), set.br, (set.ban || []).join('|'), (set.avoid || []).join('|'), k0].join('#');
+  if (!(DW_SUGC.C === C && DW_SUGC.src === DW.byKey && DW_SUGC.key === key)) { DW_SUGC.C = C; DW_SUGC.src = DW.byKey; DW_SUGC.key = key; DW_SUGC.l = null; DW_SUGC.w = null; }
+  const f = wide ? 'w' : 'l'; if (DW_SUGC[f]) return DW_SUGC[f];
+  const l = [], ok = (k, o) => {
+    if (BASIC_NAMES.has(k)) return;
+    const x = dwCard(k); if (!x || !DW.byKey.has(k)) return;
+    if ([...String(x.ci)].some(c => !ci.has(c))) return;
+    if (x.fl & 16 || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)) return;      // interdite en Commander ; bracket
+    if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
+    l.push([k, o, x, !!(x.roles & DW_RB.land)]);
+  };
+  if (wide) { for (const [k, r] of dwWidePool([...ci].join(''))) if (!C.has(k)) ok(k, { rank: r[8], k: C.plan ? k0 : 1, d: C.ask || 1 }); }      // réserve élargie : les cartes les plus jouées dans ces couleurs, hors liste
+  else for (const [k, o] of C) ok(k, o);
+  return (DW_SUGC[f] = l);
+}
 const DW_BANC = new WeakMap();
 /** Cartes exclues par le joueur (noms) et styles exclus : test sur une carte. */
 function dwExcluded(k, x, set) {
@@ -28390,19 +28413,12 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const curveHi = (X.pace || X.gen) && prof.nonland >= 20 && prof.mv > tgt.mv[2];
   const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
   const out = [];
-  const consider = (k, o) => {
-    if (inDeck(k) || BASIC_NAMES.has(k)) return;
-    const x = dwCard(k); if (!x || !DW.byKey.has(k)) return;
-    if ([...String(x.ci)].some(c => !ci.has(c))) return;
-    const isLand = !!(x.roles & DW_RB.land);
+  const rate = (k, o, x, isLand) => {      // filtres qui dépendent du deck en cours (place, rôle, combos, budget), puis la note
+    if (inDeck(k)) return;
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
-    if (x.fl & 16) return;      // interdite en Commander
     if (x.fl & 1 && gcLeft <= 0) return;
     const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && noCombo) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
-    if (x.fl & 4 && set.br <= 3) return;
-    if (x.fl & 2 && set.br <= 2) return;
-    if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
     if (X.pace && set.bud > 0) {      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places ; plus le budget par place est petit, plus l'écart permis est faible
@@ -28432,11 +28448,11 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
       else if (arch === 'control' && x.roles & (DW_RB.removal | DW_RB.wipe | DW_RB.counter | DW_RB.draw)) s += 0.08;
       if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a * (C.npack >= 40 ? 2.5 : 0.35); }      // déjà dans une autre version : recule (versions vraiment différentes ; écart à la mesure des valeurs : listes du commandant, ou réserve plate)
     }
-    if (seed && (X.pace || X.gen)) s += tau * dwNoise(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
+    if (seed && (X.pace || X.gen)) s += tau * dwNoiseOf(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
     out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
   };
-  for (const [k, o] of C) consider(k, o);
-  if (fallback) { const k0 = dwPopK(set); for (const [k, r] of dwWidePool(cmd ? cmd.ci : '')) if (!C.has(k)) consider(k, { rank: r[8], k: plan ? k0 : 1, d: C.ask || 1 }); }
+  for (const [k, o, x, isLand] of dwSugPool(C, ci, set)) rate(k, o, x, isLand);
+  if (fallback) for (const [k, o, x, isLand] of dwSugPool(C, ci, set, true)) rate(k, o, x, isLand);      // cartes de secours (rang)
   if (plan) {      // valeur pour le plan dans le deck EN COURS (au lieu de la valeur de base) : calculée pour les meilleures candidates seulement (rapide, même sur téléphone)
     out.sort((a, b) => b.s - a.s);
     for (const c of out.slice(0, Math.max(150, n * 4))) if (c.m) c.s += w.m * (dmxFit(c.m, plan, deck) - (c.o.m || 0)) * (c.o.d == null ? 1 : c.o.d);
@@ -28814,7 +28830,9 @@ function dwPetsInto(X, cmd) {
 function dwAutoBuild(undoTo, quiet) {
   try { return dwAutoBuildRun(undoTo, quiet); } finally { BD.pace = false; BD.wide = false; BD.landRes = 0; }      // une erreur ne laisse jamais le coach en mode génération (BD est partagé)
 }
-function dwAutoBuildRun(undoTo, quiet) {
+function dwAutoBuildRun(undoTo, quiet) { const g = dwAutoBuildGen(undoTo, quiet); let r; do r = g.next(); while (!r.done); return r.value; }
+/** La génération, carte par carte : un pas (yield) après chaque carte ajoutée ; deckopt.js › dsAutoBuild rend la main à l'écran entre deux pas. */
+function* dwAutoBuildGen(undoTo, quiet) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return 0;
   const pack = DW.cmd.get(cmd.slug) || null, before = undoTo || new Map([...BD.main].map(([k, c]) => [k, { ...c }])), n0 = dwProfile().n; BD.pace = true;
   dwPetsInto(BD, cmd);      // cartes fétiches d'abord (gardées comme les cartes du joueur)
@@ -28829,9 +28847,9 @@ function dwAutoBuildRun(undoTo, quiet) {
   const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - prof.cents) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
   for (const r of ['wincon', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'tutor', 'recursion']) {      // de quoi gagner d'abord : même à petit budget, le deck doit pouvoir finir la partie
     if (!tgt[r]) continue;
-    while (prof[r] < tgt[r][1] && nonland() < cap()) { const x = pick(r); if (!x) break; add(x); prof = dwProfile(); }
+    while (prof[r] < tgt[r][1] && nonland() < cap()) { const x = pick(r); if (!x) break; add(x); prof = dwProfile(); yield; }
   }
-  while (nonland() < cap()) { const x = pick(''); if (!x) break; add(x); prof = dwProfile(); }
+  while (nonland() < cap()) { const x = pick(''); if (!x) break; add(x); prof = dwProfile(); yield; }
   tgt = dwTargets(prof, cmd, pack);
   // la cible de terrains a monté (deck plus cher en mana que prévu) : les cartes ajoutées les moins utiles cèdent leur place
   const info = dwInfo(pack, BD.wiz || dwDefaults()), worth = k => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : 0; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
@@ -28846,13 +28864,13 @@ function dwAutoBuildRun(undoTo, quiet) {
   const rk = x => x.o.rank || x.x.rank || 0, ncol = x => new Set([...String(x.x.prod)].filter(c => cmd.ci.includes(c))).size;
   const landOk = x => (nc < 2 || ncol(x) || x.own || (x.o.incl || 0) >= 30) && (x.own || (x.o.incl || 0) >= 15 || (rk(x) && rk(x) < 300) || (nc >= 2 && rk(x) && rk(x) < 3000 && ncol(x) >= 2));      // très joué, ou terrain bicolore et plus de ces couleurs ; deck multicolore : un terrain incolore seulement s'il est vraiment joué avec ce commandant
   BD.wide = true;      // terrains : toutes les cartes jouées dans les couleurs, pas seulement les listes du commandant (les terrains bicolores y manquent souvent)
-  for (let i = 0; i < nb && size() < slots; i++) { const x = dwSuggest('land', cmd, pack, prof, tgt, 10).find(landOk); if (!x) break; add(x); prof = dwProfile(); }
+  for (let i = 0; i < nb && size() < slots; i++) { const x = dwSuggest('land', cmd, pack, prof, tgt, 10).find(landOk); if (!x) break; add(x); prof = dwProfile(); yield; }
   BD.wide = false;
   dwFillBasics(true); prof = dwProfile();
   while (size() < slots) {      // places restantes : le plan, puis les cartes très jouées dans les couleurs (petit budget, commandant peu connu) ; sinon le deck reste incomplet (« complète à la main »)
     let x = pick('');
     if (!x) { BD.pace = false; x = pick(''); BD.pace = true; }      // rien d'assez bon marché pour étaler le budget : ce qui rentre encore dans ce qui reste
-    if (!x) break; add(x); prof = dwProfile();
+    if (!x) break; add(x); prof = dwProfile(); yield;
   }
   BD.pace = false; BD.landRes = 0;
   const added = size() - (n0 - BD.cmdr.length), total = size() + BD.cmdr.length; BD.dirty = true;
@@ -30113,21 +30131,25 @@ function dsScoreHtml(sc, o = {}) {
 
 /* ── Amélioration d'un deck généré (BD) : échanges carte à carte tant que la note monte ─────────────────────────────────────────── */
 const dsTick = () => new Promise(r => setTimeout(r, 0));
-/** mine : cartes du joueur (jamais retirées) ; ms : temps donné ; step(i) : progression. Retourne le nombre d'échanges gardés. */
-async function dsOptimize(mine, ms, step) {
+/** mine : cartes du joueur (jamais retirées) ; maxIt : passes (échanges essayés) ; ms : temps maximal (garde-fou d'un appareil très lent) ; step(i) : progression.
+ *  Retourne le nombre d'échanges gardés. Borné en passes, plus en temps (jusqu'au 5 novembre : 600 ms, soit 40 à 60 passes sur ordinateur mais 10 à 15 sur un
+ *  téléphone 4 fois plus lent : note moyenne 97,4 → 96,9 avec les 3 tirages) : le même deck sur tous les appareils, et une mesure reproductible. */
+const DS_OPT_IT = { draw: 45, one: 70, fill: 90 };
+async function dsOptimize(mine, ms, step, maxIt = 90) {
   const cmd = dwCmdOf(); if (!cmd) return 0;
   const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), ctx = { cmd, pack, info };
   const score = () => dsScore(BD, ctx).raw, t0 = Date.now(), tried = new Set();
-  let cur = score(), kept = 0, it = 0;
+  let cur = score(), kept = 0, it = 0, ty = t0;
   const worth = (k, prof, tgt) => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : x.rank > 0 ? Math.max(0, 1 - x.rank / 4000) * 0.5 : 0; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
   const card = x => ({ key: x.k, name: x.name, qty: 1 });
   BD.gen = true;      // candidates tirées comme à la construction (graine, style de la version, cartes des autres versions en recul)
   try {
-  while (Date.now() - t0 < ms && it < 90) {
+  while (it < maxIt && Date.now() - t0 < ms) {
     it++;
     const prof = dwProfile(), tgt = dwTargets(prof, cmd, pack, set), high = prof.nonland >= 20 && prof.mv > tgt.mv[2];      // courbe trop haute : les gros sorts peu utiles partent d'abord, des sorts moins chers les remplacent
     const w = k => worth(k, prof, tgt) - (high ? Math.max(0, ((dwCard(k) || {}).cmc || 0) - 4) * 0.25 : 0);
-    const out = [...BD.main.values()].filter(c => !mine.has(c.key) && !tried.has(c.key) && !BASIC_NAMES.has(c.key) && !(((dwCard(c.key) || {}).roles || 0) & DW_RB.land)).sort((a, b) => w(a.key) - w(b.key))[0];
+    let out = null, outW = Infinity;      // la plus faible (la première à valeur égale) : chaque valeur calculée une fois
+    for (const c of BD.main.values()) { if (mine.has(c.key) || tried.has(c.key) || BASIC_NAMES.has(c.key) || (((dwCard(c.key) || {}).roles || 0) & DW_RB.land)) continue; const v = w(c.key); if (v < outW) { out = c; outW = v; } }
     if (!out) break; tried.add(out.key);
     const need = DKW_ROLES.filter(r => r !== 'land' && tgt[r] && prof[r] < tgt[r][1]).sort((a, b) => (prof[a] - tgt[a][1]) / Math.max(1, tgt[a][1]) - (prof[b] - tgt[b][1]) / Math.max(1, tgt[b][1]))[0] || '';
     BD.main.delete(out.key);
@@ -30135,7 +30157,7 @@ async function dsOptimize(mine, ms, step) {
     let best = null, bestS = cur + 0.15;      // un échange doit vraiment faire monter la note
     for (const x of cands) { BD.main.set(x.k, card(x)); const s1 = score(); BD.main.delete(x.k); if (s1 > bestS) { bestS = s1; best = x; } }
     if (best) { BD.main.set(best.k, card(best)); cur = bestS; kept++; tried.add(best.k); } else BD.main.set(out.key, out);
-    if (it % 3 === 0) { if (step) step(it); await dsTick(); }
+    if (Date.now() - ty > 50) { if (step) step(it); await dsTick(); ty = Date.now(); }      // l'écran redessiné toutes les 50 ms environ (3 passes duraient 0,15 s sur téléphone)
   }
   } finally { BD.gen = false; }
   // terrains : un terrain de base de la couleur la mieux servie contre un terrain qui donne une couleur en manque
@@ -30162,12 +30184,14 @@ async function dsOptimize(mine, ms, step) {
    détruit par les retraits et le balayage adverses, ou beaucoup de cartes perdues : deux sorts faibles contre de la protection, sinon de la récursion ;
    table qui tient (presque jamais un adversaire éliminé) : deux sorts faibles contre des retraits (leurs bloqueurs). Chaque correction est rejouée et gardée seulement si la partie s'améliore
    nettement (dsSimVal : démarrage, adversaires éliminés, moteur qui tient, retraits adverses évités ; protection, récursion et retraits : une fois
-   chacune, gardées si la partie ne se dégrade pas) et que la note du coach ne baisse pas (plus de 1,5 point). 6 essais au plus. */
+   chacune, gardées si la partie ne se dégrade pas) et que la note du coach ne baisse pas (plus de 1,5 point). 6 essais au plus ; until : heure limite (appareil lent :
+   pas d'essai qui finirait après, la première partie jouée toujours faite). */
 const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff + 0.3 * (r.kill10 || 0) + 0.3 * (r.engKeep == null ? 0 : r.engKeep) + 3 * (r.saved || 0) : -1e9;      // saved : retraits et balayages adverses évités par ta protection (par partie)
-async function dsSimTune(mine, step) {
+async function dsSimTune(mine, step, until) {
   const cmd = dwCmdOf(); if (!cmd) return { fixed: 0, r: null };
   const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), N = 1500;
-  let r = await dsimRun(BD, N); if (!r) return { fixed: 0, r: null };
+  const ts = Date.now(); let r = await dsimRun(BD, N); if (!r) return { fixed: 0, r: null };
+  const simMs = Date.now() - ts;      // durée d'un essai sur cet appareil
   let val = dsSimVal(r), note = dsScore(BD, { cmd, pack, info }).raw, fixed = 0, tries = 0;
   const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest', C: 'wastes' };
   const card = x => ({ key: x.k, name: x.name, qty: 1 });
@@ -30217,7 +30241,7 @@ async function dsSimTune(mine, step) {
     if (!want.some(k => !done.has(k))) break;
     let better = false;
     for (const kind of [...new Set(want)].filter(k => !done.has(k))) {
-      if (tries >= 6) break;
+      if (tries >= 6 || (until && Date.now() + simMs > until)) break;
       const snap = dsClone(BD.main); if (!fix(kind)) { BD.main = snap; continue; }
       tries++; if (step) step(tries);
       const r2 = await dsimRun(BD, N), n2 = dsScore(BD, { cmd, pack, info }).raw;
@@ -30238,22 +30262,48 @@ const dsClone = m => new Map([...m].map(([k, c]) => [k, { ...c }]));
 const dsSpells = main => [...main.keys()].filter(k => !BASIC_NAMES.has(k) && !(((dwCard(k) || {}).roles || 0) & DW_RB.land));
 /** Part des sorts communs à deux decks (0 à 1). */
 const dsOverlap = (a, b) => { const A = new Set(dsSpells(a)), B = dsSpells(b); return A.size + B.length ? 2 * B.filter(k => A.has(k)).length / (A.size + B.length) : 0; };
-/** Tirages par version (deck vide, base avec classement) et temps total donné à la construction (ms) : au-delà, un seul tirage par version. */
-const DS_DRAWS = 3, DS_BUDGET = 20000;
+/** Tirages par version (deck vide, base avec classement) : 3 au plus. Temps donné à toute la construction (ms) : partagé entre les versions selon la vitesse
+ *  mesurée de l'appareil (durée des tirages et des essais en partie déjà faits) : ordinateur 3 tirages par version ; téléphone 3 fois plus lent 2,4 en moyenne,
+ *  4 fois plus lent 1,8 (5 novembre : même note que l'ordinateur, 1 à 2 points de « moteur en place » de moins). */
+const DS_DRAWS = 3, DS_BUDGET = 30000;
 /** Jugement d'un tirage : la note du coach, puis la partie jouée face à 3 adversaires (un adversaire éliminé avant le tour 11, moteur en place et moteur
  *  encore là au tour 10 malgré leurs retraits et le balayage : protection, retraits et récursion y comptent ; commandant à temps, mains, couleurs). */
 const dsJudge = (raw, r) => { if (!r) return raw; const e = r.eng == null ? 50 : r.eng; return raw + 0.06 * (r.kill10 || 0) + 0.02 * e + 0.04 * (r.engKeep == null ? e : r.engKeep) + 2 * (r.saved || 0) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4; };
 /** Nouvelle graine de tirage. */
 const dsSeed = () => 1 + Math.floor(Math.random() * 2e9);
-/** Construit les versions du deck de l'éditeur (BD), sans affichage : [{ v, main, wiz, sc, prof, kept, sim, fixed, story }].
- *  o : { seed, empty (deck vide : 4 versions), list, step(v, phase, part, n), alive() }. BD revient à son deck d'origine (cartes du joueur et fétiches). */
+/** Tirages d'une version : ce qui tient dans sa part du temps restant (left ms pour n versions), ses essais en partie compris ; 1 au moins, max au plus. */
+const dsDrawsFor = (left, n, drawMs, tuneMs, max) => Math.max(1, Math.min(max, Math.round((left / Math.max(1, n) - tuneMs) / Math.max(1, drawMs))));
+/** Durées mesurées sur cet appareil (dernière construction) : temps annoncé dès l'ouverture de la fenêtre. Confort seulement (stockage local, peut manquer). */
+const DS_COST_KEY = 'deckdeal:dsCost';
+function dsCostLoad() { try { const v = JSON.parse(localStorage.getItem(DS_COST_KEY) || 'null'); return v && v.d > 0 && v.t >= 0 ? v : null; } catch (e) { return null; } }
+function dsCostSave(v) { try { localStorage.setItem(DS_COST_KEY, JSON.stringify(v)); } catch (e) { /* stockage indisponible : estimation au premier tirage */ } }
+/** Génération (deckwiz.js › dwAutoBuildGen) par morceaux : l'écran est redessiné toutes les 40 ms environ (1 à 2 s de calcul sur téléphone). Faux si annulée. */
+async function dsAutoBuild(alive) {
+  const g = dwAutoBuildGen(undefined, true); let t = Date.now();
+  try {
+    while (!g.next().done) if (Date.now() - t > 40) { await dsTick(); t = Date.now(); if (!alive()) { g.return(); return false; } }
+    return true;
+  } finally { BD.pace = false; BD.wide = false; BD.landRes = 0; }
+}
+/** Construit les versions du deck de l'éditeur (BD), sans affichage : [{ v, main, wiz, sc, prof, kept, sim, fixed, story, draws }].
+ *  o : { seed, empty (deck vide : 4 versions), list, budget, draws, step(v, phase, part, n, eta), alive() } ; eta : { d, k (tirage d sur k), s (secondes restantes, estimées) }.
+ *  BD revient à son deck d'origine (cartes du joueur et fétiches). */
 async function dsMake(o = {}) {
   const cmd = dwCmdOf(); if (!cmd) return [];
   const wiz0 = { ...(BD.wiz || dwDefaults()) }, seed = o.seed || wiz0.seed || dsSeed(), alive = o.alive || (() => true), step = o.step || (() => {});
   const empty = o.empty != null ? o.empty : dwProfile().n <= BD.cmdr.length;
   const X0 = { main: dsClone(BD.main), cmdr: BD.cmdr, wiz: wiz0 }; dwPetsInto(X0, cmd);      // cartes fétiches : dans toutes les versions, jamais retirées
   const base = X0.main, mine = new Set(base.keys()), list = o.list || (empty ? DS_VARIANTS : [{ id: 'eq', name: 'Deck complété', d: '' }]);
-  const res = [], avoid = new Map(), hasMech = typeof dmxOn === 'function' && dmxOn(), t0 = Date.now();
+  const res = [], avoid = new Map(), hasMech = typeof dmxOn === 'function' && dmxOn(), t0 = Date.now(), budget = o.budget || DS_BUDGET;
+  const maxK = empty && hasMech ? Math.max(1, o.draws || DS_DRAWS) : 1;      // plusieurs tirages : deck vide et base avec classement
+  // durées mesurées ici (tirage : construction, amélioration, partie jouée ; essais en partie d'une version) ; avant la 1re mesure : celles de la dernière construction
+  const cost = { d: [], t: [] }, prev = maxK > 1 ? dsCostLoad() : null, mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const est = () => { const d = cost.d.length ? mean(cost.d) : prev ? prev.d : 0, t = cost.t.length ? mean(cost.t) : prev && !cost.d.length ? prev.t : d * 0.6; return { d, t }; };      // avant les premiers essais en partie : 0,6 tirage
+  const eta = (i, d, K) => {      // secondes restantes : ce tirage-ci et les suivants de la version, ses essais en partie, puis les versions suivantes (leur part du temps)
+    const e = est(); if (!e.d) return null;
+    const now = Date.now() - t0, rest = list.length - i - 1, here = Math.max(0, K - d) * e.d + e.t, after = rest ? rest * (dsDrawsFor(budget - now - here, rest, e.d, e.t, maxK) * e.d + e.t) : 0;
+    return Math.max(1, Math.round(Math.min(budget * 1.1 - now, here + after) / 1000));
+  };
   try {
     for (let i = 0; i < list.length; i++) {
       const v = list[i];
@@ -30262,32 +30312,45 @@ async function dsMake(o = {}) {
         const eqv = res[0] ? res[0].prof.cents : 0, cc = res[0] ? res[0].prof.cmdCents || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
         if (!(eqv > 3000) || cc >= bud * 0.5) { step(v, 'skip', 1, 0); continue; }
       }
-      // plusieurs tirages (graines) par version, chacun construit et amélioré, jugés sur la note et la partie jouée ; le meilleur continue
-      const K = empty && hasMech ? Math.max(1, Math.min(o.draws || DS_DRAWS, Date.now() - t0 > (o.budget || DS_BUDGET) * (i + 1) / list.length ? 1 : 9)) : 1;
-      let best = null;
-      for (let d = 0; d < K; d++) {
-        step(v, 'build', 0.3 * d / K, d); await dsTick(); if (!alive()) return null;
-        BD.main = dsClone(base); BD.wiz = { ...wiz0, bud, seed: seed + i * 7919 + d * 104729, ...(v.arch ? { arch: v.arch } : {}), ...(v.style ? { style: v.style } : {}) };
-        if (!v.arch) delete BD.wiz.arch; if (!v.style) delete BD.wiz.style;
+      // plusieurs tirages (graines) par version, chacun construit et amélioré, jugés sur la note et la partie jouée ; le meilleur continue (essais en partie).
+      // Combien : la part de cette version dans le temps qui reste (versions suivantes comprises), d'après la durée mesurée des tirages et des essais en partie.
+      // (Juger les tirages avant l'amélioration et n'améliorer que le meilleur, mesuré le 5 novembre : 30 % plus rapide, mais 3 tirages ainsi valent 2 tirages améliorés.)
+      const left = budget - (Date.now() - t0), vEnd = Date.now() + left / (list.length - i);      // part de cette version dans le temps qui reste
+      const wizOf = d => { const w = { ...wiz0, bud, seed: seed + i * 7919 + d * 104729, ...(v.arch ? { arch: v.arch } : {}), ...(v.style ? { style: v.style } : {}) }; if (!v.arch) delete w.arch; if (!v.style) delete w.style; return w; };
+      let best = null, K = maxK, d = 0;
+      const oit = empty ? (maxK > 1 ? DS_OPT_IT.draw : DS_OPT_IT.one) : DS_OPT_IT.fill;      // passes : 45 par tirage (≈ 0,5 s sur ordinateur), 70 seul, 90 pour compléter un deck commencé
+      for (; d < K; d++) {
+        if (maxK > 1 && est().d) { const e = est(); K = dsDrawsFor(left, list.length - i, e.d, e.t, maxK); if (d >= K) break; }
+        if (d > 0 && Date.now() - t0 + est().d + est().t > budget) break;      // jamais au-delà du temps donné : on garde le meilleur tirage
+        const td = Date.now();
+        step(v, 'build', 0.3 * d / K, d, { d: d + 1, k: K, s: eta(i, d, K) }); await dsTick(); if (!alive()) return null;
+        BD.main = dsClone(base); BD.wiz = wizOf(d);
         BD.avoid = empty && hasMech && avoid.size ? avoid : null;
-        dwAutoBuild(undefined, true);
-        const kept0 = await dsOptimize(mine, empty ? (K > 1 ? 600 : 900) : 1600, n => step(v, 'opt', 0.3 * (d + 0.5) / K + 0.05 * Math.min(1, n / 60), n));
+        if (!(await dsAutoBuild(alive))) return null;
+        const kept0 = await dsOptimize(mine, oit * 60, n => step(v, 'opt', 0.3 * (d + 0.5) / K + 0.05 * Math.min(1, n / oit), n, { d: d + 1, k: K, s: eta(i, d + 0.6, K) }), oit);      // garde-fou : 60 ms par passe (5 fois l'ordinateur)
         if (!alive()) return null;
-        const r0 = K > 1 && typeof dsimRun === 'function' ? await dsimRun(BD, 800) : null, j = dsJudge(dsScore(BD).raw, r0);
-        if (!best || j > best.j) best = { j, main: dsClone(BD.main), wiz: { ...BD.wiz }, kept: kept0 };
-        if (K > 1 && Date.now() - t0 > (o.budget || DS_BUDGET) * (i + 1) / list.length) break;      // temps de la version écoulé : on garde le meilleur tirage
+        const cur = { j: null, main: dsClone(BD.main), wiz: { ...BD.wiz }, kept: kept0 };
+        if (best && typeof dsimRun === 'function') {      // jugés dès le 2e tirage (le 1er rejoué à ce moment-là : rien de perdu quand il reste seul)
+          if (best.j == null) { const m = BD.main, w = BD.wiz; BD.main = best.main; BD.wiz = best.wiz; best.j = dsJudge(dsScore(BD).raw, await dsimRun(BD, 800)); BD.main = m; BD.wiz = w; }
+          cur.j = dsJudge(dsScore(BD).raw, await dsimRun(BD, 800));
+        } else if (best) { if (best.j == null) { const m = BD.main; BD.main = best.main; best.j = dsJudge(dsScore(BD).raw, null); BD.main = m; } cur.j = dsJudge(dsScore(BD).raw, null); }
+        if (!best || cur.j > best.j) best = cur;
+        cost.d.push(Date.now() - td);
       }
-      BD.main = best.main; BD.wiz = best.wiz; const kept = best.kept;
-      step(v, 'opt', 0.8, 0);
-      step(v, 'sim', 0.8, 0);
-      const tune = typeof dsimRun === 'function' ? await dsSimTune(mine, n => step(v, 'sim', 0.8 + 0.18 * Math.min(1, n / 6), n)) : { fixed: 0, r: null };
       if (!alive()) return null;
+      BD.main = best.main; BD.wiz = best.wiz; const kept = best.kept, draws = Math.min(d, K), tt = Date.now();
+      step(v, 'opt', 0.8, 0);
+      step(v, 'sim', 0.8, 0, { d: draws, k: draws, s: eta(i, draws, draws) });
+      const tune = typeof dsimRun === 'function' ? await dsSimTune(mine, n => step(v, 'sim', 0.8 + 0.18 * Math.min(1, n / 6), n, { d: draws, k: draws, s: eta(i, draws, draws) }), vEnd) : { fixed: 0, r: null };
+      if (!alive()) return null;
+      cost.t.push(Date.now() - tt);
       const sc = dsScore(BD), prof = dwProfile();
-      res.push({ v, main: dsClone(BD.main), wiz: { ...BD.wiz }, sc, prof, kept, sim: tune.r, fixed: tune.fixed, story: typeof dwDeckStory === 'function' ? dwDeckStory(BD) : null });
+      res.push({ v, main: dsClone(BD.main), wiz: { ...BD.wiz }, sc, prof, kept, sim: tune.r, fixed: tune.fixed, draws, story: typeof dwDeckStory === 'function' ? dwDeckStory(BD) : null });
       for (const k of dsSpells(BD.main)) if (!mine.has(k)) avoid.set(k, (avoid.get(k) || 0) + 1);
       step(v, 'done', 1, 0);
     }
   } finally { BD.avoid = null; BD.wiz = { ...wiz0, seed }; BD.main = base; }
+  if (maxK > 1 && cost.d.length) { const e = est(); dsCostSave({ d: Math.round(e.d), t: Math.round(e.t) }); }
   for (const r of res) r.common = res[0] && r !== res[0] ? dsOverlap(res[0].main, r.main) : null;      // part des sorts communs avec la version équilibrée
   return res;
 }
@@ -30324,17 +30387,24 @@ async function dsBuild(undoTo, seed) {
   const empty = dwProfile().n <= BD.cmdr.length, list = empty ? DS_VARIANTS.map(v => ({ ...v, name: T(v.name), d: T(v.d) })) : [{ id: 'eq', name: T('Deck complété'), d: '' }];
   const steps = [{ id: 'px', t: T('Prix du jour') }, { id: 'pk', t: T('Cartes conseillées pour {name}', { name: cmd.names.join(' + ') }) }, ...list.map(v => ({ id: v.id, t: empty ? T('Version « {v} »', { v: v.name }) : T('Construction et amélioration') })), { id: 'ok', t: T('Vérification') }];
   const st = Object.fromEntries(steps.map(s => [s.id, { s: 'todo', d: '' }]));
-  let frac = 0, done = false;
+  let frac = 0, done = false, eta = null, drawsK = 0;      // eta : secondes restantes estimées (durées mesurées sur cet appareil) ; drawsK : tirages de la version en cours
   const api = DS.api = openSheet(T('Le coach construit ton deck'), cmd.names.join(' + '), a => { a.wrap.classList.add('ds-sheet'); });
   const alive = () => sheets.includes(api) && BD.el === el;
   const paint = now => {
     if (!sheets.includes(api) || done) return;
-    api.body.innerHTML = `<div class="ds-prog"><span class="ds-big"><i style="width:${Math.round(frac * 100)}%"></i></span><p class="ds-now">${esc(now || '')}</p>
+    const etaTxt = [eta != null && frac < 1 ? T('Encore environ {n} s', { n: eta }) : '', drawsK > 1 ? TN(drawsK, '{n} tirage par version', '{n} tirages par version') : ''].filter(Boolean).join(' · ');
+    api.body.innerHTML = `<div class="ds-prog"><span class="ds-big"><i style="width:${Math.round(frac * 100)}%"></i></span><p class="ds-now">${esc(now || '')}</p>${etaTxt ? `<p class="ds-eta">${esc(etaTxt)}</p>` : ''}
       <ul class="ds-steps">${steps.map(s => `<li class="${st[s.id].s}"><span>${esc(s.t)}</span>${st[s.id].d ? `<small>${esc(st[s.id].d)}</small>` : ''}</li>`).join('')}</ul></div>`;
   };
-  const set = (id, s, d, f, now) => { st[id].s = s; if (d != null) st[id].d = d; if (f != null) frac = f; paint(now); };
+  let painted = 0, lastNow = '';
+  const set = (id, s, d, f, now) => {      // fenêtre redessinée à chaque étape, sinon 5 fois par seconde au plus (téléphone lent : le calcul garde le processeur)
+    const turn = st[id].s !== s || (d != null && st[id].d !== d); st[id].s = s; if (d != null) st[id].d = d; if (f != null) frac = f; if (now != null) lastNow = now;
+    if (turn || f === 1 || Date.now() - painted > 200) { painted = Date.now(); paint(lastNow); }
+  };
   api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
   const quit = () => { if (BD.el === el) { BD.main = before; BD.wiz = wiz0; BD.pace = BD.wide = BD.gen = false; BD.avoid = null; BD.landRes = 0; dwPersist(BD.id); bdPaint(); } };      // annulée : deck et réglages d'avant
+  const pc = empty && list.length > 1 ? dsCostLoad() : null;      // durées de la dernière construction sur cet appareil : temps annoncé tout de suite
+  if (pc) { drawsK = dsDrawsFor(DS_BUDGET, list.length, pc.d, pc.t, DS_DRAWS); eta = Math.round(Math.min(DS_BUDGET, list.length * (drawsK * pc.d + pc.t)) / 1000) + 2; }
   paint(T('Préparation…'));
   try {
     set('px', 'run', '', 0.02, T('Lecture des prix du jour…'));
@@ -30345,15 +30415,17 @@ async function dsBuild(undoTo, seed) {
     if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack && (pack.n || pack.nd) ? T('{n} decks étudiés', { n: nf0(pack.n || pack.nd || 0) }) : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
     const span = 0.76 / list.length, idx = new Map(list.map((v, i) => [v.id, i]));
     BD.wiz = { ...wiz0, seed: seed || dsSeed() };
-    const res = await dsMake({ empty, list, seed: BD.wiz.seed, alive, step: (v, ph, part, n) => {
+    const res = await dsMake({ empty, list, seed: BD.wiz.seed, alive, step: (v, ph, part, n, e) => {
       if (!alive()) return; const f0 = 0.16 + idx.get(v.id) * span, f = f0 + span * part;
+      if (e) { if (e.s != null) eta = e.s; drawsK = e.k || 0; }
+      const draw = e && e.k > 1 && ph !== 'sim' ? ' · ' + T('tirage {d} sur {k}', { d: e.d, k: e.k }) : '';      // plusieurs tirages : lequel (le meilleur est gardé)
       if (ph === 'skip') return set(v.id, 'skip', T('déjà petit budget'), f);
-      if (ph === 'build') return set(v.id, 'run', T('construction'), f, T('Construction : {v}', { v: v.name }));
-      if (ph === 'opt') return set(v.id, 'run', T('amélioration'), f, n ? T('Amélioration : {v} · passe {n}', { v: v.name, n }) : T('Amélioration : {v} (échanges carte à carte tant que la note monte)', { v: v.name }));
+      if (ph === 'build') return set(v.id, 'run', T('construction') + draw, f, T('Construction : {v}', { v: v.name }));
+      if (ph === 'opt') return set(v.id, 'run', T('amélioration') + draw, f, n ? T('Amélioration : {v} · passe {n}', { v: v.name, n }) : T('Amélioration : {v} (échanges carte à carte tant que la note monte)', { v: v.name }));
       if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? T('Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name, n }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)', { v: v.name }));
     } });
     if (!res || !alive()) return quit();
-    for (const r of res) set(r.v.id, 'done', T('note {n} · {p}', { n: r.sc.total, p: fmt(r.prof.cents, cur) }) + (r.sim ? ' · ' + T('{p} % de mains gardées', { p: r.sim.keep7 }) : '') + (r.kept + r.fixed ? ' · ' + TN(r.kept + r.fixed, '{n} échange', '{n} échanges') : ''));
+    for (const r of res) set(r.v.id, 'done', T('note {n} · {p}', { n: r.sc.total, p: fmt(r.prof.cents, cur) }) + (r.sim ? ' · ' + T('{p} % de mains gardées', { p: r.sim.keep7 }) : '') + (r.kept + r.fixed ? ' · ' + TN(r.kept + r.fixed, '{n} échange', '{n} échanges') : '') + (r.draws > 1 ? ' · ' + TN(r.draws, '{n} tirage', '{n} tirages') : ''));
     set('ok', 'done', '', 1, T('Terminé'));
     if (!res.length) { quit(); api.close(); return; }
     BD.main = dsClone(res[0].main);
@@ -30596,6 +30668,7 @@ async function dsimRun(X, n = 1000, step) {
   const rnd = dsimRng(seed), stuck = new Map(), cmv = Math.max(0, ...D.cmdr.map(c => c.cmc));
   const acc = { keep7: 0, mull: 0, lands0: 0, cmdT: 0, cmdOn: 0, cmdNever: 0, miss3: 0, miss4: 0, screw4: 0, eff: 0, cast6: 0, kill: 0, killT: 0, table: 0, tableT: 0, elim: 0, cmdKill: 0, eng: 0, engT: 0, engEnd: 0, wiped: 0, wsHas: 0, wsOK: 0, saved: 0, lost: 0, win8: 0, dmg8: 0, seen6: 0 };
   const T1 = DSIM_OPP.turns + 1;
+  let ty = Date.now();
   for (let i = 0; i < n; i++) {
     const g = dsimGame(D, rnd, i % 2 === 0, stuck);
     acc.keep7 += g.mull === 0; acc.mull += g.mull; acc.lands0 += g.lands0; acc.cmdT += g.cmdTurn || 9; acc.cmdOn += g.cmdTurn && g.cmdTurn <= Math.max(1, cmv) ? 1 : 0; acc.cmdNever += !g.cmdTurn;
@@ -30603,7 +30676,7 @@ async function dsimRun(X, n = 1000, step) {
     acc.kill += !!g.killT; acc.killT += g.killT || T1; acc.table += !!g.tableT; acc.tableT += g.tableT || T1; acc.elim += g.elim; acc.cmdKill += g.cmdKill;
     acc.eng += !!g.engT; acc.engT += g.engT || T1; acc.engEnd += g.engEnd; acc.wiped += g.wiped; acc.wsHas += g.wsHas; acc.wsOK += g.wsHas && g.wsOK; acc.saved += g.saved; acc.lost += g.lost;
     acc.win8 += !!(g.winT && g.winT <= 8); acc.dmg8 += g.dmg8; acc.seen6 += g.seen6;
-    if (i % 250 === 249) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); }      // par paquets de 250 : l'écran reste fluide pendant le calcul
+    if (i % 25 === 24 && Date.now() - ty > 50) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); ty = Date.now(); }      // toutes les 50 ms environ : l'écran reste fluide pendant le calcul (téléphone lent compris ; 250 parties y duraient 0,2 s)
   }
   const pct = v => Math.round(v / n * 100);
   return { n, cmv, keep7: pct(acc.keep7), mull: acc.mull / n, lands0: acc.lands0 / n, cmdT: acc.cmdT / n, cmdOn: pct(acc.cmdOn), cmdNever: pct(acc.cmdNever), miss3: pct(acc.miss3), miss4: pct(acc.miss4), screw4: pct(acc.screw4), eff: Math.round(acc.eff / n * 100), cast6: acc.cast6 / n,

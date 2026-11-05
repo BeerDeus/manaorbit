@@ -364,6 +364,28 @@ function dwInfo(pack, set, cmd) {
 }
 /** Graine d'une carte pour un tirage : bruit de Gumbel (même graine, même tirage). */
 function dwNoise(k, seed) { let h = (seed | 0) ^ 0x9e3779b9; for (let i = 0; i < k.length; i++) h = Math.imul(h ^ k.charCodeAt(i), 2654435761); h ^= h >>> 15; const u = ((h >>> 0) % 1e6 + 0.5) / 1e6; return -Math.log(-Math.log(u)) - 0.5772; }
+/** dwNoise gardé pour la graine en cours (la génération relit les mêmes cartes des centaines de fois). */
+const DW_NOISEC = { seed: null, m: null };
+function dwNoiseOf(k, seed) { if (DW_NOISEC.seed !== seed) { DW_NOISEC.seed = seed; DW_NOISEC.m = new Map(); } let v = DW_NOISEC.m.get(k); if (v === undefined) DW_NOISEC.m.set(k, v = dwNoise(k, seed)); return v; }
+/** Candidates d'une liste (dwInfo) qui passent les filtres fixes (dans la base, couleurs du commandant, interdites, bracket, exclusions du joueur) : [[k, o, x, terrain]].
+ *  Gardé tant que la liste, la base et ces réglages ne changent pas : la génération appelle dwSuggest des centaines de fois (rapide, même sur téléphone). */
+const DW_SUGC = { C: null, src: null, key: '', l: null, w: null };
+function dwSugPool(C, ci, set, wide) {
+  const k0 = dwPopK(set), key = [[...ci].join(''), set.br, (set.ban || []).join('|'), (set.avoid || []).join('|'), k0].join('#');
+  if (!(DW_SUGC.C === C && DW_SUGC.src === DW.byKey && DW_SUGC.key === key)) { DW_SUGC.C = C; DW_SUGC.src = DW.byKey; DW_SUGC.key = key; DW_SUGC.l = null; DW_SUGC.w = null; }
+  const f = wide ? 'w' : 'l'; if (DW_SUGC[f]) return DW_SUGC[f];
+  const l = [], ok = (k, o) => {
+    if (BASIC_NAMES.has(k)) return;
+    const x = dwCard(k); if (!x || !DW.byKey.has(k)) return;
+    if ([...String(x.ci)].some(c => !ci.has(c))) return;
+    if (x.fl & 16 || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)) return;      // interdite en Commander ; bracket
+    if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
+    l.push([k, o, x, !!(x.roles & DW_RB.land)]);
+  };
+  if (wide) { for (const [k, r] of dwWidePool([...ci].join(''))) if (!C.has(k)) ok(k, { rank: r[8], k: C.plan ? k0 : 1, d: C.ask || 1 }); }      // réserve élargie : les cartes les plus jouées dans ces couleurs, hors liste
+  else for (const [k, o] of C) ok(k, o);
+  return (DW_SUGC[f] = l);
+}
 const DW_BANC = new WeakMap();
 /** Cartes exclues par le joueur (noms) et styles exclus : test sur une carte. */
 function dwExcluded(k, x, set) {
@@ -401,19 +423,12 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const curveHi = (X.pace || X.gen) && prof.nonland >= 20 && prof.mv > tgt.mv[2];
   const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
   const out = [];
-  const consider = (k, o) => {
-    if (inDeck(k) || BASIC_NAMES.has(k)) return;
-    const x = dwCard(k); if (!x || !DW.byKey.has(k)) return;
-    if ([...String(x.ci)].some(c => !ci.has(c))) return;
-    const isLand = !!(x.roles & DW_RB.land);
+  const rate = (k, o, x, isLand) => {      // filtres qui dépendent du deck en cours (place, rôle, combos, budget), puis la note
+    if (inDeck(k)) return;
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
-    if (x.fl & 16) return;      // interdite en Commander
     if (x.fl & 1 && gcLeft <= 0) return;
     const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && noCombo) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
-    if (x.fl & 4 && set.br <= 3) return;
-    if (x.fl & 2 && set.br <= 2) return;
-    if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
     if (X.pace && set.bud > 0) {      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places ; plus le budget par place est petit, plus l'écart permis est faible
@@ -443,11 +458,11 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
       else if (arch === 'control' && x.roles & (DW_RB.removal | DW_RB.wipe | DW_RB.counter | DW_RB.draw)) s += 0.08;
       if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a * (C.npack >= 40 ? 2.5 : 0.35); }      // déjà dans une autre version : recule (versions vraiment différentes ; écart à la mesure des valeurs : listes du commandant, ou réserve plate)
     }
-    if (seed && (X.pace || X.gen)) s += tau * dwNoise(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
+    if (seed && (X.pace || X.gen)) s += tau * dwNoiseOf(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
     out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
   };
-  for (const [k, o] of C) consider(k, o);
-  if (fallback) { const k0 = dwPopK(set); for (const [k, r] of dwWidePool(cmd ? cmd.ci : '')) if (!C.has(k)) consider(k, { rank: r[8], k: plan ? k0 : 1, d: C.ask || 1 }); }
+  for (const [k, o, x, isLand] of dwSugPool(C, ci, set)) rate(k, o, x, isLand);
+  if (fallback) for (const [k, o, x, isLand] of dwSugPool(C, ci, set, true)) rate(k, o, x, isLand);      // cartes de secours (rang)
   if (plan) {      // valeur pour le plan dans le deck EN COURS (au lieu de la valeur de base) : calculée pour les meilleures candidates seulement (rapide, même sur téléphone)
     out.sort((a, b) => b.s - a.s);
     for (const c of out.slice(0, Math.max(150, n * 4))) if (c.m) c.s += w.m * (dmxFit(c.m, plan, deck) - (c.o.m || 0)) * (c.o.d == null ? 1 : c.o.d);
@@ -825,7 +840,9 @@ function dwPetsInto(X, cmd) {
 function dwAutoBuild(undoTo, quiet) {
   try { return dwAutoBuildRun(undoTo, quiet); } finally { BD.pace = false; BD.wide = false; BD.landRes = 0; }      // une erreur ne laisse jamais le coach en mode génération (BD est partagé)
 }
-function dwAutoBuildRun(undoTo, quiet) {
+function dwAutoBuildRun(undoTo, quiet) { const g = dwAutoBuildGen(undoTo, quiet); let r; do r = g.next(); while (!r.done); return r.value; }
+/** La génération, carte par carte : un pas (yield) après chaque carte ajoutée ; deckopt.js › dsAutoBuild rend la main à l'écran entre deux pas. */
+function* dwAutoBuildGen(undoTo, quiet) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return 0;
   const pack = DW.cmd.get(cmd.slug) || null, before = undoTo || new Map([...BD.main].map(([k, c]) => [k, { ...c }])), n0 = dwProfile().n; BD.pace = true;
   dwPetsInto(BD, cmd);      // cartes fétiches d'abord (gardées comme les cartes du joueur)
@@ -840,9 +857,9 @@ function dwAutoBuildRun(undoTo, quiet) {
   const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - prof.cents) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
   for (const r of ['wincon', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'tutor', 'recursion']) {      // de quoi gagner d'abord : même à petit budget, le deck doit pouvoir finir la partie
     if (!tgt[r]) continue;
-    while (prof[r] < tgt[r][1] && nonland() < cap()) { const x = pick(r); if (!x) break; add(x); prof = dwProfile(); }
+    while (prof[r] < tgt[r][1] && nonland() < cap()) { const x = pick(r); if (!x) break; add(x); prof = dwProfile(); yield; }
   }
-  while (nonland() < cap()) { const x = pick(''); if (!x) break; add(x); prof = dwProfile(); }
+  while (nonland() < cap()) { const x = pick(''); if (!x) break; add(x); prof = dwProfile(); yield; }
   tgt = dwTargets(prof, cmd, pack);
   // la cible de terrains a monté (deck plus cher en mana que prévu) : les cartes ajoutées les moins utiles cèdent leur place
   const info = dwInfo(pack, BD.wiz || dwDefaults()), worth = k => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : 0; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
@@ -857,13 +874,13 @@ function dwAutoBuildRun(undoTo, quiet) {
   const rk = x => x.o.rank || x.x.rank || 0, ncol = x => new Set([...String(x.x.prod)].filter(c => cmd.ci.includes(c))).size;
   const landOk = x => (nc < 2 || ncol(x) || x.own || (x.o.incl || 0) >= 30) && (x.own || (x.o.incl || 0) >= 15 || (rk(x) && rk(x) < 300) || (nc >= 2 && rk(x) && rk(x) < 3000 && ncol(x) >= 2));      // très joué, ou terrain bicolore et plus de ces couleurs ; deck multicolore : un terrain incolore seulement s'il est vraiment joué avec ce commandant
   BD.wide = true;      // terrains : toutes les cartes jouées dans les couleurs, pas seulement les listes du commandant (les terrains bicolores y manquent souvent)
-  for (let i = 0; i < nb && size() < slots; i++) { const x = dwSuggest('land', cmd, pack, prof, tgt, 10).find(landOk); if (!x) break; add(x); prof = dwProfile(); }
+  for (let i = 0; i < nb && size() < slots; i++) { const x = dwSuggest('land', cmd, pack, prof, tgt, 10).find(landOk); if (!x) break; add(x); prof = dwProfile(); yield; }
   BD.wide = false;
   dwFillBasics(true); prof = dwProfile();
   while (size() < slots) {      // places restantes : le plan, puis les cartes très jouées dans les couleurs (petit budget, commandant peu connu) ; sinon le deck reste incomplet (« complète à la main »)
     let x = pick('');
     if (!x) { BD.pace = false; x = pick(''); BD.pace = true; }      // rien d'assez bon marché pour étaler le budget : ce qui rentre encore dans ce qui reste
-    if (!x) break; add(x); prof = dwProfile();
+    if (!x) break; add(x); prof = dwProfile(); yield;
   }
   BD.pace = false; BD.landRes = 0;
   const added = size() - (n0 - BD.cmdr.length), total = size() + BD.cmdr.length; BD.dirty = true;

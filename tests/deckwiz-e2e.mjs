@@ -141,6 +141,8 @@ assert.ok(vers.length >= 3 && /^Équilibrée \d+\/100$/.test(vers[0]) && vers.so
 { const sc = await p.$$eval('.ds-v .ds-vn', l => l.map(x => parseInt(x.textContent, 10))), top = Math.max(...sc), uniq = sc.filter(v => v === top).length === 1;      // « Meilleure note » : seulement quand une version est seule en tête
   assert.equal(await p.$$eval('.ds-v em', l => l.length), uniq ? 1 : 0, 'meilleure note signalée seulement si une version est seule en tête : ' + sc.join(', ')); }
 await shot(p, 'versions');
+// tirages par version selon la vitesse mesurée (30 s pour les 4 versions) : ordinateur 3 (1 s le tirage), téléphone moyen 2 (2,75 s), très lent 1 ; durées gardées pour annoncer le temps
+assert.deepEqual(await p.evaluate(() => [DS_BUDGET, dsDrawsFor(30000, 4, 1000, 600, 3), dsDrawsFor(30000, 4, 2750, 2400, 3), dsDrawsFor(30000, 4, 9000, 6000, 3), dsDrawsFor(30000, 1, 2750, 2400, 3)]), [30000, 3, 2, 1, 3]);
 await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
 const gen = await p.evaluate(() => { const m = new Map([...BD.main].map(([k, c]) => [k, c.qty])); let n = 0; for (const q of m.values()) n += q; return { keys: [...m.keys()], n, plains: m.get('plains') || 0, swamp: m.get('swamp') || 0, mountain: m.get('mountain') || 0, prof: (p => ({ land: p.land, ramp: p.ramp, cents: p.cents, gc: p.gc.length }))(dwProfile()) }; });
 for (const k of ['arcane signet', 'swords to plowshares', 'nights whisper', 'phyrexian arena', 'wrath of god', 'command tower']) assert.ok(gen.keys.includes(k), 'générée : ' + k);
