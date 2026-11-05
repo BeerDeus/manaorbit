@@ -31,6 +31,14 @@ Le `package.json` de la racine est celui du déploiement : **aucune dépendance*
 
 Toujours committer `src/` **et** `deck-deal.html` (avec `i18n/`) ensemble.
 
+## Textes : nombres, pourcentages, pluriels, « Afficher plus »
+
+Règle de rédaction (`core.js`, vérifiée par `tests/test-i18n-langs.mjs`) :
+- **Pluriel** : un nombre qui peut valoir 1 passe par `TN(n, '{n} carte reçue', '{n} cartes reçues', v)` (règle de chaque langue, `n` écrit à la locale), jamais `T('{n} cartes…', { n })` (« 1 cartes »). Le singulier se traduit dans les 5 langues (nouveau texte : `src/i18n/<langue>.<module>.json`, lot du 5 novembre : `*.r4.json`) ; le pluriel garde sa clé. `TN` reçoit le nombre brut, jamais `nf0(n)` (texte : `Number` le lit mal). Exceptions (nombre jamais égal à 1 : constante, texte choisi au-delà de 1) : `PL_KEEP` du test, avec la raison.
+- **Nombre** dans un texte : `num(v)` (« 1 234 » en français, « 1,234 » en anglais) ou `num(v, d)` (d décimales : « 3,12 ») ; jamais `toFixed` ni `{n}` brut pour un grand nombre. `nf0` et `dsNum` passent par `num`.
+- **Pourcentage** : `pct(v)` (v en points : « 78 % » en français, « 78% » en anglais, clé `'{n} %'`) ; jamais `+ ' %'` ni `${v} %` hors de `T`. `pctTxt(p)` (viewer.js) : p en fraction, « < 1 % » et « 100 % » aux bords.
+- **Afficher plus** : `moreBtn(shown, total, step, attrs)` (rien quand tout est montré ; attrs : `data-act="…"`, classe par défaut `btn ghost block coll-more`) et `moreLabel(left, step)` pour repeindre le libellé ; un seul libellé partout, « Afficher 30 de plus (45 autres) ». Chaque écran garde sa taille de tranche.
+
 ## Tests
 
     cd tests && npm ci && cd ..

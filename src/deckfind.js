@@ -106,7 +106,7 @@ function dfPaint() {
     : !tgt ? `<p class="hint df-note">${T('Ce deck n\'est pas dans Mes decks : « + au deck » l\'y enregistre, avec la carte.')}</p>` : '';
   const fr = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.df-row') : null, fk = fr && body.contains(fr) ? fr.dataset.k : '';      // repeint (synchro de Mes decks) : le focus reste sur la même carte
   body.innerHTML = `${note}<div class="df-list">${shown.map(x => dfRowHtml(e, x, cname, canAdd)).join('')}</div>
-    ${rows.length > shown.length ? `<button class="link-btn df-more" type="button" data-df="more">${T('Voir plus ({n} restantes)', { n: nf0(rows.length - shown.length) })}</button>` : ''}`;
+    ${moreBtn(shown.length, rows.length, DF_PAGE, 'class="link-btn df-more" data-df="more"')}`;
   const back = fk && $$('.df-row', body).find(r => r.dataset.k === fk); if (back) { const b = $('.df-add', back); if (b) b.focus({ preventScroll: true }); }
 }
 function dfRowHtml(e, x, cname, canAdd) {

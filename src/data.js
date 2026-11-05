@@ -765,7 +765,7 @@ async function runLive(cards, opts, hooks, signal) {
       hooks.step('prints', 'run', label()); hooks.progress(0.15 * done / total);
     });
   } finally { limScry.onWait = null; }
-  hooks.step('prints', 'done', T('{n} cartes', { n: total }));
+  hooks.step('prints', 'done', TN(total, '{n} carte', '{n} cartes'));
 
   hooks.step('catalog', 'run', T('Extensions…'));
   const exps = await getExpansions(signal);
@@ -779,7 +779,7 @@ async function runLive(cards, opts, hooks, signal) {
     bpIndex.set(id, await getBlueprints(id, signal)); bd++;
     hooks.step('catalog', 'run', T('{done} / {total} extensions', { done: bd, total: ids.length })); hooks.progress(0.15 + 0.25 * bd / ids.length);
   });
-  hooks.step('catalog', 'done', T('{n} extensions', { n: ids.length }));
+  hooks.step('catalog', 'done', TN(ids.length, '{n} extension', '{n} extensions'));
 
   const plan = cards.map(c => {
     const w = edWant(c), bps = mapBlueprints(c, printsUse(c), exps, bpIndex);
@@ -804,7 +804,7 @@ async function runLive(cards, opts, hooks, signal) {
   // Foil et langue par ligne (c.ln : « *F* », « *N* », « *FR* ») : la carte cherche les offres de chacune de ses lignes (lnQueries), les autres ceux de la recherche
   const first = await offersPass(entries.map(e => (e.c.ln ? { ...e, qs: lnQueries(e.c, opts) } : e)), opts.lang, opts, signal, (e, offers) => hooks.card(e.c.key, { offers, bps: e.bps, img: e.img, meta: e.meta }), tick({ from: 0.4, to: 0.95 }));
   hooks.cacheAge(first.cacheAge);
-  hooks.step('offers', 'done', first.mode === 'job' ? T('sur le serveur · {n} s', { n: Math.max(1, Math.round((performance.now() - t0) / 1000)) }) : T('{n} requêtes · {s} s', { n: first.total, s: Math.max(1, Math.round((performance.now() - t0) / 1000)) }));
+  hooks.step('offers', 'done', first.mode === 'job' ? T('sur le serveur · {n} s', { n: Math.max(1, Math.round((performance.now() - t0) / 1000)) }) : TN(first.total, '{n} requête · {s} s', '{n} requêtes · {s} s', { s: Math.max(1, Math.round((performance.now() - t0) / 1000)) }));
 
   if (opts.fallbackEn && opts.lang !== 'en') {
     const miss = entries.filter(e => e.bps.length && hooks.needsEn(e.c.key, e.c));      // une ligne qui impose sa langue n'a pas de repli
@@ -815,7 +815,7 @@ async function runLive(cards, opts, hooks, signal) {
         hooks.card(e.c.key, { offers, bps: e.bps, img: e.img, meta: e.meta, fellBack: true });
       }, (done, total, info) => { hooks.progress(0.95 + 0.05 * fd / miss.length); if (info && info.mode === 'job') hooks.rate(info.rps || 0, info.sent || 0, info.cached ? T('{n} depuis le cache', { n: info.cached }) : ''); });
       hooks.cacheAge(second.cacheAge);
-      hooks.step('fallback', 'done', T('{n} cartes', { n: miss.length }));
+      hooks.step('fallback', 'done', TN(miss.length, '{n} carte', '{n} cartes'));
     } else hooks.step('fallback', 'skip', T('Inutile'));
   } else hooks.step('fallback', 'skip', T('Désactivé'));
   hooks.hint(false);
@@ -834,10 +834,10 @@ async function runDemo(cards, opts, hooks, signal) {
   const total = cards.length;
   hooks.step('prints', 'run', '0 / ' + total);
   for (let i = 0; i < total; i++) { await sleep(14 + (hash32(cards[i].key) % 16), signal); hooks.step('prints', 'run', (i + 1) + ' / ' + total); hooks.progress(0.15 * (i + 1) / total); }
-  hooks.step('prints', 'done', T('{n} cartes', { n: total }));
+  hooks.step('prints', 'done', TN(total, '{n} carte', '{n} cartes'));
   hooks.step('catalog', 'run', T('Extensions…'));
   const nExp = 9; for (let i = 1; i <= nExp; i++) { await sleep(70, signal); hooks.step('catalog', 'run', T('{done} / {total} extensions', { done: i, total: nExp })); hooks.progress(0.15 + 0.25 * i / nExp); }
-  hooks.step('catalog', 'done', T('{n} extensions', { n: nExp }));
+  hooks.step('catalog', 'done', TN(nExp, '{n} extension', '{n} extensions'));
   hooks.step('offers', 'run', '0 / ' + total);
   let reqs = 0; const t0 = performance.now();
   const skip = opts.skip || new Set();
@@ -851,7 +851,7 @@ async function runDemo(cards, opts, hooks, signal) {
     hooks.progress(0.4 + 0.55 * (i + 1) / total);
     hooks.rate(reqs / Math.max(1, (performance.now() - t0) / 1000), reqs);
   }
-  hooks.step('offers', 'done', T('{n} requêtes simulées', { n: reqs }));
+  hooks.step('offers', 'done', TN(reqs, '{n} requête simulée', '{n} requêtes simulées'));
   if (opts.fallbackEn && opts.lang !== 'en') {
     const miss = cards.filter(c => !skip.has(c.key) && hooks.needsEn(c.key, c));
     if (miss.length) {
@@ -861,7 +861,7 @@ async function runDemo(cards, opts, hooks, signal) {
         hooks.card(miss[i].key, { offers: makeDemoOffers(miss[i], 'en'), bps: [{ id: 1 }], img: null, fellBack: true });
         hooks.step('fallback', 'run', (i + 1) + ' / ' + miss.length); hooks.progress(0.95 + 0.05 * (i + 1) / miss.length);
       }
-      hooks.step('fallback', 'done', T('{n} cartes', { n: miss.length }));
+      hooks.step('fallback', 'done', TN(miss.length, '{n} carte', '{n} cartes'));
     } else hooks.step('fallback', 'skip', T('Inutile'));
   } else hooks.step('fallback', 'skip', T('Désactivé'));
   hooks.progress(1);

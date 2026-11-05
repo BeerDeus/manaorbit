@@ -480,7 +480,7 @@ async function amCollSheet(f) {
       if (typeof srchxNeed === 'function') srchxNeed(flt, all, again);
       box.innerHTML = `${filterActive(flt) ? `<p class="hint coll-count">${TN(list.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}</p>` : ''}
         ${sh.length ? `<div class="coll-list">${sh.map(amCollRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : 'Collection vide pour l\'instant.')}</p>`}
-        ${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-am="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(AM_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`;
+        ${moreBtn(sh.length, list.length, AM_PAGE, 'data-am="more"')}`;
       const need = sh.filter(x => !x.im).map(x => ({ key: x.k, name: x.n }));      // images des cartes affichées seulement
       if (need.length && dmRun < 3 && dmMissing(need).length) { dmRun++; dmFetch(need).then(got => { if (got && api.wrap.isConnected) paint(); }, () => {}); }
     };

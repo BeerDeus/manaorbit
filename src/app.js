@@ -379,16 +379,15 @@ function setStep(id, state, detail) {
 }
 function setProgress(f) {
   f = Math.max(0, Math.min(1, f));
-  $('#progFill').style.width = (f * 100).toFixed(1) + '%'; $('#progPct').textContent = T('{n} %', { n: Math.round(f * 100) });
+  $('#progFill').style.width = (f * 100).toFixed(1) + '%'; $('#progPct').textContent = pct(Math.round(f * 100));
   if (S.run) { S.run.frac = f; paintSearchTask(); }
 }
 function paintSearchTask() {
   const r = S.run, t = r && r.task; if (!t || t.done) return;
-  t.set(Math.round(r.frac * 100), 100, T('{n} %', { n: Math.round(r.frac * 100) }) + (r.step ? ' · ' + r.step : ''));
+  t.set(Math.round(r.frac * 100), 100, pct(Math.round(r.frac * 100)) + (r.step ? ' · ' + r.step : ''));
 }
 function setRate(rps, total, extra) {
-  const dec = (new Intl.NumberFormat(LOC()).formatToParts(1.5).find(p => p.type === 'decimal') || { value: '.' }).value;      // virgule décimale de la langue (français, allemand…)
-  $('#progRate').textContent = T('{total} requêtes · {rps} / s', { total, rps: rps.toFixed(1).replace('.', dec) }) + (extra ? ' · ' + extra : '');
+  $('#progRate').textContent = T('{total} requêtes · {rps} / s', { total: num(total), rps: num(rps, 1) }) + (extra ? ' · ' + extra : '');
 }
 
 /** Une ligne de la liste : le bouton de la carte + une petite croix (visible une fois la carte scannée). */
@@ -468,7 +467,7 @@ function applyView(force) {
 }
 function paintUndo() {
   const n = S.removed.length, bar = $('#undoBar'); bar.hidden = !n; if (!n) return;
-  $('#undoTxt').textContent = n === 1 ? T('{name} retirée de la liste', { name: S.removed[0].name }) : T('{n} cartes retirées de la liste', { n });
+  $('#undoTxt').textContent = n === 1 ? T('{name} retirée de la liste', { name: S.removed[0].name }) : TN(n, '{n} carte retirée de la liste', '{n} cartes retirées de la liste');
   $('#undoAll').textContent = n === 1 ? T('Remettre') : T('Tout remettre');
 }
 /** Retire une carte de la liste (et donc du panier) : ses lignes sortent de la decklist, annulable. */
@@ -488,7 +487,7 @@ function undoRemove(all) {
   const ta = $('#deckText'); let n = 0, last = null;
   do { last = S.removed.pop(); ta.value = restoreLines(ta.value, last.removed); n++; } while (all && S.removed.length);
   S.isSample = false; refreshDeck(); paintUndo(); haptic('tap'); scheduleRecompute(true);
-  toast(n > 1 ? T('{n} cartes remises', { n }) : T('{name} remise', { name: last.name }));
+  toast(n > 1 ? TN(n, '{n} carte remise', '{n} cartes remises') : T('{name} remise', { name: last.name }));
 }
 
 /** Message + action pour un refus d'accès du proxy, selon la raison renvoyée (auth_required, forbidden, bad_token, bad_app_key…). */
@@ -759,7 +758,7 @@ function updateRow(el, c, v, st) {
     if (top.foil) tags.push('<span class="tag accent">Foil</span>');
     if (pick.parts.length > 1) tags.push(`<span class="tag">${TN(pick.parts.length - 1, '+{n} offre', '+{n} offres')}</span>`);
     if (pick.short > 0) tags.push(`<span class="tag warn">${T('Il en manque {n}', { n: pick.short })}</span>`);
-    if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">${mkAb()} ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + T('{n} %', { n: ri.pct }) : ''}</span>`);
+    if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">${mkAb()} ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + pct(ri.pct) : ''}</span>`);
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
     const small = pick.parts.length === 1 && n > 1 ? `${n} × ${fmt(top.price, top.cur)}` : '';
     imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`);
@@ -873,7 +872,7 @@ function updateRecap() {
   if (!isCm() && S.opts.fallbackEn && S.opts.lang !== 'en') crit.push(T('repli anglais'));
   if (exactOn()) crit.push(T('éditions exactes'));
   { const lf = lns.some(l => l.f), ll = lns.some(l => l.l); if (lf || ll) crit.push(lf && ll ? T('foil et langue par ligne') : lf ? T('foil par ligne') : T('langue par ligne')); }      // « *F* », « *FR* » : ces lignes gardent les leurs
-  const html = `<div class="recap-top"><b>${r.found}</b><span> / ${T('{n} cartes trouvées', { n: r.total })}</span><i></i><span>${TN(r.copies, '{n} exemplaire', '{n} exemplaires')}</span></div>`
+  const html = `<div class="recap-top"><b>${r.found}</b><span> / ${TN(r.total, '{n} carte trouvée', '{n} cartes trouvées')}</span><i></i><span>${TN(r.copies, '{n} exemplaire', '{n} exemplaires')}</span></div>`
     + (chips.length ? `<div class="recap-chips">${chips.join('')}</div>` : '')
     + `<div class="recap-crit">${esc(crit.join(' · ').replace(/^./, m => m.toUpperCase()))}</div>`;
   if (host._sig !== html) { host._sig = html; host.innerHTML = html; }
@@ -891,12 +890,12 @@ function openOfferSheet(key) {
   const ownBtn = api => {
     if (!need0) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'link-btn link-inline ownbtn';
-    b.textContent = need0 > 1 ? T('Je possède déjà ces {n} exemplaires', { n: need0 }) : T('Je possède déjà cette carte');
+    b.textContent = TN(need0, 'Je possède déjà cette carte', 'Je possède déjà ces {n} exemplaires');
     b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: T('Annuler'), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
     api.body.appendChild(b);
   };
   if (isCm()) {
-    openSheet(c.dn || c.name, c.qty > 1 ? T('{n} exemplaires', { n: c.qty }) : null, api => {
+    openSheet(c.dn || c.name, c.qty > 1 ? TN(c.qty, '{n} exemplaire', '{n} exemplaires') : null, api => {
       const o = (S.fo[key] || [])[0];
       api.body.innerHTML = `${o ? `<div class="cm-price"><b>${fmt(o.price)}</b><span>${T('Prix tendance Cardmarket de l\'impression la moins chère, par exemplaire.')}</span></div>` : `<p class="hint">${st.notFound ? T('Scryfall ne connaît pas ce nom. Corrige-le dans la liste.') : T('Aucun prix Cardmarket connu pour cette carte.')}</p>`}
         <a class="btn ghost small" href="${esc(mkUrl(c.name, userLang()))}" target="_blank" rel="noopener noreferrer" style="align-self:flex-start">${T('Voir sur Cardmarket ↗')}</a>
@@ -906,7 +905,7 @@ function openOfferSheet(key) {
     return;
   }
   const lw = lnOn(c) ? lnNeed(c).map(l => l.l || S.opts.lang) : S.opts.lang;      // langue(s) voulue(s) : celles des lignes (« *DE* »)
-  openSheet(c.dn || c.name, c.qty > 1 ? T('{n} exemplaires', { n: c.qty }) : null, api => {
+  openSheet(c.dn || c.name, c.qty > 1 ? TN(c.qty, '{n} exemplaire', '{n} exemplaires') : null, api => {
     if (!list.length) {
       const canEn = S.opts.lang !== 'en' && !st.fellBack && !st.notFound && lnCanEn(c);
       const hubOnly = !st.notFound && (S.fo[key] || []).length > 0; // des offres existent, mais aucune compatible Zero
@@ -934,7 +933,7 @@ function openOfferSheet(key) {
     api.body.innerHTML = `<div class="offers">${list.map(o => `<div class="offer-row"><button type="button" class="offer" data-id="${esc(o.id)}" aria-pressed="${chosen.has(o.id)}">
       <span class="o-who">${esc(o.seller)}${o.country ? `<i>${esc(o.country)}</i>` : ''}</span><span class="o-price">${fmt(o.price, o.cur)}</span>
       <span class="o-meta"><span class="tag">${esc((o.set || '').toUpperCase())}${o.num ? ' ' + esc(o.num) : ''}</span><span class="tag">${esc(COND_SHORT[o.cond] || o.cond)}</span>${langTag(o.lang, lw)}${o.foil ? '<span class="tag accent">Foil</span>' : ''}${o.hub ? '<span class="tag good">Zero</span>' : ''}<span class="tag">${T('{n} dispo', { n: o.qty })}</span></span></button>${link(o)}</div>`).join('')}</div>
-      ${ri ? `<p class="hint refline" data-l="${ri.level}">${T('<b>Réf. Cardmarket {ref}</b> par exemplaire (prix Scryfall) · ton prix {unit}', { ref: esc(fmt(ri.ref)), unit: esc(fmt(ri.unit)) })}${ri.diff === 0 ? '' : ` (${ri.pct > 0 ? '+' : '−'}${T('{n} %', { n: Math.abs(ri.pct) })})`}</p>` : ''}
+      ${ri ? `<p class="hint refline" data-l="${ri.level}">${T('<b>Réf. Cardmarket {ref}</b> par exemplaire (prix Scryfall) · ton prix {unit}', { ref: esc(fmt(ri.ref)), unit: esc(fmt(ri.unit)) })}${ri.diff === 0 ? '' : ` (${ri.pct > 0 ? '+' : '−'}${pct(Math.abs(ri.pct))})`}</p>` : ''}
       ${mode === 'zero' ? `<p class="hint">${T('Seules les offres compatibles Zero sont listées.')}</p>` : ''}${S.run.live ? `<p class="hint">${T('Touche ↗ pour voir la carte et ses vendeurs sur CardTrader.')}</p>` : ''}`;
     ownBtn(api); alWatchBtn(api, c.name);
     api.body.onclick = e => {
@@ -1486,7 +1485,7 @@ function handleLaunch() {
 function putDeckText(text, name, o) {
   S.opts.exactEd = !!(o && o.exactEd); saveStore();      // éditions exactes : seulement pour une liste qui le demande (masterset) ; une liste partagée, n'importe quelle édition
   const ta = $('#deckText'); ta.value = text; S.isSample = false; S.deckId = null; S.removed = []; if (S.view !== 'input') showView('input'); refreshDeck();
-  toast((name ? name + ' · ' : '') + T('{n} cartes reçues', { n: S.deck.cards.length })); window.scrollTo({ top: $('.field').offsetTop - 70, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  toast((name ? name + ' · ' : '') + TN(S.deck.cards.length, '{n} carte reçue', '{n} cartes reçues')); window.scrollTo({ top: $('.field').offsetTop - 70, behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
 /** Contenu reçu du menu « Partager » : une decklist en texte, ou un lien (EDHREC, Archidekt) lu par le serveur. Moxfield n'a pas d'API publique : ses liens ne sont pas lus. */
 async function onShared(sh) {
@@ -1505,7 +1504,7 @@ function paintCollSwitch() {
   const n = collCount(); row.hidden = !n; if (!n) return;
   $('#optColl').checked = S.useColl;
   const own = S.deck.cards.filter(c => c.own > 0).length, held = S.useColl ? engHeldBack(S.deck.cards) : { n: 0, names: [] };
-  const decks = held.names.length > 2 ? T('{n} decks', { n: held.names.length }) : held.names.join(' ' + T('et') + ' ');
+  const decks = held.names.length > 2 ? TN(held.names.length, '{n} deck', '{n} decks') : held.names.join(' ' + T('et') + ' ');
   const note = held.n ? ' ' + TN(held.n, '{n} exemplaire réservé par {decks} n\'est pas compté.', '{n} exemplaires réservés par {decks} ne sont pas comptés.', { decks }) : '';
   $('#collHint').textContent = !S.useColl ? T('Désactivé : toutes les cartes sont cherchées.')
     : (own ? TN(own, '{n} carte de cette liste est dans ta collection : non cherchée.', '{n} cartes de cette liste sont dans ta collection : non cherchées.') : T('Aucune carte de cette liste n\'est dans ta collection.')) + note;

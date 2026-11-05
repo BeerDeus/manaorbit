@@ -12,6 +12,17 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Regroupements du 5 novembre
+
+**Lot R4 : nombres, pourcentages, pluriels, « Afficher plus »** (Claude, branche locale `lot-r4`, pas poussée : le propriétaire fusionne) — règle dans `DEV.md` › « Textes : nombres, pourcentages, pluriels, « Afficher plus » » :
+- `core.js` : `num(v, d)` (locale de l'appli), `pct(v)` (« 78 % » / « 78% » selon la langue), `moreBtn(shown, total, step, attrs)` et `moreLabel(left, step)`.
+- Pourcentages collés hors de `T` (« 78 % » en anglais à côté de « 78% ») : alertes (variation, dernières alertes, seuils), visionneuse (prix de référence, `pctTxt`), Master Set, statistiques des parties, rapport de scan, troc, valeur, progression de lecture → `pct`.
+- Nombres : `toFixed` dans les textes (« 3.12 » en français : coût moyen du rapport et de l'assistant, repère, terrains sur 7 cartes, requêtes par seconde, aperçu du scan) → `num` ; `nf0`, `dsNum` passent par `num`.
+- Pluriels : 49 `T('{n} …s')` passés à `TN` (« 1 carte reçue », « Collection exportée (1 carte) », « 1 carte · 1 exemplaire », « 1 carte lue », « et 1 autre »…), singuliers traduits (`src/i18n/*.r4.json`, avec 8 textes du musée qui n'avaient aucune traduction) ; 25 textes gardés en `T` (nombre jamais égal à 1, liste `PL_KEEP` de `tests/test-i18n-langs.mjs`).
+- « Afficher plus » : 6 libellés (« … · {b} restantes », « … cartes de plus ({rest} restantes) », « … restants », « Voir plus ({n} restantes) », « Afficher plus ({n} autres) ») → un seul, « Afficher 30 de plus (45 autres) », sur 13 boutons (collection, Les plus chères, extension, variations de prix, éditeur ×2, De ta collection pour ce deck, À monter, amis, échange ×2, troc, scan) ; tailles de tranche inchangées.
+- Test anti-régression (`tests/test-i18n-langs.mjs`) : refuse un `T(` avec « {n} » suivi d'un mot en « s » (mots invariables et `PL_KEEP` à part), une forme de `TN` sans traduction, « ' %' » ou `${v} %` hors de `T`, `toFixed` dans un texte ; vérifie `num`, `pct`, `moreLabel`, `moreBtn` en français, anglais et allemand.
+- [ ] Ouvert : pluriels d'autres variables que `{n}` (« {a} decks sur {b} », « {m} conseillées », « {total} requêtes ») et nombres passés bruts sans `TN` (« {n} » d'un grand total) : non vérifiés par le test.
+
 ## Point du 5 novembre (soir) : éditeur de deck, ajouter en nombre (rangement, filtres, appui long)
 
 **Fait (Claude, branche locale `lot-add`, pas poussée : le propriétaire fusionne)** — README › « Créer un deck dans l'app » › « Ajouter en nombre » ; code `src/bdadd.js` (+ `builder.js`, `search.js` › `srchSync`, `back.js`, `core.js` › `dkCheck`), test `tests/bdadd-e2e.mjs` :

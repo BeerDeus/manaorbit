@@ -243,7 +243,7 @@ async function dsimRun(X, n = 1000, step) {
 }
 const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort(), ...((X.wiz && X.wiz.th) || []), ...((X.wiz && X.wiz.mech) || [])].join('|');      // thèmes et mécaniques choisis : le plan (moteur, plan non joué) en dépend
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
-const dsimPct = v => T('{n} %', { n: Number(v).toLocaleString(LOC()) });      // « 74 % » en français, « 74% » en anglais (dictionnaires)
+const dsimPct = v => pct(v);      // « 74 % » en français, « 74% » en anglais (dictionnaires)
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
 function dsimHtml(r, prog, o = {}) {
   // lu d'un coup d'œil : une phrase, 4 chiffres clés (mains, commandant, adversaire éliminé, moteur qui tient), les conseils ; tous les chiffres et la méthode repliés
@@ -261,7 +261,7 @@ function dsimHtml(r, prog, o = {}) {
     ${r.cmv ? row(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps (tour {t} ou avant)', { t: r.cmv }), T('tour {t} en moyenne', { t: dsimNum(r.cmdT) }) + (r.cmdNever ? ' · ' + T('jamais avant le tour 9 : {p}', { p: dsimPct(r.cmdNever) }) : '')) : ''}
     ${row(r.miss3 <= 20, dsimPct(r.miss3), T('des parties sans terrain à poser avant le tour 4'), T('{p} avant le tour 5', { p: dsimPct(r.miss4) }))}
     ${row(r.screw4 <= 10, dsimPct(r.screw4), T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
-    ${row(r.eff >= 70, dsimPct(r.eff), T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}
+    ${row(r.eff >= 70, dsimPct(r.eff), T('du mana disponible utilisé (tours 1 à 6)'), TN(Math.round(r.cast6 * 10) / 10, '{n} sort lancé en moyenne', '{n} sorts lancés en moyenne'))}
     ${r.kill10 != null && !r.blind ? row(r.kill10 >= 20, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
     ${r.eng != null ? row(r.eng >= 50, dsimPct(r.eng), T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
     ${r.engKeep != null && r.eng ? row(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage'), r.wipeSurv != null ? T('moteur encore là au tour qui suit le balayage : {p}', { p: dsimPct(r.wipeSurv) }) : '') : ''}

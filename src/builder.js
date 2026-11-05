@@ -356,7 +356,7 @@ function bdSumHtml() {
   const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
   return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${valT}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
-    ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
+    ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : TN(ck.issues.length - 3, 'Voir l\'autre alerte', 'Voir les {n} autres alertes')}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
 /** Deck Commander : carte que Scryfall dit pas légale en Commander (interdite…) ; formats lus avec les infos de la carte (COLL.meta[k].lg), inconnus : non. */
@@ -455,7 +455,7 @@ function bdCollHtml() {
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
   if (!items.length) h += `<p class="hint">${words.length ? T('Aucune carte de ta collection ne correspond.') : BD.tgt === 'cmdr' ? T('Aucun commandant possible dans ta collection (ou cartes pas encore lues).') : ''}</p>`;
-  if (items.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, items.length - shown.length), rest: nf0(items.length - shown.length) })}</button>`;
+  h += moreBtn(shown.length, items.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
   return h;
 }
 /** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
@@ -467,7 +467,7 @@ function bdAddHtml() {
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées »
   if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + (own.length > 1 && !BD.sel && BD.tgt !== 'cmdr' && !bdLpKnown() ? `<p class="hint bd-lp-hint">${T('Appui long sur une carte : en choisir plusieurs.')}</p>` : '') + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');      // astuce : jusqu'au premier appui long (bdadd.js)
-  if (own.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, own.length - shown.length), rest: nf0(own.length - shown.length) })}</button>`;
+  h += moreBtn(shown.length, own.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
   if (q.length >= 2 && !flt) {      // toutes les cartes Magic : sans filtre seulement (rangement, couleur… ne valent que pour la collection)
     if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
     else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;

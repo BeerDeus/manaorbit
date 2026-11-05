@@ -328,7 +328,7 @@ function dlyTick() {
     const v = DY.v, c = dlyClock(v), ms = v.stepMs || 12000, st = Math.min(v.steps, Math.floor(c / ms) + 1);
     const t = $('.dly-time', el), p = $('.dly-pts', el), bar = $('.dly-bar i', el), nx = $('.dly-in', el);
     if (t) t.textContent = dlyMmss(c);
-    if (p) p.textContent = T('≈ {n} points', { n: nf0(dlyPts(c)) });
+    if (p) p.textContent = TN(dlyPts(c), '≈ {n} point', '≈ {n} points');
     if (bar) bar.style.width = (st >= v.steps ? Math.min(100, (c - (v.steps - 1) * ms) / ms * 100) : (c % ms) / ms * 100).toFixed(1) + '%';
     if (nx) nx.textContent = st < v.steps ? T('dans {n} s', { n: Math.max(1, Math.ceil((st * ms - c) / 1000)) }) : '';
     if (st > v.step && !DY.busy && !DY.refT) DY.refT = setTimeout(dlyRefresh, 80);

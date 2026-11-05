@@ -98,6 +98,19 @@ function TN(n, one, many, v) {
   const key = (pr ? pr.select(x) === 'one' : x === 1) ? one : many;
   return T(key, { n: x.toLocaleString(LOC()), ...v });
 }
+/** Nombre écrit dans la locale de l'appli (LOC) : num(1234) → « 1 234 » (français), « 1,234 » (anglais) ; num(3.125, 2) → « 3,13 » : d décimales toujours écrites
+ *  (sans d : jusqu'à 3, comme toLocaleString). Jamais toFixed dans un texte (« 3.12 » en français). */
+const num = (v, d) => Number(v || 0).toLocaleString(LOC(), d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Pourcentage, v en points : pct(78) → « 78 % » (français, allemand, espagnol), « 78% » (anglais, italien, portugais) : clé '{n} %' des dictionnaires ; d : décimales (num).
+ *  Jamais « + ' %' » hors de T. */
+const pct = (v, d) => T('{n} %', { n: num(v, d) });
+/** « Afficher plus » des listes par tranches : libellé unique (left : éléments pas encore montrés, step : taille de la tranche de l'écran). */
+const moreLabel = (left, step) => TN(left, 'Afficher {a} de plus ({n} autre)', 'Afficher {a} de plus ({n} autres)', { a: num(Math.min(step, left)) });
+/** Bouton « Afficher plus » : '' quand tout est montré (shown ≥ total) ; attrs : attributs du bouton (data-act…), classe par défaut « btn ghost block coll-more ». */
+function moreBtn(shown, total, step, attrs = '') {
+  const left = total - shown; if (!(left > 0)) return '';
+  return `<button type="button" ${/\bclass=/.test(attrs) ? '' : 'class="btn ghost block coll-more" '}${attrs}>${moreLabel(left, step)}</button>`;
+}
 /** Locale des nombres et des dates : fr-FR ; anglais : celle du navigateur (en-US, en-GB…) ; autre langue : sa variante du téléphone (de-AT, es-MX, it-CH, pt-PT…),
  *  sinon celle de LOC_DEF (de-DE, es-ES, it-IT ; portugais : pt-BR, celui des cartes Magic). Les prix restent en euros : la locale n'en change que l'écriture (« 1.234,56 € » en allemand). */
 const LOC_DEF = { de: 'de-DE', es: 'es-ES', it: 'it-IT', pt: 'pt-BR' }, LOC_MEMO = {};
@@ -2663,6 +2676,8 @@ if (typeof module !== 'undefined' && module.exports) {
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
+// Nombres, pourcentages et « Afficher plus » écrits dans la langue de l'appli : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient

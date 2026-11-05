@@ -160,7 +160,7 @@ function daActions(prof, tgt, cmd, set, swaps, pack) {
     out.push({ k: r, sg: '+', t: TN(n, DA_ROLE[r][0], DA_ROLE[r][1]), s: T('{n} dans le deck, {m} conseillées', { n: v, m: mid }), gain, issue });
   }
   const dl = prof.land - tgt.land[1];
-  if (dl) out.push({ k: 'land', sg: dl > 0 ? '−' : '+', t: dl > 0 ? TN(dl, 'Retirer {n} terrain', 'Retirer {n} terrains') : TN(-dl, 'Ajouter {n} terrain', 'Ajouter {n} terrains'), s: T('{n} terrains, {m} conseillés', { n: prof.land, m: tgt.land[1] }), gain: Math.min(1, Math.abs(dl) * 0.12) * 10, issue: dl > 0 ? T('un peu trop de terrains') : T('un peu juste en terrains') });
+  if (dl) out.push({ k: 'land', sg: dl > 0 ? '−' : '+', t: dl > 0 ? TN(dl, 'Retirer {n} terrain', 'Retirer {n} terrains') : TN(-dl, 'Ajouter {n} terrain', 'Ajouter {n} terrains'), s: TN(prof.land, '{n} terrain, {m} conseillés', '{n} terrains, {m} conseillés', { m: tgt.land[1] }), gain: Math.min(1, Math.abs(dl) * 0.12) * 10, issue: dl > 0 ? T('un peu trop de terrains') : T('un peu juste en terrains') });
   const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2];
   if (prof.gc.length > b[3]) out.push({ k: 'gc', sg: '−', t: TN(prof.gc.length - b[3], 'Retirer {n} Game Changer', 'Retirer {n} Game Changers'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: b[3] }), gain: 5, issue: T('trop fort pour le bracket visé') });
   if (prof.mld.length && set.br <= 3) out.push({ k: 'mld', sg: '−', t: T('Retirer la destruction de terrains'), s: T('Interdite en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });

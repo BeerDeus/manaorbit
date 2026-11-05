@@ -60,7 +60,7 @@ function drReportHtml(X) {
   if (key.length) h += `<p class="dr-h">${T('Pièces maîtresses')}</p><ul class="dr-ul">${key.map(c => `<li>${drCard(c.k, c.name)}${c.o.syn >= 10 ? ` <small>${esc(T('synergie +{p} %', { p: c.o.syn }))}</small>` : c.o.incl ? ` <small>${esc(T('{p} % des decks', { p: c.o.incl }))}</small>` : ''}</li>`).join('')}</ul>`;
   // Comment le jouer
   h += `<div class="sec-title">${T('Comment le jouer')}</div>`;
-  const avg7 = (prof.land * 7 / 99).toFixed(1).replace('.', I18N.lang === 'en' ? '.' : ',');
+  const avg7 = num(prof.land * 7 / 99, 1);
   h += `<p class="dr-p"><b>${T('Main de départ')} :</b> ${esc(T('{l} terrains : {a} en moyenne sur 7 cartes. Garde une main avec 3 ou 4 terrains, ou 2 terrains et une rampe à 2 mana ou moins ; sinon, mulligan.', { l: prof.land, a: avg7 }))}</p>`;
   const early = spells.filter(c => c.cmc <= 2 && (has('ramp')(c) || has('draw')(c))).sort((a, b) => b.v - a.v).slice(0, 6);
   if (early.length) h += `<p class="dr-p"><b>${T('Tours 1 à 3')} :</b> ${esc(T('pose tes terrains et accélère avec'))} ${drList(early)}.</p>`;
@@ -80,7 +80,7 @@ function drReportHtml(X) {
   const weak = [];
   for (const [r, label] of DW_GAUGES) { if (r === 'counter' && !cmd.ci.includes('U')) continue; const [lo, mid] = tgt[r]; if (prof[r] < lo) weak.push(T('{r} : {n} pour un repère de {m}', { r: T(label), n: prof[r], m: mid })); }
   for (const c of cmd.ci) { const need = prof.need && prof.need[c]; if (need && (prof.src[c] || 0) < need - 2) weak.push(T('Sources de {c} : {n} pour {m} conseillées', { c, n: Math.round(prof.src[c] || 0), m: need })); }
-  if (prof.mv > 3.5) weak.push(T('Courbe haute (coût moyen {v}) : départs lents', { v: prof.mv.toFixed(2) }));
+  if (prof.mv > 3.5) weak.push(T('Courbe haute (coût moyen {v}) : départs lents', { v: num(prof.mv, 2) }));
   h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="bd-issues">${weak.map(w => `<li class="warn">${esc(w)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien d\'alarmant : le deck est dans la norme de chaque catégorie.')}</p>`}`;
   // Simulation de 10 000 parties face à 3 adversaires (decksim.js) : résultat gardé pour ce deck, sinon barre de progression pendant le calcul
   if (typeof dsimHtml === 'function') h += `<div id="drSim">${DSIM.sig === dsimSig(X) && DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res, 0, { open: true })) : dsimHtml(null, DSIM.prog)}</div>`;
@@ -100,7 +100,7 @@ function drReportHtml(X) {
   for (const [r, label] of DW_GAUGES) { if (r === 'land') continue; const l = spells.filter(has(r)); if (l.length) h += `<p class="dr-p"><b>${esc(T(label))} (${l.length}) :</b> ${drList(l)}</p>`; }
   const other = spells.filter(c => !DW_GAUGES.some(([r]) => r !== 'land' && c.roles & DW_RB[r]));
   if (other.length) h += `<p class="dr-p"><b>${esc(T('Plan de jeu'))} (${other.length}) :</b> ${drList(other)}</p>`;
-  const lands = cards.filter(c => c.land); h += `<p class="dr-p"><b>${esc(T('Terrains'))} (${prof.land}) :</b> ${drList(lands)}${prof.land > lands.length ? esc(' + ' + T('{n} terrains de base', { n: prof.land - lands.length })) : ''}</p></details>`;
+  const lands = cards.filter(c => c.land); h += `<p class="dr-p"><b>${esc(T('Terrains'))} (${prof.land}) :</b> ${drList(lands)}${prof.land > lands.length ? esc(' + ' + TN(prof.land - lands.length, '{n} terrain de base', '{n} terrains de base')) : ''}</p></details>`;
   return h;
 }
 /** Ouvre le rapport du deck X (éditeur : BD ; analyse : DA.X). */

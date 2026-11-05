@@ -94,7 +94,7 @@ async function mobTake(d) {
   await flush();
   MOB.got = Math.max(0, MOB.got + ok.reduce((a, x) => a + x.q, 0)); if (add.length) MOB.last = add[add.length - 1].n;      // corrections du téléphone comprises
   const fix = new Set(sub.map(x => x.k)), news = add.filter(x => !fix.has(x.k));      // une correction (édition, langue) n'est pas une carte reçue
-  mobPaint(); if (news.length) toast(news.length > 1 ? T('{n} cartes reçues du téléphone', { n: news.reduce((a, x) => a + x.q, 0) }) : T('{name} reçue du téléphone', { name: news[0].n }));
+  mobPaint(); if (news.length) toast(news.length > 1 ? TN(news.reduce((a, x) => a + x.q, 0), '{n} carte reçue du téléphone', '{n} cartes reçues du téléphone') : T('{name} reçue du téléphone', { name: news[0].n }));
   if (D.user && D.cloud.scanTake) D.cloud.scanTake(D.user.uid, fresh).catch(() => {});      // les mêmes objets : arrayRemove les retrouve
 }
 /** Correction venue du téléphone (« − », retrait, autre langue, autre édition) : q exemplaires de la carte (langue l, édition e si le téléphone la donne)

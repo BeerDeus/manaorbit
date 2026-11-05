@@ -578,7 +578,7 @@ function dvEvolution(snap, dl) {
 function dvRefLine(items) {
   const t = refTotals(items); if (t.cards < 3) return '';
   const lvl = t.pct <= 5 ? 'good' : t.pct >= 40 ? 'warn' : '';
-  return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(dvFmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + Math.abs(t.pct) + ' %'}</b></div>`;
+  return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(dvFmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + pct(Math.abs(t.pct))}</b></div>`;
 }
 
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
@@ -868,7 +868,7 @@ async function refreshDeckPrices(id) {
 const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => engFree(collQty(k), XS.eng, k, DV.deckId));
 
 /* ── Main de départ : 7 cartes au hasard dans la bibliothèque (commandant et réserve à part), et les chances d'avoir 0 à 7 terrains (loi hypergéométrique) ── */
-const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Math.round(p * 100))) + ' %';
+const pctTxt = p => (p >= 0.995 ? pct(100) : p < 0.005 && p > 0 ? '< ' + pct(1) : pct(Math.round(p * 100)));      // p : fraction (0,74 → « 74 % »)
 function openHand() {
   if (typeof prgAdd === 'function') prgAdd('hd');      // mains de départ tirées (progress.js)
   const snap = DV.snap; if (!snap) return;

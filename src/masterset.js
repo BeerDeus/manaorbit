@@ -210,7 +210,7 @@ function msGrid(code, list, base, tot) {
 function msProgHtml(p, big) {
   const pc = msPct(p.own, p.n);
   return `<span class="ms-prog${big ? ' big' : ''}"><span class="track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.n}" aria-valuenow="${p.own}" aria-label="${esc(T('Progression'))}"><span class="fill${p.own && p.own === p.n ? ' full' : ''}" style="width:${p.n ? (100 * p.own) / p.n : 0}%"></span></span>
-    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pc} %</span></span>`;
+    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pct(pc)}</span></span>`;
 }
 /** Options qui changent ce qui compte (sous la progression ; touché : la feuille des options). */
 function msOptSum() {
@@ -392,7 +392,7 @@ function msSetRow(r) {
   const pc = msPct(r.own, r.tot), y = setDate(r.code).slice(0, 4);
   return `<button type="button" class="ms-srow" data-set="${esc(r.code)}" aria-pressed="${r.code === msCur()}">${setIcHtml(r.code) || '<i class="set-ic" aria-hidden="true"></i>'}
     <span class="ms-sn"><b>${esc(msSetName(r.code))}</b><small>${esc(r.code.toUpperCase())}${y ? ' · ' + y : ''}</small></span>
-    <span class="ms-sp"><span class="track"><span class="fill${r.tot && r.own >= r.tot ? ' full' : ''}" style="width:${r.tot ? Math.min(100, (100 * r.own) / r.tot) : 0}%"></span></span><small>${r.tot ? `${nf0(r.own)}/${nf0(r.tot)} · ${pc} %` : nf0(r.own)}</small></span></button>`;
+    <span class="ms-sp"><span class="track"><span class="fill${r.tot && r.own >= r.tot ? ' full' : ''}" style="width:${r.tot ? Math.min(100, (100 * r.own) / r.tot) : 0}%"></span></span><small>${r.tot ? `${nf0(r.own)}/${nf0(r.tot)} · ${pct(pc)}` : nf0(r.own)}</small></span></button>`;
 }
 /** Feuille « Choisir une édition » : extensions de la collection (de la plus complète à la moins complète), recherche ; les autres extensions apparaissent dans la recherche. */
 function msPickSheet() {

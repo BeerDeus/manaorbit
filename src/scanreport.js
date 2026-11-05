@@ -86,7 +86,7 @@ function srFacts(e) {
   const r = e.read, h = r.hit, f = r.foot, row = (k, v) => (v ? `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>` : '');
   const fr = f && f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang ? langCode(f.ft.lang) : '', f.ft.foil ? '★' : ''].filter(Boolean).join(' ') : '';
   return row(T('Texte lu'), r.raw || r.first ? '« ' + (r.raw || r.first) + ' »' : '—')
-    + row(T('Carte retenue'), h ? [h.name, langCode(h.card), Math.round(h.score * 100) + ' %'].join(' · ') : T('aucune'))
+    + row(T('Carte retenue'), h ? [h.name, langCode(h.card), pct(Math.round(h.score * 100))].join(' · ') : T('aucune'))
     + row(T('Ligne du bas'), f ? '« ' + (f.raw || '—') + ' »' + (fr ? ' → ' + fr : '') : '')
     + row(T('Lecture'), [r.ocr === 'mlkit' ? 'ML Kit' : 'Tesseract', r.langs.join('+'), r.frame === 'card' ? T('Carte entière') : r.frame === 'name' ? T('Nom seulement') : T('Photo de la carte'), r.ms != null ? r.ms + ' ms' : ''].filter(Boolean).join(' · '))
     + row(T('Version de l\'appli'), [typeof DD_BUILD !== 'undefined' ? DD_BUILD : '', typeof isNativeApp === 'function' && isNativeApp() ? T('appli Android') : T('navigateur'), String(I18N.lang).toUpperCase()].filter(Boolean).join(' · '));
