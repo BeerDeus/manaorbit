@@ -34,6 +34,7 @@
 - [ ] **2. Simulation qui joue le plan** (`src/decksim.js`) : effets des cartes d'après le classement (pioche, jetons, drain, blessures, conditions de victoire, moteur assemblé) → tour de victoire seul, tour du moteur, cartes piochées.
 - [ ] **3. Recherche plus longue** (`deckopt.js` › `dsMake`) : plusieurs tirages par version, le meilleur gardé (note + simulation).
 - Piste gardée de côté (**6. Apprendre des vrais decks sans les copier**) : mesurer sur le corpus (165 000 decks) quelles associations fournit/veut vont vraiment ensemble (lift par paire de mécaniques), combien de cartes de chaque mécanique jouent les decks à thème (saturation réelle au lieu de 14/24), et régler les poids du coach sur la note, la simulation et le thème plutôt que sur le rappel.
+- [ ] Commandants « Rulebreaker » (Seluma, Maular…) : leur texte permet des cartes hors de leur identité de couleur (Anges de toute couleur, créatures de 7+…) ; le coach, les fiches IA (fusion) et les contrôles de deck s'en tiennent à l'identité de couleur. À gérer : exception par commandant (type ou coût permis hors couleurs).
 - Pistes notées : 4 (combos à 3 cartes Spellbook, moteurs repérés par les mécaniques), 5 (« avis approfondi » IA en direct, bouton premium, clé d'API serveur), 7 (apprendre des suggestions acceptées / refusées).
 
 ## Point du 4 novembre : toutes les cartes classées par mécaniques (IA)
