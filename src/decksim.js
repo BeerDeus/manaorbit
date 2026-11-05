@@ -124,10 +124,10 @@ function dsimGame(D, rnd, onPlay, stuck) {
     } else { if (t <= 3) missed3 = true; if (t <= 4) missed4 = true; }
     let avail = field.slice(); const total = avail.length; let spent = 0;
     let g = null; for (const c of hand) if (c.guard && (!g || c.cmc < g.cmc)) g = c;      // protection ou contresort gardé : son mana reste ouvert quand tu as quelque chose à protéger
-    const keepG = g && board.some(e => e.s.thr >= 2);
+    const keepG = g && t >= 3 && board.some(e => e.s.thr >= 3);      // dès le tour 3, quand une vraie menace est en jeu
     const cast = (s, free) => { const r = dsimPay(avail, s); if (!r) return false; if (keepG && !free && !dsimPay(r, g) && dsimPay(avail, g)) return false; spent += avail.length - r.length; avail = r; return true; };
     for (const c of cmdLeft.slice()) { const cs = tax[c.ci] ? { ...c, cmc: c.cmc + tax[c.ci] } : c; if (cast(cs, true)) { cmdLeft.splice(cmdLeft.indexOf(c), 1); if (!cmdTurn && t <= 8) cmdTurn = t; play(c, t); } }      // tours 9 et 10 : le plan seulement (mesures de mana sur les 8 premiers)
-    for (const s of hand.filter(c => !c.land && c.ramp && useful(c)).sort((a, b) => a.cmc - b.cmc)) if (cast(s)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; play(s, t); }
+    for (const s of hand.filter(c => !c.land && c.ramp && useful(c)).sort((a, b) => a.cmc - b.cmc)) if (cast(s, true)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; play(s, t); }      // la rampe passe avant le mana gardé
     for (const s of hand.filter(c => !c.land).sort((a, b) => b.cmc - a.cmc)) if (s.cmc <= avail.length && hand.includes(s) && useful(s) && cast(s)) { hand.splice(hand.indexOf(s), 1); if (t <= 6) cast6++; play(s, t); }
     const armed = g && hand.includes(g) && dsimPay(avail, g) ? g : null; if (armed) spent += armed.cmc;      // mana gardé pour la protection : compté comme utilisé
     if (engOn()) { if (!engT) engT = t; }
@@ -217,7 +217,7 @@ function dsimHtml(r, prog) {
     ${row(r.miss3 <= 20, dsimPct(r.miss3), T('des parties sans terrain à poser avant le tour 4'), T('{p} avant le tour 5', { p: dsimPct(r.miss4) }))}
     ${row(r.screw4 <= 10, dsimPct(r.screw4), T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
     ${row(r.eff >= 70, dsimPct(r.eff), T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}
-    ${r.kill10 != null ? row(r.kill10 >= 30, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
+    ${r.kill10 != null ? row(r.kill10 >= 20, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
     ${r.eng != null ? row(r.eng >= 50, dsimPct(r.eng), T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
     ${r.engKeep != null && r.eng ? row(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage'), r.wipeSurv != null ? T('moteur encore là au tour qui suit le balayage : {p}', { p: dsimPct(r.wipeSurv) }) : '') : ''}
     ${r.seen6 != null ? row(r.seen6 >= 14, dsimNum(r.seen6), T('cartes vues au tour 6 (main, pioche, moteurs)'), '') : ''}</ul>`;
@@ -228,7 +228,7 @@ function dsimHtml(r, prog) {
   if (r.screw4 > 10) adv.push(T('Couleurs mal servies : remplace des terrains de base par des terrains qui produisent plusieurs couleurs.'));
   if (r.cmv && r.cmdOn < 55) adv.push(T('Commandant souvent en retard : plus de rampe à 2 mana ou moins.'));
   if (r.eff < 70) adv.push(T('Mana souvent inutilisé : plus de sorts à 2 et 3 mana.'));
-  if (r.kill10 != null && r.elim10 != null && r.kill10 < 20) adv.push(T('La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.'));
+  if (r.kill10 != null && r.elim10 != null && r.kill10 < 10) adv.push(T('La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.'));
   if (r.eng != null && r.eng < 50) adv.push(T('Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.'));
   if (r.engKeep != null && r.eng >= 50 && r.engKeep < 0.6 * r.eng) adv.push(T('Moteur souvent détruit par les adversaires : de la protection (équipements, contresorts, sorts qui protègent) ou de la récursion pour le remonter.'));
   if (r.seen6 != null && r.seen6 < 13) adv.push(T('Peu de cartes vues : un ou deux moteurs de pioche de plus.'));

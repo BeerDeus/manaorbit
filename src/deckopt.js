@@ -139,10 +139,11 @@ async function dsOptimize(mine, ms, step) {
 /* ── Ajustement par la simulation : le deck est joué (1 500 parties face à 3 adversaires), et ses défauts corrigés ──────────────────────────
    Trop de mains à refaire ou de terrains manqués : un sort faible contre de la rampe à 2 mana ou moins, sinon contre un terrain ; couleurs qui bloquent :
    un terrain de base contre un terrain qui donne plusieurs couleurs du deck ; commandant en retard : de la rampe pas chère ; moteur du plan souvent
-   détruit par les retraits et le balayage adverses : un sort faible contre de la protection, sinon de la récursion ; table qui tient (presque jamais un
-   adversaire éliminé) : un sort faible contre un retrait (leurs bloqueurs). Chaque correction est rejouée et gardée seulement si la partie s'améliore
-   nettement (dsSimVal : démarrage, adversaires éliminés, moteur qui tient) et que la note du coach ne baisse pas (plus de 1,5 point). 6 essais au plus. */
-const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff + 0.3 * (r.kill10 || 0) + 0.3 * (r.engKeep == null ? 0 : r.engKeep) : -1e9;
+   détruit par les retraits et le balayage adverses, ou beaucoup de cartes perdues : deux sorts faibles contre de la protection, sinon de la récursion ;
+   table qui tient (presque jamais un adversaire éliminé) : deux sorts faibles contre des retraits (leurs bloqueurs). Chaque correction est rejouée et gardée seulement si la partie s'améliore
+   nettement (dsSimVal : démarrage, adversaires éliminés, moteur qui tient, retraits adverses évités ; protection, récursion et retraits : une fois
+   chacune, gardées si la partie ne se dégrade pas) et que la note du coach ne baisse pas (plus de 1,5 point). 6 essais au plus. */
+const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff + 0.3 * (r.kill10 || 0) + 0.3 * (r.engKeep == null ? 0 : r.engKeep) + 3 * (r.saved || 0) : -1e9;      // saved : retraits et balayages adverses évités par ta protection (par partie)
 async function dsSimTune(mine, step) {
   const cmd = dwCmdOf(); if (!cmd) return { fixed: 0, r: null };
   const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), N = 1500;
@@ -159,11 +160,16 @@ async function dsSimTune(mine, step) {
       const x = dwSuggest('ramp', cmd, pack, dwProfile(), tgt, 30).find(c => c.x.cmc <= 2 && !(c.x.roles & DW_RB.land));
       if (!x) { BD.main.set(out.c.key, out.c); return false; } BD.main.set(x.k, card(x)); return true;
     }
-    if (kind === 'protect' || kind === 'recursion' || kind === 'removal') {      // un sort faible contre une carte de ce rôle (4 mana au plus) : un deck qui résiste mieux à la table
-      const has = k => ((dwCard(k) || {}).roles || 0) & DW_RB[kind], out = weakest(prof, tgt, has); if (!out) return false;
-      BD.main.delete(out.c.key);
-      const x = dwSuggest(kind, cmd, pack, dwProfile(), tgt, 30).find(c => c.x.cmc <= 4 && !(c.x.roles & DW_RB.land) && !BD.main.has(c.k));
-      if (!x) { BD.main.set(out.c.key, out.c); return false; } BD.main.set(x.k, card(x)); return true;
+    if (kind === 'protect' || kind === 'recursion' || kind === 'removal') {      // deux sorts faibles contre deux cartes de ce rôle (4 mana au plus) : un deck qui résiste mieux à la table (une seule carte : effet sous le bruit de 1 500 parties)
+      const plan = typeof dmxPlan === 'function' ? dmxPlan(cmd, set) : null, pm = plan ? plan.main.slice(0, 3) : [];
+      const piece = k => { const m = typeof dmx === 'function' ? dmx(k) : null; return !!m && pm.some(i => m.p.includes(i) || m.w.includes(i)); };      // pièce du moteur du plan : jamais sortie pour ça
+      const has = k => (((dwCard(k) || {}).roles || 0) & (DW_RB[kind] | DW_RB.ramp | DW_RB.wincon | (kind === 'protect' ? DW_RB.counter : 0))) || piece(k); let n = 0;      // ni rampe, ni condition de victoire
+      for (let i = 0; i < 2; i++) {
+        const p = dwProfile(), out = weakest(p, dwTargets(p, cmd, pack, set), has); if (!out) break;
+        const x = dwSuggest(kind, cmd, pack, p, tgt, 30).find(c => c.x.cmc <= 4 && !(c.x.roles & DW_RB.land) && !BD.main.has(c.k)); if (!x) break;
+        BD.main.delete(out.c.key); BD.main.set(x.k, card(x)); n++;
+      }
+      return n > 0;
     }
     if (kind === 'land') {      // un sort faible contre un terrain (celui de la couleur la plus en manque)
       const out = weakest(prof, tgt, () => false); if (!out) return false;
@@ -180,21 +186,23 @@ async function dsSimTune(mine, step) {
     }
     return false;
   };
+  const ROLE_FIX = new Set(['protect', 'recursion', 'removal']), done = new Set();      // une fois chacune au plus (deux cartes)
   while (tries < 6) {
     const want = [];
     if (r.keep7 < 74 || r.miss3 > 20) want.push('ramp', 'land');      // 74 % : avec 36 terrains, une main de 7 a 2 à 5 terrains 79 % du temps au mieux (loi hypergéométrique)
     if (r.screw4 > 8) want.push('fix');
     if (r.cmv && r.cmdOn < 55) want.push('ramp');
-    if (r.engKeep != null && r.eng >= 40 && r.engKeep < 0.7 * r.eng) want.push('protect', 'recursion');      // moteur souvent perdu face à la table
+    if ((r.engKeep != null && r.eng >= 40 && r.engKeep < 0.8 * r.eng) || r.lost >= 3.5) want.push('protect', 'recursion');      // moteur souvent perdu, ou beaucoup de cartes perdues face à la table
     if (r.kill10 != null && r.elim10 != null && r.kill10 < 20) want.push('removal');      // la table tient : de quoi enlever leurs bloqueurs
-    if (!want.length) break;
+    if (!want.some(k => !done.has(k))) break;
     let better = false;
-    for (const kind of [...new Set(want)]) {
+    for (const kind of [...new Set(want)].filter(k => !done.has(k))) {
       if (tries >= 6) break;
       const snap = dsClone(BD.main); if (!fix(kind)) { BD.main = snap; continue; }
       tries++; if (step) step(tries);
       const r2 = await dsimRun(BD, N), n2 = dsScore(BD, { cmd, pack, info }).raw;
-      if (dsSimVal(r2) > val + 1.5 && n2 >= note - 1.5) { r = r2; val = dsSimVal(r2); note = Math.max(note, n2); fixed++; better = true; break; }
+      const role = ROLE_FIX.has(kind); if (role) done.add(kind);
+      if (dsSimVal(r2) > val + (role ? -0.5 : 1.5) && n2 >= note - 1.5) { r = r2; val = dsSimVal(r2); note = Math.max(note, n2); fixed += role ? 2 : 1; better = true; break; }      // protection, récursion, retraits : gardés si la partie ne se dégrade pas (un deck qui résiste, au même niveau de jeu)
       BD.main = snap;
     }
     if (!better) break;
@@ -214,7 +222,7 @@ const dsOverlap = (a, b) => { const A = new Set(dsSpells(a)), B = dsSpells(b); r
 const DS_DRAWS = 3, DS_BUDGET = 20000;
 /** Jugement d'un tirage : la note du coach, puis la partie jouée face à 3 adversaires (un adversaire éliminé avant le tour 11, moteur en place et moteur
  *  encore là au tour 10 malgré leurs retraits et le balayage : protection, retraits et récursion y comptent ; commandant à temps, mains, couleurs). */
-const dsJudge = (raw, r) => { if (!r) return raw; const e = r.eng == null ? 50 : r.eng; return raw + 0.06 * (r.kill10 || 0) + 0.02 * e + 0.04 * (r.engKeep == null ? e : r.engKeep) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4; };
+const dsJudge = (raw, r) => { if (!r) return raw; const e = r.eng == null ? 50 : r.eng; return raw + 0.06 * (r.kill10 || 0) + 0.02 * e + 0.04 * (r.engKeep == null ? e : r.engKeep) + 2 * (r.saved || 0) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4; };
 /** Nouvelle graine de tirage. */
 const dsSeed = () => 1 + Math.floor(Math.random() * 2e9);
 /** Construit les versions du deck de l'éditeur (BD), sans affichage : [{ v, main, wiz, sc, prof, kept, sim, fixed, story }].
