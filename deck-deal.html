@@ -2907,7 +2907,7 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .coll .coll-body>.coll-controls{order:-1;margin-top:0;padding-top:10px}      /* toujours en tête : les bandeaux d'état (lecture, alerte, synchro) passent dessous */
 .coll .coll-controls:has(.fpanel:not([hidden])){position:relative}      /* panneau des filtres ouvert (long avec « Plus de filtres ») : la barre ne reste plus collée, sinon elle couvre la liste et le bandeau de l'emplacement */
 .coll.scrolled .coll-controls{box-shadow:0 1px 0 var(--line),0 10px 18px -16px rgba(16,21,43,.45)}
-.coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior:contain}      /* filtres ouverts dans la barre collée : ils défilent seuls */
+.coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior-y:auto}      /* filtres ouverts : ils défilent seuls, puis, arrivé en bas (ou en haut), le geste continue sur la page (plus de blocage en bas des filtres) */
 .coll .dv-head{transition:padding .2s,min-height .2s}
 .coll .dv-title b{transition:font-size .2s}
 html:not(.ad-on) .coll.scrolled .dv-head{min-height:calc(var(--top-in) + 50px);padding-top:calc(var(--top-in) + 4px);padding-bottom:4px}      /* bandeau de pub affiché (ads.css) : l'en-tête garde sa hauteur, sinon le bandeau natif (posé une fois sous lui) se retrouve collé aux onglets */
@@ -3055,6 +3055,7 @@ button.tr-bar-main:focus-visible{outline:2px solid var(--accent);outline-offset:
 .trs-plc .hint{margin:0}
 
 @media (prefers-reduced-motion:reduce){.coll .dv-head,.coll .dv-title b,.coll .coll-controls,.tr-setb{transition:none}}
+.ex-seg{margin-bottom:2px}      /* Exporter ma collection : avec les filtres en cours ou toute la collection */
 
 /* ── dkfilt.css : onglet Decks (edh.js) : aide une info par ligne, « Classer » + « Filtres (N) », pastilles des filtres actifs, feuille « Filtres » ── */
 .dk-hl{list-style:none;margin:2px 0 6px;padding:0;display:flex;flex-direction:column;gap:7px}
@@ -7979,8 +7980,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'dd666d9f';
-const I18N_FILES = {"de":"i18n/de.2f8c3723.js","en":"i18n/en.9aed8ec4.js","es":"i18n/es.7fe09dae.js","it":"i18n/it.d5a040bc.js","pt":"i18n/pt.f89960de.js"};
+const DD_BUILD = '9f4308ce';
+const I18N_FILES = {"de":"i18n/de.e2e36c67.js","en":"i18n/en.3f03ebaa.js","es":"i18n/es.380a687e.js","it":"i18n/it.fc110940.js","pt":"i18n/pt.63e307e8.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -20719,26 +20720,45 @@ function collSyncInfo() {
   if (!D.authReady) return null;
   return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
 }
-/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte. */
-function collDownload(body, ext, type) {
+/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
+ *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
+function collDownload(body, ext, type, n = collCount(), part = false) {
   try {
     const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = 'ma-collection-' + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast(T('Collection exportée ({n} cartes)', { n: nf0(collCount()) }));
+    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(T('Collection exportée ({n} cartes)', { n: nf0(n) }));
   } catch (e) { toast(T('Export impossible sur ce navigateur')); }
+}
+/** La collection telle qu'affichée : recherche, filtres (couleur, type, rareté, prix, langue, finition…), emplacement ouvert (Rangement, deck), extension ;
+ *  pour chaque carte, seulement ses lignes affichées (mêmes règles que collRowItems). → { map, n (cartes), c (exemplaires) }, ou null si tout est affiché. */
+function collShownMap() {
+  const v = collListOf(collAll()), map = {}; let n = 0, c = 0;
+  for (const it of v.filtered || []) {
+    const x = COLL.map[it.k]; if (!x) continue;
+    const ls = collLines(x).filter(([g]) => plcIn(g) && collSetIn(g) && (typeof srchLineIn !== 'function' || srchLineIn(it.k, g)));
+    if (!ls.length) continue;
+    map[it.k] = collFromLines({ ...x }, ls.map(e => e.slice())); n++; c += ls.reduce((a, [, q]) => a + q, 0);
+  }
+  return n === collCount() && c === collCopies() ? null : { map, n, c };
 }
 function collExport() {
   if (!collCount()) { toast(T('Ta collection est vide')); return; }
-  openSheet(T('Exporter ma collection'), T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) }), api => {
-    api.body.innerHTML = `<div class="ex-list">
+  const shown = collShownMap(); let scope = shown ? 'shown' : 'all';      // filtres en cours : on demande quoi exporter (les cartes affichées d'abord, c'est ce qu'on regarde)
+  const subOf = () => scope === 'shown' ? T('{n} cartes · {c} exemplaires', { n: nf0(shown.n), c: nf0(shown.c) }) : T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) });
+  openSheet(T('Exporter ma collection'), subOf(), api => {
+    api.body.innerHTML = `${shown ? `<p class="label">${T('Que veux-tu exporter ?')}</p><div class="seg ex-seg" id="exScope" role="radiogroup" aria-label="${T('Que veux-tu exporter ?')}"></div>` : ''}<div class="ex-list">
       <button class="ex-opt" type="button" data-x="csv"><b>${T('Fichier CSV')}</b><span>${T('Pour Moxfield, ManaBox, Archidekt, Deckbox… Une ligne par carte et par langue.')}</span></button>
       <button class="ex-opt" type="button" data-x="txt"><b>${T('Fichier texte')}</b><span>${T('« 3 Sol Ring *FR* », une carte par ligne. Réimportable ici et dans la plupart des applis.')}</span></button>
       <button class="ex-opt" type="button" data-x="copy"><b>${T('Copier le texte')}</b><span>${T('Pour le coller dans un message ou une autre appli.')}</span></button></div>`;
+    if (shown) mountSeg($('#exScope', api.body), [{ v: 'shown', label: T('Avec les filtres'), sub: TN(shown.n, '{n} carte', '{n} cartes') }, { v: 'all', label: T('Toute la collection'), sub: TN(collCount(), '{n} carte', '{n} cartes') }], scope, v => {
+      scope = v; const p = api.wrap && api.wrap.querySelector('.sheet-head p'); if (p) p.textContent = subOf();
+    });
     api.body.onclick = e => {
       const x = (e.target.closest('[data-x]') || {}).dataset; if (!x || !x.x) return;
-      if (x.x === 'csv') collDownload(collToCsv(COLL.map, trSpare(COLL.map)), 'csv', 'text/csv');
-      else if (x.x === 'txt') collDownload(collToText(COLL.map) + '\n', 'txt', 'text/plain');
-      else { copyText(collToText(COLL.map)); }
+      const part = scope === 'shown' && !!shown, map = part ? shown.map : COLL.map, n = part ? shown.n : collCount();
+      if (x.x === 'csv') collDownload(collToCsv(map, trSpare(COLL.map)), 'csv', 'text/csv', n, part);
+      else if (x.x === 'txt') collDownload(collToText(map) + '\n', 'txt', 'text/plain', n, part);
+      else { copyText(collToText(map)); }
       api.close();
     };
   });

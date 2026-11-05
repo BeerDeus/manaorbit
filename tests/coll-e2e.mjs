@@ -140,7 +140,20 @@ assert.match(dc.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.csv$/); 
 assert.equal(csv.split('\n')[0], 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'); assert.match(csv, /\n3,2,Sol Ring,,Near Mint,English,,\n/, 'Tradelist Count : 3 − 1 de réserve (aucun deck)');
 { const r = csv.trim().split('\n').slice(1).map(l => l.split(',').map(Number)); assert.ok(r.every(([c, t]) => t === Math.max(0, c - 1)), 'chaque ligne : sa part de la liste d\'échange (' + csv + ')'); }
 const back = await p.evaluate(t => parseCollection(t).items.reduce((a, x) => a + x.q, 0), csv); assert.equal(back, await p.evaluate(() => collCopies()), 'le CSV se relit (mêmes exemplaires)');
-console.log('✓ export : texte ou CSV au format Moxfield, relu par l\'import');
+assert.equal(await p.$('#exScope'), null, 'sans filtre : pas de question, toute la collection');
+// filtre en cours (vert) : on demande quoi exporter ; « Avec les filtres » d'abord (les cartes affichées), « Toute la collection » au choix
+await p.waitForTimeout(400); await p.click('.coll .fbtn'); await p.waitForSelector('.coll .fpanel:not([hidden])'); await p.click('.coll .fcol[data-c="G"]');
+assert.equal(await p.$eval('.coll .fpanel', e => getComputedStyle(e).overscrollBehaviorY), 'auto', 'en bas des filtres, le geste continue sur la page');
+await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open #exScope .seg-opt');
+assert.deepEqual(await p.$$eval('#exScope .seg-opt', l => l.map(b => [b.dataset.v, b.getAttribute('aria-checked'), [...b.children].map(c => c.textContent.trim()).join(' ')])), [['shown', 'true', 'Avec les filtres 1 carte'], ['all', 'false', 'Toute la collection 4 cartes']]);
+{ const [d1] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="txt"]')]);
+  assert.match(d1.suggestedFilename(), /^ma-collection-filtree-\d{4}-\d{2}-\d{2}\.txt$/); const t = (await import('node:fs')).readFileSync(await d1.path(), 'utf8').trim().split('\n'); assert.equal(t.length, 1); assert.match(t[0], /Llanowar Elves/); }
+await p.waitForTimeout(400); await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open #exScope .seg-opt'); await p.click('#exScope .seg-opt[data-v="all"]');
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head p'), /4 cartes/);
+{ const [d2] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="txt"]')]);
+  assert.match(d2.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.txt$/); assert.equal((await import('node:fs')).readFileSync(await d2.path(), 'utf8').trim().split('\n').length, 4); }
+await p.waitForTimeout(400); if (await p.$('.coll .fpanel[hidden]')) await p.click('.coll .fbtn'); await p.waitForSelector('.coll .fpanel:not([hidden])'); await p.click('.coll .freset'); await p.click('.coll .fbtn');
+console.log('✓ export : texte ou CSV au format Moxfield, relu par l\'import ; avec les filtres en cours ou toute la collection');
 await p.screenshot({ path: 'shots/coll-sync-local.png' });
 await p.evaluate(() => { D.user = { uid: 'u1' }; D.uid = 'u1'; COLL.cloud = 'ok'; COLL.s = 'u1'; collPaintHead(); });
 assert.equal(await p.$eval('.coll-sync', e => e.hidden), true, 'sauvegardée : plus de bandeau…');

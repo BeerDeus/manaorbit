@@ -1082,26 +1082,45 @@ function collSyncInfo() {
   if (!D.authReady) return null;
   return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
 }
-/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte. */
-function collDownload(body, ext, type) {
+/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
+ *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
+function collDownload(body, ext, type, n = collCount(), part = false) {
   try {
     const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = 'ma-collection-' + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast(T('Collection exportée ({n} cartes)', { n: nf0(collCount()) }));
+    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(T('Collection exportée ({n} cartes)', { n: nf0(n) }));
   } catch (e) { toast(T('Export impossible sur ce navigateur')); }
+}
+/** La collection telle qu'affichée : recherche, filtres (couleur, type, rareté, prix, langue, finition…), emplacement ouvert (Rangement, deck), extension ;
+ *  pour chaque carte, seulement ses lignes affichées (mêmes règles que collRowItems). → { map, n (cartes), c (exemplaires) }, ou null si tout est affiché. */
+function collShownMap() {
+  const v = collListOf(collAll()), map = {}; let n = 0, c = 0;
+  for (const it of v.filtered || []) {
+    const x = COLL.map[it.k]; if (!x) continue;
+    const ls = collLines(x).filter(([g]) => plcIn(g) && collSetIn(g) && (typeof srchLineIn !== 'function' || srchLineIn(it.k, g)));
+    if (!ls.length) continue;
+    map[it.k] = collFromLines({ ...x }, ls.map(e => e.slice())); n++; c += ls.reduce((a, [, q]) => a + q, 0);
+  }
+  return n === collCount() && c === collCopies() ? null : { map, n, c };
 }
 function collExport() {
   if (!collCount()) { toast(T('Ta collection est vide')); return; }
-  openSheet(T('Exporter ma collection'), T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) }), api => {
-    api.body.innerHTML = `<div class="ex-list">
+  const shown = collShownMap(); let scope = shown ? 'shown' : 'all';      // filtres en cours : on demande quoi exporter (les cartes affichées d'abord, c'est ce qu'on regarde)
+  const subOf = () => scope === 'shown' ? T('{n} cartes · {c} exemplaires', { n: nf0(shown.n), c: nf0(shown.c) }) : T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) });
+  openSheet(T('Exporter ma collection'), subOf(), api => {
+    api.body.innerHTML = `${shown ? `<p class="label">${T('Que veux-tu exporter ?')}</p><div class="seg ex-seg" id="exScope" role="radiogroup" aria-label="${T('Que veux-tu exporter ?')}"></div>` : ''}<div class="ex-list">
       <button class="ex-opt" type="button" data-x="csv"><b>${T('Fichier CSV')}</b><span>${T('Pour Moxfield, ManaBox, Archidekt, Deckbox… Une ligne par carte et par langue.')}</span></button>
       <button class="ex-opt" type="button" data-x="txt"><b>${T('Fichier texte')}</b><span>${T('« 3 Sol Ring *FR* », une carte par ligne. Réimportable ici et dans la plupart des applis.')}</span></button>
       <button class="ex-opt" type="button" data-x="copy"><b>${T('Copier le texte')}</b><span>${T('Pour le coller dans un message ou une autre appli.')}</span></button></div>`;
+    if (shown) mountSeg($('#exScope', api.body), [{ v: 'shown', label: T('Avec les filtres'), sub: TN(shown.n, '{n} carte', '{n} cartes') }, { v: 'all', label: T('Toute la collection'), sub: TN(collCount(), '{n} carte', '{n} cartes') }], scope, v => {
+      scope = v; const p = api.wrap && api.wrap.querySelector('.sheet-head p'); if (p) p.textContent = subOf();
+    });
     api.body.onclick = e => {
       const x = (e.target.closest('[data-x]') || {}).dataset; if (!x || !x.x) return;
-      if (x.x === 'csv') collDownload(collToCsv(COLL.map, trSpare(COLL.map)), 'csv', 'text/csv');
-      else if (x.x === 'txt') collDownload(collToText(COLL.map) + '\n', 'txt', 'text/plain');
-      else { copyText(collToText(COLL.map)); }
+      const part = scope === 'shown' && !!shown, map = part ? shown.map : COLL.map, n = part ? shown.n : collCount();
+      if (x.x === 'csv') collDownload(collToCsv(map, trSpare(COLL.map)), 'csv', 'text/csv', n, part);
+      else if (x.x === 'txt') collDownload(collToText(map) + '\n', 'txt', 'text/plain', n, part);
+      else { copyText(collToText(map)); }
       api.close();
     };
   });
