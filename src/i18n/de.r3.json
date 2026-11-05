@@ -1,0 +1,13 @@
+{
+ "Tours supplémentaires interdits en bracket {b} : {list}": "Zusätzliche Züge in Bracket {b} verboten: {list}",
+ "{n} tours supplémentaires pour {max} permis en bracket {b}, jamais enchaînés : {list}": "{n} zusätzliche Züge bei {max} erlaubten in Bracket {b}, nie hintereinander: {list}",
+ "Tour supplémentaire permis en bracket {b} ({max} au plus, jamais enchaîné) : {list}": "Zusätzlicher Zug in Bracket {b} erlaubt (höchstens {max}, nie hintereinander): {list}",
+ "Combo à 2 cartes : pas avant le tour 6 en bracket {b} ({list})": "2-Karten-Kombo: in Bracket {b} nicht vor Zug 6 ({list})",
+ "Combo à 3 cartes, permis en bracket {b} : {list}": "3-Karten-Kombo, in Bracket {b} erlaubt: {list}",
+ "Retirer {n} tour supplémentaire": "{n} zusätzlichen Zug entfernen",
+ "Retirer {n} tours supplémentaires": "{n} zusätzliche Züge entfernen",
+ "Tour supplémentaire en trop pour le bracket {b}": "Zusätzlicher Zug zu viel für Bracket {b}",
+ "Trop de tours supplémentaires pour le bracket {b}": "Zu viele zusätzliche Züge für Bracket {b}",
+ "Pas légale en Commander : {list}": "In Commander nicht legal: {list}",
+ "Pas légales en Commander : {list}": "In Commander nicht legal: {list}"
+}

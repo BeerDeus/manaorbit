@@ -50,8 +50,8 @@ function drReportHtml(X) {
   for (const t of themes) { const lbl = dwThemeLabel(t, thChoices), inf = typeof edhThemeInfo === 'function' ? edhThemeInfo({ label: ((pack && pack.thl) || []).concat((cmd && cmd.th) || []).find(x => x[0] === t)?.[1] || t }) : ''; if (inf) h += `<p class="dr-p"><b>${esc(lbl)} :</b> ${edhInfoHtml(inf)}</p>`; }
   const combos = prof.combos || [];
   const cb2 = combos.filter(c => !dwCombo3(c)), cb3 = combos.filter(dwCombo3), cbLi = l => `<ul class="dr-ul">${l.slice(0, 8).map(c => `<li>${dwComboCards(c).map(n => drCard(ownKey(n), n)).join(' + ')} : <i>${esc(dwComboRes(c))}</i></li>`).join('')}</ul>`;
-  if (cb2.length) h += `<p class="dr-h">${TN(cb2.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p>${cbLi(cb2)}${est <= 2 || set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
-  if (cb3.length) h += `<p class="dr-h">${TN(cb3.length, '{n} combo à 3 cartes dans le deck', '{n} combos à 3 cartes dans le deck')}</p>${cbLi(cb3)}${set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 3 cartes sont à éviter en bracket 1 et 2.')}</p>` : ''}`;
+  if (cb2.length) h += `<p class="dr-h">${TN(cb2.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p>${cbLi(cb2)}${DWB.brRule(est).c2 === 'no' || DWB.brRule(set.br).c2 === 'no' ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
+  if (cb3.length) h += `<p class="dr-h">${TN(cb3.length, '{n} combo à 3 cartes dans le deck', '{n} combos à 3 cartes dans le deck')}</p>${cbLi(cb3)}${DWB.brRule(set.br).c3 === 'avoid' ? `<p class="hint">${T('Attention : les combos à 3 cartes sont à éviter en bracket 1 et 2.')}</p>` : ''}`;
   const wk = typeof dwWinKeys === 'function' ? dwWinKeys(X) : null;      // conditions de victoire au sens du plan (comme la jauge) : le commandant quand il gagne lui-même, les cartes de la fiche
   const win = [...(wk && wk.cmdr ? cm : []), ...spells.filter(c => has('wincon')(c) || (wk && wk.cards.has(c.k)))];
   if (win.length) h += `<p class="dr-h">${T('Conditions de victoire')}</p><p class="dr-p">${drList(win.slice(0, 8))}</p>`;
@@ -93,7 +93,7 @@ function drReportHtml(X) {
       const o = info.get(mk); all.push({ have: ia ? c[0] : c[1], miss, res: c[2], s: (o ? dwVal(o) * 3 : 0) + (inDeck(ownKey(ia ? c[0] : c[1])) && (info.get(ownKey(ia ? c[0] : c[1])) || {}).syn > 10 ? 0.3 : 0) - i / 4000 });
     });
     const near = all.sort((a, b) => b.s - a.s).slice(0, 5);      // la carte qui manque est-elle jouée avec ce commandant ? d'abord celles-là, puis les combos les plus joués
-    if (near.length) h += `<div class="sec-title">${T('Combos à une carte près')}</div><ul class="dr-ul">${near.map(n => `<li>${esc(T('Tu as'))} ${drCard(ownKey(n.have), n.have)} : ${esc(T('avec'))} ${drCard(ownKey(n.miss), n.miss)}, <i>${esc(n.res)}</i></li>`).join('')}</ul>${set.br <= 2 ? `<p class="hint">${T('À éviter en bracket 1 et 2 (combos à 2 cartes interdits).')}</p>` : ''}`;
+    if (near.length) h += `<div class="sec-title">${T('Combos à une carte près')}</div><ul class="dr-ul">${near.map(n => `<li>${esc(T('Tu as'))} ${drCard(ownKey(n.have), n.have)} : ${esc(T('avec'))} ${drCard(ownKey(n.miss), n.miss)}, <i>${esc(n.res)}</i></li>`).join('')}</ul>${DWB.brRule(set.br).c2 === 'no' ? `<p class="hint">${T('À éviter en bracket 1 et 2 (combos à 2 cartes interdits).')}</p>` : ''}`;
   }
   // Rôle de chaque carte
   h += `<details class="dr-roles"><summary>${T('Rôle de chaque carte')}</summary>`;

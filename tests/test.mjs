@@ -1404,6 +1404,31 @@ test('créateur de deck : règles Standard (60 · 4 exemplaires · réserve 15) 
   assert.deepEqual(C.dkCheck('commander', { main: [c('Forest', 99)], side: [], cmdr: [{ key: 'sol ring', name: 'Sol Ring' }] }, () => ({ ci: '' })).issues, [], 'éligibilité inconnue : pas d\'alerte');
   // couleurs inconnues : pas de contrôle (pas d'alerte fantaisiste)
   r = C.dkCheck('commander', { main: [c('Craterhoof Behemoth', 1), c('Forest', 98)], side: [], cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }] }, () => null); assert.deepEqual(r.issues, []);
+  // légalité (builder.js › cardLegal : fiche Scryfall, sinon base du coach) et règles du bracket visé (brackets.js), passées par o
+  const d99 = { main: [c('Mana Crypt', 1), c('Time Warp', 1), c('Forest', 97)], side: [], cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }] };
+  assert.deepEqual(C.dkCheck('commander', d99, mo).issues, [], 'légalité inconnue (fiche sans lg), sans o : rien');
+  r = C.dkCheck('commander', d99, mo, { legal: k => (k === 'mana crypt' ? false : null) }); assert.deepEqual(r.issues.map(i => i.t), ['Mana Crypt n\'est pas légale en Commander.'], 'Mana Crypt : pas légale, même sans lg dans sa fiche');
+  const facts = xt => ({ gc: [], mld: [], xt, c2: [], c3: [] });
+  assert.deepEqual(C.dkCheck('commander', d99, mo, { br: 2, facts: facts(['Time Warp']) }).issues, [], 'bracket 2 : un tour supplémentaire permis (jamais enchaîné)');
+  r = C.dkCheck('commander', d99, mo, { br: 1, facts: facts(['Time Warp']) }); assert.deepEqual(lv(r), ['bad:Tours'], 'bracket 1 : interdit'); assert.match(r.issues[0].t, /interdits en bracket 1 : Time Warp/);
+  r = C.dkCheck('commander', d99, mo, { br: 2, facts: facts(['Time Warp', 'Temporal Manipulation']) }); assert.deepEqual(lv(r), ['bad:2']); assert.match(r.issues[0].t, /2 tours supplémentaires pour 1 permis en bracket 2/);
+  r = C.dkCheck('commander', d99, mo, { br: 3, facts: facts(['Time Warp', 'Temporal Manipulation']) }); assert.deepEqual(lv(r), ['warn:Tours'], 'bracket 3 : permis, à ne pas enchaîner');
+  assert.deepEqual(C.dkCheck('commander', d99, mo, { br: 0, facts: facts(['Time Warp']) }).issues, [], 'bracket non choisi : pas de vérification');
+});
+test('BRACKET_RULES (brackets.js) : une table, un verdict (estimation, écarts)', () => {
+  const B = require('../src/brackets.js'), f = o => ({ gc: [], mld: [], xt: [], c2: [], c3: [], ...o });
+  assert.deepEqual([1, 2, 3, 4, 5].map(b => B.brRule(b).gc), [0, 0, 3, Infinity, Infinity], 'Game Changers permis');
+  assert.deepEqual([1, 2, 3, 4, 5].map(b => B.brRule(b).xt), [0, 1, Infinity, Infinity, Infinity], 'tours supplémentaires permis');
+  assert.deepEqual([1, 2, 3, 4, 5].map(b => B.brRule(b).mld), [false, false, false, true, true], 'destruction massive de terrains');
+  assert.deepEqual([1, 2, 3, 4, 5].map(b => B.brRule(b).c2), ['no', 'no', 'late', 'ok', 'ok'], 'combos à 2 cartes');
+  assert.equal(B.bracketEstimate(f({})), 2); assert.equal(B.bracketEstimate(f({ xt: ['Time Warp'] })), 2, 'un tour supplémentaire : bracket 2');
+  assert.equal(B.bracketEstimate(f({ xt: ['A', 'B'] })), 3); assert.equal(B.bracketEstimate(f({ gc: 1 })), 3); assert.equal(B.bracketEstimate(f({ gc: 4 })), 4);
+  assert.equal(B.bracketEstimate(f({ mld: ['Armageddon'] })), 4); assert.equal(B.bracketEstimate(f({ c2: ['A + B (x)'] })), 3); assert.equal(B.bracketEstimate(f({ c3: ['A + B + C (x)'] })), 3);
+  for (const n of [0, 1, 3, 4, 9]) assert.equal(C.edhBracket(n), B.bracketEstimate({ gc: n }), 'edhBracket : la même table');
+  for (const b of [1, 2, 3, 4, 5]) for (const o of [{ gc: ['X'] }, { gc: ['A', 'B', 'C', 'D'] }, { xt: ['T'] }, { xt: ['T', 'U'] }, { mld: ['M'] }, { c2: ['c'] }, { c3: ['c'] }]) {
+    assert.equal(B.bracketOk(b, f(o)), !B.bracketBreaks(b, f(o)).some(x => x.lv === 'bad'), `bracket ${b}, ${JSON.stringify(o)} : bracketOk et bracketBreaks d'accord`);
+  }
+  assert.deepEqual(B.bracketBreaks(2, f({ xt: ['Time Warp'] })).map(x => x.lv), ['info'], 'bracket 2, Time Warp : permis, rappelé');
 });
 test('deck monté : la réserve (SB:) est aussi mise de côté, sans doubler une carte déjà dans le deck', () => {
   const owned = { 'lightning bolt': 4, negate: 3, 'sol ring': 1 }, of = k => owned[k] || 0;

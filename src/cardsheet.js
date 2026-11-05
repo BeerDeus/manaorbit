@@ -59,7 +59,7 @@ function csLoad(k) {
   csSrvLoad(k);
   csHist(k, CS.n).then(h => { if (mine()) { CS.h = h; csPaint(); } }, () => { if (mine()) { CS.h = null; csPaint(); } });
   const g = CS.g, l = g ? lineLang(g) : (CS.o.l && !String(CS.o.l).includes('|') ? CS.o.l : '');
-  csOracle(k, CS.n, l, g ? lineEd(g) : '').then(r => { if (mine()) { CS.or = r; csPaint(); } }, () => { if (mine()) { CS.or = null; csPaint(); } });
+  csOracle(k, CS.n, l, g ? lineEd(g) : '').then(r => { if (r && r.lg && typeof metaPut === 'function') metaPut(k, { lg: lgOf(r.lg), la: Math.floor(Date.now() / 864e5), ...(typeof r.gc === 'number' ? { gc: r.gc } : {}) }); if (mine()) { CS.or = r; csPaint(); } }, () => { if (mine()) { CS.or = null; csPaint(); } });      // légalités lues ici : gardées dans LA fiche de la carte (builder.js › metaPut, cardLegal) : éditeur et viewer disent la même chose que cette fiche
 }
 /** Relevé du serveur des alertes pour une carte suivie (prix du dernier passage, prix habituel = médiane des relevés d'avant). */
 function csSrvLoad(k) {
@@ -71,7 +71,7 @@ function csSrvLoad(k) {
 const csFaces = c => (Array.isArray(c.card_faces) && c.card_faces.length > 1 && !c.oracle_text ? c.card_faces : [c]);
 const csPrinted = c => !!c && csFaces(c).some(f => f.printed_text);
 const SCRY_URI_RE = /^https:\/\/scryfall\.com\/card\/[\w./%-]+(\?[\w=&%-]*)?$/;
-/** { en: [{ n, tl, mc, t }] (faces), loc?: { l, f: [{ n, tl, t }] } (texte imprimé dans la langue l), lg (légalités), r (rareté), set, sn, num, uri } ; null hors ligne sans copie. */
+/** { en: [{ n, tl, mc, t }] (faces), loc?: { l, f: [{ n, tl, t }] } (texte imprimé dans la langue l), lg (légalités), gc? (1 / 0 : Game Changer d'après Scryfall), r (rareté), set, sn, num, uri } ; null hors ligne sans copie. */
 async function csOracle(k, name, l, e) {
   const sl = l && l !== 'en' && SCRY_LANG[l] ? SCRY_LANG[l] : '', key = 'or1:' + k + ':' + (sl ? sl + ':' + (e || '') : 'en');
   const hit = await Cache.get(key, CS_OR_TTL); if (hit) return hit;
@@ -79,7 +79,7 @@ async function csOracle(k, name, l, e) {
   const nm = String(name || '').split('//')[0].trim(), get = async url => { try { return await httpJson(limScry, url, SCRY_JSON, undefined, 1, true); } catch (x) { if (x.code === '404') return null; throw x; } };
   const j = await get('https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(nm)); if (!j || !j.name) return null;
   const out = { en: csFaces(j).map(f => ({ n: String(f.name || ''), tl: String(f.type_line || ''), mc: String(f.mana_cost || ''), t: String(f.oracle_text || '') })), lg: j.legalities && typeof j.legalities === 'object' ? j.legalities : {},
-    r: String(j.rarity || ''), set: String(j.set || ''), sn: String(j.set_name || ''), num: String(j.collector_number || ''), uri: SCRY_URI_RE.test(j.scryfall_uri || '') ? j.scryfall_uri : '' };
+    ...(typeof j.game_changer === 'boolean' ? { gc: j.game_changer ? 1 : 0 } : {}), r: String(j.rarity || ''), set: String(j.set || ''), sn: String(j.set_name || ''), num: String(j.collector_number || ''), uri: SCRY_URI_RE.test(j.scryfall_uri || '') ? j.scryfall_uri : '' };
   if (sl) {      // texte imprimé : l'impression de la ligne (édition connue), sinon la plus récente dans cette langue
     let c = e ? await get('https://api.scryfall.com/cards/' + encodeURIComponent(edSet(e)) + '/' + encodeURIComponent(edNum(e)) + '/' + sl).catch(() => null) : null;
     if (!csPrinted(c)) { const s = await get('https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + nm + '" lang:' + sl) + '&unique=prints&order=released').catch(() => null); c = ((s && s.data) || []).find(csPrinted) || null; }

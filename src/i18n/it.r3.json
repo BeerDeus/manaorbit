@@ -1,0 +1,13 @@
+{
+ "Tours supplémentaires interdits en bracket {b} : {list}": "Turni extra vietati nel bracket {b}: {list}",
+ "{n} tours supplémentaires pour {max} permis en bracket {b}, jamais enchaînés : {list}": "{n} turni extra per {max} consentito nel bracket {b}, mai concatenati: {list}",
+ "Tour supplémentaire permis en bracket {b} ({max} au plus, jamais enchaîné) : {list}": "Turno extra consentito nel bracket {b} ({max} al massimo, mai concatenato): {list}",
+ "Combo à 2 cartes : pas avant le tour 6 en bracket {b} ({list})": "Combo a 2 carte: non prima del turno 6 nel bracket {b} ({list})",
+ "Combo à 3 cartes, permis en bracket {b} : {list}": "Combo a 3 carte, permessa nel bracket {b}: {list}",
+ "Retirer {n} tour supplémentaire": "Rimuovi {n} turno extra",
+ "Retirer {n} tours supplémentaires": "Rimuovi {n} turni extra",
+ "Tour supplémentaire en trop pour le bracket {b}": "Turno extra di troppo per il bracket {b}",
+ "Trop de tours supplémentaires pour le bracket {b}": "Troppi turni extra per il bracket {b}",
+ "Pas légale en Commander : {list}": "Non legale in Commander: {list}",
+ "Pas légales en Commander : {list}": "Non legali in Commander: {list}"
+}

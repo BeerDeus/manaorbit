@@ -1,0 +1,13 @@
+{
+ "Tours supplémentaires interdits en bracket {b} : {list}": "Turnos extras proibidos no bracket {b}: {list}",
+ "{n} tours supplémentaires pour {max} permis en bracket {b}, jamais enchaînés : {list}": "{n} turnos extras para {max} permitido no bracket {b}, nunca encadeados: {list}",
+ "Tour supplémentaire permis en bracket {b} ({max} au plus, jamais enchaîné) : {list}": "Turno extra permitido no bracket {b} ({max} no máximo, nunca encadeado): {list}",
+ "Combo à 2 cartes : pas avant le tour 6 en bracket {b} ({list})": "Combo de 2 cards: não antes do turno 6 no bracket {b} ({list})",
+ "Combo à 3 cartes, permis en bracket {b} : {list}": "Combo de 3 cards, permitido no bracket {b}: {list}",
+ "Retirer {n} tour supplémentaire": "Remover {n} turno extra",
+ "Retirer {n} tours supplémentaires": "Remover {n} turnos extras",
+ "Tour supplémentaire en trop pour le bracket {b}": "Turno extra a mais para o bracket {b}",
+ "Trop de tours supplémentaires pour le bracket {b}": "Turnos extras demais para o bracket {b}",
+ "Pas légale en Commander : {list}": "Não legal no Commander: {list}",
+ "Pas légales en Commander : {list}": "Não legais no Commander: {list}"
+}

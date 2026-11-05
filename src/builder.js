@@ -2,24 +2,74 @@
    Écran plein format : onglets Deck · Collection (ajout en priorité) · Chercher (n'importe quelle carte).
    Règles : Standard 60 cartes, 4 exemplaires max (réserve de 15 facultative) ; Commander 100 cartes, une seule de chaque, un commandant.
    Le deck est enregistré comme les autres (texte), puis monté : ses cartes possédées sont réservées. */
-/** Infos Scryfall des cartes de decks qui ne sont pas dans la collection ({ eu, ci, cd, im, cm, mc, tl, cl }) : gardées sur l'appareil (prix du deck, couleurs, images, viewer). */
-const DM = {}; let dmReady = null;
+/** Infos Scryfall des cartes de decks qui ne sont pas dans la collection : la fiche entière de data.js › scryCollection ({ eu, ef, ci, cd, im, cm, mc, tl, cl, ar, rr,
+ *  lg (formats où elle est légale), la (jour de cette lecture), gc (Game Changer d'après Scryfall) }), gardée sur l'appareil (prix du deck, couleurs, images, légalité, viewer).
+ *  Fiches d'avant le 5 novembre (sans lg) : gardées telles quelles, complétées à la prochaine lecture de leur deck (dmMissing). */
+const DM = {}; let dmReady = null, dmT = 0;
 function dmLoad() {
   if (!dmReady) dmReady = Cache.get('dm:meta', 30 * DAY).then(c => { if (c && typeof c === 'object') for (const k in c) if (!DM[k]) DM[k] = c[k]; renderDecks(); }).catch(() => {});
   return dmReady;
 }
-const dmSave = () => { Cache.set('dm:meta', DM); };
+const dmSave = () => { clearTimeout(dmT); dmT = 0; Cache.set('dm:meta', DM); };
+const dmSaveSoon = () => { clearTimeout(dmT); dmT = setTimeout(dmSave, 800); };
+/** LA fiche d'une carte (clé de ownKey) : collection (COLL.meta), sinon cartes des decks (DM) ; null si jamais lue. Une carte possédée lue avant que l'appli garde
+ *  sa légalité : celle de DM (ou de sa fiche ouverte) la complète. Tous les champs de scryCollection sont gardés (cardLegal, isGC, prix, filtres). */
+function cardMeta(k) {
+  const a = COLL.meta[k], b = DM[k];
+  if (!a) return b || null;
+  return b && a.lg === undefined && b.lg !== undefined ? { ...a, lg: b.lg, la: b.la, ...(a.gc === undefined && b.gc !== undefined ? { gc: b.gc } : {}) } : a;
+}
+/** Ajoute des champs à la fiche d'une carte (les autres restent) : collection si elle y est (enregistrée avec elle), sinon cartes des decks.
+ *  Carte encore inconnue : seulement une fiche complète (type lu) ; un bout de fiche (légalité seule) n'en crée pas. → vrai si quelque chose a été gardé. */
+function metaPut(k, m) {
+  if (!k || !m || typeof m !== 'object') return false;
+  if (COLL.meta[k]) { COLL.meta[k] = { ...COLL.meta[k], ...m }; if (typeof collMetaSave === 'function') collMetaSave(); return true; }
+  if (!DM[k] && m.tl === undefined) return false;
+  DM[k] = { ...(DM[k] || {}), ...m }; dmSaveSoon(); return true;
+}
+/** Fiche lue sur Scryfall (scryCollection) pour une carte : gardée entière (cartes des decks) ; carte possédée : seuls les champs qui manquaient à sa fiche de la
+ *  collection, et sa légalité (relue), y sont ajoutés (son prix reste celui de la collection). */
+function metaTake(k, m) {
+  const own = COLL.meta[k]; if (!own) return metaPut(k, m);
+  const add = {}; for (const f in m) if (own[f] === undefined) add[f] = m[f];
+  if (m.lg !== undefined) { add.lg = m.lg; add.la = m.la; if (m.gc !== undefined) add.gc = m.gc; }
+  return metaPut(k, add);
+}
+/** Fiche complète : type lu et légalité connue (fiches d'avant le 5 novembre : relues). */
+const metaFull = m => !!m && m.tl !== undefined && m.lg !== undefined;
+/** Une carte est-elle légale dans ce format (« commander », « standard »… : LG_FMT) ? true / false, ou null si on ne sait pas. D'abord la fiche Scryfall
+ *  (lg : relue avec les cartes du deck, de la collection ou à l'ouverture de sa fiche), sinon la base du coach (Commander : drapeau 16 « interdite »). Terrains de base : oui. */
+function cardLegal(k, fmt = 'commander') {
+  if (BASIC_NAMES.has(k)) return true;
+  const f = LG_FMT.find(x => x[1] === fmt), m = cardMeta(k);
+  if (f && m && typeof m.lg === 'string' && m.lg) return m.lg.includes(f[0]);
+  const r = fmt === 'commander' && typeof DW !== 'undefined' && DW.byKey ? DW.byKey.get(k) : null;
+  return r ? !(r[6] & 16) : null;
+}
+/** Game Changer (liste officielle des brackets Commander) ? La base du coach d'abord (drapeau 1), sinon la fiche Scryfall (game_changer), sinon la liste d'EDHREC. */
+function isGC(k) {
+  k = ownKey(String(k || '').replace(/^sb:/, ''));
+  const r = typeof DW !== 'undefined' && DW.byKey ? DW.byKey.get(k) : null; if (r) return !!(r[6] & 1);
+  const m = cardMeta(k); if (m && m.gc !== undefined) return !!m.gc;
+  return !!(typeof EDH !== 'undefined' && EDH.data && EDH.data.gc && EDH.data.gc.has(k));
+}
 const dmTried = new Set();
-/** Cartes ([{ key, name }], terrains de base compris si basics) dont on ne connaît ni la fiche (collection) ni l'entrée complète du cache (type, coût et couleurs compris), pas encore essayées. */
-const dmMissing = (list, basics) => list.filter(c => (basics || !BASIC_NAMES.has(c.key)) && !COLL.meta[c.key] && !(DM[c.key] && DM[c.key].tl !== undefined) && !dmTried.has(c.key)).slice(0, 150);
-/** Lit sur Scryfall les cartes pas encore connues ([{ key, name }]) ; retourne vrai si quelque chose est arrivé. */
+/** Cartes ([{ key, name }], terrains de base compris si basics) dont on ne connaît pas la fiche complète (metaFull : type, coût, couleurs et légalité), pas encore essayées. */
+const dmMissing = (list, basics) => list.filter(c => (basics || !BASIC_NAMES.has(c.key)) && !metaFull(cardMeta(c.key)) && !dmTried.has(c.key)).slice(0, 150);
+/** Lit sur Scryfall les cartes pas encore connues ([{ key, name }]) ; retourne vrai si quelque chose est arrivé (gardé par metaTake). */
 async function dmFetch(list, basics) {
   const need = dmMissing(list, basics);
   if (!need.length || scryLeft() > 0) return false;
   need.forEach(c => dmTried.add(c.key));
   let n = 0;
   for (let i = 0; i < need.length; i += 75) {      // un lot de 75 par requête : un lot refusé ne fait pas perdre les fiches des lots déjà lus
-    try { const got = await scryCollection(need.slice(i, i + 75).map(c => c.name)); for (const [k, m] of got) if (m) { DM[k] = { eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } }
+    try {
+      const got = await scryCollection(need.slice(i, i + 75).map(c => c.name));
+      for (const [k, m] of got) {
+        if (!m) continue;
+        metaTake(k, m); n++;
+      }
+    }
     catch (e) { need.slice(i).forEach(c => dmTried.delete(c.key)); break; }      // hors ligne ou limite Scryfall : l'estimation reste partielle ; ces cartes seront redemandées (sinon leur image ne venait jamais de la session)
   }
   if (n) dmSave(); return n > 0;
@@ -41,7 +91,7 @@ function thumbsReady(root) { if (root) for (const im of root.querySelectorAll('i
  *  Sol Ring, Command Tower, Path to Exile…) : prix de l'impression la moins chère du relevé du jour (data.js › pxTable), comme le coach ; jamais « prix inconnu » si on le connaît. */
 const pxRef = k => { const p = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return p && p.e > 0 ? p.e : 0; };
 const dmOf = k => {
-  const m = COLL.meta[k] || DM[k] || null; if (!m || m.eu > 0) return m;
+  const m = cardMeta(k); if (!m || m.eu > 0) return m;
   const e = pxRef(k); if (e) return { ...m, eu: e };
   pxRefEnsure(); return m;
 };
@@ -341,14 +391,14 @@ function bdScanDone() {
 /* ── Affichage ────────────────────────────────────────────────────────────────────────────────── */
 function bdHead() {
   const el = BD.el; if (!el) return;
-  const ck = dkCheck(BD.fmt, bdData(), bdMeta);
+  const ck = bdCheck();
   $('#bdTitle', el).textContent = BD.name.trim() || T('Nouveau deck');
   $('#bdSub', el).textContent = `${bdFmtName(BD.fmt)} · ${ck.n}/${ck.size}`;
   const sv = $('#bdSave', el), need = !ck.n || (BD.fmt === 'commander' && !BD.cmdr.length);
   sv.disabled = need; sv.title = need ? (BD.fmt === 'commander' && !BD.cmdr.length ? T('Choisis un commandant') : T('Ajoute des cartes')) : '';
 }
 function bdSumHtml() {
-  const ck = dkCheck(BD.fmt, bdData(), bdMeta), pct = Math.max(0, Math.min(100, Math.round(ck.n / ck.size * 100)));
+  const ck = bdCheck(), pct = Math.max(0, Math.min(100, Math.round(ck.n / ck.size * 100)));
   const st = ck.n === ck.size ? 'full' : ck.n > ck.size ? 'over' : '';
   const bad = ck.issues.filter(i => i.lv === 'bad').length;
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
@@ -359,15 +409,18 @@ function bdSumHtml() {
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
-/** Deck Commander : carte que Scryfall dit pas légale en Commander (interdite…) ; formats lus avec les infos de la carte (COLL.meta[k].lg), inconnus : non. */
-const bdIllegal = k => { if (BD.fmt !== 'commander' || BASIC_NAMES.has(k)) return false; const m = bdMeta(k); return !!m && typeof m.lg === 'string' && !!m.lg && !m.lg.includes('c'); };
+/** Deck Commander : carte pas légale en Commander (interdite…) : cardLegal (fiche Scryfall, possédée ou non, sinon base du coach) ; inconnue : non. */
+const bdIllegal = k => BD.fmt === 'commander' && !BASIC_NAMES.has(k) && cardLegal(k, 'commander') === false;
+/** Vérification du deck (core.js › dkCheck) : légalité (cardLegal) et, Commander, règles du bracket visé dans les réglages du coach (pas le bracket « estimé » de l'analyse),
+ *  avec les cartes et combos que voit le coach (deckwiz.js › dwBrFacts) : le même verdict que son audit. */
+const bdCheck = () => dkCheck(BD.fmt, bdData(), bdMeta, BD.fmt === 'commander' ? { legal: k => cardLegal(k, 'commander'), br: BD.wiz && !BD.wiz.ba ? BD.wiz.br : 0, facts: BD.wiz && !BD.wiz.ba && typeof dwBrFacts === 'function' ? dwBrFacts(dwProfile()) : null } : undefined);
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
   const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
   if (bdIllegal(k)) out.push(`<span class="tag bad">${T('Pas légale en Commander')}</span>`);      // Scryfall (legalities), comme l'alerte du résumé (core.js › dkCheck)
-  if (typeof dvGC === 'function' && dvGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (brackets Commander)
+  if (isGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (base du coach, sinon Scryfall, sinon EDHREC : même sans EDHREC)
   const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
   if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
@@ -572,7 +625,7 @@ function bdClick(e) {
 
 /* ── Enregistrement : comme un deck normal, puis monté ────────────────────────────────────────── */
 function bdSave() {
-  const ck = dkCheck(BD.fmt, bdData(), bdMeta);
+  const ck = bdCheck();
   if (!ck.n) { toast(T('Ajoute d\'abord des cartes')); return; }
   if (BD.fmt === 'commander' && !BD.cmdr.length) { toast(T('Choisis d\'abord un commandant')); return; }
   readOpts();
