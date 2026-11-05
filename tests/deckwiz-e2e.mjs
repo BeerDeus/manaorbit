@@ -131,6 +131,10 @@ assert.deepEqual(await p.evaluate(() => {
   const inp = w.querySelector('input'), r1 = dwPersoInput({ type: 'change', target: inp }, { pets: [] }, null), kept = !!w.querySelector('#tKeep');
   const r2 = dwPersoInput({ type: 'input', target: inp }, { pets: [] }, null), redrawn = !w.querySelector('#tKeep'); w.remove(); return [r1, kept, r2, redrawn];
 }), ['live', true, 'live', true]);
+// cartes fétiches et exclusions : recherche par le nom imprimé (index des noms de l'appli, FRX.ix), nom anglais gardé ; anglais toujours possible
+assert.deepEqual(await p.evaluate(() => { const ix0 = FRX.ix; FRX.ix = { list: [{ k: normPart('Anneau solaire'), n: 'Anneau solaire', en: 'Sol Ring' }] };
+  try { return [dwPersoFind('anneau', null, 'ban').map(r => [r[1], r[4]]), dwPersoFind('sol ri', null, 'ban').map(r => r[1]), dwPersoRes(dwPersoFind('anneau', null, 'ban'), 'ban')]; } finally { FRX.ix = ix0; } }),
+  [[['Sol Ring', 'Anneau solaire']], ['Sol Ring'], '<button type="button" class="chip" data-padd="ban" data-n="Sol Ring" title="Sol Ring">+ Anneau solaire</button>']);
 await p.click('#dwzGo');
 await p.waitForSelector('.bd.on');
 // construction en plusieurs passes : barre de progression, étapes, puis les versions au choix (note, valeur, courbe, rôles)
