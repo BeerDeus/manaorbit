@@ -85,8 +85,10 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
 /** Raison d'un échange, en clair. */
 function daWhy(sw, cmd) {
   const nm = cmd ? cmd.names[0].split(',')[0] : '', g = DW_GAUGES.find(x => x[0] === sw.why);
-  const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) }) : sw.why === 'mieux' ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Bien plus jouée avec {name}', { name: nm });
-  const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0;
+  const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0, more = b >= a + 10;      // « bien plus jouée » seulement si c'est vrai : l'échange est choisi sur la valeur pour ce deck (mécaniques, fiche), pas sur la seule popularité
+  const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) })
+    : sw.why === 'mieux' ? (more ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Même rôle, plus utile dans ce deck avec {name}', { name: nm }))
+    : more ? T('Bien plus jouée avec {name}', { name: nm }) : T('Sert mieux le plan de {name}', { name: nm });
   const C = DW.infoC && DW.infoC.C, plan = C && C.plan, mech = plan && DA.X && typeof dmxReasons === 'function' ? dmxReasons(sw.in.k, DA.X, cmd, plan).slice(0, 2) : [];      // ce que la carte proposée fait pour ce deck (fiche du commandant, mécaniques)
   const trap = sw.out.o && sw.out.o.trap ? [T('{card} marche mal avec {name}', { card: sw.out.name, name: nm })] : [];
   return [head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : ''), ...trap, ...mech].join(' · ');

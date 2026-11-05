@@ -59,7 +59,7 @@ function dsScore(X = BD, ctx = {}) {
     for (const i of plan.main.slice(0, 3)) { let k = 0; for (const c of spells) { const m = dmx(c.key); if (m && (m.p.includes(i) || m.w.includes(i))) k += c.qty; } dens.push([dmxLabel(DMX.tags[i]), k, 10]); }
     for (const [t] of plan.tribes) { let k = 0; for (const c of spells) { const m = dmx(c.key); if (m && (dmxSubHas(m, t) || m.t.includes(t))) k += c.qty; } dens.push([t, k, plan.from.get('t:' + t) === 'me' || plan.from.get('t:' + t) === 'th' ? 18 : 12]); break; }
     const d = dens.length ? dens.reduce((a, [, k, w]) => a + Math.min(1, k / w), 0) / dens.length : 1; pSyn += 5 * d;
-    for (const [lab, k, w] of dens) if (k < w) tips.push({ t: T('Thème {m} : {n} cartes, {t} conseillées', { m: lab, n: k, t: w }), gain: 5 * (1 - k / w) / dens.length });
+    for (const [lab, k, w] of dens) if (k < w) tips.push({ t: TN(k, 'Thème {m} : {n} carte, {t} conseillées', 'Thème {m} : {n} cartes, {t} conseillées', { m: lab, n: k, t: w }), gain: 5 * (1 - k / w) / dens.length });
     if (pets.size) notes.push(T('Cartes fétiches comptées comme voulues, quel que soit leur niveau.'));
   }
   if (tgt.arch && ['group-hug', 'politics', 'pillow-fort', 'tribal', 'enchantress'].includes(tgt.arch)) notes.push(T('Cibles adaptées au thème ({t}) : moins de retraits ou de balayages que d\'habitude, c\'est voulu.', { t: tgt.arch === 'tribal' ? T('tribal') : dmxLabel(tgt.arch === 'pillow-fort' ? 'pillowfort' : tgt.arch === 'enchantress' ? 'enchantments' : tgt.arch) }));
@@ -252,10 +252,35 @@ async function dsMake(o = {}) {
   for (const r of res) r.common = res[0] && r !== res[0] ? dsOverlap(res[0].main, r.main) : null;      // part des sorts communs avec la version équilibrée
   return res;
 }
+/** Prix du ou des commandants (même prix que le coach : relevé du jour, impression la moins chère). */
+const dsCmdCents = () => BD.cmdr.reduce((a, c) => a + Math.max(0, dwPrice(c.key, dwCard(c.key)) || 0), 0);
+/** Commandant qui coûte au moins la moitié du budget : sans réponse, le coach construisait un deck incomplet (Vorinclex 35 € pour 25 € : le commandant et
+ *  36 terrains, aucun sort). Avant la construction, le joueur choisit : le budget pour les 99 autres cartes (budget total = budget + commandant) ou un autre
+ *  budget (prérempli). Le choix est gardé avec le deck (wiz.budAck = budget accepté : plus de question tant qu'il ne change pas). Vrai si la question est ouverte ;
+ *  go() relance la construction une fois le choix fait. */
+async function dsBudAsk(cmd, go) {
+  const w = BD.wiz || {}, bud = w.bud || 0; if (!(bud > 0) || w.budAck === bud) return false;
+  await Promise.resolve(typeof pxTable === 'function' && pxTable()).catch(() => null);      // prix du jour d'abord (le même que la construction)
+  const cc = dsCmdCents(); if (cc < bud * 0.5) return false;
+  const cur = mkCur(), tot = bud + cc, sug = Math.ceil(tot / 1000) * 10, nm = cmd.names.join(' + ');
+  const api = openSheet(T('Budget et commandant'), nm, a => { a.wrap.classList.add('ds-bud-sheet'); });
+  api.body.innerHTML = `<p class="hint warn">${esc(T('{name} coûte {p} à lui seul, sur un budget de {b} : il ne resterait presque rien pour les autres cartes.', { name: nm, p: fmt(cc, cur), b: fmt(bud, cur) }))}</p>
+    <button class="btn block" type="button" data-bud-99>${T('Appliquer le budget aux 99 autres cartes')}<small>${esc(T('Budget total : {p}', { p: fmt(tot, cur) }))}</small></button>
+    <div class="field-in"><label class="label" for="dsBudNew">${T('Ou revoir le budget du deck ({c})', { c: cur })}</label><input type="number" id="dsBudNew" inputmode="decimal" min="0" step="10" value="${sug}"></div>
+    <button class="btn ghost block" type="button" data-bud-new>${T('Construire avec ce budget')}</button>`;
+  api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
+  const take = v => { if (!BD.wiz) return; BD.wiz.bud = v; BD.wiz.budAck = v; dwPersist(BD.id); api.close(); haptic('tap'); setTimeout(go, 0); };
+  api.body.addEventListener('click', e => {
+    if (e.target.closest('[data-bud-99]')) take(tot);
+    else if (e.target.closest('[data-bud-new]')) { const v = Math.max(0, Math.round(Number(String($('#dsBudNew', api.body).value).replace(',', '.')) || 0)) * 100; take(v); }
+  });
+  return true;
+}
 /** Construit le deck de l'éditeur (BD) en plusieurs passes. undoTo : deck à remettre si on annule (« Recréer le deck »). seed : graine du tirage (« Autre proposition »). */
 async function dsBuild(undoTo, seed) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return;
   if (DS.api && sheets.includes(DS.api)) return;      // déjà en cours
+  if (await dsBudAsk(cmd, () => dsBuild(undoTo, seed))) return;      // commandant qui mange le budget : le joueur choisit d'abord (question ouverte)
   const el = BD.el, before = undoTo || dsClone(BD.main), wiz0 = { ...(BD.wiz || dwDefaults()) }, cur = mkCur();
   const empty = dwProfile().n <= BD.cmdr.length, list = empty ? DS_VARIANTS.map(v => ({ ...v, name: T(v.name), d: T(v.d) })) : [{ id: 'eq', name: T('Deck complété'), d: '' }];
   const steps = [{ id: 'px', t: T('Prix du jour') }, { id: 'pk', t: T('Cartes conseillées pour {name}', { name: cmd.names.join(' + ') }) }, ...list.map(v => ({ id: v.id, t: empty ? T('Version « {v} »', { v: v.name }) : T('Construction et amélioration') })), { id: 'ok', t: T('Vérification') }];
@@ -311,7 +336,7 @@ function dsStoryLine(st) {
 }
 /** Choix de la version : note, valeur, courbe, rôles ; la meilleure note est signalée. Fermer sans choisir garde la version équilibrée. */
 function dsChoose(api, res, before, empty) {
-  const cur = mkCur(), best = Math.max(...res.map(r => r.sc.total)), roles = ['ramp', 'draw', 'removal', 'wipe'];
+  const cur = mkCur(), top = Math.max(...res.map(r => r.sc.total)), best = res.filter(r => r.sc.total === top).length === 1 ? top : Infinity, roles = ['ramp', 'draw', 'removal', 'wipe'];
   api.body.innerHTML = `<p class="hint">${T('Le coach a construit plusieurs versions avec tes réglages. Choisis celle qui te ressemble ; tu pourras tout ajuster ensuite.')}</p><div class="ds-vs">${res.map((r, i) => `<button class="ds-v${r.sc.total === best ? ' best' : ''}" type="button" data-ds-pick="${i}">
       <span class="ds-vh"><b>${esc(r.v.name)}</b>${r.sc.total === best ? `<em>${T('Meilleure note')}</em>` : ''}<span class="ds-vn ds-${dsLevel(r.sc.total)}">${r.sc.total}<small>/100</small></span></span>
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}

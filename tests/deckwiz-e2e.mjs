@@ -123,14 +123,23 @@ ok('bracket (Game Changers, destruction de terrains, combo à 2 cartes), terrain
 await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
 await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); await p.waitForSelector('.dw-start[data-v="build"]'); await one(p);
 await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ'); await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
-await p.waitForSelector('#dwzGo'); await p.click('[data-br="2"]'); await p.click('[data-bud="10000"]'); await p.click('#dwzGo');
+await p.waitForSelector('#dwzGo'); await p.click('[data-br="2"]'); await p.click('[data-bud="10000"]');
+// cartes fétiches et exclusions : le champ de recherche qui perd le focus (« change », au moment où l'on touche un résultat) ne redessine plus la liste sous le doigt
+// (la carte n'était ajoutée qu'au 2e appui) ; la frappe (« input ») la redessine (bloc testé ici sans la base classée par mécaniques, qui l'affiche)
+assert.deepEqual(await p.evaluate(() => {
+  const w = document.createElement('div'); w.innerHTML = '<div class="field-in"><input id="tPetQ" data-pq="pets" value="whisper"></div><div class="dw-pres" data-pres="pets"><button id="tKeep"></button></div>'; document.body.append(w);
+  const inp = w.querySelector('input'), r1 = dwPersoInput({ type: 'change', target: inp }, { pets: [] }, null), kept = !!w.querySelector('#tKeep');
+  const r2 = dwPersoInput({ type: 'input', target: inp }, { pets: [] }, null), redrawn = !w.querySelector('#tKeep'); w.remove(); return [r1, kept, r2, redrawn];
+}), ['live', true, 'live', true]);
+await p.click('#dwzGo');
 await p.waitForSelector('.bd.on');
 // construction en plusieurs passes : barre de progression, étapes, puis les versions au choix (note, valeur, courbe, rôles)
 await p.waitForSelector('.ds-sheet', { timeout: 15000 });
 await p.waitForSelector('.ds-v', { timeout: 30000 });
 const vers = await p.$$eval('.ds-v', l => l.map(x => x.querySelector('.ds-vh b').textContent + ' ' + x.querySelector('.ds-vn').textContent.replace(/\s+/g, '')));
 assert.ok(vers.length >= 3 && /^Équilibrée \d+\/100$/.test(vers[0]) && vers.some(v => /^Plus agressive/.test(v)) && vers.some(v => /^Plus contrôle/.test(v)), 'versions : ' + vers.join(' | '));
-assert.ok(await p.$('.ds-v.best em'), 'meilleure note signalée');
+{ const sc = await p.$$eval('.ds-v .ds-vn', l => l.map(x => parseInt(x.textContent, 10))), top = Math.max(...sc), uniq = sc.filter(v => v === top).length === 1;      // « Meilleure note » : seulement quand une version est seule en tête
+  assert.equal(await p.$$eval('.ds-v em', l => l.length), uniq ? 1 : 0, 'meilleure note signalée seulement si une version est seule en tête : ' + sc.join(', ')); }
 await shot(p, 'versions');
 await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
 const gen = await p.evaluate(() => { const m = new Map([...BD.main].map(([k, c]) => [k, c.qty])); let n = 0; for (const q of m.values()) n += q; return { keys: [...m.keys()], n, plains: m.get('plains') || 0, swamp: m.get('swamp') || 0, mountain: m.get('mountain') || 0, prof: (p => ({ land: p.land, ramp: p.ramp, cents: p.cents, gc: p.gc.length }))(dwProfile()) }; });
@@ -151,7 +160,9 @@ assert.equal(await p.$('.dx-regen'), null);
 await p.click('[data-act="dw-set"]'); await p.waitForSelector('#dwBud'); await p.fill('#dwBud', '8'); await p.dispatchEvent('#dwBud', 'change');
 await p.waitForSelector('.dx-regen'); const before5 = await p.evaluate(() => [...BD.main.keys()].sort().join());
 assert.ok(await p.$('.dw-bud [data-act="dw-regen"]'), 'au-dessus du budget : « Reconstruire avec ce budget » dans la section Budget');
-await p.click('.dx-regen [data-act="dw-regen"]'); await p.waitForSelector('.ds-v', { timeout: 30000 }); await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet') && !document.querySelector('.dx-regen') && BD.main.size > 3);
+await p.click('.dx-regen [data-act="dw-regen"]');
+await p.waitForSelector('.ds-bud-sheet [data-bud-new]'); await p.fill('#dsBudNew', '8'); await p.click('.ds-bud-sheet [data-bud-new]');      // Edgar (5 €) sur 8 € : la question d'abord ; le joueur garde 8 €
+await p.waitForSelector('.ds-v', { timeout: 30000 }); await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet') && !document.querySelector('.dx-regen') && BD.main.size > 3);
 assert.ok(await p.evaluate(() => dwProfile().cents <= 800), 'reconstruit sous 8 € : cartes possédées comprises dans la valeur');
 assert.equal(await p.$('.dw-bud [data-act="dw-regen"]'), null, 'sous le budget : plus de bouton');
 await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); }); await p.waitForFunction(b => [...BD.main.keys()].sort().join() === b, before5);
@@ -310,6 +321,34 @@ await p.evaluate(() => { const t = document.querySelector('#toast button'); if (
 await shot(p, 'coach-etapes');
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('coach : prochaines étapes, à retirer (raisons, terrains en trop), échanges dans le coach (Pourquoi ?, Échanger, Annuler)');
+
+/* ── Raisons des échanges, commandant qui coûte presque tout le budget ── */
+{
+  const why = await p.evaluate(() => { const cmd = { names: ['Edgar Markov'] }; const sw = (a, b, w) => daWhy({ why: w, out: { name: 'A', o: { incl: a } }, in: { k: 'x', name: 'B', o: { incl: b } } }, cmd); return [sw(24, 20, 'mieux'), sw(5, 45, 'mieux'), sw(0, 0, 'plan'), sw(0, 44, 'plan')]; });
+  assert.doesNotMatch(why[0], /bien plus jouée/, 'proposée moins jouée (20 % contre 24 %) : pas « bien plus jouée » : ' + why[0]);
+  assert.match(why[0], /^Même rôle, plus utile dans ce deck avec Edgar Markov/);
+  assert.match(why[1], /^Même rôle, bien plus jouée avec Edgar Markov · 45 % des decks \(contre 5 %\)/);
+  assert.match(why[2], /^Sert mieux le plan de Edgar Markov/); assert.match(why[3], /^Bien plus jouée avec Edgar Markov/);
+  // budget de 8 € pour Edgar (5 €) : la question d'abord ; « Appliquer le budget aux 99 autres cartes » → budget total = 8 € + le commandant, gardé (plus de question)
+  await p.evaluate(() => openBuilder({ name: 'Budget serré', fmt: 'commander', cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }], wiz: dwSane({ br: 2, bud: 800 }) })); await p.waitForSelector('.bd.on');
+  await p.click('#bdSeg .seg-opt[data-v="coach"]'); await p.waitForFunction(() => DW.core && DW.cmd.has('edgar-markov'));
+  await p.evaluate(() => { dwBuild(); }); await p.waitForSelector('.ds-bud-sheet [data-bud-99]');
+  assert.match(await txt(p, '.ds-bud-sheet .sheet-body'), /Edgar Markov coûte 5,00 € à lui seul, sur un budget de 8,00 €/);
+  assert.match(await txt(p, '.ds-bud-sheet [data-bud-99]'), /Appliquer le budget aux 99 autres cartes\s*Budget total : 13,00 €/);
+  assert.equal(await p.$eval('#dsBudNew', i => i.value), '20', 'budget conseillé prérempli (arrondi à 10 €)');
+  await p.click('.ds-bud-sheet [data-bud-99]'); await p.waitForSelector('.ds-sheet', { timeout: 15000 });
+  assert.deepEqual(await p.evaluate(() => [BD.wiz.bud, BD.wiz.budAck]), [1300, 1300]);
+  await p.click('.ds-sheet [data-close]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  await p.evaluate(() => { dwBuild(); }); await p.waitForSelector('.ds-sheet', { timeout: 15000 }); assert.equal(await p.$('.ds-bud-sheet'), null, 'choix gardé : plus de question');
+  await p.click('.ds-sheet [data-close]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  // « Revoir le budget » : le montant saisi
+  await p.evaluate(() => { BD.wiz.bud = 600; delete BD.wiz.budAck; dwBuild(); }); await p.waitForSelector('.ds-bud-sheet [data-bud-new]');
+  await p.fill('#dsBudNew', '40'); await p.click('.ds-bud-sheet [data-bud-new]'); await p.waitForSelector('.ds-sheet', { timeout: 15000 });
+  assert.deepEqual(await p.evaluate(() => [BD.wiz.bud, BD.wiz.budAck]), [4000, 4000]);
+  await p.click('.ds-sheet [data-close]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  await p.evaluate(() => bdClose(true));
+}
+ok('échanges : « bien plus jouée » seulement si c\'est vrai ; commandant qui coûte presque tout le budget : question avant la construction (99 autres cartes ou autre budget), choix gardé');
 
 /* ── 7) Base du coach indisponible : modèle de base, pas de suggestions ── */
 dkwOff = true;

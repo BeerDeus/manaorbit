@@ -2856,6 +2856,10 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dw-audit li.good::before{content:"✓";color:var(--good)}
 .dw-audit li.warn::before{content:"!";color:var(--warn)}
 .dw-audit li small{display:block;margin-top:2px;color:var(--ink-2)}
+/* Budget et commandant (deckopt.js › dsBudAsk) : question avant la construction quand le commandant coûte au moins la moitié du budget */
+.ds-bud-sheet .btn[data-bud-99]{flex-direction:column;height:auto;min-height:58px;gap:2px;padding:9px 16px;margin-top:12px}
+.ds-bud-sheet .btn[data-bud-99] small{display:block;font-weight:500;font-size:12.5px;opacity:.85}
+.ds-bud-sheet .field-in{margin:16px 0 8px}
 
 /* ── densite.css : densité sur téléphone (densite.js) — collection (en-tête, outils en icônes, vues compacte / grille) et écran Échange (barre du lien, ligne des sous-onglets) ── */
 
@@ -7937,8 +7941,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'bd5ce7d3';
-const I18N_FILES = {"de":"i18n/de.62bc8133.js","en":"i18n/en.32f58519.js","es":"i18n/es.477ffb5e.js","it":"i18n/it.59e12be5.js","pt":"i18n/pt.7a602d56.js"};
+const DD_BUILD = '34c0b099';
+const I18N_FILES = {"de":"i18n/de.a2e5c982.js","en":"i18n/en.98b6539b.js","es":"i18n/es.bece305b.js","it":"i18n/it.7303b377.js","pt":"i18n/pt.4f839259.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -28538,10 +28542,12 @@ function dwPersoClick(e, s) {
   else if (t.dataset.padd) { const k = t.dataset.padd, l = s[k] = s[k] || []; if (!l.includes(t.dataset.n)) { if (l.length >= (k === 'pets' ? 20 : 40)) toast(T('{n} au plus', { n: k === 'pets' ? 20 : 40 })); else l.push(t.dataset.n); } }
   haptic('tap'); return true;
 }
-/** Saisie dans le bloc (recherche de cartes, type de créature, originalité) : vrai si traitée ; repaint : vrai s'il faut redessiner. */
+/** Saisie dans le bloc (recherche de cartes, type de créature, originalité) : vrai si traitée ; repaint : vrai s'il faut redessiner.
+ *  Recherche de cartes : résultats redessinés à la frappe seulement ; « change » (champ qui perd le focus quand on touche un résultat) ne redessine rien,
+ *  sinon le bouton touché disparaissait sous le doigt et la carte n'était ajoutée qu'au 2e appui. */
 function dwPersoInput(e, s, cmd) {
   const t = e.target; if (!t || !t.id) return false;
-  if (t.dataset.pq) { const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
+  if (t.dataset.pq) { if (e.type !== 'input') return 'live'; const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
   if (/Tribe$/.test(t.id)) { s.tribe = String(t.value || '').trim().slice(0, 30); return e.type === 'change'; }
   if (/Orig$/.test(t.id)) { s.orig = Math.max(0, Math.min(100, Math.round(Number(t.value) || 0))); return e.type === 'change'; }
   return false;
@@ -29174,14 +29180,17 @@ function dwDeckStory(X = BD) {
   E('cimetière', [['self-mill', 'loot', 'discard-outlet'], ['reanimation', 'graveyard-cast']]);
   E('marqueurs', [['counters-p1'], ['proliferate']]);
   E('sorts copiés', [['copy'], ['cost-reduction', 'untap']]);
-  const wincons = cards.filter(c => (dwCard(c.key) || {}).roles & DW_RB.wincon).map(c => c.name);
+  const wk = typeof dwWinKeys === 'function' ? dwWinKeys(X) : null;      // conditions de victoire au sens du plan (comme la jauge, dwProfile) : le commandant quand il gagne lui-même, les cartes de la fiche, puis celles classées « condition de victoire »
+  const wincons = [...new Set([...(wk && wk.cmdr ? X.cmdr.map(c => c.name) : []), ...cards.filter(c => wk && wk.cards.has(c.key)).map(c => c.name), ...cards.filter(c => (dwCard(c.key) || {}).roles & DW_RB.wincon).map(c => c.name)])];
   const pets = (set.pets || []).map(nm => ({ nm, k: ownKey(nm) })), petIn = pets.filter(p => X.main.has(p.k)).map(p => p.nm), petOut = pets.filter(p => !X.main.has(p.k)).map(p => p.nm);
   const notes = [];
   if (plan && plan.user && plan.main.length) notes.push(T('Plan suivi : {m}', { m: plan.main.slice(0, 3).map(i => dmxLabel(DMX.tags[i])).join(', ') }));
   if (petOut.length) notes.push(TN(petOut.length, 'Carte fétiche écartée (couleurs, bracket ou cartes interdites) : {c}', 'Cartes fétiches écartées (couleurs, bracket ou cartes interdites) : {c}', { c: petOut.join(', ') }));
-  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
+  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
   return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
+/** Nom d'un moteur de la fiche du commandant : écrit en français par l'IA ; dans une autre langue, un libellé traduit. */
+const dmxEngName = l => typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr' ? l : T('moteur du plan');
 /** Lecture d'un deck par sa fiche et ses mécaniques (analyse, rapport) : { story, engines: [{ label, have, miss }] (moteurs de la fiche : pièces présentes, pièces qui manquent),
  *  traps: [noms] (pièges de la fiche présents dans le deck), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
  *  ni un rôle, et peu forts), core: [noms] (cœur du plan présent, note 3 de la fiche) } ; null sans classement. */
@@ -29189,7 +29198,7 @@ function dwDeckAudit(X = BD) {
   if (!dmxOn()) return null;
   const story = dwDeckStory(X); if (!story) return null;
   const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
-  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
+  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
   const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
   const deck = dmxDeck(X), loose = [];
   for (const c of X.main.values()) {
@@ -29296,8 +29305,10 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
 /** Raison d'un échange, en clair. */
 function daWhy(sw, cmd) {
   const nm = cmd ? cmd.names[0].split(',')[0] : '', g = DW_GAUGES.find(x => x[0] === sw.why);
-  const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) }) : sw.why === 'mieux' ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Bien plus jouée avec {name}', { name: nm });
-  const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0;
+  const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0, more = b >= a + 10;      // « bien plus jouée » seulement si c'est vrai : l'échange est choisi sur la valeur pour ce deck (mécaniques, fiche), pas sur la seule popularité
+  const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) })
+    : sw.why === 'mieux' ? (more ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Même rôle, plus utile dans ce deck avec {name}', { name: nm }))
+    : more ? T('Bien plus jouée avec {name}', { name: nm }) : T('Sert mieux le plan de {name}', { name: nm });
   const C = DW.infoC && DW.infoC.C, plan = C && C.plan, mech = plan && DA.X && typeof dmxReasons === 'function' ? dmxReasons(sw.in.k, DA.X, cmd, plan).slice(0, 2) : [];      // ce que la carte proposée fait pour ce deck (fiche du commandant, mécaniques)
   const trap = sw.out.o && sw.out.o.trap ? [T('{card} marche mal avec {name}', { card: sw.out.name, name: nm })] : [];
   return [head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : ''), ...trap, ...mech].join(' · ');
@@ -29672,7 +29683,8 @@ function drReportHtml(X) {
   for (const t of themes) { const lbl = dwThemeLabel(t, thChoices), inf = typeof edhThemeInfo === 'function' ? edhThemeInfo({ label: ((pack && pack.thl) || []).concat((cmd && cmd.th) || []).find(x => x[0] === t)?.[1] || t }) : ''; if (inf) h += `<p class="dr-p"><b>${esc(lbl)} :</b> ${edhInfoHtml(inf)}</p>`; }
   const combos = prof.combos || [];
   if (combos.length) h += `<p class="dr-h">${TN(combos.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p><ul class="dr-ul">${combos.slice(0, 8).map(c => `<li>${drCard(ownKey(c[0]), c[0])} + ${drCard(ownKey(c[1]), c[1])} : <i>${esc(c[2])}</i></li>`).join('')}</ul>${est <= 2 || set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
-  const win = spells.filter(has('wincon'));
+  const wk = typeof dwWinKeys === 'function' ? dwWinKeys(X) : null;      // conditions de victoire au sens du plan (comme la jauge) : le commandant quand il gagne lui-même, les cartes de la fiche
+  const win = [...(wk && wk.cmdr ? cm : []), ...spells.filter(c => has('wincon')(c) || (wk && wk.cards.has(c.k)))];
   if (win.length) h += `<p class="dr-h">${T('Conditions de victoire')}</p><p class="dr-p">${drList(win.slice(0, 8))}</p>`;
   if (!combos.length && !win.length) h += `<p class="hint">${T('Aucun combo ni condition de victoire identifiés : le deck gagne surtout au combat, grâce à son commandant et ses pièces maîtresses.')}</p>`;
   const key = spells.filter(c => (c.o.syn || 0) >= 10 || (c.o.incl || 0) >= 45).sort((a, b) => b.v - a.v).slice(0, 8);
@@ -29951,7 +29963,7 @@ function dsScore(X = BD, ctx = {}) {
     for (const i of plan.main.slice(0, 3)) { let k = 0; for (const c of spells) { const m = dmx(c.key); if (m && (m.p.includes(i) || m.w.includes(i))) k += c.qty; } dens.push([dmxLabel(DMX.tags[i]), k, 10]); }
     for (const [t] of plan.tribes) { let k = 0; for (const c of spells) { const m = dmx(c.key); if (m && (dmxSubHas(m, t) || m.t.includes(t))) k += c.qty; } dens.push([t, k, plan.from.get('t:' + t) === 'me' || plan.from.get('t:' + t) === 'th' ? 18 : 12]); break; }
     const d = dens.length ? dens.reduce((a, [, k, w]) => a + Math.min(1, k / w), 0) / dens.length : 1; pSyn += 5 * d;
-    for (const [lab, k, w] of dens) if (k < w) tips.push({ t: T('Thème {m} : {n} cartes, {t} conseillées', { m: lab, n: k, t: w }), gain: 5 * (1 - k / w) / dens.length });
+    for (const [lab, k, w] of dens) if (k < w) tips.push({ t: TN(k, 'Thème {m} : {n} carte, {t} conseillées', 'Thème {m} : {n} cartes, {t} conseillées', { m: lab, n: k, t: w }), gain: 5 * (1 - k / w) / dens.length });
     if (pets.size) notes.push(T('Cartes fétiches comptées comme voulues, quel que soit leur niveau.'));
   }
   if (tgt.arch && ['group-hug', 'politics', 'pillow-fort', 'tribal', 'enchantress'].includes(tgt.arch)) notes.push(T('Cibles adaptées au thème ({t}) : moins de retraits ou de balayages que d\'habitude, c\'est voulu.', { t: tgt.arch === 'tribal' ? T('tribal') : dmxLabel(tgt.arch === 'pillow-fort' ? 'pillowfort' : tgt.arch === 'enchantress' ? 'enchantments' : tgt.arch) }));
@@ -30144,10 +30156,35 @@ async function dsMake(o = {}) {
   for (const r of res) r.common = res[0] && r !== res[0] ? dsOverlap(res[0].main, r.main) : null;      // part des sorts communs avec la version équilibrée
   return res;
 }
+/** Prix du ou des commandants (même prix que le coach : relevé du jour, impression la moins chère). */
+const dsCmdCents = () => BD.cmdr.reduce((a, c) => a + Math.max(0, dwPrice(c.key, dwCard(c.key)) || 0), 0);
+/** Commandant qui coûte au moins la moitié du budget : sans réponse, le coach construisait un deck incomplet (Vorinclex 35 € pour 25 € : le commandant et
+ *  36 terrains, aucun sort). Avant la construction, le joueur choisit : le budget pour les 99 autres cartes (budget total = budget + commandant) ou un autre
+ *  budget (prérempli). Le choix est gardé avec le deck (wiz.budAck = budget accepté : plus de question tant qu'il ne change pas). Vrai si la question est ouverte ;
+ *  go() relance la construction une fois le choix fait. */
+async function dsBudAsk(cmd, go) {
+  const w = BD.wiz || {}, bud = w.bud || 0; if (!(bud > 0) || w.budAck === bud) return false;
+  await Promise.resolve(typeof pxTable === 'function' && pxTable()).catch(() => null);      // prix du jour d'abord (le même que la construction)
+  const cc = dsCmdCents(); if (cc < bud * 0.5) return false;
+  const cur = mkCur(), tot = bud + cc, sug = Math.ceil(tot / 1000) * 10, nm = cmd.names.join(' + ');
+  const api = openSheet(T('Budget et commandant'), nm, a => { a.wrap.classList.add('ds-bud-sheet'); });
+  api.body.innerHTML = `<p class="hint warn">${esc(T('{name} coûte {p} à lui seul, sur un budget de {b} : il ne resterait presque rien pour les autres cartes.', { name: nm, p: fmt(cc, cur), b: fmt(bud, cur) }))}</p>
+    <button class="btn block" type="button" data-bud-99>${T('Appliquer le budget aux 99 autres cartes')}<small>${esc(T('Budget total : {p}', { p: fmt(tot, cur) }))}</small></button>
+    <div class="field-in"><label class="label" for="dsBudNew">${T('Ou revoir le budget du deck ({c})', { c: cur })}</label><input type="number" id="dsBudNew" inputmode="decimal" min="0" step="10" value="${sug}"></div>
+    <button class="btn ghost block" type="button" data-bud-new>${T('Construire avec ce budget')}</button>`;
+  api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
+  const take = v => { if (!BD.wiz) return; BD.wiz.bud = v; BD.wiz.budAck = v; dwPersist(BD.id); api.close(); haptic('tap'); setTimeout(go, 0); };
+  api.body.addEventListener('click', e => {
+    if (e.target.closest('[data-bud-99]')) take(tot);
+    else if (e.target.closest('[data-bud-new]')) { const v = Math.max(0, Math.round(Number(String($('#dsBudNew', api.body).value).replace(',', '.')) || 0)) * 100; take(v); }
+  });
+  return true;
+}
 /** Construit le deck de l'éditeur (BD) en plusieurs passes. undoTo : deck à remettre si on annule (« Recréer le deck »). seed : graine du tirage (« Autre proposition »). */
 async function dsBuild(undoTo, seed) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return;
   if (DS.api && sheets.includes(DS.api)) return;      // déjà en cours
+  if (await dsBudAsk(cmd, () => dsBuild(undoTo, seed))) return;      // commandant qui mange le budget : le joueur choisit d'abord (question ouverte)
   const el = BD.el, before = undoTo || dsClone(BD.main), wiz0 = { ...(BD.wiz || dwDefaults()) }, cur = mkCur();
   const empty = dwProfile().n <= BD.cmdr.length, list = empty ? DS_VARIANTS.map(v => ({ ...v, name: T(v.name), d: T(v.d) })) : [{ id: 'eq', name: T('Deck complété'), d: '' }];
   const steps = [{ id: 'px', t: T('Prix du jour') }, { id: 'pk', t: T('Cartes conseillées pour {name}', { name: cmd.names.join(' + ') }) }, ...list.map(v => ({ id: v.id, t: empty ? T('Version « {v} »', { v: v.name }) : T('Construction et amélioration') })), { id: 'ok', t: T('Vérification') }];
@@ -30203,7 +30240,7 @@ function dsStoryLine(st) {
 }
 /** Choix de la version : note, valeur, courbe, rôles ; la meilleure note est signalée. Fermer sans choisir garde la version équilibrée. */
 function dsChoose(api, res, before, empty) {
-  const cur = mkCur(), best = Math.max(...res.map(r => r.sc.total)), roles = ['ramp', 'draw', 'removal', 'wipe'];
+  const cur = mkCur(), top = Math.max(...res.map(r => r.sc.total)), best = res.filter(r => r.sc.total === top).length === 1 ? top : Infinity, roles = ['ramp', 'draw', 'removal', 'wipe'];
   api.body.innerHTML = `<p class="hint">${T('Le coach a construit plusieurs versions avec tes réglages. Choisis celle qui te ressemble ; tu pourras tout ajuster ensuite.')}</p><div class="ds-vs">${res.map((r, i) => `<button class="ds-v${r.sc.total === best ? ' best' : ''}" type="button" data-ds-pick="${i}">
       <span class="ds-vh"><b>${esc(r.v.name)}</b>${r.sc.total === best ? `<em>${T('Meilleure note')}</em>` : ''}<span class="ds-vn ds-${dsLevel(r.sc.total)}">${r.sc.total}<small>/100</small></span></span>
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}

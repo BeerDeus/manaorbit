@@ -615,10 +615,12 @@ function dwPersoClick(e, s) {
   else if (t.dataset.padd) { const k = t.dataset.padd, l = s[k] = s[k] || []; if (!l.includes(t.dataset.n)) { if (l.length >= (k === 'pets' ? 20 : 40)) toast(T('{n} au plus', { n: k === 'pets' ? 20 : 40 })); else l.push(t.dataset.n); } }
   haptic('tap'); return true;
 }
-/** Saisie dans le bloc (recherche de cartes, type de créature, originalité) : vrai si traitée ; repaint : vrai s'il faut redessiner. */
+/** Saisie dans le bloc (recherche de cartes, type de créature, originalité) : vrai si traitée ; repaint : vrai s'il faut redessiner.
+ *  Recherche de cartes : résultats redessinés à la frappe seulement ; « change » (champ qui perd le focus quand on touche un résultat) ne redessine rien,
+ *  sinon le bouton touché disparaissait sous le doigt et la carte n'était ajoutée qu'au 2e appui. */
 function dwPersoInput(e, s, cmd) {
   const t = e.target; if (!t || !t.id) return false;
-  if (t.dataset.pq) { const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
+  if (t.dataset.pq) { if (e.type !== 'input') return 'live'; const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
   if (/Tribe$/.test(t.id)) { s.tribe = String(t.value || '').trim().slice(0, 30); return e.type === 'change'; }
   if (/Orig$/.test(t.id)) { s.orig = Math.max(0, Math.min(100, Math.round(Number(t.value) || 0))); return e.type === 'change'; }
   return false;

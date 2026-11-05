@@ -50,7 +50,8 @@ function drReportHtml(X) {
   for (const t of themes) { const lbl = dwThemeLabel(t, thChoices), inf = typeof edhThemeInfo === 'function' ? edhThemeInfo({ label: ((pack && pack.thl) || []).concat((cmd && cmd.th) || []).find(x => x[0] === t)?.[1] || t }) : ''; if (inf) h += `<p class="dr-p"><b>${esc(lbl)} :</b> ${edhInfoHtml(inf)}</p>`; }
   const combos = prof.combos || [];
   if (combos.length) h += `<p class="dr-h">${TN(combos.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p><ul class="dr-ul">${combos.slice(0, 8).map(c => `<li>${drCard(ownKey(c[0]), c[0])} + ${drCard(ownKey(c[1]), c[1])} : <i>${esc(c[2])}</i></li>`).join('')}</ul>${est <= 2 || set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
-  const win = spells.filter(has('wincon'));
+  const wk = typeof dwWinKeys === 'function' ? dwWinKeys(X) : null;      // conditions de victoire au sens du plan (comme la jauge) : le commandant quand il gagne lui-même, les cartes de la fiche
+  const win = [...(wk && wk.cmdr ? cm : []), ...spells.filter(c => has('wincon')(c) || (wk && wk.cards.has(c.k)))];
   if (win.length) h += `<p class="dr-h">${T('Conditions de victoire')}</p><p class="dr-p">${drList(win.slice(0, 8))}</p>`;
   if (!combos.length && !win.length) h += `<p class="hint">${T('Aucun combo ni condition de victoire identifiés : le deck gagne surtout au combat, grâce à son commandant et ses pièces maîtresses.')}</p>`;
   const key = spells.filter(c => (c.o.syn || 0) >= 10 || (c.o.incl || 0) >= 45).sort((a, b) => b.v - a.v).slice(0, 8);

@@ -1,0 +1,12 @@
+{
+ "moteur du plan": "plan engine",
+ "Même rôle, plus utile dans ce deck avec {name}": "Same role, more useful in this deck with {name}",
+ "Sert mieux le plan de {name}": "Fits {name}'s plan better",
+ "Thème {m} : {n} carte, {t} conseillées": "{m} theme: {n} card, {t} recommended",
+ "Budget et commandant": "Budget and commander",
+ "{name} coûte {p} à lui seul, sur un budget de {b} : il ne resterait presque rien pour les autres cartes.": "{name} alone costs {p} out of a {b} budget: almost nothing would be left for the other cards.",
+ "Appliquer le budget aux 99 autres cartes": "Apply the budget to the other 99 cards",
+ "Budget total : {p}": "Total budget: {p}",
+ "Ou revoir le budget du deck ({c})": "Or change the deck budget ({c})",
+ "Construire avec ce budget": "Build with this budget"
+}
