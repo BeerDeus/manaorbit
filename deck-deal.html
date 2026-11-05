@@ -8017,8 +8017,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'fd4092d8';
-const I18N_FILES = {"de":"i18n/de.856da484.js","en":"i18n/en.a3d2ec93.js","es":"i18n/es.2aff4691.js","it":"i18n/it.1800cf28.js","pt":"i18n/pt.c10fc899.js"};
+const DD_BUILD = '31505c62';
+const I18N_FILES = {"de":"i18n/de.2a93a290.js","en":"i18n/en.81490896.js","es":"i18n/es.3816a9e6.js","it":"i18n/it.9a94c873.js","pt":"i18n/pt.5d1548f0.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9921,6 +9921,14 @@ function engTotal(eng, k, exceptId) {
 const engFree = (owned, eng, k, exceptId) => Math.max(0, (Number(owned) || 0) - engTotal(eng, k, exceptId));
 /** Decks qui engagent la carte k : [{ id, n, q }]. */
 function engDecksOf(eng, k) { const out = []; for (const id in eng || {}) { const q = (eng[id].q && eng[id].q[k]) || 0; if (q > 0) out.push({ id, n: eng[id].n, q }); } return out; }
+/** Règle unique « possédée » / « à acheter » (éditeur, coach, viewer, recherche, alertes, De ta collection) : la carte k pour le deck deckId.
+ *  own : exemplaires possédés · free : libres pour ce deck = possédés − réservés par les AUTRES decks montés (un deck ne se retire pas ses propres exemplaires ;
+ *  deck pas encore enregistré, ou pas à moi : deckId null, toute réservation compte) · held : own − free (possédés mais engagés ailleurs) · decks : ces autres decks [{ id, n, q }].
+ *  À acheter = quantité du deck − free, partout. */
+function engOwnFor(owned, eng, k, deckId) {
+  const own = Math.max(0, Math.floor(Number(owned) || 0)), free = engFree(own, eng, k, deckId);
+  return { own, free, held: own - free, decks: own > free ? engDecksOf(eng, k).filter(d => d.id !== deckId) : [] };
+}
 /** Deck monté : pour chaque carte du texte (hors terrains de base), les exemplaires possédés, au plus la quantité du deck. ownedOf : clé → exemplaires possédés. */
 function engSnapshot(text, ownedOf) {
   const want = new Map();      // clé → exemplaires voulus : deck + réserve (« SB: »), la réserve est dans la boîte du deck aussi
@@ -10856,7 +10864,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engOwnFor, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
@@ -19077,7 +19085,7 @@ function refSnapOf(text, id, pub) {
   const cmd = dkFormat(text) === 'standard' ? new Set() : commandersOf(text, pd.cards, c => dmOf(ownKey(c.key)));
   const items = [];
   for (const c of pd.cards) {
-    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
+    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, ownFree(k, id));
     const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0;      // règle unique de la valeur estimée (builder.js › dkPx)
     const it = { k: c.key, n: c.name, q: c.qty, s: eu > 0 ? 'ok' : Number.isFinite(m.eu) ? 'ok' : 'none' };
     if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
@@ -19100,7 +19108,7 @@ const snapNothingToBuy = snap => !snap.items.some(i => i.s !== 'own' && i.s !== 
 function sbItemsOf(text, id, pub) {
   const out = [];
   for (const c of dkSideCards(text)) {
-    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
+    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, ownFree(k, id));
     const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0, it = { k: 'sb:' + k, n: c.name, q: Math.min(999, c.qty), s: eu > 0 || Number.isFinite(m.eu) ? 'ok' : 'none', sb: 1 };
     if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
     if (m.cm != null) { it.cm = m.cm; it.mc = m.mc; it.tl = m.tl; it.cl = m.cl; }
@@ -19508,7 +19516,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
     else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
     else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
     else if (act === 'cm') cmCopy(dvMissing());
-    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => engFree(collQty(k), XS.eng, k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
+    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
     else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
     else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
     else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
@@ -19534,7 +19542,7 @@ async function refreshDeckPrices(id) {
 }
 
 /** Cartes qui manquent au deck affiché (deck + réserve − collection libre ; deck public : tout le deck, la collection du visiteur n'est pas lue ici). */
-const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => engFree(collQty(k), XS.eng, k, DV.deckId));
+const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => ownFree(k, DV.deckId));
 
 /* ── Main de départ : 7 cartes au hasard dans la bibliothèque (commandant et réserve à part), et les chances d'avoir 0 à 7 terrains (loi hypergéométrique) ── */
 const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Math.round(p * 100))) + ' %';
@@ -23360,7 +23368,7 @@ function dfPaint() {
 }
 function dfRowHtml(e, x, cname, canAdd) {
   const it = COLL.map[x.k], m = COLL.meta[x.k] || {}, nm = dfName(x.k), hue = hash32(x.k) % 360, img = m.im ? collImage(x.k, it.l, m.im).src : '';
-  const pct = pctTxt(x.r), price = dfPrice(e, x), pl = dfPlaces(x.k), own = collQty(x.k), free = engFree(own, XS.eng, x.k, DV.deckId), ds = engDecksOf(XS.eng, x.k).filter(d => d.id !== DV.deckId);
+  const pct = pctTxt(x.r), price = dfPrice(e, x), pl = dfPlaces(x.k), o = ownFor(x.k, DV.deckId), own = o.own, free = o.free, ds = o.decks;      // règle unique (extras.js › ownFor)
   const tags = [`<span class="tag df-pl" title="${esc(pl.join(' · '))}">${esc(pl[0] || T('Non rangé'))}${pl.length > 1 ? ' +' + (pl.length - 1) : ''}</span>`];
   if (ds.length) tags.push(`<span class="tag warn df-eng" title="${esc(ds.map(d => d.n).join(' · '))}">${free > 0 ? TN(own - free, '{n} engagée ailleurs', '{n} engagées ailleurs') : ds.length > 1 ? T('Réservée par {n} decks montés', { n: ds.length }) : T('Réservée par « {name} »', { name: esc(ds[0].n) })}</span>`);
   return `<div class="crow df-row" data-k="${esc(x.k)}"><span class="thumb" style="--h:${hue}"${zoomAt('dfc', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, it.n, img, it.l || '')}>` : ''}</span>
@@ -23782,8 +23790,13 @@ const engIsOn = id => !!(XS.eng[id] && Object.keys(XS.eng[id].q).length);
 /** Empreinte des decks montés (id + date de dernière modification) : sert à invalider les listes qui en dépendent. */
 const engSig = () => Object.keys(XS.eng).sort().map(id => id + ':' + XS.eng[id].at).join(',');
 const engCount = id => (XS.eng[id] ? Object.values(XS.eng[id].q).reduce((a, x) => a + x, 0) : 0);
+/** Règle unique « possédée » / « à acheter » (core.js › engOwnFor) : { own, free, held, decks } de la carte k pour le deck deckId ; à acheter = quantité − free.
+ *  Éditeur (BD.id), coach (X.id), viewer (DV.deckId), recherche (S.deckId), alertes, De ta collection : tous passent par ici. */
+function ownFor(k, deckId) { return engOwnFor(collQty(k), XS.eng, k, deckId); }
+/** ownFor(k, deckId).free sans construire l'objet (boucles du coach). */
+function ownFree(k, deckId) { return engFree(collQty(k), XS.eng, k, deckId); }
 /** Exemplaires libres pour le deck en cours de recherche : possédés − réservés par les autres decks montés. */
-const engOwned = k => engFree(collQty(k), XS.eng, k, S.deckId);
+const engOwned = k => ownFree(k, S.deckId);
 /** Exemplaires de la liste courante mis de côté par d'autres decks (non déduits du panier) et les decks concernés. */
 function engHeldBack(cards) {
   let n = 0; const names = new Set();
@@ -24018,7 +24031,7 @@ function alItems() {
       if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
       for (const c of parseDeck(d.text).cards) {
         const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
-        if (c.qty - engFree(collQty(k), XS.eng, k, d.id) <= 0) continue;
+        if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
         put(k, c.name, 0, d.name);
       }
     }
@@ -24103,7 +24116,7 @@ function alWatchMany(cards, deck) {
 /** Deck tout juste enregistré : s'il lui manque des cartes et que les alertes sont possibles mais coupées, action « Activer » pour le toast « Deck enregistré · Me prévenir des baisses ? » ; sinon null. */
 function alSaveOffer(text, id) {
   if (AC.on || !alAvail()) return null;
-  if (!parseDeck(text).cards.some(c => { const k = ownKey(c.key); return c.qty > engFree(collQty(k), XS.eng, k, id); })) return null;      // tout est déjà possédé : rien qui puisse baisser
+  if (!parseDeck(text).cards.some(c => { const k = ownKey(c.key); return c.qty > ownFree(k, id); })) return null;      // tout est déjà possédé : rien qui puisse baisser
   return { label: T('Activer'), fn: async () => {
     const was = AC.deck; AC.deck = true;                                                       // ce deck doit être surveillé, même si « cartes manquantes de mes decks » avait été coupé
     const r = await alEnable(); if (r.ok) { haptic('ok'); toast(T('Alertes de prix activées'), { label: T('Régler'), fn: () => openAlertSheet() }); alPaintBox(); } else { AC.deck = was; toast(alWhy(r)); }
@@ -27877,17 +27890,19 @@ function bdSumHtml() {
 }
 /** Deck Commander : carte que Scryfall dit pas légale en Commander (interdite…) ; formats lus avec les infos de la carte (COLL.meta[k].lg), inconnus : non. */
 const bdIllegal = k => { if (BD.fmt !== 'commander' || BASIC_NAMES.has(k)) return false; const m = bdMeta(k); return !!m && typeof m.lg === 'string' && !!m.lg && !m.lg.includes('c'); };
+/** « 1 engagée dans « A » » / « 2 engagées ailleurs » : exemplaires possédés mais réservés par d'autres decks montés (o : ownFor). */
+const bdHeldTxt = o => o.decks.length === 1 && o.decks[0].n ? TN(o.held, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: o.held, deck: o.decks[0].n }) : TN(o.held, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: o.held });
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
-  const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
+  const o = ownFor(k, BD.id), own = o.own, free = o.free, out = [];      // règle unique (extras.js › ownFor) : possédée = libre pour ce deck ; à acheter = q − free, comme le coach et le viewer
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
   if (bdIllegal(k)) out.push(`<span class="tag bad">${T('Pas légale en Commander')}</span>`);      // Scryfall (legalities), comme l'alerte du résumé (core.js › dkCheck)
   if (typeof dvGC === 'function' && dvGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (brackets Commander)
-  const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
-  if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
+  const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - free), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu ; exemplaires engagés ailleurs : à acheter
+  if (ctx === 'deck') out.push(free >= q ? `<span class="tag good">${T('Possédée')}</span>` : free > 0 ? `<span class="tag warn">${TN(free, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: free, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
-  if (own && eg) { const ds = engDecksOf(XS.eng, k).filter(d => d.id !== BD.id); out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${ds.length === 1 && ds[0].n ? esc(TN(eg, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: eg, deck: ds[0].n })) : TN(eg, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: eg })}</span>`); }
+  if (o.held) out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${esc(bdHeldTxt(o))}</span>`);      // possédée mais engagée : toujours dit
   return out.join('');
 }
 function bdRow(k, name, q, tgt, ctx, label) {
@@ -27909,8 +27924,8 @@ function bdToolsHtml() {
 }
 /** Cartes de l'éditeur au format du deck viewer (prix de ce qui manque, possession), pour ses vues. */
 function bdViewItems() {
-  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = BASIC_NAMES.has(k) ? 0 : dkPx(k);
-    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
+  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, o = BASIC_NAMES.has(k) ? null : ownFor(k, BD.id), ow = o ? o.free : 0, eu = BASIC_NAMES.has(k) ? 0 : dkPx(k);
+    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, own: o ? o.own : 0, held: o && o.held ? bdHeldTxt(o) : '', mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
   return [...[...BD.main.values()].map(c => one(c, 'main')), ...[...BD.side.values()].map(c => one(c, 'side'))];
 }
 function bdVisualHtml() {
@@ -27932,7 +27947,7 @@ function bdCmdrHtml() {
 /** Carte touchée dans une vue en images : en grand, avec « Retirer du deck » (et les autres cartes du deck en glissant). */
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
-    extra: it.ow ? TN(it.ow, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.ow }) : T('Pas dans ta collection'),
+    extra: (it.own ? TN(it.own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.own }) : T('Pas dans ta collection')) + (it.held ? ' · ' + it.held : ''),      // possédés, et ceux engagés dans un autre deck monté
     act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } } }));
   if (list[i]) openCardViewer(list, i);
 }
@@ -28062,8 +28077,8 @@ function bdClick(e) {
     if (bdChange(tgt, k, row.dataset.n, d)) {
       haptic('tap');
       if (d > 0 && BD.tab === 'coll' && tgt !== 'cmdr' && !BASIC_NAMES.has(k)) {      // carte possédée, mais tous ses exemplaires sont réservés par un autre deck monté : le dire tout de suite
-        const own = collQty(k), q = ((BD[tgt] && BD[tgt].get(k)) || {}).qty || 0, free = engFree(own, XS.eng, k, BD.id), ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id);
-        if (own > 0 && q > free && ds.length) toast(T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: bdLabel(k, row.dataset.n), deck: ds[0].n || T('un autre deck') }));
+        const o = ownFor(k, BD.id), q = ((BD[tgt] && BD[tgt].get(k)) || {}).qty || 0, ds = o.decks;
+        if (o.own > 0 && q > o.free && ds.length) toast(T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: bdLabel(k, row.dataset.n), deck: ds[0].n || T('un autre deck') }));
       }
     }
     return;
@@ -28236,8 +28251,8 @@ function bdBulkPlan(list, qOf) {
     room -= q;
     const nm = bdLabel(k, name);
     if (bdIllegal(k)) P.ill.push(nm);
-    const own = BASIC_NAMES.has(k) ? 0 : collQty(k);
-    if (own > 0) { const ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id); if (ds.length && bdTot(k) + q > engFree(own, XS.eng, k, BD.id)) P.res.push({ name: nm, deck: ds[0].n || T('un autre deck') }); }
+    const o = BASIC_NAMES.has(k) ? null : ownFor(k, BD.id);      // règle unique (extras.js › ownFor) : au-delà des exemplaires libres, à acheter (pastille de l'éditeur, coach)
+    if (o && o.decks.length && bdTot(k) + q > o.free) P.res.push({ name: nm, deck: o.decks[0].n || T('un autre deck') });
     P.add.push({ k, name, q }); P.n += q;
   }
   return P;
@@ -28541,10 +28556,10 @@ function dwPips(mc) {
 function dwProfile(X = BD) {
   const p = { combos: [], n: 0, nonland: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
-  let mvSum = 0; const all = [...X.main.values()];
+  let mvSum = 0; const all = [...X.main.values()], did = X.id != null ? X.id : null;      // deck de Mes decks (BD.id, DA.X.id) : ses propres exemplaires lui restent
   for (const c of all) {
     const k = c.key, q = c.qty, x = dwCard(k); p.n += q; p.cards++;
-    if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur)
+    if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const free = ownFree(k, did); if (free < q) p.buy += e * (q - free); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur) ; à acheter = q − exemplaires libres (extras.js › ownFor : ceux d'un autre deck monté sont à acheter, comme l'éditeur et le viewer)
     if (!x) { p.unk += q; continue; }
     const land = !!(x.roles & DW_RB.land) || BASIC_NAMES.has(k);
     for (const r of DKW_ROLES) if (r === 'land' ? land : x.roles & DW_RB[r]) p[r] += q;
@@ -28788,7 +28803,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 1 && gcLeft <= 0) return;
     const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && noCombo) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
-    const price = dwPrice(k, x), own = collQty(k) > 0;
+    const price = dwPrice(k, x), own = ownFree(k, X.id != null ? X.id : null) > 0;      // « dans ta collection » : un exemplaire libre (pas réservé par un autre deck monté), règle de ownFor
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
     if (X.pace && set.bud > 0) {      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places ; plus le budget par place est petit, plus l'écart permis est faible
       const per = budLeft / slots, kk = per < 50 ? 2 : per < 150 ? 4 : 8, floor = Math.min(10, per * 0.5);
@@ -29169,7 +29184,7 @@ function dwBudgetHtml(prof, s = BD.wiz) {
   const cc = prof.cmdCents || 0, dear = s.bud > 0 && cc >= s.bud * 0.6 ? `<p class="hint warn">${esc(T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(s.bud, cur) }))}</p>` : '';
   const small = !dear && s.bud > 0 && s.bud < 7500 ? `<p class="hint">${esc(T('Petit budget : le coach garde l\'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu\'avec des terrains plus chers.'))}</p>` : '';
   return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}">${dear}${small}<p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>
-    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas).', { p: fmt(prof.buy, cur) }))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
+    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas, ou réservées par un autre deck monté).', { p: fmt(prof.buy, cur) }))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
 }
 function dwPlanHtml(cmd, pack, prof, tgt) {
   const open = DW.open === 'plan';
@@ -29403,14 +29418,14 @@ function dwzCmds(E) {
   if (words.length) l = l.filter(c => { const s = normPart(c.names.join(' ')); return words.every(w => s.includes(w)); });
   if (th.length) l = l.filter(c => th.every(i => (c.th || []).some(t => t[0] === i)));
   if (cols.length) l = l.filter(c => cols.every(x => c.ci.includes(x)) && c.ci.length <= Math.max(cols.length, 1) + (words.length ? 5 : 0));
-  const own = c => c.keys.some(k => collQty(k) > 0) ? 1 : 0;
+  const own = c => c.keys.some(k => ownFree(k, null) > 0) ? 1 : 0;      // nouveau deck : un commandant réservé par un deck monté est à acheter (ownFor)
   const fit = c => th.reduce((a, i) => { const t = (c.th || []).find(x => x[0] === i); return a + (t ? t[1] / Math.max(1, c.decks) : 0); }, 0);
   return l.map(c => ({ c, s: own(c) * 2 + fit(c) * 3 + Math.log10(1 + c.decks) / 5 })).sort((a, b) => b.s - a.s).slice(0, 30).map(x => x.c);
 }
 function dwzCmdRow(c) {
-  const own = c.keys.some(k => collQty(k) > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
+  const os = c.keys.map(k => ownFor(k, null)), own = os.some(o => o.free > 0), held = !own && os.find(o => o.held > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
   return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.keys[0], c.names[0], img)}>` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : held ? `<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${esc(bdHeldTxt(held))}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
 }
 function openDeckWiz2() {
   const E = EDH.data, cm = DWZ.cmd; if (!cm) return;
@@ -29884,7 +29899,7 @@ function daOwn(id) {
   const saved = daSaved(id), w = id ? dwSettingsFor(id) : dwDefaults();
   if (!saved) { w.ba = 1; w.bv = 1; }      // jamais réglé : bracket estimé (ba) et budget = valeur actuelle (bv), suivis tant qu'on n'en choisit pas
   if (DA.X.wiz) { for (const k of Object.keys(DA.X.wiz)) delete DA.X.wiz[k]; Object.assign(DA.X.wiz, w); } else DA.X.wiz = w;      // même objet : le formulaire reste branché dessus
-  Object.assign(DA, { id, mine: !!id, brAuto: !!w.ba, budAuto: !!w.bv });
+  Object.assign(DA, { id, mine: !!id, brAuto: !!w.ba, budAuto: !!w.bv }); DA.X.id = id;      // coach (dwProfile, dwSuggest) : les exemplaires de ce deck lui restent (ownFor)
 }
 const daOpen = () => DA.api && sheets.includes(DA.api);
 /** Images et coûts des cartes du deck et des échanges : relus jusqu'à 5 fois si Scryfall demande une pause (la vignette a sinon l'image Scryfall par le nom). */
@@ -30065,7 +30080,7 @@ function daThumb(k, nm) {
 }
 /** Les deux cartes d'un échange (retirée → ajoutée), vignettes agrandies au toucher : analyse et Coach (deckux.js). */
 function daSwapPair(s) {
-  const own = collQty(s.in.k) > 0;
+  const own = !!s.in.own;      // « dans ta collection » : posé par dwSuggest (exemplaire libre pour ce deck, extras.js › ownFor)
   return `<span class="da-pair"><span class="da-c out">${daThumb(s.out.k, s.out.name)}<span><small>${T('Retirer')}</small><b>${esc(bdLabel(s.out.k, s.out.name))}</b></span></span>
     <span class="da-arrow" aria-hidden="true">→</span>
     <span class="da-c in">${daThumb(s.in.k, s.in.name)}<span><small>${own ? T('Ajouter · dans ta collection') : T('Ajouter')}</small><b>${esc(bdLabel(s.in.k, s.in.name))}</b></span></span></span>`;
@@ -30075,7 +30090,7 @@ function daSwapRow(s, i, cmd) {
   return `<div class="da-sw${DA.off.has(i) ? ' off' : ''}"><input type="checkbox" data-da-sw="${i}" ${DA.off.has(i) ? '' : 'checked'} aria-label="${esc(T('Remplacer {a} par {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }))}">
     ${daSwapPair(s)}
     <span class="da-why">${(() => { const [hd, ...more] = daWhyParts(s, cmd); return `<b class="da-wh">${esc(hd)}</b>${d ? ` <i class="da-px ${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</i>` : ''}${more.length ? `<small>${esc(more.slice(0, 2).join(' · '))}</small>` : ''}`; })()} <button class="link-btn link-inline" type="button" data-da-why="${i}" aria-expanded="${!!open}">${T('Pourquoi ?')}</button></span>
-    ${open && typeof dwSwapWhyHtml === 'function' && DA.ctx ? `<span class="da-wd">${dwSwapWhyHtml(s, DA.ctx.prof, DA.ctx.tgt, cmd)}</span>` : ''}</div>`;
+    ${open && typeof dwSwapWhyHtml === 'function' && DA.ctx ? `<span class="da-wd">${dwSwapWhyHtml(s, DA.ctx.prof, DA.ctx.tgt, cmd, DA.id)}</span>` : ''}</div>`;
 }
 /** Carte en grand depuis l'analyse : toutes les vignettes des échanges, dans l'ordre affiché (retirée, ajoutée, retirée…). */
 if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
@@ -30337,7 +30352,7 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
     const price = dwPrice(c.key, x, true);      // carte du deck : son prix dans la valeur du deck (dwProfile)
     if (x.fl & 1 && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }
     else if (x.fl & 4 && set.br <= 3) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
-    else if (over && price > 500 && collQty(c.key) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }
+    else if (over && price > 500 && ownFree(c.key, X.id != null ? X.id : null) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }      // à acheter (règle de ownFor : un exemplaire réservé par un autre deck monté ne compte pas)
     else if ((hard = false) || sur) why = T('{r} en surplus ({n} pour {m} conseillées)', { r: T(sur[1]), n: prof[sur[0]], m: tgt[sur[0]][1] });
     else if (o.incl || o.syn) why = T('Peu jouée avec {name} ({p} % des decks)', { name: nm, p: o.incl || 0 });
     else why = T('Absente des decks de {name} étudiés', { name: nm });
@@ -30385,7 +30400,7 @@ function dwCutsHtml(prof, tgt, cmd, pack) {
   }).join('')}</div>`;
 }
 /** Explication d'un échange (sw : dwSwaps) : les deux cartes, l'effet sur les jauges et la valeur. */
-function dwSwapWhyHtml(sw, prof, tgt, cmd) {
+function dwSwapWhyHtml(sw, prof, tgt, cmd, did = BD.id) {      // did : le deck (éditeur, ou Mes decks pour l'analyse) dont les exemplaires réservés restent à lui
   const cur = mkCur(), nm = cmd ? cmd.names[0].split(',')[0] : '', card = (c, o, x, price, own) => {
     const r = dwRoleNames((x && x.roles) || 0), bits = [];
     bits.push(r.length ? T('rôle : {r}', { r: r.join(', ') }) : T('rôle : plan de jeu'));
@@ -30402,7 +30417,7 @@ function dwSwapWhyHtml(sw, prof, tgt, cmd) {
   }
   const d = sw.in.price - sw.out.price;
   if (d) eff.push(T('Valeur du deck : {a} → {b}', { a: fmt(prof.cents, cur), b: fmt(prof.cents + d, cur) }));
-  return `<dl class="dx-why"><div><dt>${T('Retirer')} ${esc(bdLabel(sw.out.k, sw.out.name))}</dt><dd>${esc(card(sw.out, sw.out.o, sw.out.x, sw.out.price, collQty(sw.out.k) > 0))}</dd></div>
+  return `<dl class="dx-why"><div><dt>${T('Retirer')} ${esc(bdLabel(sw.out.k, sw.out.name))}</dt><dd>${esc(card(sw.out, sw.out.o, sw.out.x, sw.out.price, ownFree(sw.out.k, did) > 0))}</dd></div>
     <div><dt>${T('Ajouter')} ${esc(bdLabel(sw.in.k, sw.in.name))}</dt><dd>${esc(card(sw.in, sw.in.o, sw.in.x, sw.in.price, sw.in.own))}</dd></div>
     ${eff.length ? `<div><dt>${T('Effet')}</dt><dd>${eff.map(esc).join('<br>')}</dd></div>` : ''}</dl>`;
 }

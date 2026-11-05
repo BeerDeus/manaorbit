@@ -118,8 +118,8 @@ function bdBulkPlan(list, qOf) {
     room -= q;
     const nm = bdLabel(k, name);
     if (bdIllegal(k)) P.ill.push(nm);
-    const own = BASIC_NAMES.has(k) ? 0 : collQty(k);
-    if (own > 0) { const ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id); if (ds.length && bdTot(k) + q > engFree(own, XS.eng, k, BD.id)) P.res.push({ name: nm, deck: ds[0].n || T('un autre deck') }); }
+    const o = BASIC_NAMES.has(k) ? null : ownFor(k, BD.id);      // règle unique (extras.js › ownFor) : au-delà des exemplaires libres, à acheter (pastille de l'éditeur, coach)
+    if (o && o.decks.length && bdTot(k) + q > o.free) P.res.push({ name: nm, deck: o.decks[0].n || T('un autre deck') });
     P.add.push({ k, name, q }); P.n += q;
   }
   return P;

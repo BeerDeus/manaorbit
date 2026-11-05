@@ -221,6 +221,39 @@ assert.equal(await qty(p, 'relentless rats', 'main'), 5, 'Commander : Relentless
 await p.click('.bd [data-act="close"]'); await p.waitForSelector('#bdLeave'); await p.click('#bdLeave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
 ok('cartes en nombre quelconque : Relentless Rats au-delà de 4 (Standard) et du singleton (Commander), Seven Dwarves 7 au plus');
 
+/* ── G) Une seule règle « possédée / à acheter » (extras.js › ownFor) : un seul Sol Ring, monté dans « Deck A », ouvert dans le deck B ─── */
+{
+  await p.evaluate(() => { if (!collQty('sol ring')) collBump('sol ring', 'Sol Ring', 1); for (let i = 0; i < 20 && collQty('sol ring') > 1; i++) collBump('sol ring', 'Sol Ring', -1, { lang: collLines(COLL.map['sol ring']).find(x => x[1] > 0)[0] }); XS.eng = { deckA: { n: 'Deck A', at: Date.now(), q: { 'sol ring': 1 } } }; engApplied(); });      // un seul exemplaire (les scans de E en ont ajouté, dans plusieurs langues)
+  assert.deepEqual(await p.evaluate(() => { const o = ownFor('sol ring', 'autre'); return [o.own, o.free, o.held, o.decks.map(d => d.n)]; }), [1, 0, 1, ['Deck A']], 'ownFor : 1 possédé, 0 libre, 1 engagé dans « Deck A »');
+  assert.equal(await p.evaluate(() => ownFor('sol ring', 'deckA').free), 1, 'le deck A garde ses propres exemplaires');
+  const same = async when => {      // éditeur (pastille et prix de ce qui manque), coach (dwProfile().buy), vues en images : la même quantité à acheter
+    const row = await tc(p, '.bd-row[data-k="sol ring"][data-t="main"] .row-meta');
+    assert.ok(!/Possédée/.test(row), when + ' : plus « Possédée » (avant : possédée + engagée)'); assert.match(row, /À acheter · /, when + ' : à acheter, avec son prix');
+    assert.match(row, /1 engagée dans « Deck A »/, when + ' : l\'information « engagée dans A » reste');
+    const c = await p.evaluate(() => { const u = dkPx('sol ring'), it = bdViewItems().find(x => x.key === 'sol ring'); return { buy: dwProfile().buy, u, f: fmt(dwProfile().buy, mkCur()), ow: it.ow, own: it.own, held: it.held }; });
+    assert.ok(c.u > 0, 'Sol Ring a un prix'); assert.equal(c.buy, c.u, when + ' : coach, dont 1 Sol Ring à acheter (avant : 0 €)');
+    assert.ok(row.replace(/\s+/g, ' ').includes(c.f.replace(/\s+/g, ' ')), when + ' : le prix de la pastille = « dont … à acheter » du coach');
+    assert.deepEqual([c.ow, c.own, c.held], [0, 1, '1 engagée dans « Deck A »'], when + ' : vues en images : 0 libre, 1 possédé, engagé dit');
+  };
+  await newDeck(p, 'Deck B', 'commander');
+  await p.evaluate(() => { bdChange('cmdr', 'edgar markov', 'Edgar Markov', 1); bdChange('main', 'sol ring', 'Sol Ring', 1); }); await tab(p, 'deck');
+  await same('nouveau deck B');
+  await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
+  const idB = await p.evaluate(() => allDecks().find(d => d.name === 'Deck B').id);
+  await p.click('.deck:has-text("Deck B") [data-act="open"]'); await p.waitForSelector('.dv.on [data-act="builder"]');
+  await p.waitForFunction(() => DV.el && /à trouver|toutes possédées/.test(DV.el.querySelector('.dv-title span').textContent), null, { timeout: 8000 });
+  assert.match(await p.evaluate(() => DV.el.querySelector('.dv-title span').textContent), /2 cartes · 1 à trouver/, 'viewer : 1 à trouver (Sol Ring), Edgar possédé');
+  assert.deepEqual(await p.evaluate(() => dvMissing()), [{ n: 'Sol Ring', q: 1 }], 'viewer : manquantes = Sol Ring × 1');
+  await p.click('.dv.on [data-act="builder"]'); await p.waitForSelector('.bd.on'); assert.equal(await p.evaluate(() => BD.id), idB);
+  await same('deck B enregistré, rouvert');
+  await p.evaluate(() => { const x = { ...XS.eng }; delete x.deckA; XS.eng = x; engApplied(); bdPaint(); });      // A démonté : tout redevient possédé, partout
+  await p.waitForTimeout(150);
+  assert.match(await tc(p, '.bd-row[data-k="sol ring"][data-t="main"] .row-meta'), /Possédée/); assert.equal(await p.evaluate(() => dwProfile().buy), 0, 'coach : rien à acheter');
+  await p.click('.bd [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
+  if (await p.$('.dv.on')) assert.deepEqual(await p.evaluate(() => dvMissing()), [], 'viewer : plus rien à trouver');
+  ok('une seule règle : un Sol Ring monté dans A, ouvert dans B → éditeur « À acheter · prix » + « 1 engagée dans « Deck A » », coach « dont … à acheter », viewer « 1 à trouver » ; A démonté : possédée partout');
+}
+
 for (const e of errsOf) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));
 await browser.close(); world.stop();
 console.log('BUILDER E2E OK');

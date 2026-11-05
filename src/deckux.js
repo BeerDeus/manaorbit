@@ -24,7 +24,7 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
     const price = dwPrice(c.key, x, true);      // carte du deck : son prix dans la valeur du deck (dwProfile)
     if (x.fl & 1 && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }
     else if (x.fl & 4 && set.br <= 3) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
-    else if (over && price > 500 && collQty(c.key) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }
+    else if (over && price > 500 && ownFree(c.key, X.id != null ? X.id : null) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }      // à acheter (règle de ownFor : un exemplaire réservé par un autre deck monté ne compte pas)
     else if ((hard = false) || sur) why = T('{r} en surplus ({n} pour {m} conseillées)', { r: T(sur[1]), n: prof[sur[0]], m: tgt[sur[0]][1] });
     else if (o.incl || o.syn) why = T('Peu jouée avec {name} ({p} % des decks)', { name: nm, p: o.incl || 0 });
     else why = T('Absente des decks de {name} étudiés', { name: nm });
@@ -72,7 +72,7 @@ function dwCutsHtml(prof, tgt, cmd, pack) {
   }).join('')}</div>`;
 }
 /** Explication d'un échange (sw : dwSwaps) : les deux cartes, l'effet sur les jauges et la valeur. */
-function dwSwapWhyHtml(sw, prof, tgt, cmd) {
+function dwSwapWhyHtml(sw, prof, tgt, cmd, did = BD.id) {      // did : le deck (éditeur, ou Mes decks pour l'analyse) dont les exemplaires réservés restent à lui
   const cur = mkCur(), nm = cmd ? cmd.names[0].split(',')[0] : '', card = (c, o, x, price, own) => {
     const r = dwRoleNames((x && x.roles) || 0), bits = [];
     bits.push(r.length ? T('rôle : {r}', { r: r.join(', ') }) : T('rôle : plan de jeu'));
@@ -89,7 +89,7 @@ function dwSwapWhyHtml(sw, prof, tgt, cmd) {
   }
   const d = sw.in.price - sw.out.price;
   if (d) eff.push(T('Valeur du deck : {a} → {b}', { a: fmt(prof.cents, cur), b: fmt(prof.cents + d, cur) }));
-  return `<dl class="dx-why"><div><dt>${T('Retirer')} ${esc(bdLabel(sw.out.k, sw.out.name))}</dt><dd>${esc(card(sw.out, sw.out.o, sw.out.x, sw.out.price, collQty(sw.out.k) > 0))}</dd></div>
+  return `<dl class="dx-why"><div><dt>${T('Retirer')} ${esc(bdLabel(sw.out.k, sw.out.name))}</dt><dd>${esc(card(sw.out, sw.out.o, sw.out.x, sw.out.price, ownFree(sw.out.k, did) > 0))}</dd></div>
     <div><dt>${T('Ajouter')} ${esc(bdLabel(sw.in.k, sw.in.name))}</dt><dd>${esc(card(sw.in, sw.in.o, sw.in.x, sw.in.price, sw.in.own))}</dd></div>
     ${eff.length ? `<div><dt>${T('Effet')}</dt><dd>${eff.map(esc).join('<br>')}</dd></div>` : ''}</dl>`;
 }

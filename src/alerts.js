@@ -66,7 +66,7 @@ function alItems() {
       if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
       for (const c of parseDeck(d.text).cards) {
         const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
-        if (c.qty - engFree(collQty(k), XS.eng, k, d.id) <= 0) continue;
+        if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
         put(k, c.name, 0, d.name);
       }
     }
@@ -151,7 +151,7 @@ function alWatchMany(cards, deck) {
 /** Deck tout juste enregistré : s'il lui manque des cartes et que les alertes sont possibles mais coupées, action « Activer » pour le toast « Deck enregistré · Me prévenir des baisses ? » ; sinon null. */
 function alSaveOffer(text, id) {
   if (AC.on || !alAvail()) return null;
-  if (!parseDeck(text).cards.some(c => { const k = ownKey(c.key); return c.qty > engFree(collQty(k), XS.eng, k, id); })) return null;      // tout est déjà possédé : rien qui puisse baisser
+  if (!parseDeck(text).cards.some(c => { const k = ownKey(c.key); return c.qty > ownFree(k, id); })) return null;      // tout est déjà possédé : rien qui puisse baisser
   return { label: T('Activer'), fn: async () => {
     const was = AC.deck; AC.deck = true;                                                       // ce deck doit être surveillé, même si « cartes manquantes de mes decks » avait été coupé
     const r = await alEnable(); if (r.ok) { haptic('ok'); toast(T('Alertes de prix activées'), { label: T('Régler'), fn: () => openAlertSheet() }); alPaintBox(); } else { AC.deck = was; toast(alWhy(r)); }
