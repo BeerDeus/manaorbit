@@ -39,6 +39,15 @@
 - Test anti-régression (`tests/test-i18n-langs.mjs`) : refuse un `T(` avec « {n} » suivi d'un mot en « s » (mots invariables et `PL_KEEP` à part), une forme de `TN` sans traduction, « ' %' » ou `${v} %` hors de `T`, `toFixed` dans un texte ; vérifie `num`, `pct`, `moreLabel`, `moreBtn` en français, anglais et allemand.
 - [ ] Ouvert : pluriels d'autres variables que `{n}` (« {a} decks sur {b} », « {m} conseillées », « {total} requêtes ») et nombres passés bruts sans `TN` (« {n} » d'un grand total) : non vérifiés par le test.
 
+### R2 : exemplaires possédés et « à acheter », une seule règle
+
+**Fait (Claude, branche locale `lot-r2`, pas poussée : le propriétaire fusionne)** — README › « Créer un deck dans l'app » › « Possédée / à acheter : une seule règle » ; code `core.js` › `engOwnFor`, `extras.js` › `ownFor` / `ownFree` ; tests `builder-e2e` › G, `test.mjs` (cartes engagées) :
+- Avant : le viewer, la recherche, les alertes et « De ta collection » retiraient les exemplaires réservés par un autre deck monté ; l'éditeur (pastille, prix de ce qui manque, vues en images) et le coach (`dwProfile().buy`, « Priorité à ma collection », « dans ta collection ») lisaient `collQty` brut. Un seul Sol Ring monté dans A, ouvert dans B : « Possédée » + « 1 engagée dans « A » » (éditeur), « dont 0 € à acheter » (coach), « 1 à trouver » (viewer).
+- Règle : `ownFor(k, deckId)` → `{ own, free, held, decks }` ; libre = possédé − réservé par les **autres** decks montés (le deck garde les siens ; deck pas encore enregistré ou pas à moi : `deckId` null) ; à acheter = quantité − libres, partout (éditeur, coach, commandants proposés, analyse, viewer, recherche, alertes, De ta collection). L'information « possédée mais engagée dans A » reste là où elle était (pastille de l'éditeur ; en plus : vignette en grand des vues en images, commandant proposé).
+- Inchangé, exprès : l'ajout en nombre (`bdadd.js`) prend toujours les exemplaires possédés (le rangement, les filtres) et signale « réservées ailleurs » ; le scan d'un deck ajoute à la collection ce qu'elle n'a pas (exemplaires physiques).
+- [ ] Décision : onglet Decks (À monter, `core.js` › `edhRank`) : « 62 / 99 possédées (dont 5 engagées) · 37 à acheter » compte les engagées comme possédées ; la règle voudrait « 42 à acheter » et leur prix dans le coût (tri, budget, liste « À acheter » de la feuille, Je recherche et alertes des manquantes EDHREC, `alerts.js:61`) : à trancher.
+- [ ] Ouvert : monter un deck (`engSnapshot(text, collQty)`) réserve les exemplaires possédés sans regarder ceux déjà réservés par d'autres decks : deux decks montés peuvent se réserver le même Sol Ring, et chacun le voit alors « à acheter » (un seul à acheter en vrai). Règle des decks montés existante, gardée telle quelle.
+
 ## Point du 5 novembre (soir) : éditeur de deck, ajouter en nombre (rangement, filtres, appui long)
 
 **Fait (Claude, branche locale `lot-add`, pas poussée : le propriétaire fusionne)** — README › « Créer un deck dans l'app » › « Ajouter en nombre » ; code `src/bdadd.js` (+ `builder.js`, `search.js` › `srchSync`, `back.js`, `core.js` › `dkCheck`), test `tests/bdadd-e2e.mjs` :

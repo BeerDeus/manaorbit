@@ -408,7 +408,7 @@ function refSnapOf(text, id, pub) {
   const cmd = dkFormat(text) === 'standard' ? new Set() : commandersOf(text, pd.cards, c => dmOf(ownKey(c.key)));
   const items = [];
   for (const c of pd.cards) {
-    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
+    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, ownFree(k, id));
     const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0;      // règle unique de la valeur estimée (builder.js › dkPx)
     const it = { k: c.key, n: c.name, q: c.qty, s: eu > 0 ? 'ok' : Number.isFinite(m.eu) ? 'ok' : 'none' };
     if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
@@ -431,7 +431,7 @@ const snapNothingToBuy = snap => !snap.items.some(i => i.s !== 'own' && i.s !== 
 function sbItemsOf(text, id, pub) {
   const out = [];
   for (const c of dkSideCards(text)) {
-    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
+    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, ownFree(k, id));
     const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0, it = { k: 'sb:' + k, n: c.name, q: Math.min(999, c.qty), s: eu > 0 || Number.isFinite(m.eu) ? 'ok' : 'none', sb: 1 };
     if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
     if (m.cm != null) { it.cm = m.cm; it.mc = m.mc; it.tl = m.tl; it.cl = m.cl; }
@@ -852,7 +852,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
     else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
     else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
     else if (act === 'cm') cmCopy(dvMissing());
-    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => engFree(collQty(k), XS.eng, k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
+    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
     else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
     else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
     else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
@@ -878,7 +878,7 @@ async function refreshDeckPrices(id) {
 }
 
 /** Cartes qui manquent au deck affiché (deck + réserve − collection libre ; deck public : tout le deck, la collection du visiteur n'est pas lue ici). */
-const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => engFree(collQty(k), XS.eng, k, DV.deckId));
+const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => ownFree(k, DV.deckId));
 
 /* ── Main de départ : 7 cartes au hasard dans la bibliothèque (commandant et réserve à part), et les chances d'avoir 0 à 7 terrains (loi hypergéométrique) ── */
 const pctTxt = p => (p >= 0.995 ? pct(100) : p < 0.005 && p > 0 ? '< ' + pct(1) : pct(Math.round(p * 100)));      // p : fraction (0,74 → « 74 % »)

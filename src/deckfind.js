@@ -111,7 +111,7 @@ function dfPaint() {
 }
 function dfRowHtml(e, x, cname, canAdd) {
   const it = COLL.map[x.k], m = COLL.meta[x.k] || {}, nm = dfName(x.k), hue = hash32(x.k) % 360, img = m.im ? collImage(x.k, it.l, m.im).src : '';
-  const pct = pctTxt(x.r), price = dfPrice(e, x), pl = dfPlaces(x.k), own = collQty(x.k), free = engFree(own, XS.eng, x.k, DV.deckId), ds = engDecksOf(XS.eng, x.k).filter(d => d.id !== DV.deckId);
+  const pct = pctTxt(x.r), price = dfPrice(e, x), pl = dfPlaces(x.k), o = ownFor(x.k, DV.deckId), own = o.own, free = o.free, ds = o.decks;      // règle unique (extras.js › ownFor)
   const tags = [`<span class="tag df-pl" title="${esc(pl.join(' · '))}">${esc(pl[0] || T('Non rangé'))}${pl.length > 1 ? ' +' + (pl.length - 1) : ''}</span>`];
   if (ds.length) tags.push(`<span class="tag warn df-eng" title="${esc(ds.map(d => d.n).join(' · '))}">${free > 0 ? TN(own - free, '{n} engagée ailleurs', '{n} engagées ailleurs') : ds.length > 1 ? T('Réservée par {n} decks montés', { n: ds.length }) : T('Réservée par « {name} »', { name: esc(ds[0].n) })}</span>`);
   return `<div class="crow df-row" data-k="${esc(x.k)}"><span class="thumb" style="--h:${hue}"${zoomAt('dfc', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, it.n, img, it.l || '')}>` : ''}</span>
