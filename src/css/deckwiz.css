@@ -166,6 +166,7 @@
 .ds-prog{display:flex;flex-direction:column;gap:10px;padding:4px 0}
 .ds-big{height:10px}
 .ds-now{margin:0;font-size:13px;color:var(--ink-2);min-height:1.3em}
+.ds-eta{margin:-6px 0 0;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .ds-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .ds-steps li{display:flex;flex-direction:column;gap:1px;padding-left:24px;position:relative;font-size:14px}
 .ds-steps li::before{content:'';position:absolute;left:2px;top:3px;width:12px;height:12px;border-radius:50%;border:2px solid var(--line)}
