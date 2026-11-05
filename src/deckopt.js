@@ -144,7 +144,7 @@ async function dsOptimize(mine, ms, step) {
    table qui tient (presque jamais un adversaire éliminé) : deux sorts faibles contre des retraits (leurs bloqueurs). Chaque correction est rejouée et gardée seulement si la partie s'améliore
    nettement (dsSimVal : démarrage, adversaires éliminés, moteur qui tient, retraits adverses évités ; protection, récursion et retraits : une fois
    chacune, gardées si la partie ne se dégrade pas) et que la note du coach ne baisse pas (plus de 1,5 point). 6 essais au plus. */
-const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff + 0.3 * (r.kill10 || 0) + 0.3 * (r.engKeep == null ? 0 : r.engKeep) + 3 * (r.saved || 0) : -1e9;      // saved : retraits et balayages adverses évités par ta protection (par partie)
+const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff + 0.3 * (r.blind ? 0 : r.kill10 || 0) + 0.3 * (r.engKeep == null ? 0 : r.engKeep) + 3 * (r.saved || 0) : -1e9;      // saved : retraits et balayages adverses évités par ta protection (par partie)
 async function dsSimTune(mine, step) {
   const cmd = dwCmdOf(); if (!cmd) return { fixed: 0, r: null };
   const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), N = 1500;
@@ -194,7 +194,7 @@ async function dsSimTune(mine, step) {
     if (r.screw4 > 8) want.push('fix');
     if (r.cmv && r.cmdOn < 55) want.push('ramp');
     if ((r.engKeep != null && r.eng >= 40 && r.engKeep < 0.8 * r.eng) || r.lost >= 3.5) want.push('protect', 'recursion');      // moteur souvent perdu, ou beaucoup de cartes perdues face à la table
-    if (r.kill10 != null && r.elim10 != null && r.kill10 < 20) want.push('removal');      // la table tient : de quoi enlever leurs bloqueurs
+    if (r.kill10 != null && r.elim10 != null && !r.blind && r.kill10 < 20) want.push('removal');      // la table tient : de quoi enlever leurs bloqueurs
     if (!want.some(k => !done.has(k))) break;
     let better = false;
     for (const kind of [...new Set(want)].filter(k => !done.has(k))) {
@@ -223,7 +223,7 @@ const dsOverlap = (a, b) => { const A = new Set(dsSpells(a)), B = dsSpells(b); r
 const DS_DRAWS = 3, DS_BUDGET = 20000;
 /** Jugement d'un tirage : la note du coach, puis la partie jouée face à 3 adversaires (un adversaire éliminé avant le tour 11, moteur en place et moteur
  *  encore là au tour 10 malgré leurs retraits et le balayage : protection, retraits et récursion y comptent ; commandant à temps, mains, couleurs). */
-const dsJudge = (raw, r) => { if (!r) return raw; const e = r.eng == null ? 50 : r.eng; return raw + 0.06 * (r.kill10 || 0) + 0.02 * e + 0.04 * (r.engKeep == null ? e : r.engKeep) + 2 * (r.saved || 0) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4; };
+const dsJudge = (raw, r) => { if (!r) return raw; const e = r.eng == null ? 50 : r.eng; return raw + 0.06 * (r.blind ? 0 : r.kill10 || 0) + 0.02 * e + 0.04 * (r.engKeep == null ? e : r.engKeep) + 2 * (r.saved || 0) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4; };
 /** Nouvelle graine de tirage. */
 const dsSeed = () => 1 + Math.floor(Math.random() * 2e9);
 /** Construit les versions du deck de l'éditeur (BD), sans affichage : [{ v, main, wiz, sc, prof, kept, sim, fixed, story }].
@@ -361,7 +361,7 @@ function dsChoose(api, res, before, empty) {
       <span class="ds-vh"><b>${esc(r.v.name)}</b>${r.sc.total === best ? `<em>${T('Meilleure note')}</em>` : ''}<span class="ds-vn ds-${dsLevel(r.sc.total)}">${r.sc.total}<small>/100</small></span></span>
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}
       <span class="ds-vk">${esc([fmt(r.prof.cents, cur), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
-      ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }) + (r.sim.elim10 != null ? ' · ' + T('un adversaire éliminé avant le tour 11 : {p}', { p: dsimPct(r.sim.kill10) }) : ''))}</span>` : ''}
+      ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }) + (r.sim.elim10 != null && !r.sim.blind ? ' · ' + T('un adversaire éliminé avant le tour 11 : {p}', { p: dsimPct(r.sim.kill10) }) : ''))}</span>` : ''}
       <span class="ds-vr">${esc(roles.map(x => dsRoleLabel(x) + ' ' + r.prof[x]).join(' · '))}</span>
       ${dsStoryLine(r.story) ? `<span class="ds-vd">${esc(dsStoryLine(r.story))}</span>` : ''}${r.common != null ? `<span class="ds-vd">${esc(T('{p} % des sorts en commun avec la version équilibrée', { p: Math.round(r.common * 100) }))}</span>` : ''}</button>`).join('')}</div>`;
   api.setFoot(`<button class="btn ghost" type="button" data-ds-again>${T('Autre proposition')}</button>`);

@@ -1,0 +1,8 @@
+{
+ "non mesuré": "not measured",
+ "pour ce plan": "for this plan",
+ "Plan « {p} » : la simulation ne sait pas encore le jouer, les adversaires éliminés ne sont donc pas mesurés pour ce deck ; les autres chiffres le sont.": "“{p}” plan: the simulation can't play it yet, so opponents eliminated aren't measured for this deck; the other figures are.",
+ "capacité de {c}": "{c}'s ability",
+ "capacité du commandant": "commander's ability",
+ "drain des aristocrates": "aristocrats drain"
+}

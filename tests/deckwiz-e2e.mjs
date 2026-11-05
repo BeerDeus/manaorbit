@@ -191,6 +191,20 @@ assert.ok(sim.same, 'graine fixe : mêmes résultats'); assert.equal(sim.none, n
 assert.ok(sim.a.keep7 > 60 && sim.a.keep7 <= 100 && sim.a.lands0 > 2 && sim.a.lands0 < 4, 'mains gardées et terrains : ' + JSON.stringify(sim.a));
 assert.ok(sim.a.cmdT > 3 && sim.a.cmdT < 9 && sim.a.eff > 0 && sim.a.eff <= 100 && sim.a.cast6 > 0, 'commandant, mana, sorts : ' + JSON.stringify(sim.a));
 assert.match(sim.html, /Simulation de 10 000 parties .* % des mains de 7 cartes gardées .* commandant lancé à temps \(tour \d ou avant\)/);
+// plan que la simulation ne joue pas (ninjutsu d'après la fiche du commandant) : « non mesuré », pas de « La table tient bon », sans poids dans la construction ; voltron : joué (mesuré)
+const blind = await p.evaluate(a => {
+  const mech0 = DW.core.mech; DW.core.mech = { tags: ['voltron', 'ninjutsu', 'group-hug', 'drain', 'dies-trigger', 'sacrifice'], roles: [] }; DMX.src = null; dmxIdx();
+  const cmd = { keys: [] }, X = { cmdr: [{ key: 'x', name: 'X' }] };
+  const got = { vo: dsimBlind(X, cmd, { ai: { tags: ['voltron'] }, main: [0] }), nin: dsimBlind(X, cmd, { ai: { tags: ['equipment', 'evasion', 'ninjutsu'] }, main: [] }), hug: dsimBlind(X, cmd, { ai: null, main: [2] }), ari: dsimBlind(X, cmd, { ai: null, main: [3, 4, 5] }), none: dsimBlind(X, cmd, { ai: { tags: ['drain'] }, main: [3] }) };
+  if (mech0) DW.core.mech = mech0; else delete DW.core.mech; DMX.src = null;
+  const r = { ...a, kill10: 3, elim10: 0.1, blind: 'ninjutsu', blindCmd: '' }, html = dsimHtml(r).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '), plain = dsimHtml({ ...a, kill10: 3, elim10: 0.1, blind: null }).replace(/<[^>]+>/g, ' ');
+  return { got, html, plain, judge: [dsJudge(50, { ...r, kill10: 0 }), dsJudge(50, { ...r, kill10: 60 })], val: [dsSimVal({ ...r, kill10: 0 }), dsSimVal({ ...r, kill10: 60 })], judge0: [dsJudge(50, { ...r, blind: null, kill10: 0 }), dsJudge(50, { ...r, blind: null, kill10: 60 })] };
+}, sim.a);
+assert.deepEqual([blind.got.vo, blind.got.nin && blind.got.nin.t, blind.got.hug && blind.got.hug.t, blind.got.ari && blind.got.ari.t, blind.got.none], [null, 'ninjutsu', 'group-hug', 'aristocrats', null], 'plans repérés : fiche, plan, aristocrates ; voltron (joué) et drain seul : mesurés');
+assert.match(blind.html, /non mesuré Adversaire éliminé pour ce plan/, 'case « Adversaire éliminé » : non mesuré'); assert.match(blind.html, /Plan « ninjutsu » : la simulation ne sait pas encore le jouer/, 'phrase du rapport');
+assert.ok(!/La table tient bon/.test(blind.html) && !/adversaire tombe avant le tour 11/.test(blind.html), 'ni conseil « La table tient bon » ni chiffre caché'); assert.match(blind.plain, /La table tient bon/, 'plan joué : le conseil reste');
+assert.ok(blind.judge[0] === blind.judge[1] && blind.val[0] === blind.val[1] && blind.judge0[1] > blind.judge0[0], 'construction : kill10 sans poids pour ce plan : ' + JSON.stringify(blind));
+ok('simulation : plan ninjutsu → « non mesuré », sans conseil ni poids sur les adversaires éliminés ; voltron mesuré');
 await p.waitForFunction(() => /Simulation de 1 000 parties|Note du coach/.test(document.querySelector('.dr-body').textContent));
 await shot(p, 'rapport');
 await p.click('.dr-body .dr-c[data-k="swords to plowshares"]'); await p.waitForSelector('.imgv'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
