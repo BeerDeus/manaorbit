@@ -34,7 +34,9 @@ function daDeckOf(text) {
 const daRoleLow = (roles, prof, tgt) => DW_GAUGES.some(([r]) => r !== 'land' && roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]);
 /** Échanges conseillés : [{ out: { k, name, v, price, roles }, in: suggestion (dwSuggest), why: 'budget' | rôle | 'mieux' | 'plan' }]. */
 function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
-  const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), val = k => { const o = info.get(k); return o ? dwVal(o) : 0; };
+  const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), has = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
+  const trapOk = k => { const o = info.get(k); return !!(o && o.trap && dwTrapOk(k, o, has, set)); };      // piège avec le commandant, mais combo ou moteur avec une autre carte du deck : ni faible ni à retirer
+  const val = k => { const o = info.get(k); return o ? dwVal(o) + (trapOk(k) ? dwW().trap : 0) : 0; };
   const known = !!pack && info.size >= 40;      // commandant connu de la base : sinon aucun avis sur les cartes « faibles »
   const out = [], used = new Set(), skip = new Set(), Xs = { ...X, skip, info, wiz: { ...set, bud: 0 } };      // budget compté ici, échange par échange
   const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
@@ -55,7 +57,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
     // seuils relatifs au deck (la valeur d'une carte compte maintenant les mécaniques et la fiche du commandant : l'échelle n'est plus celle de la seule popularité) ;
     // un piège de la fiche (carte qui marche mal avec ce commandant) est toujours parmi les plus faibles
     const vs = weakest.map(c => c.v), qAt = f => vs.length ? vs[Math.min(vs.length - 1, Math.floor(vs.length * f))] : 0;
-    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap);
+    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap) && !trapOk(c.k);
     // 2) rôles sous la plage normale : à la place des cartes les plus faibles qui ne remplissent aucun rôle qui manque
     const deficit = gaugeRoles.filter(r => tgt[r] && prof[r] < tgt[r][0]).map(r => [r, tgt[r][1] - prof[r]]).sort((a, b) => b[1] - a[1]);
     for (const [r, need] of deficit) for (let i = 0; i < Math.min(need, 3) && out.length < max; i++) {

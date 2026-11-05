@@ -8,5 +8,8 @@
  "rien à revoir": "nichts zu prüfen",
  "{n} point en place": "{n} Punkt erfüllt",
  "{n} points en place": "{n} Punkte erfüllt",
- "Moteur incomplet ({c}) : il manque": "Unvollständiger Motor ({c}): es fehlt"
+ "Moteur incomplet ({c}) : il manque": "Unvollständiger Motor ({c}): es fehlt",
+ "Gardées : elles marchent mal avec le commandant, mais servent avec une autre carte": "Behalten: Sie passen schlecht zum Kommandeur, nützen aber mit einer anderen Karte",
+ "{card} (combo avec {c})": "{card} (Combo mit {c})",
+ "{card} (moteur avec {c})": "{card} (Motor mit {c})"
 }

@@ -8,5 +8,8 @@
  "rien à revoir": "nothing to review",
  "{n} point en place": "{n} point in place",
  "{n} points en place": "{n} points in place",
- "Moteur incomplet ({c}) : il manque": "Incomplete engine ({c}): missing"
+ "Moteur incomplet ({c}) : il manque": "Incomplete engine ({c}): missing",
+ "Gardées : elles marchent mal avec le commandant, mais servent avec une autre carte": "Kept: they work poorly with the commander, but pay off with another card",
+ "{card} (combo avec {c})": "{card} (combo with {c})",
+ "{card} (moteur avec {c})": "{card} (engine with {c})"
 }

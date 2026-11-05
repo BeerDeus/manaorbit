@@ -7978,8 +7978,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'd4b8fad5';
-const I18N_FILES = {"de":"i18n/de.30ab8901.js","en":"i18n/en.97a9f564.js","es":"i18n/es.093fd6ab.js","it":"i18n/it.d77cf968.js","pt":"i18n/pt.9bbc1d0b.js"};
+const DD_BUILD = 'fa395f2b';
+const I18N_FILES = {"de":"i18n/de.8f65eb8d.js","en":"i18n/en.f809d5f7.js","es":"i18n/es.1ce7d09a.js","it":"i18n/it.3509d76f.js","pt":"i18n/pt.e217b4a1.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -28415,6 +28415,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
     if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
     if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
+    if (o.trap && dwTrapOk(k, o, inDeck, set)) s += w.trap;      // piège avec le commandant, mais combo ou moteur avec une carte déjà là : plus de malus
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
     if (isLand && cols.length > 1) {      // terrains d'un deck multicolore : ceux qui produisent les couleurs en manque d'abord, puis ceux qui en produisent plusieurs
@@ -28470,6 +28471,15 @@ function dwCombo3Idx() {
 function dwComboWith(k, inDeck) {
   for (const e of dwComboIdx().get(k) || []) if (inDeck(e.p)) return { c: e.c, o: [ownKey(e.c[0]) === k ? e.c[1] : e.c[0]] };
   for (const e of dwCombo3Idx().get(k) || []) if (inDeck(e.p) && inDeck(e.q)) return { c: e.c, o: e.o };
+  return null;
+}
+/** Piège de la fiche qui sert quand même dans CE deck : une autre carte du deck forme avec lui un combo connu (2 ou 3 cartes, Commander Spellbook ; pas en
+ *  bracket 1-2 ni quand les combos sont évités), ou un moteur de la fiche dont une autre pièce est là (Aminatou : Restoration Angel ne fait pas clignoter le
+ *  commandant, mais fait un combo infini avec Felidar Guardian). o : infos de la carte (dwInfo : trap, eng) ; inDeck(clé). → { kind: 'combo' | 'eng', with: [noms] } ou null. */
+function dwTrapOk(k, o, inDeck, set = {}) {
+  if (!o || !o.trap) return null;
+  if (!(set.br <= 2 || (set.avoid || []).includes('combo')) && DW.core && (DW.core.combos || DW.core.combos3)) { const cw = dwComboWith(k, inDeck); if (cw) return { kind: 'combo', with: cw.o }; }
+  for (const cs of o.eng || []) { const p = cs.filter(x => x !== k && inDeck(x)); if (p.length) return { kind: 'eng', with: p.map(x => (dwCard(x) || {}).name || x) }; }
   return null;
 }
 const dwCombo3 = c => c.length >= 5;      // combo à 3 cartes : [A, B, C, résultat, étiquette] (à 2 cartes : [A, B, résultat, étiquette])
@@ -28577,6 +28587,7 @@ function dwAuditParts(X) {
   const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // nom du moteur de la fiche : écrit en français ; ailleurs, ses cartes déjà là
   for (const e of au.engines) { rows.push(li('warn', e.ai && !fr ? T('Moteur incomplet ({c}) : il manque', { c: e.have.slice(0, 2).join(' + ') }) : T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
   if (au.traps.length) { rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5))); warn++; }
+  if (au.trapOk && au.trapOk.length) { rows.push(li('good', T('Gardées : elles marchent mal avec le commandant, mais servent avec une autre carte'), au.trapOk.slice(0, 4).map(t => t.kind === 'combo' ? T('{card} (combo avec {c})', { card: t.name, c: t.with.join(' + ') }) : T('{card} (moteur avec {c})', { card: t.name, c: t.with.slice(0, 2).join(', ') })))); good++; }
   if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
   return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };
 }
@@ -29297,21 +29308,27 @@ function dwDeckStory(X = BD) {
 /** Nom d'un moteur de la fiche du commandant : écrit en français par l'IA ; dans une autre langue, un libellé traduit. */
 const dmxEngName = l => typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr' ? l : T('moteur du plan');
 /** Lecture d'un deck par sa fiche et ses mécaniques (analyse, rapport) : { story, engines: [{ label, have, miss }] (moteurs de la fiche : pièces présentes, pièces qui manquent),
- *  traps: [noms] (pièges de la fiche présents dans le deck), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
+ *  traps: [noms] (pièges de la fiche présents dans le deck, sauf ceux qui y font un combo ou un moteur : trapOk [{ name, kind, with }]), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
  *  ni un rôle, et peu forts), core: [noms] (cœur du plan présent, note 3 de la fiche) } ; null sans classement. */
 function dwDeckAudit(X = BD) {
   if (!dmxOn()) return null;
   const story = dwDeckStory(X); if (!story) return null;
   const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
   const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
-  const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
+  const set = X.wiz || dwDefaults(), trapOk = [], traps = [];      // piège de la fiche présent : vrai piège, ou gardé parce qu'il fait un combo ou un moteur avec une autre carte du deck (dwTrapOk)
+  for (const n of ai ? (ai.trap || []).filter(has) : []) {
+    const k = ownKey(n), eng = (ai.eng || []).filter(([, cs]) => cs.some(c => ownKey(c) === k)).map(([, cs]) => cs.map(c => ownKey(c)));
+    const ok = typeof dwTrapOk === 'function' ? dwTrapOk(k, { trap: 1, eng }, c => has(c) || X.main.has(c) || X.cmdr.some(x => x.key === c), set) : null;
+    if (ok) trapOk.push({ name: n, ...ok }); else traps.push(n);
+  }
+  const wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
   const deck = dmxDeck(X), loose = [];
   for (const c of X.main.values()) {
     if (BASIC_NAMES.has(c.key)) continue; const x = dwCard(c.key), m = dmx(c.key); if (!x || !m || x.roles & DW_RB.land) continue;
     const sy = ai && (ai.syn || []).find(([n]) => ownKey(n) === c.key);
     if (!x.roles && dmxFit(m, plan, deck) < 0.2 && m.pw <= 2 && !(sy && sy[1] >= 1)) loose.push(c.name);
   }
-  return { story, engines, traps, wins, core, loose: loose.slice(0, 8) };
+  return { story, engines, traps, trapOk, wins, core, loose: loose.slice(0, 8) };
 }
 /** Mécaniques détectées pour un commandant (assistant : proposées en premier). → [étiquette] */
 function dmxCmdTags(cmd) {
@@ -29359,7 +29376,9 @@ function daDeckOf(text) {
 const daRoleLow = (roles, prof, tgt) => DW_GAUGES.some(([r]) => r !== 'land' && roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]);
 /** Échanges conseillés : [{ out: { k, name, v, price, roles }, in: suggestion (dwSuggest), why: 'budget' | rôle | 'mieux' | 'plan' }]. */
 function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
-  const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), val = k => { const o = info.get(k); return o ? dwVal(o) : 0; };
+  const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), has = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
+  const trapOk = k => { const o = info.get(k); return !!(o && o.trap && dwTrapOk(k, o, has, set)); };      // piège avec le commandant, mais combo ou moteur avec une autre carte du deck : ni faible ni à retirer
+  const val = k => { const o = info.get(k); return o ? dwVal(o) + (trapOk(k) ? dwW().trap : 0) : 0; };
   const known = !!pack && info.size >= 40;      // commandant connu de la base : sinon aucun avis sur les cartes « faibles »
   const out = [], used = new Set(), skip = new Set(), Xs = { ...X, skip, info, wiz: { ...set, bud: 0 } };      // budget compté ici, échange par échange
   const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
@@ -29380,7 +29399,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
     // seuils relatifs au deck (la valeur d'une carte compte maintenant les mécaniques et la fiche du commandant : l'échelle n'est plus celle de la seule popularité) ;
     // un piège de la fiche (carte qui marche mal avec ce commandant) est toujours parmi les plus faibles
     const vs = weakest.map(c => c.v), qAt = f => vs.length ? vs[Math.min(vs.length - 1, Math.floor(vs.length * f))] : 0;
-    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap);
+    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap) && !trapOk(c.k);
     // 2) rôles sous la plage normale : à la place des cartes les plus faibles qui ne remplissent aucun rôle qui manque
     const deficit = gaugeRoles.filter(r => tgt[r] && prof[r] < tgt[r][0]).map(r => [r, tgt[r][1] - prof[r]]).sort((a, b) => b[1] - a[1]);
     for (const [r, need] of deficit) for (let i = 0; i < Math.min(need, 3) && out.length < max; i++) {
@@ -30119,7 +30138,7 @@ async function dsOptimize(mine, ms, step) {
   const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), ctx = { cmd, pack, info };
   const score = () => dsScore(BD, ctx).raw, t0 = Date.now(), tried = new Set();
   let cur = score(), kept = 0, it = 0;
-  const worth = (k, prof, tgt) => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : x.rank > 0 ? Math.max(0, 1 - x.rank / 4000) * 0.5 : 0; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
+  const worth = (k, prof, tgt) => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : x.rank > 0 ? Math.max(0, 1 - x.rank / 4000) * 0.5 : 0; if (o && o.trap && dwTrapOk(k, o, kk => BD.main.has(kk) || BD.cmdr.some(c => c.key === kk), set)) v += dwW().trap; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
   const card = x => ({ key: x.k, name: x.name, qty: 1 });
   BD.gen = true;      // candidates tirées comme à la construction (graine, style de la version, cartes des autres versions en recul)
   try {

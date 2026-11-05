@@ -345,6 +345,9 @@ ok('coach : prochaines étapes, à retirer (raisons, terrains en trop), échange
   assert.doesNotMatch(why[0], /bien plus jouée/, 'proposée moins jouée (20 % contre 24 %) : pas « bien plus jouée » : ' + why[0]);
   assert.match(why[0], /^Même rôle, plus utile dans ce deck avec Edgar Markov/);
   assert.match(why[1], /^Même rôle, bien plus jouée avec Edgar Markov · 45 % des decks \(contre 5 %\)/);
+  // piège de la fiche qui fait un combo (ou un moteur) avec une autre carte du deck : plus traité comme un piège (sauf bracket 1-2 ou combos évités)
+  assert.deepEqual(await p.evaluate(() => { const inD = k => k === 'armageddon' || k === 'swamp'; return [dwTrapOk('sol ring', { trap: 1 }, inD, { br: 4 }), dwTrapOk('sol ring', { trap: 1 }, inD, { br: 2 }), dwTrapOk('sol ring', { trap: 1 }, inD, { br: 4, avoid: ['combo'] }), dwTrapOk('sol ring', { trap: 1, eng: [['sol ring', 'swamp']] }, inD, { br: 2 }), dwTrapOk('sol ring', { trap: 0 }, inD, { br: 4 })]; }),
+    [{ kind: 'combo', with: ['Armageddon'] }, null, null, { kind: 'eng', with: ['Swamp'] }, null]);
   assert.match(why[2], /^Sert mieux le plan de Edgar Markov/); assert.match(why[3], /^Bien plus jouée avec Edgar Markov/);
   // budget de 8 € pour Edgar (5 €) : la question d'abord ; « Appliquer le budget aux 99 autres cartes » → budget total = 8 € + le commandant, gardé (plus de question)
   await p.evaluate(() => openBuilder({ name: 'Budget serré', fmt: 'commander', cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }], wiz: dwSane({ br: 2, bud: 800 }) })); await p.waitForSelector('.bd.on');
