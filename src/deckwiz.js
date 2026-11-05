@@ -105,7 +105,8 @@ function dwPack(kind, slug) {
   const key = 'dkw:' + kind + ':' + slug;
   const p = (async () => {
     const rec = await Cache.get(key, 30 * DAY).catch(() => null);
-    if (rec && Date.now() - rec.at < 7 * DAY) return rec.j;
+    const stale = rec && rec.j && rec.j.at && DW.core && DW.core.at && rec.j.at < DW.core.at;      // paquet plus ancien que la base chargée (nouveau passage : fiche IA, mécaniques) : relu tout de suite (ETag : 304 s'il n'a pas changé)
+    if (rec && !stale && Date.now() - rec.at < 7 * DAY) return rec.j;
     const g = await dwGet(kind + '=' + encodeURIComponent(slug), rec && rec.etag);
     if (g && g.same && rec) { Cache.set(key, { ...rec, at: Date.now() }); return rec.j; }
     if (g && g.j) { Cache.set(key, { j: g.j, at: Date.now(), etag: g.etag }); return g.j; }
