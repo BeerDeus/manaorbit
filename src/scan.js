@@ -450,7 +450,7 @@ async function scanPriceKeep(e) {
 async function scanPriceFetch(e) {
   if (e.cm === undefined) {
     e.cm = 'wait';
-    try { const r = await scryCollection([e.name]), g = r.get(e.key); e.cm = g && g.eu > 0 ? g.eu : null; if (g && g.im) e.im = g.im; }
+    try { const [r] = await Promise.all([scryCollection([e.name]), typeof pxTable === 'function' && !PXT ? pxTable().catch(() => null) : null]), g = r.get(e.key); e.cm = g ? refPx(e.key, false, g) || null : null; if (g && g.im) e.im = g.im; }      // prix de référence (builder.js › refPx : relevé du jour, impression la moins chère), comme la collection
     catch (x) { e.cm = 'err'; }
     scanPaintList();
   }

@@ -93,7 +93,7 @@ ok('collection : la ligne ouvre la fiche (vignette et − / + gardent leur geste
 
 /* ── Prix : normal et foil de l'édition, carte sans édition, valeur ───────────────────────────── */
 const prs = await p.$$eval('.cs-sheet .cs-pr:not(.cs-ph)', r => r.map(x => x.innerText.replace(/\s+/g, ' ').trim()));
-assert.equal(prs.length, 2); assert.match(prs[0], /Sans édition.*1,50 €.*—/); assert.match(prs[1], /CMM 400 2,00 € 6,00 €/);
+assert.equal(prs.length, 2); assert.match(prs[0], /Sans édition.*1,50 €.*—/); assert.match(prs[1], /CMM 400 · prix de cette édition 2,00 € 6,00 €/, 'édition : son prix, dit comme tel');
 assert.match(await txt(p, '.cs-sheet .cs-val'), /Valeur de tes 4 exemplaires 11,00 €/, '2 × 1,50 + 2,00 + 6,00 (foil)');
 assert.match(await txt(p, '.cs-ln[data-g="en|cmm|400*"] .cs-lt small'), /6,00 € pièce/, 'ligne foil : prix foil');
 // offre CardTrader : « Voir les offres » (une carte, comme le prix rapide), puis le lien CardTrader

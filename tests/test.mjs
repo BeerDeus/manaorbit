@@ -1329,6 +1329,18 @@ test('historique de valeur : fusion de deux appareils, un relevé par jour, plaf
   assert.deepEqual(C.histMerge('x', undefined), []);
 });
 
+test('historique de valeur : règle du relevé (r, vo) gardée par l\'ajout, la fusion et la comparaison', () => {
+  const day = 86400000, t0 = new Date(2026, 10, 1, 10).getTime();
+  let h = C.histPush([{ t: t0, v: 1000, n: 5, q: 6 }], { t: t0 + day, v: 900, n: 5, q: 6, r: 1, vo: 1000.4 });
+  assert.deepEqual(h[1], { t: t0 + day, v: 900, n: 5, q: 6, r: 1, vo: 1000 }, 'nouvelle règle (r = 1) et valeur à l\'ancienne règle (vo) gardées');
+  assert.deepEqual(h[0], { t: t0, v: 1000, n: 5, q: 6 }, 'relevé d\'avant : sans r ni vo');
+  assert.deepEqual(C.histPush([], { t: t0, v: 1, n: 1, q: 1, r: 2, vo: -3 })[0], { t: t0, v: 1, n: 1, q: 1 }, 'r inconnu, vo illisible : ignorés');
+  const m = C.histMerge([{ t: t0, v: 1000, n: 5, q: 6 }], h);
+  assert.equal(m[1].vo, 1000); assert.equal(m[1].r, 1);
+  assert.ok(!C.histSame(h, [{ t: t0, v: 1000, n: 5, q: 6 }, { t: t0 + day, v: 900, n: 5, q: 6 }]), 'un relevé sans sa règle n\'est pas le même');
+  assert.deepEqual(C.histRule({ r: 1, vo: 5, x: 1 }), { r: 1, vo: 5 });
+});
+
 /* ── Créateur de deck ─────────────────────────────────────────────────────────────────────────── */
 test('créateur de deck : texte ↔ liste, lu par le reste de l\'app (commandant, réserve ignorée du prix)', () => {
   const d = { fmt: 'commander', main: [{ name: 'Sol Ring', qty: 1 }, { name: 'Forest', qty: 30 }], side: [{ name: 'Negate', qty: 2 }], cmdr: [{ name: 'Edgar Markov' }] };

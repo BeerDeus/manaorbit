@@ -198,7 +198,7 @@ function xsRemote(id, uid, data, pending, fromCache) {
     // reset du document : celui de Cardmarket (les appareils d'avant le connaissent) ; TCGplayer garde le sien sur l'appareil (value.js › VAL.reset).
     const us = mkUs(), rr = Number(data && data.reset) || 0, newer = !us && rr > VAL.reset;
     if (newer) { VAL.reset = rr; VAL.hist = VAL.hist.filter(h => h.t >= rr); }
-    const pts = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q, ...(p.m === 'us' ? { m: 'us' } : {}) } : null)).filter(Boolean) : [];
+    const pts = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q, ...histRule(p), ...(p.m === 'us' ? { m: 'us' } : {}) } : null)).filter(Boolean) : [];      // r, vo : règle du relevé (core.js › histRule)
     const all = pts.filter(h => (h.m === 'us') === us).map(({ m, ...h }) => h);
     XS.hOther = pts.filter(h => (h.m === 'us') !== us); XS.hReset = rr;
     const remote = all.filter(h => !(h.t < VAL.reset)), merged = histMerge(VAL.hist, remote);
@@ -222,7 +222,7 @@ async function xsPush(id) {
 /** Document meta/history : relevés de ce marché (m: 'us' pour TCGplayer) + ceux de l'autre, tels que lus (les plus anciens de l'autre retirés au-delà de 420, la borne
  *  des règles Firestore) ; reset : celui de Cardmarket. */
 function histDoc() {
-  const us = mkUs(), mine = VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0, ...(us ? { m: 'us' } : {}) })), other = (XS.hOther || []).slice(-Math.max(0, 420 - mine.length));
+  const us = mkUs(), mine = VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0, ...histRule(h), ...(us ? { m: 'us' } : {}) })), other = (XS.hOther || []).slice(-Math.max(0, 420 - mine.length));
   const reset = us ? XS.hReset : VAL.reset;
   return { pts: [...other, ...mine].sort((a, b) => a.t - b.t), ...(reset ? { reset } : {}), updatedAt: Date.now() };
 }

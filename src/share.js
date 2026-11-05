@@ -90,8 +90,9 @@ function trCounts() {
 }
 /** Doublons à échanger d'une collection (decks et réglages de cet appareil) : colonne « Tradelist Count » de l'export CSV (collToCsv, core.js ; déclaration hoistée, jamais en zone morte). */
 function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept, COLL.places).have; }
-/** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : tendance Cardmarket du fichier de prix (impression la moins chère), sinon le prix Scryfall déjà connu de l'appareil. */
-const trPrice = k => { const t = PXT && PXT.map && PXT.map.get(k); return (t && t.e) || (dmOf(k) || {}).eu || null; };
+/** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : le prix de référence de l'appli (builder.js › dkPx : relevé du jour,
+ *  impression la moins chère, sinon la fiche), le même que la collection et les decks. */
+const trPrice = k => dkPx(k) || (dmOf(k) || {}).eu || null;
 /** Prix d'un exemplaire d'une ligne de MA collection (clé 'fr|cmm|400*') : celui de son impression (COLL.ed, comme la valeur de la collection : collection.js › edEu), sinon trPrice ;
  *  foil : le prix foil de son impression, sinon le prix foil Cardmarket de la carte ; null si aucun prix foil n'est connu (jamais le prix non foil présenté comme prix foil). */
 function trLinePx(k, g) {

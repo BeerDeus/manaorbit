@@ -129,5 +129,28 @@ await p.waitForFunction(() => VAL.reset > 0 && VAL.hist.length === 1 && VAL.hist
 }
 ok('« Recommencer la courbe » : confirmation, relevés effacés (appareil, compte), relevé du jour refait ; anciens relevés d\'un autre appareil ignorés, remise à zéro venue d\'ailleurs appliquée');
 
+/* ── 11) règle unique du prix (builder.js › dkPx) : relevé du jour arrivé, courbe raccordée, références renouvelées ── */
+{
+  const r = await p.evaluate(async day => {
+    const now = Date.now(), m = new Map([['sol ring', { e: 120, u: 100 }], ['craterhoof behemoth', { e: 700, u: 800 }]]);
+    VAL.reset = 0; VAL.hist = [{ t: now - 31 * day, v: 1400, n: 5, q: 6 }, { t: now - 8 * day, v: 1580, n: 5, q: 6 }]; VAL.base = { cur: { t: now - 8 * day, p: { 'sol ring': 225 } }, prev: null }; VAL.memo = null;
+    const old = valOldRule(); PXT = { t: now, at: new Date(now).toISOString(), map: m };      // relevé du jour : Sol Ring 1,20 € et Craterhoof 7,00 € (impression la moins chère)
+    await valCommit();
+    const last = VAL.hist[VAL.hist.length - 1], f = last.v / last.vo, view = valHist();
+    const same = [collLineEu('sol ring', ''), dkPx('sol ring'), trPrice('sol ring'), csMove('sol ring')];
+    await valCommit();      // même jour : relevé remplacé, raccord gardé (une seule fois)
+    const again = VAL.hist[VAL.hist.length - 1];
+    return { old, last, v: collValue(), first: view[0].v, want: Math.round(1400 * f), raw: VAL.hist[0].v, base: { r: VAL.base.r, prev: VAL.base.prev, sol: VAL.base.cur.p['sol ring'] }, same, again: { n: VAL.hist.length, vo: again.vo, r: again.r }, hv: valHist()[1].v === Math.round(1580 * f) };
+  }, D);
+  assert.equal(r.last.r, 1, 'relevé à la règle unique (r = 1)'); assert.equal(r.last.vo, r.old, 'raccord : la même collection à l\'ancienne règle'); assert.equal(r.last.v, r.v, 'valeur = celle de la liste et de l\'accueil');
+  assert.equal(r.old - r.v, 2 * (225 - 120) + (950 - 700), 'Sol Ring × 2 et Craterhoof au relevé du jour (ancienne règle : impression par défaut)');
+  assert.equal(r.first, r.want, 'courbe : relevés d\'avant ramenés à la nouvelle règle (pas de chute artificielle)'); assert.equal(r.raw, 1400, 'relevés gardés inchangés'); assert.ok(r.hv);
+  assert.deepEqual(r.base, { r: 1, prev: null, sol: 120 }, 'références d\'avant oubliées : base neuve au prix de référence');
+  assert.deepEqual(r.same.slice(0, 3), [120, 120, 120], 'collection, decks, échanges : le même prix'); assert.equal(r.same[3], null, 'pas encore de variation sur la base neuve');
+  assert.deepEqual(r.again, { n: 3, vo: r.old, r: 1 }, 'relevé refait le même jour : raccord recalculé, jamais doublé');
+  await p.click('#collSeg [data-v="list"]'); await p.waitForFunction(() => /1,20/.test((document.querySelector('.crow[data-k="sol ring"] .px.cm b') || {}).textContent || ''), null, { timeout: 5000 });
+}
+ok('règle unique : relevé du jour lu → valeur, liste et échanges au prix de référence ; courbe raccordée (vo), références renouvelées');
+
 assert.deepEqual(errs, [], 'aucune erreur JS : ' + errs.join(' | '));
 await browser.close(); world.stop(); console.log('\nVALUE E2E OK'); process.exit(0);
