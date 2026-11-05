@@ -160,10 +160,11 @@ await p.click('[data-act="dw-set"]');
 ok('deck du coach : budget changé → « Recréer le deck » (annulable) ou « Garder le deck »');
 // rapport du coach : sections, combo du deck, combos à une carte près, cartes touchables, copie
 await p.evaluate(() => { bdChange('main', 'sol ring', 'Sol Ring', 1); });      // Sol Ring + Armageddon (combo de la base de test) : à une carte près
+await p.evaluate(() => { DW.core.combos3 = [['Sol Ring', 'Edgar Markov', 'Swords to Plowshares', 'Test combo 3', 'S']]; DW.combo3Idx = null; });      // combo à 3 cartes complet (le commandant en est une pièce)
 await p.click('[data-act="dw-report"]'); await p.waitForSelector('.dr-body .da-sum');
 const rep = await txt(p, '.dr-body');
 for (const t of ['Ce que fait ton commandant', 'Comment le deck gagne', 'Comment le jouer', 'Main de départ', 'Interaction', 'Points faibles', 'Combos à une carte près', 'Rôle de chaque carte']) assert.ok(rep.includes(t), 'rapport : ' + t);
-assert.match(rep, /Tu as Sol Ring : avec Armageddon, Infinite fun/); assert.match(rep, /retraits? ciblés? : [^.]*Swords to Plowshares/);
+assert.match(rep, /Tu as Sol Ring : avec Armageddon, Infinite fun/); assert.match(rep, /1 combo à 3 cartes dans le deck\s*Sol Ring \+ Edgar Markov \+ Swords to Plowshares : Test combo 3/, 'rapport : combo à 3 cartes'); assert.match(rep, /retraits? ciblés? : [^.]*Swords to Plowshares/);
 assert.match(rep, /\d+ \/100 Note du coach/, 'rapport : note du coach'); assert.ok(await p.$('.dr-body .ds-parts[open]'), 'rapport : détail de la note ouvert');
 // simulation de 1 000 parties : deck de test assez grand (37 terrains), résultats chiffrés, conseils ; même deck, mêmes résultats (graine fixe)
 const sim = await p.evaluate(async () => {
@@ -182,8 +183,8 @@ assert.match(sim.html, /Simulation de 10 000 parties .* % des mains de 7 cartes 
 await p.waitForFunction(() => /Simulation de 1 000 parties|Note du coach/.test(document.querySelector('.dr-body').textContent));
 await shot(p, 'rapport');
 await p.click('.dr-body .dr-c[data-k="swords to plowshares"]'); await p.waitForSelector('.imgv'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
-await closeSheets(p);
-ok('rapport du coach : sections, combos, cartes agrandies');
+await closeSheets(p); await p.evaluate(() => { delete DW.core.combos3; DW.combo3Idx = null; });
+ok('rapport du coach : sections, combos (2 et 3 cartes), cartes agrandies');
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('générer le deck : rôles, plan, terrains, couleurs, bracket, budget ; annulable ; Compléter');
 
