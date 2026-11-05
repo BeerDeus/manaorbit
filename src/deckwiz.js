@@ -570,7 +570,7 @@ function dwStoryHtml(st, o = {}) {
   const long = st.brief && st.brief.length > 190;
   return `<div class="dw-story">${o.label === false ? '' : `<p class="label">${T('Plan du deck')}</p>`}${st.brief && fr ? `<div class="dw-brief${long ? ' clamp' : ''}"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><div><p>${esc(st.brief)}</p>${long ? `<button class="link-btn link-inline" type="button" data-brief-more aria-expanded="false"><span class="m">${T('Lire tout')}</span><span class="l">${T('Réduire')}</span></button>` : ''}</div></div>` : ''}
     <div class="dw-rows">${tags.length ? row(T('Thèmes'), tags.map(([n, l]) => pill(n, l)).join('')) : ''}
-    ${st.engines.length ? row(T('Moteurs'), `<ul class="dw-eng">${st.engines.map(e => `<li><b>${esc(e.label)}</b><small>${esc(e.cards.slice(0, 3).join(', '))}</small></li>`).join('')}</ul>`) : ''}
+    ${st.engines.length ? row(T('Moteurs'), `<ul class="dw-eng">${st.engines.map(e => { const byCards = e.ai && !fr, head = byCards ? e.cards.slice(0, 2).join(' + ') : e.label, rest = byCards ? e.cards.slice(2, 4) : e.cards.slice(0, 3); return `<li><b>${esc(head)}</b>${rest.length ? `<small>${esc(rest.join(', '))}</small>` : ''}</li>`; }).join('')}</ul>`) : ''}
     ${st.wincons.length ? row(T('Pour gagner'), st.wincons.slice(0, 4).map(n => pill(null, n)).join('')) : `<p class="hint warn">${esc(T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>`}</div>
     ${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
 }
@@ -585,7 +585,8 @@ function dwAuditParts(X) {
   const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = []; let warn = 0, good = 0;
   if (au.core.length) { rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6))); good++; }
   if (au.wins.length) { rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4))); good++; }
-  for (const e of au.engines) { rows.push(li('warn', T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
+  const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // nom du moteur de la fiche : écrit en français ; ailleurs, ses cartes déjà là
+  for (const e of au.engines) { rows.push(li('warn', e.ai && !fr ? T('Moteur incomplet ({c}) : il manque', { c: e.have.slice(0, 2).join(' + ') }) : T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
   if (au.traps.length) { rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5))); warn++; }
   if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
   return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };

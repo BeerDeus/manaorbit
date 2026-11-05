@@ -257,7 +257,7 @@ function dwDeckStory(X = BD) {
   const notes = [];
   if (plan && plan.user && plan.main.length) notes.push(T('Plan suivi : {m}', { m: plan.main.slice(0, 3).map(i => dmxLabel(DMX.tags[i])).join(', ') }));
   if (petOut.length) notes.push(TN(petOut.length, 'Carte fétiche écartée (couleurs, bracket ou cartes interdites) : {c}', 'Cartes fétiches écartées (couleurs, bracket ou cartes interdites) : {c}', { c: petOut.join(', ') }));
-  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
+  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
   return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
 /** Nom d'un moteur de la fiche du commandant : écrit en français par l'IA ; dans une autre langue, un libellé traduit. */
@@ -269,7 +269,7 @@ function dwDeckAudit(X = BD) {
   if (!dmxOn()) return null;
   const story = dwDeckStory(X); if (!story) return null;
   const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
-  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
+  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
   const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
   const deck = dmxDeck(X), loose = [];
   for (const c of X.main.values()) {

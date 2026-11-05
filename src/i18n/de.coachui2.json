@@ -7,5 +7,6 @@
  "{n} points à revoir": "{n} Punkte zu prüfen",
  "rien à revoir": "nichts zu prüfen",
  "{n} point en place": "{n} Punkt erfüllt",
- "{n} points en place": "{n} Punkte erfüllt"
+ "{n} points en place": "{n} Punkte erfüllt",
+ "Moteur incomplet ({c}) : il manque": "Unvollständiger Motor ({c}): es fehlt"
 }

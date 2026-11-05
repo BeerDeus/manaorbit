@@ -355,14 +355,14 @@ ok('coach : prochaines étapes, à retirer (raisons, terrains en trop), échange
   assert.equal(await p.$eval('#dsBudNew', i => i.value), '20', 'budget conseillé prérempli (arrondi à 10 €)');
   await p.click('.ds-bud-sheet [data-bud-99]'); await p.waitForSelector('.ds-sheet', { timeout: 15000 });
   assert.deepEqual(await p.evaluate(() => [BD.wiz.bud, BD.wiz.budAck]), [1300, 1300]);
-  await p.click('.ds-sheet [data-close]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  await p.evaluate(() => DS.api && DS.api.close()); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
   await p.evaluate(() => { dwBuild(); }); await p.waitForSelector('.ds-sheet', { timeout: 15000 }); assert.equal(await p.$('.ds-bud-sheet'), null, 'choix gardé : plus de question');
-  await p.click('.ds-sheet [data-close]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  await p.evaluate(() => DS.api && DS.api.close()); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
   // « Revoir le budget » : le montant saisi
   await p.evaluate(() => { BD.wiz.bud = 600; delete BD.wiz.budAck; dwBuild(); }); await p.waitForSelector('.ds-bud-sheet [data-bud-new]');
   await p.fill('#dsBudNew', '40'); await p.click('.ds-bud-sheet [data-bud-new]'); await p.waitForSelector('.ds-sheet', { timeout: 15000 });
   assert.deepEqual(await p.evaluate(() => [BD.wiz.bud, BD.wiz.budAck]), [4000, 4000]);
-  await p.click('.ds-sheet [data-close]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  await p.evaluate(() => DS.api && DS.api.close()); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
   await p.evaluate(() => bdClose(true));
 }
 ok('échanges : « bien plus jouée » seulement si c\'est vrai ; commandant qui coûte presque tout le budget : question avant la construction (99 autres cartes ou autre budget), choix gardé');

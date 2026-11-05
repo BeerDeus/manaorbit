@@ -2880,6 +2880,23 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .ds-bud-sheet .btn[data-bud-99]{flex-direction:column;height:auto;min-height:58px;gap:2px;padding:9px 16px;margin-top:12px}
 .ds-bud-sheet .btn[data-bud-99] small{display:block;font-weight:500;font-size:12.5px;opacity:.85}
 .ds-bud-sheet .field-in{margin:16px 0 8px}
+/* Simulation lue d'un coup d'œil (decksim.js › dsimHtml) : 4 chiffres clés, conseils, puis tous les chiffres repliés */
+.ds-key{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ds-key li{display:flex;flex-direction:column;gap:1px;padding:10px 12px;border-radius:12px;background:var(--good-soft)}
+.ds-key li.warn{background:var(--warn-soft)}
+.ds-key li b{font-size:22px;font-weight:750;line-height:1.1;color:var(--good)}
+.ds-key li.warn b{color:var(--warn)}
+.ds-key li span{font-size:13px;font-weight:650;color:var(--ink);line-height:1.25}
+.ds-key li small{font-size:11.5px;color:var(--ink-3)}
+.ds-adv-h{margin:12px 0 4px}
+.ds-adv{margin-top:0}
+.hint.good{color:var(--good);margin-top:10px}
+.ds-more{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.ds-more>summary{cursor:pointer;font-size:13.5px;font-weight:650;color:var(--accent);list-style:none;padding:4px 0}
+.ds-more>summary::-webkit-details-marker{display:none}
+.ds-more>summary::after{content:" ▾"}
+.ds-more[open]>summary::after{content:" ▴"}
+.ds-more .ds-sim{margin-top:8px}
 
 /* ── densite.css : densité sur téléphone (densite.js) — collection (en-tête, outils en icônes, vues compacte / grille) et écran Échange (barre du lien, ligne des sous-onglets) ── */
 
@@ -7961,8 +7978,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'bed9391c';
-const I18N_FILES = {"de":"i18n/de.7724e01f.js","en":"i18n/en.2784689a.js","es":"i18n/es.293f3516.js","it":"i18n/it.64cc15ca.js","pt":"i18n/pt.970f7ba8.js"};
+const DD_BUILD = 'fab2e493';
+const I18N_FILES = {"de":"i18n/de.30ab8901.js","en":"i18n/en.97a9f564.js","es":"i18n/es.093fd6ab.js","it":"i18n/it.d77cf968.js","pt":"i18n/pt.9bbc1d0b.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -28542,7 +28559,7 @@ function dwStoryHtml(st, o = {}) {
   const long = st.brief && st.brief.length > 190;
   return `<div class="dw-story">${o.label === false ? '' : `<p class="label">${T('Plan du deck')}</p>`}${st.brief && fr ? `<div class="dw-brief${long ? ' clamp' : ''}"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><div><p>${esc(st.brief)}</p>${long ? `<button class="link-btn link-inline" type="button" data-brief-more aria-expanded="false"><span class="m">${T('Lire tout')}</span><span class="l">${T('Réduire')}</span></button>` : ''}</div></div>` : ''}
     <div class="dw-rows">${tags.length ? row(T('Thèmes'), tags.map(([n, l]) => pill(n, l)).join('')) : ''}
-    ${st.engines.length ? row(T('Moteurs'), `<ul class="dw-eng">${st.engines.map(e => `<li><b>${esc(e.label)}</b><small>${esc(e.cards.slice(0, 3).join(', '))}</small></li>`).join('')}</ul>`) : ''}
+    ${st.engines.length ? row(T('Moteurs'), `<ul class="dw-eng">${st.engines.map(e => { const byCards = e.ai && !fr, head = byCards ? e.cards.slice(0, 2).join(' + ') : e.label, rest = byCards ? e.cards.slice(2, 4) : e.cards.slice(0, 3); return `<li><b>${esc(head)}</b>${rest.length ? `<small>${esc(rest.join(', '))}</small>` : ''}</li>`; }).join('')}</ul>`) : ''}
     ${st.wincons.length ? row(T('Pour gagner'), st.wincons.slice(0, 4).map(n => pill(null, n)).join('')) : `<p class="hint warn">${esc(T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>`}</div>
     ${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
 }
@@ -28557,7 +28574,8 @@ function dwAuditParts(X) {
   const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = []; let warn = 0, good = 0;
   if (au.core.length) { rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6))); good++; }
   if (au.wins.length) { rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4))); good++; }
-  for (const e of au.engines) { rows.push(li('warn', T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
+  const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // nom du moteur de la fiche : écrit en français ; ailleurs, ses cartes déjà là
+  for (const e of au.engines) { rows.push(li('warn', e.ai && !fr ? T('Moteur incomplet ({c}) : il manque', { c: e.have.slice(0, 2).join(' + ') }) : T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
   if (au.traps.length) { rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5))); warn++; }
   if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
   return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };
@@ -29273,7 +29291,7 @@ function dwDeckStory(X = BD) {
   const notes = [];
   if (plan && plan.user && plan.main.length) notes.push(T('Plan suivi : {m}', { m: plan.main.slice(0, 3).map(i => dmxLabel(DMX.tags[i])).join(', ') }));
   if (petOut.length) notes.push(TN(petOut.length, 'Carte fétiche écartée (couleurs, bracket ou cartes interdites) : {c}', 'Cartes fétiches écartées (couleurs, bracket ou cartes interdites) : {c}', { c: petOut.join(', ') }));
-  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
+  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
   return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
 /** Nom d'un moteur de la fiche du commandant : écrit en français par l'IA ; dans une autre langue, un libellé traduit. */
@@ -29285,7 +29303,7 @@ function dwDeckAudit(X = BD) {
   if (!dmxOn()) return null;
   const story = dwDeckStory(X); if (!story) return null;
   const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
-  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
+  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
   const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
   const deck = dmxDeck(X), loose = [];
   for (const c of X.main.values()) {
@@ -29811,7 +29829,7 @@ function drReportHtml(X) {
   if (prof.mv > 3.5) weak.push(T('Courbe haute (coût moyen {v}) : départs lents', { v: prof.mv.toFixed(2) }));
   h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="bd-issues">${weak.map(w => `<li class="warn">${esc(w)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien d\'alarmant : le deck est dans la norme de chaque catégorie.')}</p>`}`;
   // Simulation de 10 000 parties face à 3 adversaires (decksim.js) : résultat gardé pour ce deck, sinon barre de progression pendant le calcul
-  if (typeof dsimHtml === 'function') h += `<div id="drSim">${DSIM.sig === dsimSig(X) && DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog)}</div>`;
+  if (typeof dsimHtml === 'function') h += `<div id="drSim">${DSIM.sig === dsimSig(X) && DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res, 0, { open: true })) : dsimHtml(null, DSIM.prog)}</div>`;
   // Combos à une carte près
   if (DW.core && Array.isArray(DW.core.combos)) {
     const inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k), ci = new Set([...cmd.ci]), all = [];
@@ -29851,7 +29869,7 @@ function drPaint() {
   if (!DW.core && DW.p) { b.innerHTML = `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`; return; }
   const open = $('.dr-roles', b) && $('.dr-roles', b).open, keep = b.scrollTop;
   b.innerHTML = drReportHtml(DR.X); b.scrollTop = keep; if (open) $('.dr-roles', b).open = true;
-  if (typeof dsimEnsure === 'function' && DW.core) dsimEnsure(DR.X, () => { const el = DR.api && sheets.includes(DR.api) && $('#drSim', DR.api.body); if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog); });
+  if (typeof dsimEnsure === 'function' && DW.core) dsimEnsure(DR.X, () => { const el = DR.api && sheets.includes(DR.api) && $('#drSim', DR.api.body); if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res, 0, { open: true })) : dsimHtml(null, DSIM.prog); });
   Promise.all(DR.X.cmdr.map(c => drCmdText(c.name))).then(txts => {
     const el = $('#drCmdTxt', b); if (!el) return;
     el.innerHTML = txts.some(Boolean) ? txts.map((t, i) => `${DR.X.cmdr.length > 1 ? `<b>${esc(DR.X.cmdr[i].name)}</b><br>` : ''}${esc(t || '—').replace(/\n/g, '<br>')}`).join('<br><br>') : esc(T('Texte de la carte indisponible (hors ligne).'));
@@ -30598,11 +30616,17 @@ const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c =
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 const dsimPct = v => T('{n} %', { n: Number(v).toLocaleString(LOC()) });      // « 74 % » en français, « 74% » en anglais (dictionnaires)
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
-function dsimHtml(r, prog) {
-  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</div><p class="hint">${T('Le coach a joué les 10 premiers tours avec ce deck, {n} fois, face à 3 adversaires à 40 points de vie : mains de départ, terrains, couleurs, commandant, puis le plan (attaques contre leurs bloqueurs, jetons, drain, moteurs), leurs retraits et un balayage probable entre les tours 5 et 7. Des règles simples et du hasard.', { n: nf0(DSIM_N) })}</p>`;
+function dsimHtml(r, prog, o = {}) {
+  // lu d'un coup d'œil : une phrase, 4 chiffres clés (mains, commandant, adversaire éliminé, moteur qui tient), les conseils ; tous les chiffres et la méthode repliés
+  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</div><p class="hint">${T('10 premiers tours, face à 3 adversaires (bloqueurs, retraits, balayage).')}</p>`;
   if (!r) return h + `<div class="ds-prog"><span class="ds-big"><i style="width:${Math.round((prog || 0) * 100)}%"></i></span><p class="ds-now">${T('Parties en cours…')}</p></div>`;
+  const key = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b><span>${esc(t)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}</li>`;
+  h += `<ul class="ds-key">${key(r.keep7 >= 74, dsimPct(r.keep7), T('Mains gardées'), T('main de 7 cartes'))}
+    ${r.cmv ? key(r.cmdOn >= 55, dsimPct(r.cmdOn), T('Commandant à temps'), T('tour {t} ou avant', { t: r.cmv })) : key(r.miss3 <= 20, dsimPct(r.miss3), T('Terrains manqués'), T('avant le tour 4'))}
+    ${r.kill10 != null ? key(r.kill10 >= 20, dsimPct(r.kill10), T('Adversaire éliminé'), T('avant le tour 11')) : key(r.screw4 <= 10, dsimPct(r.screw4), T('Couleurs bloquées'), T('au tour 4'))}
+    ${r.engKeep != null && r.eng ? key(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('Moteur qui tient'), T('encore là au tour 10')) : r.eng != null ? key(r.eng >= 50, dsimPct(r.eng), T('Moteur en place'), T('avant le tour 11')) : key(r.eff >= 70, dsimPct(r.eff), T('Mana utilisé'), T('tours 1 à 6'))}</ul>`;
   const row = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b> ${esc(t)}${sub ? ` <small>${esc(sub)}</small>` : ''}</li>`;
-  h += `<ul class="bd-issues ds-sim">
+  let more = `<ul class="bd-issues ds-sim">
     ${row(r.keep7 >= 74, dsimPct(r.keep7), T('des mains de 7 cartes gardées'), T('{l} terrains en moyenne dans la main gardée', { l: dsimNum(r.lands0) }))}
     ${r.cmv ? row(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps (tour {t} ou avant)', { t: r.cmv }), T('tour {t} en moyenne', { t: dsimNum(r.cmdT) }) + (r.cmdNever ? ' · ' + T('jamais avant le tour 9 : {p}', { p: dsimPct(r.cmdNever) }) : '')) : ''}
     ${row(r.miss3 <= 20, dsimPct(r.miss3), T('des parties sans terrain à poser avant le tour 4'), T('{p} avant le tour 5', { p: dsimPct(r.miss4) }))}
@@ -30612,7 +30636,8 @@ function dsimHtml(r, prog) {
     ${r.eng != null ? row(r.eng >= 50, dsimPct(r.eng), T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
     ${r.engKeep != null && r.eng ? row(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage'), r.wipeSurv != null ? T('moteur encore là au tour qui suit le balayage : {p}', { p: dsimPct(r.wipeSurv) }) : '') : ''}
     ${r.seen6 != null ? row(r.seen6 >= 14, dsimNum(r.seen6), T('cartes vues au tour 6 (main, pioche, moteurs)'), '') : ''}</ul>`;
-  if (r.stuck.length) h += `<p class="dr-p"><b>${T('Souvent bloquées par les couleurs')} :</b> ${r.stuck.map(([n, p]) => drCard(ownKey(n), n) + ` <small>(${dsimPct(p)})</small>`).join(', ')}</p>`;
+  if (r.stuck.length) more += `<p class="dr-p"><b>${T('Souvent bloquées par les couleurs')} :</b> ${r.stuck.map(([n, p]) => drCard(ownKey(n), n) + ` <small>(${dsimPct(p)})</small>`).join(', ')}</p>`;
+  more += `<p class="hint">${T('Le coach a joué les 10 premiers tours avec ce deck, {n} fois, face à 3 adversaires à 40 points de vie : mains de départ, terrains, couleurs, commandant, puis le plan (attaques contre leurs bloqueurs, jetons, drain, moteurs), leurs retraits et un balayage probable entre les tours 5 et 7. Des règles simples et du hasard.', { n: nf0(DSIM_N) })}</p>`;
   const adv = [];
   if (r.keep7 < 72) adv.push(T('Trop de mains à refaire : vise 36 à 38 terrains, ou ajoute de la rampe à 2 mana ou moins.'));
   if (r.miss3 > 20) adv.push(T('Terrains manqués trop souvent : un ou deux terrains de plus, ou de la pioche pas chère.'));
@@ -30623,9 +30648,10 @@ function dsimHtml(r, prog) {
   if (r.eng != null && r.eng < 50) adv.push(T('Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.'));
   if (r.engKeep != null && r.eng >= 50 && r.engKeep < 0.6 * r.eng) adv.push(T('Moteur souvent détruit par les adversaires : de la protection (équipements, contresorts, sorts qui protègent) ou de la récursion pour le remonter.'));
   if (r.seen6 != null && r.seen6 < 13) adv.push(T('Peu de cartes vues : un ou deux moteurs de pioche de plus.'));
-  if (adv.length) h += `<ul class="dr-ul">${adv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
-  return h;
+  h += adv.length ? `<p class="label ds-adv-h">${T('À améliorer')}</p><ul class="dr-ul ds-adv">${adv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : `<p class="hint good">${T('Rien à signaler : le deck démarre bien.')}</p>`;
+  return h + `<details class="ds-more"${o.open || DSIM.more ? ' open' : ''}><summary>${T('Tous les chiffres et la méthode')}</summary>${more}</details>`;
 }
+if (typeof document !== 'undefined') document.addEventListener('toggle', e => { if (e.target && e.target.matches && e.target.matches('.ds-more')) DSIM.more = e.target.open; }, true);      // repli gardé quand la simulation est redessinée
 /** Lance la simulation pour le deck X si son résultat n'est pas déjà là ; done() quand elle avance ou finit. */
 function dsimEnsure(X, done) {
   const sig = dsimSig(X);

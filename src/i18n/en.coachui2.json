@@ -7,5 +7,6 @@
  "{n} points à revoir": "{n} points to review",
  "rien à revoir": "nothing to review",
  "{n} point en place": "{n} point in place",
- "{n} points en place": "{n} points in place"
+ "{n} points en place": "{n} points in place",
+ "Moteur incomplet ({c}) : il manque": "Incomplete engine ({c}): missing"
 }

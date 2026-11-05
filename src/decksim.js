@@ -207,11 +207,17 @@ const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c =
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 const dsimPct = v => T('{n} %', { n: Number(v).toLocaleString(LOC()) });      // « 74 % » en français, « 74% » en anglais (dictionnaires)
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
-function dsimHtml(r, prog) {
-  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</div><p class="hint">${T('Le coach a joué les 10 premiers tours avec ce deck, {n} fois, face à 3 adversaires à 40 points de vie : mains de départ, terrains, couleurs, commandant, puis le plan (attaques contre leurs bloqueurs, jetons, drain, moteurs), leurs retraits et un balayage probable entre les tours 5 et 7. Des règles simples et du hasard.', { n: nf0(DSIM_N) })}</p>`;
+function dsimHtml(r, prog, o = {}) {
+  // lu d'un coup d'œil : une phrase, 4 chiffres clés (mains, commandant, adversaire éliminé, moteur qui tient), les conseils ; tous les chiffres et la méthode repliés
+  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</div><p class="hint">${T('10 premiers tours, face à 3 adversaires (bloqueurs, retraits, balayage).')}</p>`;
   if (!r) return h + `<div class="ds-prog"><span class="ds-big"><i style="width:${Math.round((prog || 0) * 100)}%"></i></span><p class="ds-now">${T('Parties en cours…')}</p></div>`;
+  const key = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b><span>${esc(t)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}</li>`;
+  h += `<ul class="ds-key">${key(r.keep7 >= 74, dsimPct(r.keep7), T('Mains gardées'), T('main de 7 cartes'))}
+    ${r.cmv ? key(r.cmdOn >= 55, dsimPct(r.cmdOn), T('Commandant à temps'), T('tour {t} ou avant', { t: r.cmv })) : key(r.miss3 <= 20, dsimPct(r.miss3), T('Terrains manqués'), T('avant le tour 4'))}
+    ${r.kill10 != null ? key(r.kill10 >= 20, dsimPct(r.kill10), T('Adversaire éliminé'), T('avant le tour 11')) : key(r.screw4 <= 10, dsimPct(r.screw4), T('Couleurs bloquées'), T('au tour 4'))}
+    ${r.engKeep != null && r.eng ? key(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('Moteur qui tient'), T('encore là au tour 10')) : r.eng != null ? key(r.eng >= 50, dsimPct(r.eng), T('Moteur en place'), T('avant le tour 11')) : key(r.eff >= 70, dsimPct(r.eff), T('Mana utilisé'), T('tours 1 à 6'))}</ul>`;
   const row = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b> ${esc(t)}${sub ? ` <small>${esc(sub)}</small>` : ''}</li>`;
-  h += `<ul class="bd-issues ds-sim">
+  let more = `<ul class="bd-issues ds-sim">
     ${row(r.keep7 >= 74, dsimPct(r.keep7), T('des mains de 7 cartes gardées'), T('{l} terrains en moyenne dans la main gardée', { l: dsimNum(r.lands0) }))}
     ${r.cmv ? row(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps (tour {t} ou avant)', { t: r.cmv }), T('tour {t} en moyenne', { t: dsimNum(r.cmdT) }) + (r.cmdNever ? ' · ' + T('jamais avant le tour 9 : {p}', { p: dsimPct(r.cmdNever) }) : '')) : ''}
     ${row(r.miss3 <= 20, dsimPct(r.miss3), T('des parties sans terrain à poser avant le tour 4'), T('{p} avant le tour 5', { p: dsimPct(r.miss4) }))}
@@ -221,7 +227,8 @@ function dsimHtml(r, prog) {
     ${r.eng != null ? row(r.eng >= 50, dsimPct(r.eng), T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
     ${r.engKeep != null && r.eng ? row(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage'), r.wipeSurv != null ? T('moteur encore là au tour qui suit le balayage : {p}', { p: dsimPct(r.wipeSurv) }) : '') : ''}
     ${r.seen6 != null ? row(r.seen6 >= 14, dsimNum(r.seen6), T('cartes vues au tour 6 (main, pioche, moteurs)'), '') : ''}</ul>`;
-  if (r.stuck.length) h += `<p class="dr-p"><b>${T('Souvent bloquées par les couleurs')} :</b> ${r.stuck.map(([n, p]) => drCard(ownKey(n), n) + ` <small>(${dsimPct(p)})</small>`).join(', ')}</p>`;
+  if (r.stuck.length) more += `<p class="dr-p"><b>${T('Souvent bloquées par les couleurs')} :</b> ${r.stuck.map(([n, p]) => drCard(ownKey(n), n) + ` <small>(${dsimPct(p)})</small>`).join(', ')}</p>`;
+  more += `<p class="hint">${T('Le coach a joué les 10 premiers tours avec ce deck, {n} fois, face à 3 adversaires à 40 points de vie : mains de départ, terrains, couleurs, commandant, puis le plan (attaques contre leurs bloqueurs, jetons, drain, moteurs), leurs retraits et un balayage probable entre les tours 5 et 7. Des règles simples et du hasard.', { n: nf0(DSIM_N) })}</p>`;
   const adv = [];
   if (r.keep7 < 72) adv.push(T('Trop de mains à refaire : vise 36 à 38 terrains, ou ajoute de la rampe à 2 mana ou moins.'));
   if (r.miss3 > 20) adv.push(T('Terrains manqués trop souvent : un ou deux terrains de plus, ou de la pioche pas chère.'));
@@ -232,9 +239,10 @@ function dsimHtml(r, prog) {
   if (r.eng != null && r.eng < 50) adv.push(T('Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.'));
   if (r.engKeep != null && r.eng >= 50 && r.engKeep < 0.6 * r.eng) adv.push(T('Moteur souvent détruit par les adversaires : de la protection (équipements, contresorts, sorts qui protègent) ou de la récursion pour le remonter.'));
   if (r.seen6 != null && r.seen6 < 13) adv.push(T('Peu de cartes vues : un ou deux moteurs de pioche de plus.'));
-  if (adv.length) h += `<ul class="dr-ul">${adv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
-  return h;
+  h += adv.length ? `<p class="label ds-adv-h">${T('À améliorer')}</p><ul class="dr-ul ds-adv">${adv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : `<p class="hint good">${T('Rien à signaler : le deck démarre bien.')}</p>`;
+  return h + `<details class="ds-more"${o.open || DSIM.more ? ' open' : ''}><summary>${T('Tous les chiffres et la méthode')}</summary>${more}</details>`;
 }
+if (typeof document !== 'undefined') document.addEventListener('toggle', e => { if (e.target && e.target.matches && e.target.matches('.ds-more')) DSIM.more = e.target.open; }, true);      // repli gardé quand la simulation est redessinée
 /** Lance la simulation pour le deck X si son résultat n'est pas déjà là ; done() quand elle avance ou finit. */
 function dsimEnsure(X, done) {
   const sig = dsimSig(X);
