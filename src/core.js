@@ -1048,11 +1048,12 @@ const dkMaxCopies = (fmt, k) => (BASIC_NAMES.has(k) ? Infinity : DK_ANY.get(k) |
 function dkFormat(text) { const m = String(text || '').match(/^\/\/\s*Deck Deal\s*:\s*(standard|commander)\b/im); return m ? m[1].toLowerCase() : ''; }
 /** Format d'un deck : celui noté par le créateur, sinon « commander » si la liste a un en-tête Commander, sinon ''. */
 const dkFmtOf = text => dkFormat(text) || (commanderKeys(text).length ? 'commander' : '');
-/** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs, d'après ses terrains de base) }. */
+/** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs : colorFit 'has'
+ *  sur deckColors, identité du commandant, sinon couleurs des cartes, sinon terrains de base), metaOf (facultatif, voir deckColors) }. */
 function dkMatch(text, f) {
   const fmt = f && f.fmt, colors = (f && f.colors) || '';
   if (fmt && dkFmtOf(text) !== fmt) return false;
-  if (colors) { const have = dkColors(text); for (const c of colors) if (!have.includes(c)) return false; }
+  if (colors && !colorFit(deckColors(text, f.metaOf ? { metaOf: f.metaOf } : undefined), colors, 'has')) return false;
   return true;
 }
 /** Réserve d'une liste : lignes « SB: 2 Negate », section « Sideboard » d'un export et compagnon (comp : 1, voir deckModel) : [{ key, name, qty, comp? }] (additionnée par carte). parseDeck ne les voit pas. */
@@ -1148,11 +1149,55 @@ function dkValue(text, metaOf, pxOf) {
 function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
 /** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
 function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
-/** Couleurs d'un deck d'après ses terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. */
+/** Couleurs d'un deck d'après ses seuls terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. Dernier recours de deckColors. */
 function dkColors(text) {
-  const have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
-  for (const b of parseDeck(text).basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
+  const md = text && typeof text === 'object' ? text : deckModel(text), have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
+  for (const b of md.basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
   return [...'WUBRG'].filter(c => have.has(c)).join('');
+}
+const wubrg = set => [...'WUBRG'].filter(c => set.has(c)).join('');
+/** LA règle des couleurs d'un deck (Mes decks, Amis, image de partage, rapport du coach, filtre de Mes decks). src : texte de la liste ou modèle (deckModel).
+ *  1. Commander (un commandant dans la liste) : identité de couleur du ou des commandants (fiche de la carte : COLL.meta / DM, sinon base du coach) ;
+ *  2. sinon (Standard, liste sans commandant) : union des couleurs des cartes connues (fiche : cl, ou ci à défaut ; base du coach : identité ; terrains écartés) ;
+ *     format Commander sans commandant choisi : union des identités ;
+ *  3. en dernier recours (aucune fiche connue, ou cartes toutes incolores) : terrains de base (dkColors).
+ *  o (facultatif) : { metaOf(clé) → fiche { ci, cl, tl } (défaut : builder.js › cardMeta), baseOf(clé) → { ci, land } de la base du coach ou null (défaut : DW.byKey), fmt }.
+ *  → { c (« WUBRG », dans cet ordre ; '' : incolore ou inconnu), by: 'cmdr' | 'cards' | 'basics' | '' }. */
+function deckColorInfo(src, o) {
+  const md = src && typeof src === 'object' ? src : deckModel(src), opt = o || {};
+  const metaOf = typeof opt.metaOf === 'function' ? opt.metaOf : k => (typeof cardMeta === 'function' ? cardMeta(k) : null);
+  const baseOf = typeof opt.baseOf === 'function' ? opt.baseOf : k => { const r = typeof DW !== 'undefined' && DW && DW.byKey ? DW.byKey.get(k) : null; return r && typeof r[1] === 'string' ? { ci: r[1], land: !!(r[3] & 1) } : null; };
+  const ciOf = k => { const m = metaOf(k); if (m && typeof m.ci === 'string') return m.ci; const b = baseOf(k); return b && typeof b.ci === 'string' ? b.ci : null; };
+  const cmdr = (md.cmdr || []).filter(c => !BASIC_NAMES.has(c.key));
+  if (cmdr.length) {
+    const have = new Set(); let known = true;
+    for (const c of cmdr) { const ci = ciOf(ownKey(c.name)); if (ci == null) { known = false; break; } for (const x of ci) have.add(x); }
+    if (known) return { c: wubrg(have), by: 'cmdr' };
+  }
+  const ident = cmdr.length > 0 || opt.fmt === 'commander' || (typeof src === 'string' && dkFmtOf(src) === 'commander'), have = new Set(); let known = 0;
+  for (const c of md.cards || []) {
+    const k = ownKey(c.name), m = metaOf(k); let v = null;
+    if (m && m.tl ? landKind(m.tl) : (baseOf(k) || {}).land) continue;      // terrains : leurs couleurs ne disent pas celles du deck (identité : celle des sorts suffit)
+    if (!ident && m && typeof m.cl === 'string') v = m.cl; else v = ciOf(k);
+    if (v == null) continue;
+    known++; for (const x of v) have.add(x);
+  }
+  if (known && have.size) return { c: wubrg(have), by: 'cards' };
+  const b = dkColors(md);
+  if (b) return { c: b, by: 'basics' };
+  return { c: '', by: known ? 'cards' : '' };
+}
+const deckColors = (src, o) => deckColorInfo(src, o).c;
+/** LA règle des filtres de couleur des DECKS et des COMMANDANTS (identité, lettres WUBRG). sel : chaîne ou Set de lettres (vide : tout passe ; « C » ignoré).
+ *  'in' (défaut) : « jouable avec ces couleurs », identité incluse dans la sélection (À monter, choix du commandant du coach ; Blanc + Bleu : mono-blancs, mono-bleus, blanc-bleu
+ *  et incolores) ; 'eq' : exactement ces couleurs (choix « Exactement » de ces deux écrans) ; 'has' : le deck a toutes ces couleurs (Mes decks : « mes decks avec du noir »).
+ *  Les CARTES (collection, viewer, éditeur) gardent « au moins une de ces couleurs » (filterItems), dit sous les pastilles. */
+function colorFit(ci, sel, mode = 'in') {
+  const s = [...(sel || '')].filter(x => 'WUBRG'.includes(x)); if (!s.length) return true;
+  const c = String(ci || '');
+  if (mode === 'has') return s.every(x => c.includes(x));
+  const inc = [...c].every(x => s.includes(x));
+  return mode === 'eq' ? inc && c.length === new Set(s).size : inc;
 }
 /** Vérifie un deck du créateur. d = { main, side, cmdr, comp } (comme dkParse) ; metaOf(clé) → { ci, cd, tl, lg } ou null (si connue).
  *  o (Commander, facultatif) : { legal: clé → true | false | null (builder.js › cardLegal : fiche Scryfall, sinon base du coach ; sans lui : metaOf(clé).lg),
@@ -2023,12 +2068,12 @@ function edhDetail(r) {
   missing.sort((a, b) => ((b.u || 0) * b.q - (a.u || 0) * a.q) || a.n.localeCompare(b.n));
   Object.defineProperties(r, { missing: { value: missing, configurable: true }, owned: { value: owned, configurable: true }, gc: { value: gcs, configurable: true }, full: { value: full, configurable: true }, fullNo: { value: fullNo, configurable: true } });
 }
-/** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
+/** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir, colorFit 'in'), colsEq (vrai : exactement ces couleurs, colorFit 'eq'), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
  *  Terrains de base ignorés. Une ligne par deck : { deck, cmd, total, have, miss, cost, unpriced, mine, tier, rank, br (bracket estimé, 0 sans liste Game Changers), hit ([[clé, nom]] des cartes trouvées par une recherche « carte », sinon null), et à la demande : missing:[{ k, n, q, u, gc }], owned:[{ k, n, q, gc }], gc:[noms des Game Changers du deck, commandant compris] }.
  *  Calcul sur tableaux typés (un passage sur toutes les entrées de tous les decks) : quelques millisecondes pour 10 000 decks. */
 function edhRank(edh, qty, o = {}) {
   const rows = []; if (!edh || !edh.decks || !edh.decks.length) return rows;
-  const cols = o.cols && o.cols.size ? o.cols : null, card = o.qm === 'card'; let toks = o.q ? edhTokens(o.q) : null; if (toks && !toks.length) toks = null;
+  const cols = o.cols && o.cols.size ? o.cols : null, colSel = cols ? [...cols].join('') : '', colMode = o.colsEq ? 'eq' : 'in', card = o.qm === 'card'; let toks = o.q ? edhTokens(o.q) : null; if (toks && !toks.length) toks = null;      // couleurs : colorFit (identité incluse, ou exactement)
   const names = edh.names, keys = edh.keys, nn = names.length, own = new Uint16Array(nn), hold = typeof o.held === 'function' ? new Uint16Array(nn) : null;
   for (let i = 0; i < nn; i++) { const q = qty(keys[i]); if (q > 0) { own[i] = q > 65535 ? 65535 : q; if (hold) { const h = o.held(keys[i]); if (h > 0) hold[i] = h > 65535 ? 65535 : h; } } }
   const { off, ids, qty: qa, pr, bs, gcA } = edh, gset = edh.gc && edh.gc.size > 0;
@@ -2041,7 +2086,7 @@ function edhRank(edh, qty, o = {}) {
   for (const d of edh.decks) {
     const c = d.cmd; let mine = false; for (const id of c.ids) if (own[id] > 0) { mine = true; break; }
     if (o.mine && !mine) continue;
-    if (cols && ![...c.ci].every(x => cols.has(x))) continue;
+    if (cols && !colorFit(c.ci, colSel, colMode)) continue;
     if (o.tiers && o.tiers.size && !o.tiers.has(c.tier)) continue;
     if (o.kinds && o.kinds.size && !o.kinds.has(d.k)) continue;
     if (thIx && !thIx.every(i => c.thSet.has(i))) continue;
@@ -2700,7 +2745,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }

@@ -387,6 +387,44 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   ok('fichier sans thèmes : ni puces ni lignes de thèmes, decks inchangés'); await d.ctx.close();
 }
 
+/* ── 8 bis) lot R5 : une règle de couleur pour les commandants (core.js › colorFit) : À monter et le choix du commandant du coach montrent les mêmes commandants ───────── */
+{
+  const cmd = (slug, n, ci, name, from) => [`C\t${slug}\t${n}\t${ci}\t${name}`, `D\t${slug}\tedhrec\tDeck moyen\t`, 'K\t1\tSol Ring', ...filler(22, from)];
+  const FILE2 = ['#edh\t1\t2026-10-03T04:00:00Z', ...cmd('white-one', 900, 'W', 'White One', 400), ...cmd('blue-one', 800, 'U', 'Blue One', 430), ...cmd('azorius-one', 700, 'WU', 'Azorius One', 460),
+    ...cmd('esper-one', 600, 'WUB', 'Esper One', 490), ...cmd('green-one', 500, 'G', 'Green One', 520)].join('\n') + '\n';
+  const c = await newPage(browser, world, { ctx: { viewport: { width: 393, height: 852 } } });      // taille des captures (SHOTS)
+  await c.p.route('**/edh.bin.gz', r => r.fulfill({ status: 404, body: '{}' })); await c.p.route('**/edh.tsv', r => r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: FILE2 }));
+  await openDecks(c.p);
+  const monter = async () => [...new Set(await c.p.$$eval('.crow.dk', r => r.map(x => x.querySelector('.row-name').firstChild.textContent.trim())))].sort();
+  assert.equal((await monter()).length, 5);
+  await filt('[data-act="dcol"][data-c="W"]', c.p); await filt('[data-act="dcol"][data-c="U"]', c.p);
+  await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 3);
+  const inMonter = await monter(); assert.deepEqual(inMonter, ['Azorius One', 'Blue One', 'White One'], 'À monter, Blanc + Bleu : identité incluse (mono-blanc, mono-bleu, blanc-bleu), pas Esper');
+  assert.equal(await txt(c.p, '.dkf-sheet .dkf-rule'), 'Commandants jouables avec ces couleurs : identité incluse dans la sélection (une ou plusieurs de ces couleurs, ou incolore).', 'le sens est dit sous les pastilles');
+  if (process.env.SHOTS) await c.p.screenshot({ path: process.env.SHOTS + '/r5-amonter-filtres.png' });
+  await closeF(c.p); assert.match(await txt(c.p, '.dk-sum'), /couleurs ⊆ WU/); assert.deepEqual(await c.p.$$eval('.dk-pills .dk-pill', b => b.map(x => x.textContent)), ['Couleurs ⊆ WU']);
+  if (process.env.SHOTS) await c.p.screenshot({ path: process.env.SHOTS + '/r5-amonter-liste.png' });
+  // le coach : même règle, même liste
+  await c.p.evaluate(() => openDeckWiz('R5')); await c.p.waitForSelector('.dw-cmd');
+  const coach = async () => (await c.p.$$eval('.dw-cmd .row-name', n => n.map(x => x.textContent.trim()))).sort();
+  assert.equal((await coach()).length, 5, 'sans couleur : tous les commandants');
+  await c.p.click('.dw-cols [data-c="W"]'); await c.p.click('.dw-cols [data-c="U"]'); await c.p.waitForFunction(() => document.querySelectorAll('.dw-cmd').length === 3);
+  assert.deepEqual(await coach(), inMonter, 'coach, Blanc + Bleu : la même liste qu\'À monter (avant : Azorius seul, « exactement »)');
+  assert.equal(await txt(c.p, '.dw-crule'), 'Commandants jouables avec ces couleurs : identité incluse dans la sélection (une ou plusieurs de ces couleurs, ou incolore).');
+  if (process.env.SHOTS) await c.p.screenshot({ path: process.env.SHOTS + '/r5-coach-wu.png' });
+  await c.p.click('.dw-cols [data-ceq]'); await c.p.waitForFunction(() => document.querySelectorAll('.dw-cmd').length === 1);
+  assert.deepEqual(await coach(), ['Azorius One'], 'coach, « Exactement » : blanc-bleu seul'); assert.equal(await txt(c.p, '.dw-crule'), 'Commandants exactement de ces couleurs.');
+  if (process.env.SHOTS) await c.p.screenshot({ path: process.env.SHOTS + '/r5-coach-exact.png' });
+  await c.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await c.p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+  await filt('[data-act="dceq"]', c.p); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 1);
+  assert.deepEqual(await monter(), ['Azorius One'], 'À monter, « Exactement » : la même chose que le coach'); assert.equal(await txt(c.p, '.dkf-sheet .dkf-rule'), 'Commandants exactement de ces couleurs.');
+  await closeF(c.p); assert.deepEqual(await c.p.$$eval('.dk-pills .dk-pill', b => b.map(x => x.textContent)), ['Couleurs = WU']); assert.match(await txt(c.p, '.dk-sum'), /couleurs = WU/);
+  await c.p.click('.dk-pills [data-g="cols"]'); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 5);
+  assert.equal(await c.p.evaluate(() => EDH.colsEq), false, 'pastille retirée : couleurs et « Exactement » effacés');
+  ok('lot R5 : Blanc + Bleu → mêmes commandants dans À monter et le coach (identité incluse, sens dit sous les pastilles) ; « Exactement » dans les deux ; pastille « Couleurs = WU »');
+  assert.deepEqual(c.errs, []); await c.ctx.close();
+}
+
 /* ── 9) interrupteurs du serveur (/__ping off) : Archidekt coupé → ses decks retirés, copie de l'appareil comprise ; EDHREC coupé → decks cachés,
    tuile et filtre « Joués en commandant » retirés, copie effacée, fichier plus demandé ───────────────────────────────────────────────────── */
 {

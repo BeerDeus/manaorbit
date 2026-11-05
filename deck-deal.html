@@ -8020,8 +8020,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '5090d9eb';
-const I18N_FILES = {"de":"i18n/de.20539bce.js","en":"i18n/en.0c59fbfa.js","es":"i18n/es.bc3575fa.js","it":"i18n/it.43d90278.js","pt":"i18n/pt.3b4e0132.js"};
+const DD_BUILD = 'efecf629';
+const I18N_FILES = {"de":"i18n/de.0f0d0953.js","en":"i18n/en.55579b14.js","es":"i18n/es.6850bdd8.js","it":"i18n/it.077c4a22.js","pt":"i18n/pt.cfe8d503.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9299,11 +9299,12 @@ const dkMaxCopies = (fmt, k) => (BASIC_NAMES.has(k) ? Infinity : DK_ANY.get(k) |
 function dkFormat(text) { const m = String(text || '').match(/^\/\/\s*Deck Deal\s*:\s*(standard|commander)\b/im); return m ? m[1].toLowerCase() : ''; }
 /** Format d'un deck : celui noté par le créateur, sinon « commander » si la liste a un en-tête Commander, sinon ''. */
 const dkFmtOf = text => dkFormat(text) || (commanderKeys(text).length ? 'commander' : '');
-/** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs, d'après ses terrains de base) }. */
+/** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs : colorFit 'has'
+ *  sur deckColors, identité du commandant, sinon couleurs des cartes, sinon terrains de base), metaOf (facultatif, voir deckColors) }. */
 function dkMatch(text, f) {
   const fmt = f && f.fmt, colors = (f && f.colors) || '';
   if (fmt && dkFmtOf(text) !== fmt) return false;
-  if (colors) { const have = dkColors(text); for (const c of colors) if (!have.includes(c)) return false; }
+  if (colors && !colorFit(deckColors(text, f.metaOf ? { metaOf: f.metaOf } : undefined), colors, 'has')) return false;
   return true;
 }
 /** Réserve d'une liste : lignes « SB: 2 Negate », section « Sideboard » d'un export et compagnon (comp : 1, voir deckModel) : [{ key, name, qty, comp? }] (additionnée par carte). parseDeck ne les voit pas. */
@@ -9399,11 +9400,55 @@ function dkValue(text, metaOf, pxOf) {
 function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
 /** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
 function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
-/** Couleurs d'un deck d'après ses terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. */
+/** Couleurs d'un deck d'après ses seuls terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. Dernier recours de deckColors. */
 function dkColors(text) {
-  const have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
-  for (const b of parseDeck(text).basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
+  const md = text && typeof text === 'object' ? text : deckModel(text), have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
+  for (const b of md.basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
   return [...'WUBRG'].filter(c => have.has(c)).join('');
+}
+const wubrg = set => [...'WUBRG'].filter(c => set.has(c)).join('');
+/** LA règle des couleurs d'un deck (Mes decks, Amis, image de partage, rapport du coach, filtre de Mes decks). src : texte de la liste ou modèle (deckModel).
+ *  1. Commander (un commandant dans la liste) : identité de couleur du ou des commandants (fiche de la carte : COLL.meta / DM, sinon base du coach) ;
+ *  2. sinon (Standard, liste sans commandant) : union des couleurs des cartes connues (fiche : cl, ou ci à défaut ; base du coach : identité ; terrains écartés) ;
+ *     format Commander sans commandant choisi : union des identités ;
+ *  3. en dernier recours (aucune fiche connue, ou cartes toutes incolores) : terrains de base (dkColors).
+ *  o (facultatif) : { metaOf(clé) → fiche { ci, cl, tl } (défaut : builder.js › cardMeta), baseOf(clé) → { ci, land } de la base du coach ou null (défaut : DW.byKey), fmt }.
+ *  → { c (« WUBRG », dans cet ordre ; '' : incolore ou inconnu), by: 'cmdr' | 'cards' | 'basics' | '' }. */
+function deckColorInfo(src, o) {
+  const md = src && typeof src === 'object' ? src : deckModel(src), opt = o || {};
+  const metaOf = typeof opt.metaOf === 'function' ? opt.metaOf : k => (typeof cardMeta === 'function' ? cardMeta(k) : null);
+  const baseOf = typeof opt.baseOf === 'function' ? opt.baseOf : k => { const r = typeof DW !== 'undefined' && DW && DW.byKey ? DW.byKey.get(k) : null; return r && typeof r[1] === 'string' ? { ci: r[1], land: !!(r[3] & 1) } : null; };
+  const ciOf = k => { const m = metaOf(k); if (m && typeof m.ci === 'string') return m.ci; const b = baseOf(k); return b && typeof b.ci === 'string' ? b.ci : null; };
+  const cmdr = (md.cmdr || []).filter(c => !BASIC_NAMES.has(c.key));
+  if (cmdr.length) {
+    const have = new Set(); let known = true;
+    for (const c of cmdr) { const ci = ciOf(ownKey(c.name)); if (ci == null) { known = false; break; } for (const x of ci) have.add(x); }
+    if (known) return { c: wubrg(have), by: 'cmdr' };
+  }
+  const ident = cmdr.length > 0 || opt.fmt === 'commander' || (typeof src === 'string' && dkFmtOf(src) === 'commander'), have = new Set(); let known = 0;
+  for (const c of md.cards || []) {
+    const k = ownKey(c.name), m = metaOf(k); let v = null;
+    if (m && m.tl ? landKind(m.tl) : (baseOf(k) || {}).land) continue;      // terrains : leurs couleurs ne disent pas celles du deck (identité : celle des sorts suffit)
+    if (!ident && m && typeof m.cl === 'string') v = m.cl; else v = ciOf(k);
+    if (v == null) continue;
+    known++; for (const x of v) have.add(x);
+  }
+  if (known && have.size) return { c: wubrg(have), by: 'cards' };
+  const b = dkColors(md);
+  if (b) return { c: b, by: 'basics' };
+  return { c: '', by: known ? 'cards' : '' };
+}
+const deckColors = (src, o) => deckColorInfo(src, o).c;
+/** LA règle des filtres de couleur des DECKS et des COMMANDANTS (identité, lettres WUBRG). sel : chaîne ou Set de lettres (vide : tout passe ; « C » ignoré).
+ *  'in' (défaut) : « jouable avec ces couleurs », identité incluse dans la sélection (À monter, choix du commandant du coach ; Blanc + Bleu : mono-blancs, mono-bleus, blanc-bleu
+ *  et incolores) ; 'eq' : exactement ces couleurs (choix « Exactement » de ces deux écrans) ; 'has' : le deck a toutes ces couleurs (Mes decks : « mes decks avec du noir »).
+ *  Les CARTES (collection, viewer, éditeur) gardent « au moins une de ces couleurs » (filterItems), dit sous les pastilles. */
+function colorFit(ci, sel, mode = 'in') {
+  const s = [...(sel || '')].filter(x => 'WUBRG'.includes(x)); if (!s.length) return true;
+  const c = String(ci || '');
+  if (mode === 'has') return s.every(x => c.includes(x));
+  const inc = [...c].every(x => s.includes(x));
+  return mode === 'eq' ? inc && c.length === new Set(s).size : inc;
 }
 /** Vérifie un deck du créateur. d = { main, side, cmdr, comp } (comme dkParse) ; metaOf(clé) → { ci, cd, tl, lg } ou null (si connue).
  *  o (Commander, facultatif) : { legal: clé → true | false | null (builder.js › cardLegal : fiche Scryfall, sinon base du coach ; sans lui : metaOf(clé).lg),
@@ -10274,12 +10319,12 @@ function edhDetail(r) {
   missing.sort((a, b) => ((b.u || 0) * b.q - (a.u || 0) * a.q) || a.n.localeCompare(b.n));
   Object.defineProperties(r, { missing: { value: missing, configurable: true }, owned: { value: owned, configurable: true }, gc: { value: gcs, configurable: true }, full: { value: full, configurable: true }, fullNo: { value: fullNo, configurable: true } });
 }
-/** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
+/** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir, colorFit 'in'), colsEq (vrai : exactement ces couleurs, colorFit 'eq'), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
  *  Terrains de base ignorés. Une ligne par deck : { deck, cmd, total, have, miss, cost, unpriced, mine, tier, rank, br (bracket estimé, 0 sans liste Game Changers), hit ([[clé, nom]] des cartes trouvées par une recherche « carte », sinon null), et à la demande : missing:[{ k, n, q, u, gc }], owned:[{ k, n, q, gc }], gc:[noms des Game Changers du deck, commandant compris] }.
  *  Calcul sur tableaux typés (un passage sur toutes les entrées de tous les decks) : quelques millisecondes pour 10 000 decks. */
 function edhRank(edh, qty, o = {}) {
   const rows = []; if (!edh || !edh.decks || !edh.decks.length) return rows;
-  const cols = o.cols && o.cols.size ? o.cols : null, card = o.qm === 'card'; let toks = o.q ? edhTokens(o.q) : null; if (toks && !toks.length) toks = null;
+  const cols = o.cols && o.cols.size ? o.cols : null, colSel = cols ? [...cols].join('') : '', colMode = o.colsEq ? 'eq' : 'in', card = o.qm === 'card'; let toks = o.q ? edhTokens(o.q) : null; if (toks && !toks.length) toks = null;      // couleurs : colorFit (identité incluse, ou exactement)
   const names = edh.names, keys = edh.keys, nn = names.length, own = new Uint16Array(nn), hold = typeof o.held === 'function' ? new Uint16Array(nn) : null;
   for (let i = 0; i < nn; i++) { const q = qty(keys[i]); if (q > 0) { own[i] = q > 65535 ? 65535 : q; if (hold) { const h = o.held(keys[i]); if (h > 0) hold[i] = h > 65535 ? 65535 : h; } } }
   const { off, ids, qty: qa, pr, bs, gcA } = edh, gset = edh.gc && edh.gc.size > 0;
@@ -10292,7 +10337,7 @@ function edhRank(edh, qty, o = {}) {
   for (const d of edh.decks) {
     const c = d.cmd; let mine = false; for (const id of c.ids) if (own[id] > 0) { mine = true; break; }
     if (o.mine && !mine) continue;
-    if (cols && ![...c.ci].every(x => cols.has(x))) continue;
+    if (cols && !colorFit(c.ci, colSel, colMode)) continue;
     if (o.tiers && o.tiers.size && !o.tiers.has(c.tier)) continue;
     if (o.kinds && o.kinds.size && !o.kinds.has(d.k)) continue;
     if (thIx && !thIx.every(i => c.thSet.has(i))) continue;
@@ -10951,7 +10996,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
@@ -17684,6 +17729,8 @@ function fltClear(f, keepPlace) {
   for (const k of FLT_ADV) { if (keepPlace && k === 'place') continue; if (f[k] instanceof Set) f[k].clear(); else if (k in f) f[k] = typeof f[k] === 'boolean' ? false : ''; }
 }
 
+/** Sens des pastilles de couleur, dit à l'écran (core.js › colorFit) : commandants d'À monter et du coach, 'in' (identité incluse dans la sélection) ou exactement (eq) ; cartes : au moins une. */
+const colorRuleText = eq => (eq ? T('Commandants exactement de ces couleurs.') : T('Commandants jouables avec ces couleurs : identité incluse dans la sélection (une ou plusieurs de ces couleurs, ou incolore).'));
 /** Symboles de mana « {2}{W}{U} » → pastilles colorées (hybride : première couleur, Phyrexian et X : lettre). */
 function manaHtml(mc) {
   const out = [];
@@ -17707,7 +17754,7 @@ function mountFilters(root, f, onChange, opts = {}) {
       <button class="fbtn" type="button" aria-expanded="false"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg><span>${T('Filtres')}</span><b hidden></b></button></div>
     <div class="fpanel" hidden>
       ${opts.commander ? `<div class="fgrp"><span class="fgl">Commander</span><div class="fopts" role="group" aria-label="Commander"><button type="button" class="fopt" data-x="can" aria-pressed="false">${T('Peuvent l\'être')}</button>${typeof edhOff === 'function' && edhOff('edhrec') ? '' : `<button type="button" class="fopt" data-x="played" aria-pressed="false">${T('Joués en commandant')}</button>`}</div></div>` : ''}
-      <div class="fgrp"><span class="fgl">${T('Couleur')}</span><div class="fcols" role="group" aria-label="${T('Couleurs')}">${COLOR_DEF.map(([c, n]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-c="${c}" aria-pressed="false" aria-label="${n}" title="${n}">${c}</button>`).join('')}</div></div>
+      <div class="fgrp"><span class="fgl">${T('Couleur')}</span><div class="fcols" role="group" aria-label="${T('Couleurs')}">${COLOR_DEF.map(([c, n]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-c="${c}" aria-pressed="false" aria-label="${n}" title="${n}">${c}</button>`).join('')}</div><p class="hint fcol-rule" hidden>${T('Cartes d\'au moins une de ces couleurs.')}</p></div>
       <div class="fgrp"><span class="fgl">${T('Famille')}</span><div class="fopts" role="group" aria-label="${T('Familles')}">${TYPE_ORDER.map(t => `<button type="button" class="fopt" data-t="${esc(t)}" aria-pressed="false">${esc(T(t))}</button>`).join('')}</div></div>
       <div class="fgrp"><span class="fgl">${T('Coût de mana')}</span><div class="fopts cmcs" role="group" aria-label="${T('Coût converti')}">${[0, 1, 2, 3, 4, 5, 6, 7].map(m => `<button type="button" class="fopt" data-m="${m}" aria-pressed="false">${m === 7 ? '7+' : m}</button>`).join('')}</div></div>
       ${opts.sets ? `<div class="fgrp"><span class="fgl">${T('Extension')}</span><button type="button" class="sortsel fset" aria-haspopup="dialog"><span class="fset-ic"></span><b></b></button></div>` : ''}
@@ -17733,6 +17780,7 @@ function mountFilters(root, f, onChange, opts = {}) {
     hid(badge, !n); txt(badge, n); btn.classList.toggle('on', n > 0);
     hid(clr, !inp.value);
     for (const b of root.querySelectorAll('.fcol')) att(b, 'aria-pressed', f.colors.has(b.dataset.c));
+    hid(root.querySelector('.fcol-rule'), f.colors.size < 2);      // sens du filtre des cartes (core.js › filterItems : au moins une couleur), dit dès deux couleurs cochées
     for (const b of root.querySelectorAll('[data-t]')) att(b, 'aria-pressed', f.type === b.dataset.t);
     for (const b of root.querySelectorAll('[data-x]')) att(b, 'aria-pressed', f.cmdr === b.dataset.x);
     for (const b of root.querySelectorAll('[data-m]')) att(b, 'aria-pressed', f.cmc !== '' && f.cmc != null && Number(b.dataset.m) === f.cmc);
@@ -17987,8 +18035,9 @@ function deltaChip(h) {
   return `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${fmt(Math.abs(d.diff), modeCur(d.mode))}</span>`;
 }
 const COLOR_NAMES = { W: 'blanc', U: 'bleu', B: 'noir', R: 'rouge', G: 'vert' };
-/** Pastilles de couleur d'un deck (d'après ses terrains de base). */
-function pips(text) { const c = dkColors(text); return c ? `<span class="deck-pips" role="img" aria-label="${T('Couleurs : {list}', { list: [...c].map(x => T(COLOR_NAMES[x])).join(', ') })}" title="${T('Couleurs d\'après les terrains de base')}">${[...c].map(x => `<i class="pip ${x}"></i>`).join('')}</span>` : ''; }
+/** Pastilles de couleur d'un deck (Mes decks, decks d'un ami) : core.js › deckColorInfo (identité du commandant, sinon couleurs des cartes, sinon terrains de base), la source dans la bulle. */
+const pipsBy = by => (by === 'cmdr' ? T('Identité de couleur du commandant') : by === 'cards' ? T('Couleurs des cartes du deck') : T('Couleurs d\'après les terrains de base'));
+function pips(text) { const { c, by } = deckColorInfo(text); return c ? `<span class="deck-pips" role="img" aria-label="${T('Couleurs : {list}', { list: [...c].map(x => T(COLOR_NAMES[x])).join(', ') })}" title="${pipsBy(by)}">${[...c].map(x => `<i class="pip ${x}"></i>`).join('')}</span>` : ''; }
 const deckFmt = d => dkFmtOf(d.text);
 /** Image de la carte de présentation d'un deck (grande taille), '' tant que sa fiche n'est pas lue. */
 const coverImg = c => { if (!c) return ''; const o = ownLangImg(c.key), m = dmOf(c.key); return o ? o.src : (m && m.im) || ''; };      // carte possédée : dans la langue de l'exemplaire
@@ -18687,7 +18736,7 @@ function initDecks() {
 /* ── dklist.js : écran « Mes decks » ──────────────────────────────────────────────────────────────
    Section Decks › Mes decks (bouton « Decks » de la barre du bas, nav.js), à côté de « À monter » et « Prix d'une liste ». Les decks y sont des cartes : image de la carte de présentation
    (choisie dans la feuille d'un deck, sinon commandant, sinon la carte la plus chère), nom, format, couleurs, valeur.
-   Filtres : format (Tous / Commander / Standard) et couleurs (le deck doit avoir toutes les couleurs cochées). */
+   Filtres : format (Tous / Commander / Standard) et couleurs (le deck doit avoir toutes les couleurs cochées : core.js › colorFit 'has' sur deckColors ; dit sous les pastilles). */
 const DKS = { el: null, fmt: '', colors: new Set(), fresh: true };
 const DKS_COLORS = [['W', 'Blanc'], ['U', 'Bleu'], ['B', 'Noir'], ['R', 'Rouge'], ['G', 'Vert']];
 
@@ -18704,6 +18753,7 @@ function openDecks() {
       <div class="dks-filters" id="dksFilters" hidden>
         <div class="seg" id="dksSeg" role="radiogroup" aria-label="${T('Format')}"></div>
         <div class="dks-colors" role="group" aria-label="${T('Couleurs du deck')}">${DKS_COLORS.map(([c, n]) => `<button class="dks-c" type="button" data-c="${c}" aria-pressed="false" aria-label="${T(n)}" title="${T(n)}"><i class="pip ${c}"></i></button>`).join('')}<button class="link-btn dks-reset" type="button" data-act="reset" hidden>${T('Tout afficher')}</button></div>
+        <p class="hint dks-rule" hidden>${T('Decks qui ont toutes ces couleurs : identité du commandant, sinon couleurs des cartes.')}</p>
       </div>
       <div class="deck-list" id="deckList"></div>
     </div></div>`;
@@ -18743,10 +18793,10 @@ function dksPaint() {
   const colors = DKS_COLORS.map(([c]) => c).filter(c => DKS.colors.has(c)).join('');
   const shown = all.filter(d => dkMatch(d.text, { fmt: DKS.fmt, colors })), filtered = !!(DKS.fmt || colors);
   // filtres : utiles à partir de deux decks ; une couleur qu'aucun deck n'a est grisée (sauf si elle est cochée)
-  const has = new Set(all.flatMap(d => [...dkColors(d.text)]));
+  const has = new Set(all.flatMap(d => [...deckColors(d.text)]));      // core.js › deckColors : identité du commandant, sinon couleurs des cartes, sinon terrains de base
   $('#dksFilters', el).hidden = all.length < 2 && !filtered;
   $$('.dks-c', el).forEach(b => { const on = DKS.colors.has(b.dataset.c); b.setAttribute('aria-pressed', String(on)); b.disabled = !on && !has.has(b.dataset.c); });
-  $('.dks-reset', el).hidden = !filtered;
+  $('.dks-reset', el).hidden = !filtered; $('.dks-rule', el).hidden = !colors;      // le sens du filtre de couleur (colorFit 'has'), dit dès qu'une couleur est cochée
   $('.dv-title span', el).textContent = loading ? '' : filtered ? TN(all.length, '{shown} sur {n} deck', '{shown} sur {n} decks', { shown: shown.length.toLocaleString(LOC()) }) : TN(all.length, '{n} deck', '{n} decks');
   if (typeof dkTabsCount === 'function') dkTabsCount();      // « Mes decks 4 » dans les onglets de la section
   let html = '';
@@ -22464,7 +22514,7 @@ const edhInfoHtml = x => { const i = x.indexOf(' Ex. : '); return i < 0 ? esc(T(
 /** Nom court d'un type de deck, traduit ('' si inconnu). */
 const edhKindName = k => (EDH_KIND_NAMES[k] ? T(EDH_KIND_NAMES[k]) : '');
 const EDH_BUDGETS = [[0, 'Budget illimité'], [3000, '≤ 30 €'], [6000, '≤ 60 €'], [10000, '≤ 100 €'], [20000, '≤ 200 €']];
-const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
+const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), colsEq: false, tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
 
 /** Fichier du site (null hors http, ou s'il manque) : { buf, etag }. same : ETag déjà connu ; si le site répond avec le même, le corps n'est pas lu → { same: true }. */
 async function edhGet(file, same) {
@@ -22558,9 +22608,9 @@ const edhDate = () => { const d = EDH.data && EDH.data.at ? new Date(EDH.data.at
 function edhRows() {
   if (!EDH.data) return [];
   for (const t of [...EDH.themes]) if (!EDH.data.themeIx.has(t)) EDH.themes.delete(t);      // un thème absent du fichier chargé (version plus ancienne ou plus récente) ne filtre plus rien
-  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join(''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? FRX.l : ''].join('|');
+  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join('') + (EDH.colsEq ? '=' : ''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? FRX.l : ''].join('|');
   if (EDH.memo && EDH.memo.sig === sig) return EDH.memo.rows;
-  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
+  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, colsEq: EDH.colsEq, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
   EDH.memo = { sig, rows }; return rows;
 }
 /* ── Recherche dans la langue des noms (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés du catalogue chargé (FRX.ix.fr : clé anglaise → nom imprimé) sont
@@ -22660,7 +22710,7 @@ function edhActive() {
   const out = [], e = EDH.data;
   if (EDH.kinds.size) out.push(['kinds', EDH_KINDS.filter(k => EDH.kinds.has(k)).map(edhKindName).join(' · ')]);
   if (EDH.tiers.size) out.push(['tiers', T('Tier {t}', { t: EDH_TIER_NAMES.filter(t => EDH.tiers.has(t)).join(' · ') })]);
-  if (EDH.cols.size) out.push(['cols', T('Couleurs ⊆ {c}', { c: COLOR_DEF.map(c => c[0]).filter(c => EDH.cols.has(c)).join('') })]);
+  if (EDH.cols.size) { const c = COLOR_DEF.map(x => x[0]).filter(x => EDH.cols.has(x)).join(''); out.push(['cols', EDH.colsEq ? T('Couleurs = {c}', { c }) : T('Couleurs ⊆ {c}', { c })]); }      // core.js › colorFit : identité incluse, ou exactement
   if (EDH.budget) out.push(['budget', (EDH_BUDGETS.find(b => b[0] === EDH.budget) || [0, ''])[1]]);
   if (EDH.themes.size && e) out.push(['themes', [...EDH.themes].map(sl => { const i = e.themeIx.get(sl); return i === undefined ? sl : edhThemeName(e.themes[i]); }).join(' + ')]);
   if (EDH.mine) out.push(['mine', T('J\'ai le commandant')]);
@@ -22670,7 +22720,7 @@ function edhPillsHtml() {
   const a = edhActive(); if (!a.length) return '';
   return `<div class="dk-pills">${a.map(([g, l]) => `<button type="button" class="dk-pill" data-act="dpx" data-g="${g}" aria-label="${esc(T('Retirer le filtre {f}', { f: l }))}"><span>${esc(l)}</span><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}<button type="button" class="link-btn dk-clr" data-act="dclear">${T('Tout effacer')}</button></div>`;
 }
-function edhClearAll() { EDH.kinds.clear(); EDH.tiers.clear(); EDH.cols.clear(); EDH.themes.clear(); EDH.budget = 0; EDH.mine = false; EDH.shown = 30; }
+function edhClearAll() { EDH.kinds.clear(); EDH.tiers.clear(); EDH.cols.clear(); EDH.colsEq = false; EDH.themes.clear(); EDH.budget = 0; EDH.mine = false; EDH.shown = 30; }
 function edhPanelHtml() {
   if (!EDH.data) {
     return EDH.err ? `<div class="dv-empty"><b>${T('Decks indisponibles')}</b><p>${esc(EDH.err)}</p><div class="coll-cta"><button class="btn ghost" type="button" data-act="dretry">${T('Réessayer')}</button></div></div>`
@@ -22695,7 +22745,8 @@ function edhFiltersHtml() {
   return `<div class="dkf">
     ${kindsHave.size > 1 ? h(T('Type de deck')) + `<div class="fopts" role="group" aria-label="${T('Type de deck')}">${EDH_KINDS.filter(k => kindsHave.has(k)).map(k => `<button type="button" class="fopt" data-act="dkind" data-k="${k}" aria-pressed="${EDH.kinds.has(k)}">${edhKindName(k)}</button>`).join('')}</div>` : ''}
     ${h(T('Tier du commandant'))}<div class="fopts" role="group" aria-label="${T('Tier du commandant')}">${EDH_TIER_NAMES.filter(t => tiersHave.has(t)).map(t => `<button type="button" class="fopt tier t-${t.toLowerCase()}" data-act="dtier" data-t="${t}" aria-pressed="${EDH.tiers.has(t)}" aria-label="${T('Tier {t}', { t })}">${t}</button>`).join('')}</div>
-    ${h(T('Couleurs permises'))}<div class="fcols" role="group" aria-label="${T('Couleurs permises')}">${COLOR_DEF.filter(c => c[0] !== 'C').map(([c, nm]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-act="dcol" data-c="${c}" aria-pressed="${EDH.cols.has(c)}" aria-label="${nm}" title="${nm}">${c}</button>`).join('')}</div>
+    ${h(T('Couleurs permises'))}<div class="fcols" role="group" aria-label="${T('Couleurs permises')}">${COLOR_DEF.filter(c => c[0] !== 'C').map(([c, nm]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-act="dcol" data-c="${c}" aria-pressed="${EDH.cols.has(c)}" aria-label="${nm}" title="${nm}">${c}</button>`).join('')}<button type="button" class="fopt" data-act="dceq" aria-pressed="${EDH.colsEq}">${T('Exactement')}</button></div>
+    <p class="hint dkf-rule">${colorRuleText(EDH.colsEq)}</p>
     ${h(T('Budget maximum à acheter'))}<div class="fopts" role="radiogroup" aria-label="${T('Budget maximum à acheter')}">${EDH_BUD_SHORT.map(([v, l]) => `<button type="button" class="fopt" role="radio" data-act="dbudget" data-v="${v}" aria-checked="${EDH.budget === v}" aria-pressed="${EDH.budget === v}">${v ? l : T(l)}</button>`).join('')}</div>
     ${(e.themeOrder || []).length ? h(T('Thèmes')) + edhThemesHtml() : ''}
     <button type="button" class="dkf-sw" role="switch" data-act="dmine" aria-checked="${EDH.mine}" aria-pressed="${EDH.mine}"><span>${T('J\'ai le commandant')}${mineN ? ` <small>${nf0(mineN)}</small>` : ''}</span><span class="switch" aria-hidden="true"><i></i></span></button>
@@ -22720,7 +22771,7 @@ function openEdhFilters() {
 /** Résultats (résumé, liste, « Afficher plus ») : repeints seuls pendant la frappe, pour que le champ de recherche garde le focus. */
 function edhResHtml() {
   const rows = edhRows(), shown = rows.slice(0, EDH.shown), near = rows.filter(r => r.miss <= 10).length, q = edhQuery(), card = EDH.qm === 'card';
-  const sum = `<p class="hint dk-sum">${TN(rows.length, '{n} deck sur {total}', '{n} decks sur {total}', { total: nf0(EDH.data.decks.length) })}${q ? ' · ' + T(card ? 'contenant « {q} »' : 'commandant « {q} »', { q: esc(EDH.q.trim()) }) : ''}${EDH.cols.size ? ' · ' + T('couleurs ⊆ {c}', { c: [...EDH.cols].join('') }) : ''}${EDH.tiers.size ? ' · ' + T('tier {t}', { t: EDH_TIER_NAMES.filter(t => EDH.tiers.has(t)).join(' ') }) : ''}${EDH.kinds.size ? ' · ' + EDH_KINDS.filter(k => EDH.kinds.has(k)).map(edhKindName).join(' / ') : ''}${EDH.themes.size ? ' · ' + T(EDH.themes.size > 1 ? 'thèmes : {list}' : 'thème : {list}', { list: esc([...EDH.themes].map(s => { const i = EDH.data.themeIx.get(s); return i === undefined ? s : edhThemeName(EDH.data.themes[i]); }).join(' + ')) }) : ''}${near ? ' · ' + T('<b>{n}</b> à 10 cartes ou moins', { n: nf0(near) }) : ''}</p>`;
+  const sum = `<p class="hint dk-sum">${TN(rows.length, '{n} deck sur {total}', '{n} decks sur {total}', { total: nf0(EDH.data.decks.length) })}${q ? ' · ' + T(card ? 'contenant « {q} »' : 'commandant « {q} »', { q: esc(EDH.q.trim()) }) : ''}${EDH.cols.size ? ' · ' + (EDH.colsEq ? T('couleurs = {c}', { c: COLOR_DEF.map(x => x[0]).filter(x => EDH.cols.has(x)).join('') }) : T('couleurs ⊆ {c}', { c: COLOR_DEF.map(x => x[0]).filter(x => EDH.cols.has(x)).join('') })) : ''}${EDH.tiers.size ? ' · ' + T('tier {t}', { t: EDH_TIER_NAMES.filter(t => EDH.tiers.has(t)).join(' ') }) : ''}${EDH.kinds.size ? ' · ' + EDH_KINDS.filter(k => EDH.kinds.has(k)).map(edhKindName).join(' / ') : ''}${EDH.themes.size ? ' · ' + T(EDH.themes.size > 1 ? 'thèmes : {list}' : 'thème : {list}', { list: esc([...EDH.themes].map(s => { const i = EDH.data.themeIx.get(s); return i === undefined ? s : edhThemeName(EDH.data.themes[i]); }).join(' + ')) }) : ''}${near ? ' · ' + T('<b>{n}</b> à 10 cartes ou moins', { n: nf0(near) }) : ''}</p>`;
   let note = '', none = T('Aucun deck ne correspond à ces réglages.');
   if (q && !card) {
     const toks = edhTokens(q), alt = edhAlt(), found = EDH.data.cmds.filter(c => edhCmdHas(c, toks, alt)), has = EDH.data.withDeck || (EDH.data.withDeck = new Set(EDH.data.decks.map(d => d.cmd.slug))), nod = found.filter(c => !has.has(c.slug)).sort((a, b) => a.rank - b.rank);
@@ -22908,13 +22959,14 @@ function edhClick(e) {
   if (act === 'dthen') { EDH.then = EDH.then === b.dataset.v ? '' : b.dataset.v; EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dkind') { const k = b.dataset.k; if (EDH.kinds.has(k)) EDH.kinds.delete(k); else EDH.kinds.add(k); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dcol') { const c = b.dataset.c; if (EDH.cols.has(c)) EDH.cols.delete(c); else EDH.cols.add(c); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
+  else if (act === 'dceq') { EDH.colsEq = !EDH.colsEq; EDH.shown = 30; haptic('tap'); collPaintBody(true); }      // « Exactement ces couleurs » (colorFit 'eq'), sinon identité incluse
   else if (act === 'dtier') { const t = b.dataset.t; if (EDH.tiers.has(t)) EDH.tiers.delete(t); else EDH.tiers.add(t); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dth') { const t = b.dataset.s; if (EDH.themes.has(t)) EDH.themes.delete(t); else EDH.themes.add(t); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dthall') { haptic('tap'); if (EDH.fclose) { EDH.fclose(); EDH.fclose = null; } openEdhThemes(); }      // depuis la feuille « Filtres » : elle laisse la place à la liste complète des thèmes
   else if (act === 'dmine') { EDH.mine = !EDH.mine; EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dbudget') { const v = Number(b.dataset.v) || 0; if (EDH.budget !== v) { EDH.budget = v; EDH.shown = 30; haptic('tap'); collPaintBody(true); } }
   else if (act === 'dfilt') { haptic('tap'); openEdhFilters(); }
-  else if (act === 'dpx') { const g = b.dataset.g; if (g === 'budget') EDH.budget = 0; else if (g === 'mine') EDH.mine = false; else if (EDH[g] && EDH[g].clear) EDH[g].clear(); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
+  else if (act === 'dpx') { const g = b.dataset.g; if (g === 'budget') EDH.budget = 0; else if (g === 'mine') EDH.mine = false; else if (g === 'cols') { EDH.cols.clear(); EDH.colsEq = false; } else if (EDH[g] && EDH[g].clear) EDH[g].clear(); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dclear') { edhClearAll(); haptic('tap'); collPaintBody(true); }
   else if (act === 'dqx') { EDH.q = ''; EDH.shown = 30; collPaintBody(true); const i = $('#dkQ', COLL.el); if (i) i.focus({ preventScroll: true }); }
   else if (act === 'dmore') { EDH.shown += 30; collPaintBody(true); }
@@ -29535,9 +29587,9 @@ function openDeckPaste(name, fmt) {
 }
 
 /* ── Assistant « Deck à construire » (Commander) ──────────────────────────────────────────────────── */
-const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
+const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
 function openDeckWiz(name) {
-  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
+  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
@@ -29546,7 +29598,8 @@ function openDeckWiz(name) {
       const E = typeof EDH !== 'undefined' && EDH.data, list = dwzCmds(E);
       api.body.innerHTML = `<div class="field-in"><label class="label" for="dwzQ">${T('Chercher un commandant')}</label><input type="search" id="dwzQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Atraxa, Edgar Markov…" value="${esc(DWZ.q)}"></div>
         <p class="label">${T('Ou d\'après un style de jeu')}</p><div class="dw-chips">${dwzThemeChips(E)}</div>
-        <div class="dw-chips dw-cols">${[...'WUBRG'].map(c => `<button type="button" class="chip${DWZ.cols.has(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${DWZ.cols.has(c)}"><i class="pip ${c}" aria-hidden="true"></i></button>`).join('')}</div>
+        <div class="dw-chips dw-cols">${[...'WUBRG'].map(c => `<button type="button" class="chip${DWZ.cols.has(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${DWZ.cols.has(c)}" aria-label="${esc(COLOR_DEF.find(x => x[0] === c)[1])}"><i class="pip ${c}" aria-hidden="true"></i></button>`).join('')}<button type="button" class="chip${DWZ.colsEq ? ' on' : ''}" data-ceq="1" aria-pressed="${DWZ.colsEq}">${T('Exactement')}</button></div>
+        ${DWZ.cols.size ? `<p class="hint dw-crule">${colorRuleText(DWZ.colsEq)}</p>` : ''}
         <div class="dw-cmds">${!E ? `<p class="hint">${EDH.err ? esc(EDH.err) : T('Chargement des commandants…')}</p>` : list.length ? list.map(dwzCmdRow).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`}</div>`;
       thumbsReady(api.body);      // style ou couleur touché : les vignettes déjà chargées ne repartent pas de zéro
       const q = $('#dwzQ', api.body); q.oninput = () => { DWZ.q = q.value; const pos = q.selectionStart; paintList(); try { q.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } };
@@ -29555,6 +29608,7 @@ function openDeckWiz(name) {
     api.body.addEventListener('click', e => {
       const t = e.target.closest('[data-pt]'); if (t) { const v = t.dataset.pt, i = DWZ.pickTh.indexOf(v); if (i >= 0) DWZ.pickTh.splice(i, 1); else DWZ.pickTh.push(v); haptic('tap'); paint(); return; }
       const c = e.target.closest('[data-c]'); if (c) { const v = c.dataset.c; if (DWZ.cols.has(v)) DWZ.cols.delete(v); else DWZ.cols.add(v); haptic('tap'); paint(); return; }
+      if (e.target.closest('[data-ceq]')) { DWZ.colsEq = !DWZ.colsEq; haptic('tap'); paint(); return; }      // « Exactement ces couleurs » (core.js › colorFit 'eq'), sinon identité incluse, comme À monter
       const r = e.target.closest('[data-slug]'); if (!r) return;
       const E = EDH.data, cm = E && E.bySlug.get(r.dataset.slug); if (!cm) return;
       DWZ.cmd = cm; DWZ.th = DWZ.pickTh.filter(t => (cm.th || []).some(([i]) => E.themes[i] && E.themes[i].slug === t)).slice(0, 3);
@@ -29570,14 +29624,14 @@ function dwzThemeChips(E) {
   if (!E) return '';
   return E.themeOrder.slice(0, 18).map(i => { const t = E.themes[i], on = DWZ.pickTh.includes(t.slug); return `<button type="button" class="chip${on ? ' on' : ''}" data-pt="${esc(t.slug)}" aria-pressed="${on}">${esc(typeof edhThemeName === 'function' ? edhThemeName(t) : t.label)}</button>`; }).join('');
 }
-/** Commandants proposés : recherche par nom ; sinon thèmes et couleurs choisis ; les plus joués d'abord, ceux de ta collection en tête. */
+/** Commandants proposés : recherche par nom ; thèmes et couleurs choisis (identité incluse dans la sélection, ou exactement : colorFit, la règle d'À monter) ; les plus joués d'abord, ceux de ta collection en tête. */
 function dwzCmds(E) {
   if (!E) return [];
   const words = normPart(DWZ.q).split(' ').filter(Boolean), th = DWZ.pickTh.map(s => E.themeIx.get(s)).filter(i => i !== undefined), cols = [...DWZ.cols];
   let l = E.cmds.filter(c => !c.comm);
   if (words.length) l = l.filter(c => { const s = normPart(c.names.join(' ')); return words.every(w => s.includes(w)); });
   if (th.length) l = l.filter(c => th.every(i => (c.th || []).some(t => t[0] === i)));
-  if (cols.length) l = l.filter(c => cols.every(x => c.ci.includes(x)) && c.ci.length <= Math.max(cols.length, 1) + (words.length ? 5 : 0));
+  if (cols.length) l = l.filter(c => colorFit(c.ci, cols, DWZ.colsEq ? 'eq' : 'in'));      // même règle qu'À monter (core.js › colorFit) : jouable avec ces couleurs, ou exactement
   const own = c => c.keys.some(k => collQty(k) > 0) ? 1 : 0;
   const fit = c => th.reduce((a, i) => { const t = (c.th || []).find(x => x[0] === i); return a + (t ? t[1] / Math.max(1, c.decks) : 0); }, 0);
   return l.map(c => ({ c, s: own(c) * 2 + fit(c) * 3 + Math.log10(1 + c.decks) / 5 })).sort((a, b) => b.s - a.s).slice(0, 30).map(x => x.c);
@@ -30377,6 +30431,11 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.dr = el => {
   return zoomFrom(rows, el, r => zoomNamed(r.dataset.k, bdLabel(r.dataset.k, r.dataset.n), r.dataset.n, viewLang(r.dataset.k, true)));
 };
 
+/** Couleurs du deck X : core.js › deckColors (identité du ou des commandants, la règle de Mes decks et de l'image de partage) ; fiche du commandant pas encore lue : celle du coach (cmd.ci). */
+function drColors(X, cmd) {
+  const all = [...X.main.values()], info = deckColorInfo({ cmdr: X.cmdr, cards: [...X.cmdr, ...all.filter(c => !BASIC_NAMES.has(c.key))], basics: all.filter(c => BASIC_NAMES.has(c.key)) }, { fmt: 'commander' });
+  return info.by === 'cmdr' || !cmd ? info.c : cmd.ci || '';
+}
 /** Contenu du rapport (HTML) pour le deck X ({ main, cmdr, wiz }). */
 function drReportHtml(X) {
   const cmd = dwCmdOf(X), pack = cmd ? DW.cmd.get(cmd.slug) || null : null, set = X.wiz || dwDefaults();
@@ -30390,7 +30449,7 @@ function drReportHtml(X) {
   const themes = (set.th.length ? set.th : ((pack && pack.thl) || (cmd && cmd.th) || []).slice(0, 2).map(t => t[0])).slice(0, 3);
   const thChoices = dwThemeChoices(cmd, pack, { th: themes });
   h += `<div class="da-sum"><p class="dw-line"><span>${T('Commandant')}</span><b>${cm.map(c => drCard(c.k, c.name)).join(' + ')}</b></p>
-    <p class="dw-line"><span>${T('Couleurs')}</span><b>${[...(cmd.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}</b></p>
+    <p class="dw-line"><span>${T('Couleurs')}</span><b>${[...(drColors(X, cmd) || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}</b></p>
     <p class="dw-line"><span>${T('Bracket estimé')}</span><b>${est} · ${esc(bName(est))}</b></p>
     ${themes.length ? `<p class="dw-line"><span>${T('Thèmes')}</span><b>${esc(themes.map(t => dwThemeLabel(t, thChoices)).join(', '))}</b></p>` : ''}
     <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b></p></div>`;
@@ -33253,9 +33312,12 @@ async function amDecksSheet(f) {
   let list = []; try { list = JSON.parse(r.j || '[]'); } catch (e) { list = []; }
   const decks = (Array.isArray(list) ? list : []).slice(0, 200).map(x => (x && typeof x === 'object' ? readShare('deck', { name: x.n, text: x.t }) : null)).filter(Boolean);
   openSheet(T('Decks de {name}', { name: amName(f) }), decks.length ? TN(decks.length, '{n} deck', '{n} decks') + ' · ' + T('lecture seule') : null, api => {
-    api.body.innerHTML = decks.length
+    const paint = () => { api.body.innerHTML = decks.length
       ? `<div class="me-g am-g">${decks.map((d, i) => `<button type="button" class="am-row am-deck" data-i="${i}"><span class="am-t"><b>${esc(d.name)}</b><small>${esc(dkCountText(d.text))}</small></span>${pips(d.text)}${meChev}</button>`).join('')}</div>`
-      : `<p class="hint">${T('{name} n\'a pas encore de deck enregistré.', { name: esc(amName(f)) })}</p>`;
+      : `<p class="hint">${T('{name} n\'a pas encore de deck enregistré.', { name: esc(amName(f)) })}</p>`; };
+    paint();
+    const need = decks.flatMap(d => deckModel(d.text).cmdr).map(c => ({ key: ownKey(c.name), name: c.name }));      // pastilles : identité des commandants (decks.js › pips) ; fiches pas encore lues : lues puis pastilles redessinées
+    if (need.length && typeof dmFetch === 'function') dmLoad().then(() => { if (api.wrap.isConnected) paint(); return dmFetch(need); }).then(got => { if (got && api.wrap.isConnected) paint(); }, () => {});      // fiches du cache de l'appareil d'abord, puis Scryfall
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.am-deck'); if (!b) return;
       const d = decks[Number(b.dataset.i)]; if (!d) return;
@@ -37054,8 +37116,7 @@ function simgDeckSpec(o) {
   const d = o && o.id ? findDeck(o.id) : null, text = d ? d.text : String((o && o.text) || ''), name = d ? d.name : String((o && o.name) || 'Deck');
   const pd = parseDeck(text), cmd = commanderKeys(text).map(k => pd.cards.find(c => c.key === k)).filter(Boolean), fk = dkFmtOf(text);
   const cv = dkCoverCard(text, dmOf), v = typeof dkEst === 'function' ? dkEst(text) : dkValue(text, dmOf);
-  const ci = cmd.length ? [...new Set(cmd.flatMap(c => [...String((dmOf(ownKey(c.key)) || {}).ci || '')]))].join('') : '';
-  const colors = [...'WUBRG'].filter(c => (ci || dkColors(text)).includes(c)).join('');
+  const colors = deckColors(text);      // la règle de Mes decks (core.js › deckColors) : identité du commandant, sinon couleurs des cartes, sinon terrains de base
   const sub = cmd.length ? cmd.map(c => c.dn || c.name).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
   return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', ...(cv && !ownLangImg(cv.key) ? { ln: cv.name, wl: imgLang() } : {}), cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
 }

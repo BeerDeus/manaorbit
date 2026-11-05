@@ -11,6 +11,8 @@ function fltClear(f, keepPlace) {
   for (const k of FLT_ADV) { if (keepPlace && k === 'place') continue; if (f[k] instanceof Set) f[k].clear(); else if (k in f) f[k] = typeof f[k] === 'boolean' ? false : ''; }
 }
 
+/** Sens des pastilles de couleur, dit à l'écran (core.js › colorFit) : commandants d'À monter et du coach, 'in' (identité incluse dans la sélection) ou exactement (eq) ; cartes : au moins une. */
+const colorRuleText = eq => (eq ? T('Commandants exactement de ces couleurs.') : T('Commandants jouables avec ces couleurs : identité incluse dans la sélection (une ou plusieurs de ces couleurs, ou incolore).'));
 /** Symboles de mana « {2}{W}{U} » → pastilles colorées (hybride : première couleur, Phyrexian et X : lettre). */
 function manaHtml(mc) {
   const out = [];
@@ -34,7 +36,7 @@ function mountFilters(root, f, onChange, opts = {}) {
       <button class="fbtn" type="button" aria-expanded="false"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg><span>${T('Filtres')}</span><b hidden></b></button></div>
     <div class="fpanel" hidden>
       ${opts.commander ? `<div class="fgrp"><span class="fgl">Commander</span><div class="fopts" role="group" aria-label="Commander"><button type="button" class="fopt" data-x="can" aria-pressed="false">${T('Peuvent l\'être')}</button>${typeof edhOff === 'function' && edhOff('edhrec') ? '' : `<button type="button" class="fopt" data-x="played" aria-pressed="false">${T('Joués en commandant')}</button>`}</div></div>` : ''}
-      <div class="fgrp"><span class="fgl">${T('Couleur')}</span><div class="fcols" role="group" aria-label="${T('Couleurs')}">${COLOR_DEF.map(([c, n]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-c="${c}" aria-pressed="false" aria-label="${n}" title="${n}">${c}</button>`).join('')}</div></div>
+      <div class="fgrp"><span class="fgl">${T('Couleur')}</span><div class="fcols" role="group" aria-label="${T('Couleurs')}">${COLOR_DEF.map(([c, n]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-c="${c}" aria-pressed="false" aria-label="${n}" title="${n}">${c}</button>`).join('')}</div><p class="hint fcol-rule" hidden>${T('Cartes d\'au moins une de ces couleurs.')}</p></div>
       <div class="fgrp"><span class="fgl">${T('Famille')}</span><div class="fopts" role="group" aria-label="${T('Familles')}">${TYPE_ORDER.map(t => `<button type="button" class="fopt" data-t="${esc(t)}" aria-pressed="false">${esc(T(t))}</button>`).join('')}</div></div>
       <div class="fgrp"><span class="fgl">${T('Coût de mana')}</span><div class="fopts cmcs" role="group" aria-label="${T('Coût converti')}">${[0, 1, 2, 3, 4, 5, 6, 7].map(m => `<button type="button" class="fopt" data-m="${m}" aria-pressed="false">${m === 7 ? '7+' : m}</button>`).join('')}</div></div>
       ${opts.sets ? `<div class="fgrp"><span class="fgl">${T('Extension')}</span><button type="button" class="sortsel fset" aria-haspopup="dialog"><span class="fset-ic"></span><b></b></button></div>` : ''}
@@ -60,6 +62,7 @@ function mountFilters(root, f, onChange, opts = {}) {
     hid(badge, !n); txt(badge, n); btn.classList.toggle('on', n > 0);
     hid(clr, !inp.value);
     for (const b of root.querySelectorAll('.fcol')) att(b, 'aria-pressed', f.colors.has(b.dataset.c));
+    hid(root.querySelector('.fcol-rule'), f.colors.size < 2);      // sens du filtre des cartes (core.js › filterItems : au moins une couleur), dit dès deux couleurs cochées
     for (const b of root.querySelectorAll('[data-t]')) att(b, 'aria-pressed', f.type === b.dataset.t);
     for (const b of root.querySelectorAll('[data-x]')) att(b, 'aria-pressed', f.cmdr === b.dataset.x);
     for (const b of root.querySelectorAll('[data-m]')) att(b, 'aria-pressed', f.cmc !== '' && f.cmc != null && Number(b.dataset.m) === f.cmc);

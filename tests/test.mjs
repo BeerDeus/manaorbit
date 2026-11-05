@@ -1095,6 +1095,8 @@ test('edhRank : possédées / manquantes / coût, basics ignorés, filtres et tr
   assert.deepEqual(C.edhRank(d, qty, { mine: true }).map(r => r.cmd.slug), ['edgar-markov'], 'je possède le commandant');
   assert.deepEqual(C.edhRank(d, qty, { cols: new Set(['W', 'B', 'R']) }).map(r => r.cmd.slug), ['edgar-markov'], 'identité WBR tient dans le choix ; WUBG non');
   assert.deepEqual(C.edhRank(d, qty, { cols: new Set(['W', 'U', 'B', 'G']) }).map(r => r.cmd.slug).sort(), ['tymna-thrasios']);
+  assert.deepEqual(C.edhRank(d, qty, { cols: new Set(['W', 'U', 'B', 'G']), colsEq: true }).map(r => r.cmd.slug).sort(), ['tymna-thrasios'], 'exactement WUBG');
+  assert.deepEqual(C.edhRank(d, qty, { cols: new Set(['W', 'U', 'B', 'G', 'R']), colsEq: true }).map(r => r.cmd.slug), [], 'exactement WUBRG : aucun (lot R5, colorFit eq)');
   assert.deepEqual(C.edhRank(d, k => 0, { budget: 200 }).map(r => r.cmd.slug), [], 'budget ≤ 2 € : Tymna en coûte 2,50 €, Edgar 4,90 €');
   assert.deepEqual(C.edhRank(d, k => 0, { budget: 300 }).map(r => r.cmd.slug), ['tymna-thrasios']);
   assert.deepEqual(C.edhRank(d, k => 0, { budget: 500 }).map(r => r.cmd.slug).sort(), ['edgar-markov', 'tymna-thrasios']);
@@ -1564,6 +1566,32 @@ test('dkMatch : format et couleurs (toutes celles demandées)', () => {
   assert.equal(C.dkMatch(std, { fmt: 'standard' }), true); assert.equal(C.dkMatch(std, { fmt: 'commander' }), false); assert.equal(C.dkMatch(none, { fmt: 'standard' }), false, 'format inconnu : ni l\'un ni l\'autre');
   assert.equal(C.dkMatch(std, { colors: 'R' }), true); assert.equal(C.dkMatch(std, { colors: 'BR' }), true); assert.equal(C.dkMatch(std, { colors: 'RW' }), false, 'toutes les couleurs');
   assert.equal(C.dkMatch(cmd, { fmt: 'commander', colors: 'WB' }), true); assert.equal(C.dkMatch(none, { colors: 'W' }), false, 'sans terrains de base : aucune couleur');
+});
+test('deckColors (lot R5) : identité du commandant, sinon couleurs des cartes, sinon terrains de base ; colorFit, une règle pour les filtres de decks et de commandants', () => {
+  const meta = { 'lurrus of the dream den': { ci: 'WB', cl: 'WB', tl: 'Legendary Creature — Cat Nightmare' }, 'swords to plowshares': { ci: 'W', cl: 'W', tl: 'Instant' }, 'sol ring': { ci: '', cl: '', tl: 'Artifact' },
+    'counterspell': { ci: 'U', cl: 'U', tl: 'Instant' }, 'hallowed fountain': { ci: 'WU', cl: '', tl: 'Land — Plains Island' }, 'kozilek the great distortion': { ci: '', cl: '', tl: 'Legendary Creature — Eldrazi' },
+    'tymna the weaver': { ci: 'WB', tl: 'Legendary Creature' }, 'thrasios triton hero': { ci: 'GU', tl: 'Legendary Creature' }, 'esper sentinel': { ci: 'W', tl: 'Artifact Creature' } };
+  const o = { metaOf: k => meta[k] || null, baseOf: () => null };
+  const lurrus = 'Commander\n1 Lurrus of the Dream-Den\n\nDeck\n1 Swords to Plowshares\n1 Sol Ring\n30 Plains';
+  assert.deepEqual(C.deckColorInfo(lurrus, o), { c: 'WB', by: 'cmdr' }, 'Lurrus avec seulement des Plaines : blanc-noir (identité), pas blanc seul');
+  assert.equal(C.dkColors(lurrus), 'W', 'les terrains de base seuls disaient blanc');
+  assert.equal(C.dkMatch(lurrus, { colors: 'B', metaOf: o.metaOf }), true, 'filtre Noir : le deck Lurrus est trouvé');
+  assert.equal(C.dkMatch(lurrus, { colors: 'WB', metaOf: o.metaOf }), true); assert.equal(C.dkMatch(lurrus, { colors: 'U', metaOf: o.metaOf }), false);
+  assert.equal(C.deckColors(lurrus, { metaOf: () => null, baseOf: k => (k === 'lurrus of the dream den' ? { ci: 'WB' } : null) }), 'WB', 'fiche pas lue : base du coach');
+  assert.deepEqual(C.deckColorInfo(lurrus, { metaOf: () => null, baseOf: () => null }), { c: 'W', by: 'basics' }, 'rien de connu : terrains de base en dernier recours');
+  assert.equal(C.deckColors('Commander\n1 Tymna the Weaver\n1 Thrasios, Triton Hero\n\nDeck\n1 Sol Ring', o), 'WUBG', 'partenaires : union des identités');
+  assert.deepEqual(C.deckColorInfo('Commander\n1 Kozilek, the Great Distortion\n\nDeck\n1 Sol Ring\n10 Wastes', o), { c: '', by: 'cmdr' }, 'commandant incolore : incolore, pas les terrains');
+  const std = '// Deck Deal : standard\nDeck\n4 Swords to Plowshares\n4 Counterspell\n4 Hallowed Fountain\n20 Plains';
+  assert.deepEqual(C.deckColorInfo(std, o), { c: 'WU', by: 'cards' }, 'Standard : union des couleurs des cartes (bleu sans Île)');
+  assert.equal(C.deckColors('// Deck Deal : standard\nDeck\n4 Swords to Plowshares\n4 Hallowed Fountain\n10 Island', o), 'W', 'les terrains non de base ne comptent pas');
+  assert.equal(C.deckColors('// Deck Deal : standard\nDeck\n4 Sol Ring\n10 Island', o), 'U', 'cartes toutes incolores : terrains de base');
+  assert.equal(C.deckColors('// Deck Deal : commander\nDeck\n1 Esper Sentinel\n1 Sol Ring', o), 'W', 'format Commander sans commandant : union des identités');
+  assert.equal(C.deckColors(C.deckModel(lurrus), o), 'WB', 'modèle (deckModel) accepté');
+  // colorFit : 'in' (défaut, jouable avec), 'eq' (exactement), 'has' (Mes decks : a toutes ces couleurs)
+  assert.equal(C.colorFit('W', 'WU'), true, 'mono-blanc jouable en Blanc + Bleu'); assert.equal(C.colorFit('WU', 'WU'), true); assert.equal(C.colorFit('', 'WU'), true, 'incolore : jouable partout');
+  assert.equal(C.colorFit('WUB', 'WU'), false); assert.equal(C.colorFit('W', new Set(['W', 'U'])), true, 'Set accepté'); assert.equal(C.colorFit('WUBRG', ''), true, 'aucune couleur : pas de filtre');
+  assert.equal(C.colorFit('W', 'WU', 'eq'), false); assert.equal(C.colorFit('WU', 'UW', 'eq'), true); assert.equal(C.colorFit('', 'W', 'eq'), false);
+  assert.equal(C.colorFit('WB', 'B', 'has'), true); assert.equal(C.colorFit('W', 'WB', 'has'), false); assert.equal(C.colorFit('WB', 'C', 'has'), true, 'C ignoré (pas une couleur d\'identité)');
 });
 
 test('export CSV de la collection (format Moxfield) : relu par l\'import, une ligne par langue', () => {

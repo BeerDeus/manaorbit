@@ -1004,9 +1004,9 @@ function openDeckPaste(name, fmt) {
 }
 
 /* ── Assistant « Deck à construire » (Commander) ──────────────────────────────────────────────────── */
-const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
+const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
 function openDeckWiz(name) {
-  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
+  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
@@ -1015,7 +1015,8 @@ function openDeckWiz(name) {
       const E = typeof EDH !== 'undefined' && EDH.data, list = dwzCmds(E);
       api.body.innerHTML = `<div class="field-in"><label class="label" for="dwzQ">${T('Chercher un commandant')}</label><input type="search" id="dwzQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Atraxa, Edgar Markov…" value="${esc(DWZ.q)}"></div>
         <p class="label">${T('Ou d\'après un style de jeu')}</p><div class="dw-chips">${dwzThemeChips(E)}</div>
-        <div class="dw-chips dw-cols">${[...'WUBRG'].map(c => `<button type="button" class="chip${DWZ.cols.has(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${DWZ.cols.has(c)}"><i class="pip ${c}" aria-hidden="true"></i></button>`).join('')}</div>
+        <div class="dw-chips dw-cols">${[...'WUBRG'].map(c => `<button type="button" class="chip${DWZ.cols.has(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${DWZ.cols.has(c)}" aria-label="${esc(COLOR_DEF.find(x => x[0] === c)[1])}"><i class="pip ${c}" aria-hidden="true"></i></button>`).join('')}<button type="button" class="chip${DWZ.colsEq ? ' on' : ''}" data-ceq="1" aria-pressed="${DWZ.colsEq}">${T('Exactement')}</button></div>
+        ${DWZ.cols.size ? `<p class="hint dw-crule">${colorRuleText(DWZ.colsEq)}</p>` : ''}
         <div class="dw-cmds">${!E ? `<p class="hint">${EDH.err ? esc(EDH.err) : T('Chargement des commandants…')}</p>` : list.length ? list.map(dwzCmdRow).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`}</div>`;
       thumbsReady(api.body);      // style ou couleur touché : les vignettes déjà chargées ne repartent pas de zéro
       const q = $('#dwzQ', api.body); q.oninput = () => { DWZ.q = q.value; const pos = q.selectionStart; paintList(); try { q.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } };
@@ -1024,6 +1025,7 @@ function openDeckWiz(name) {
     api.body.addEventListener('click', e => {
       const t = e.target.closest('[data-pt]'); if (t) { const v = t.dataset.pt, i = DWZ.pickTh.indexOf(v); if (i >= 0) DWZ.pickTh.splice(i, 1); else DWZ.pickTh.push(v); haptic('tap'); paint(); return; }
       const c = e.target.closest('[data-c]'); if (c) { const v = c.dataset.c; if (DWZ.cols.has(v)) DWZ.cols.delete(v); else DWZ.cols.add(v); haptic('tap'); paint(); return; }
+      if (e.target.closest('[data-ceq]')) { DWZ.colsEq = !DWZ.colsEq; haptic('tap'); paint(); return; }      // « Exactement ces couleurs » (core.js › colorFit 'eq'), sinon identité incluse, comme À monter
       const r = e.target.closest('[data-slug]'); if (!r) return;
       const E = EDH.data, cm = E && E.bySlug.get(r.dataset.slug); if (!cm) return;
       DWZ.cmd = cm; DWZ.th = DWZ.pickTh.filter(t => (cm.th || []).some(([i]) => E.themes[i] && E.themes[i].slug === t)).slice(0, 3);
@@ -1039,14 +1041,14 @@ function dwzThemeChips(E) {
   if (!E) return '';
   return E.themeOrder.slice(0, 18).map(i => { const t = E.themes[i], on = DWZ.pickTh.includes(t.slug); return `<button type="button" class="chip${on ? ' on' : ''}" data-pt="${esc(t.slug)}" aria-pressed="${on}">${esc(typeof edhThemeName === 'function' ? edhThemeName(t) : t.label)}</button>`; }).join('');
 }
-/** Commandants proposés : recherche par nom ; sinon thèmes et couleurs choisis ; les plus joués d'abord, ceux de ta collection en tête. */
+/** Commandants proposés : recherche par nom ; thèmes et couleurs choisis (identité incluse dans la sélection, ou exactement : colorFit, la règle d'À monter) ; les plus joués d'abord, ceux de ta collection en tête. */
 function dwzCmds(E) {
   if (!E) return [];
   const words = normPart(DWZ.q).split(' ').filter(Boolean), th = DWZ.pickTh.map(s => E.themeIx.get(s)).filter(i => i !== undefined), cols = [...DWZ.cols];
   let l = E.cmds.filter(c => !c.comm);
   if (words.length) l = l.filter(c => { const s = normPart(c.names.join(' ')); return words.every(w => s.includes(w)); });
   if (th.length) l = l.filter(c => th.every(i => (c.th || []).some(t => t[0] === i)));
-  if (cols.length) l = l.filter(c => cols.every(x => c.ci.includes(x)) && c.ci.length <= Math.max(cols.length, 1) + (words.length ? 5 : 0));
+  if (cols.length) l = l.filter(c => colorFit(c.ci, cols, DWZ.colsEq ? 'eq' : 'in'));      // même règle qu'À monter (core.js › colorFit) : jouable avec ces couleurs, ou exactement
   const own = c => c.keys.some(k => collQty(k) > 0) ? 1 : 0;
   const fit = c => th.reduce((a, i) => { const t = (c.th || []).find(x => x[0] === i); return a + (t ? t[1] / Math.max(1, c.decks) : 0); }, 0);
   return l.map(c => ({ c, s: own(c) * 2 + fit(c) * 3 + Math.log10(1 + c.decks) / 5 })).sort((a, b) => b.s - a.s).slice(0, 30).map(x => x.c);

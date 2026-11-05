@@ -124,6 +124,8 @@ assert.deepEqual((await pb.$$eval('.pubv .pm-block[data-side="get"] .pm-row', r 
 await shot(pb, '06-page-ami');
 await pb.click('.pubv [data-am="decks"]'); await pb.waitForSelector('.sheet-wrap.open .am-deck');
 assert.match(await tc(pb, '.sheet-wrap.open .am-deck'), /Edgar Vampires/);
+await pb.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open .am-deck .deck-pips .pip').length === 3, null, { timeout: 8000 });      // lot R5 : identité du commandant (fiche lue), plus les seules Plaines
+assert.deepEqual(await pb.$$eval('.sheet-wrap.open .am-deck .deck-pips .pip', n => n.map(x => x.className.replace('pip ', ''))), ['W', 'B', 'R'], 'Edgar avec 30 Plaines : pastilles W B R (identité), comme dans Mes decks');
 await shot(pb, '07-decks-ami');
 await pb.click('.sheet-wrap.open .am-deck'); await pb.waitForFunction(() => DV.pub && document.querySelector('.dv.on:not(.pubv) .dv-title b'));
 assert.equal(await tc(pb, '.dv.on:not(.pubv) .dv-title b'), 'Edgar Vampires'); assert.match(await tc(pb, '.dv.on:not(.pubv) .dv-title span'), /partagé par Alice/);

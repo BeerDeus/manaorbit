@@ -446,9 +446,12 @@ async function amDecksSheet(f) {
   let list = []; try { list = JSON.parse(r.j || '[]'); } catch (e) { list = []; }
   const decks = (Array.isArray(list) ? list : []).slice(0, 200).map(x => (x && typeof x === 'object' ? readShare('deck', { name: x.n, text: x.t }) : null)).filter(Boolean);
   openSheet(T('Decks de {name}', { name: amName(f) }), decks.length ? TN(decks.length, '{n} deck', '{n} decks') + ' · ' + T('lecture seule') : null, api => {
-    api.body.innerHTML = decks.length
+    const paint = () => { api.body.innerHTML = decks.length
       ? `<div class="me-g am-g">${decks.map((d, i) => `<button type="button" class="am-row am-deck" data-i="${i}"><span class="am-t"><b>${esc(d.name)}</b><small>${esc(dkCountText(d.text))}</small></span>${pips(d.text)}${meChev}</button>`).join('')}</div>`
-      : `<p class="hint">${T('{name} n\'a pas encore de deck enregistré.', { name: esc(amName(f)) })}</p>`;
+      : `<p class="hint">${T('{name} n\'a pas encore de deck enregistré.', { name: esc(amName(f)) })}</p>`; };
+    paint();
+    const need = decks.flatMap(d => deckModel(d.text).cmdr).map(c => ({ key: ownKey(c.name), name: c.name }));      // pastilles : identité des commandants (decks.js › pips) ; fiches pas encore lues : lues puis pastilles redessinées
+    if (need.length && typeof dmFetch === 'function') dmLoad().then(() => { if (api.wrap.isConnected) paint(); return dmFetch(need); }).then(got => { if (got && api.wrap.isConnected) paint(); }, () => {});      // fiches du cache de l'appareil d'abord, puis Scryfall
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.am-deck'); if (!b) return;
       const d = decks[Number(b.dataset.i)]; if (!d) return;
