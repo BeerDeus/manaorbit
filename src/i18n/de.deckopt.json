@@ -112,5 +112,6 @@
  "Peu de cartes vues : un ou deux moteurs de pioche de plus.": "Wenige Karten gesehen: ein oder zwei Kartenzieh-Motoren mehr.",
  "cartes vues au tour 6 (main, pioche, moteurs)": "gesehene Karten bis Zug 6 (Hand, Ziehen, Motoren)",
  "des parties où le moteur du plan est en place avant le tour 11": "der Partien, in denen der Motor des Plans vor Zug 11 steht",
- "des parties où un adversaire tombe avant le tour 11 (seul, sans interaction)": "der Partien, in denen ein Gegner vor Zug 11 fällt (allein, ohne Interaktion)"
+ "des parties où un adversaire tombe avant le tour 11 (seul, sans interaction)": "der Partien, in denen ein Gegner vor Zug 11 fällt (allein, ohne Interaktion)",
+ "Le coach a joué seul les 10 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant, puis le plan (attaques, jetons, drain, moteurs). Des règles simples et du hasard, sans adversaire.": "Der Coach hat die ersten 10 Züge mit diesem Deck {n}-mal allein gespielt: Starthände, Länder, Farben, Commander, dann der Plan (Angriffe, Spielsteine, Lebensentzug, Motoren). Einfache Regeln und Zufall, ohne Gegner."
 }

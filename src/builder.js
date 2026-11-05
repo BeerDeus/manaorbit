@@ -315,8 +315,10 @@ function bdSumHtml() {
   const st = ck.n === ck.size ? 'full' : ck.n > ck.size ? 'over' : '';
   const bad = ck.issues.filter(i => i.lv === 'bad').length;
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
-  const val = dkValueText(dkValue(dkBuildText(bdData()), dmOf));
-  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${T('Prix tendance Cardmarket, cartes possédées comprises, terrains de base exclus')}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
+  const coachPx = BD.fmt === 'commander' && typeof dwProfile === 'function' && typeof DW !== 'undefined' && DW.core && typeof PXT !== 'undefined' && PXT;      // deck Commander : même prix que le coach (relevé du jour, impression la moins chère), pour que la valeur des versions et celle de l'en-tête soient les mêmes
+  const val = coachPx ? (() => { const c = dwProfile().cents; return c > 0 ? `≈ ${fmt(c, mkCur())}` : ''; })() : dkValueText(dkValue(dkBuildText(bdData()), dmOf));
+  const valT = coachPx ? T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus') : T('Prix tendance Cardmarket, cartes possédées comprises, terrains de base exclus');
+  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${valT}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach

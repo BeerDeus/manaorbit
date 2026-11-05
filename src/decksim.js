@@ -120,7 +120,7 @@ const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c =
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
 function dsimHtml(r, prog) {
-  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</div><p class="hint">${T('Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.', { n: nf0(DSIM_N) })}</p>`;
+  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</div><p class="hint">${T('Le coach a joué seul les 10 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant, puis le plan (attaques, jetons, drain, moteurs). Des règles simples et du hasard, sans adversaire.', { n: nf0(DSIM_N) })}</p>`;
   if (!r) return h + `<div class="ds-prog"><span class="ds-big"><i style="width:${Math.round((prog || 0) * 100)}%"></i></span><p class="ds-now">${T('Parties en cours…')}</p></div>`;
   const row = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b> ${esc(t)}${sub ? ` <small>${esc(sub)}</small>` : ''}</li>`;
   h += `<ul class="bd-issues ds-sim">

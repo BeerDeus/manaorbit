@@ -183,3 +183,20 @@
 .ds-sim li b{font-variant-numeric:tabular-nums;margin-right:2px}
 .ds-sim li small{color:var(--ink-2)}
 .dw-fold{margin-top:14px}
+/* Plan du deck : texte de la fiche du commandant, mis en avant */
+.dw-brief{display:flex;gap:10px;align-items:flex-start;margin:6px 0 10px;padding:12px 14px;border-radius:14px;background:var(--accent-soft);border-left:4px solid var(--accent)}
+.dw-brief .i{flex:none;width:20px;height:20px;margin-top:1px;color:var(--accent)}
+.dw-brief p{margin:0;font-size:14.5px;line-height:1.5;font-weight:550;color:var(--ink)}
+/* Simulation des 10 000 parties, dans le Coach sous « Autre proposition » */
+.dw-simbox{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.dw-simbox .sec-title{margin-top:0}
+.dw-simbox>.hint{margin:4px 0 0}
+.dw-simbox .ds-sim{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;margin-top:12px}
+.dw-simbox .ds-sim li{display:flex;flex-direction:column;gap:3px;padding:10px 12px 10px 13px;border-radius:12px;background:var(--good-soft);color:var(--ink);font-size:12.5px;line-height:1.35}
+.dw-simbox .ds-sim li::before{content:none}
+.dw-simbox .ds-sim li.warn{background:var(--warn-soft)}
+.dw-simbox .ds-sim li b{font-size:21px;font-weight:750;line-height:1.1;color:var(--good)}
+.dw-simbox .ds-sim li.warn b{color:var(--warn)}
+.dw-simbox .ds-sim li small{font-size:11.5px}
+.dw-simbox .dr-p{margin-top:12px}
+.dw-simbox .dr-ul{margin-top:10px;padding:10px 12px 10px 28px;border-radius:12px;background:var(--surface-2)}

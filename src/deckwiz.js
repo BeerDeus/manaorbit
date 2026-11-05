@@ -490,6 +490,7 @@ function dwCoachHtml() {
   if (DW.core && typeof dsScore === 'function' && prof.n > BD.cmdr.length + 20) h += dsScoreHtml(dsScore(BD, { cmd, pack }), { open: DW.scoreOpen });      // note du coach (deckopt.js) : dès que le deck prend forme
   if (DW.core && typeof dwDeckStory === 'function' && prof.n > BD.cmdr.length + 20) h += dwStoryHtml(dwDeckStory(BD));      // plan du deck : thèmes, tribu, moteurs, conditions de victoire (classement par mécaniques)
   if (DW.core && BD.wiz.gen && prof.n > BD.cmdr.length + 20 && typeof dsAgain === 'function') h += `<button class="btn ghost block" type="button" data-act="dw-again">${T('Autre proposition')}</button><p class="hint">${T('Le coach reconstruit le deck avec les mêmes réglages et d\'autres cartes de qualité égale ; annulable.')}</p>`;
+  if (DW.core && prof.n >= 99 && typeof dsimEnsure === 'function') h += `<div class="dw-simbox">${dwSimInner()}</div>`;      // 10 000 parties jouées seul (decksim.js) : sous « Autre proposition »
   h += dwSetHtml(cmd, pack);
   if (DW.core && typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-act="dw-report"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
   if (DW.core && DW.autoNext && DW.cmd.has(cmd.slug)) { DW.autoNext = false; setTimeout(() => dwBuild(), 0); }      // prix du jour lus d'abord (dwBuild)      // assistant : « Générer les 100 cartes tout de suite »
@@ -509,13 +510,19 @@ function dwCoachHtml() {
   h += `<p class="hint dw-src">${esc(src)}</p>`;
   return h;
 }
+/** Simulation du deck de l'éditeur (decksim.js) : résultats, ou progression ; repeinte seule pendant le calcul (pas tout l'onglet). */
+function dwSimInner() {
+  const cmd = dwCmdOf(); if (cmd && !DW.cmd.has(cmd.slug)) return dsimHtml(null, 0);      // fiche du commandant (plan, moteurs) d'abord : la partie jouée en dépend
+  const r = dsimEnsure(BD, () => { const box = BD.el && BD.tab === 'coach' && BD.el.querySelector('.dw-simbox'); if (box) box.innerHTML = dwSimInner(); });
+  return dsimHtml(r && !r.none ? r : null, DSIM.prog || 0);
+}
 /** Plan du deck (données : deckmech.js › dwDeckStory) : une ligne de thèmes, les moteurs, les conditions de victoire, les remarques. */
 function dwStoryHtml(st) {
   if (!st) return '';
   const bits = [...(st.tribe ? [T('{t} ×{n}', { t: st.tribe.t, n: st.tribe.n })] : []), ...st.tags.slice(0, 3).map(t => T('{m} ×{n}', { m: t.label, n: t.n }))];
   const eng = st.engines.map(e => T('{e} ({c})', { e: e.label, c: e.cards.slice(0, 3).join(', ') }));
   const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // texte de la fiche IA : écrit en français
-  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<p class="hint">${esc(st.brief)}</p>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
+  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<blockquote class="dw-brief"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><p>${esc(st.brief)}</p></blockquote>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
     <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
