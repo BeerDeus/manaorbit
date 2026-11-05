@@ -223,6 +223,7 @@ async function dsimRun(X, n = 1000, step) {
   const rnd = dsimRng(seed), stuck = new Map(), cmv = Math.max(0, ...D.cmdr.map(c => c.cmc));
   const acc = { keep7: 0, mull: 0, lands0: 0, cmdT: 0, cmdOn: 0, cmdNever: 0, miss3: 0, miss4: 0, screw4: 0, eff: 0, cast6: 0, kill: 0, killT: 0, table: 0, tableT: 0, elim: 0, cmdKill: 0, eng: 0, engT: 0, engEnd: 0, wiped: 0, wsHas: 0, wsOK: 0, saved: 0, lost: 0, win8: 0, dmg8: 0, seen6: 0 };
   const T1 = DSIM_OPP.turns + 1;
+  let ty = Date.now();
   for (let i = 0; i < n; i++) {
     const g = dsimGame(D, rnd, i % 2 === 0, stuck);
     acc.keep7 += g.mull === 0; acc.mull += g.mull; acc.lands0 += g.lands0; acc.cmdT += g.cmdTurn || 9; acc.cmdOn += g.cmdTurn && g.cmdTurn <= Math.max(1, cmv) ? 1 : 0; acc.cmdNever += !g.cmdTurn;
@@ -230,7 +231,7 @@ async function dsimRun(X, n = 1000, step) {
     acc.kill += !!g.killT; acc.killT += g.killT || T1; acc.table += !!g.tableT; acc.tableT += g.tableT || T1; acc.elim += g.elim; acc.cmdKill += g.cmdKill;
     acc.eng += !!g.engT; acc.engT += g.engT || T1; acc.engEnd += g.engEnd; acc.wiped += g.wiped; acc.wsHas += g.wsHas; acc.wsOK += g.wsHas && g.wsOK; acc.saved += g.saved; acc.lost += g.lost;
     acc.win8 += !!(g.winT && g.winT <= 8); acc.dmg8 += g.dmg8; acc.seen6 += g.seen6;
-    if (i % 250 === 249) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); }      // par paquets de 250 : l'écran reste fluide pendant le calcul
+    if (i % 25 === 24 && Date.now() - ty > 50) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); ty = Date.now(); }      // toutes les 50 ms environ : l'écran reste fluide pendant le calcul (téléphone lent compris ; 250 parties y duraient 0,2 s)
   }
   const pct = v => Math.round(v / n * 100);
   return { n, cmv, keep7: pct(acc.keep7), mull: acc.mull / n, lands0: acc.lands0 / n, cmdT: acc.cmdT / n, cmdOn: pct(acc.cmdOn), cmdNever: pct(acc.cmdNever), miss3: pct(acc.miss3), miss4: pct(acc.miss4), screw4: pct(acc.screw4), eff: Math.round(acc.eff / n * 100), cast6: acc.cast6 / n,

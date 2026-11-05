@@ -5,8 +5,10 @@
 // popularité des cartes (rang EDHREC), note du coach, simulation (mains gardées, commandant à temps, couleurs ; face à la table depuis le 5 novembre :
 // adversaires éliminés, moteur qui tient), part de protection, retraits, balayages et récursion, contrôles (100 cartes, couleurs, doublons, interdites,
 // bracket, budget, terrains, condition de victoire, sources de couleur).
-//   node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src <dossier contenant deckwiz.js…>] [--out mesures.json] [--only <n,n>] [--seeds 2] [--jobs 4] [--budget <ms>]
+//   node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src <dossier contenant deckwiz.js…>] [--out mesures.json] [--only <n,n>] [--seeds 2] [--jobs 4] [--budget <ms>] [--slow <x>] [--draws <n>]
 // Sans --budget : tous les tirages de chaque version (DS_DRAWS), quel que soit le temps : mesure reproductible d'une machine à l'autre ; --budget 20000 : la limite de l'appli.
+// --draws 2 : tirages par version au plus (DS_DRAWS sinon).
+// --slow 4 : appareil 4 fois plus lent (téléphone moyen) : le temps vu par le coach passe 4 fois plus vite (limites de temps, nombre de tirages, amélioration).
 // Le thème est mesuré avec le classement data/card-mech.json (indépendant du code mesuré : la même règle avant et après).
 import vm from 'node:vm';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -69,7 +71,7 @@ export function coachCtx(srcDir, D) {
   for (const [s, p] of Object.entries(D.themes || {})) ctx.DW.th.set(s, { slug: s, ...p });
   return ctx;
 }
-let BUDGET = 1e12;
+let BUDGET = 1e12, DRAWS = 0;
 /** Résultats de simulation gardés dans la mesure : tous les chiffres (anciens et nouveaux, selon le code mesuré). */
 const simPick = r => r ? Object.fromEntries(Object.entries(r).filter(([k, v]) => k !== 'n' && (typeof v === 'number' || v === null || (k === 'blind' && v)))) : null;      // blind : plan que la simulation ne joue pas (voltron, ninjutsu…)
 /** Réglages d'une version (style) pour un cas : ceux de buildCase, plus le style de la version (plan du deck : decksim.js › dsimDeck). */
@@ -87,7 +89,7 @@ async function buildCase(ctx, D, cs, seed) {
   BD.wiz = wiz;
   const cmd = ctx.dwCmdOf(BD); if (!cmd) return null;
   let res;
-  if (typeof ctx.dsMake === 'function') res = await ctx.dsMake({ seed, empty: true, budget: BUDGET });      // budget de temps : illimité par défaut (mesure reproductible, indépendante de la vitesse de la machine) ; --budget 20000 : comme l'appli
+  if (typeof ctx.dsMake === 'function') res = await ctx.dsMake({ seed, empty: true, budget: BUDGET, ...(DRAWS ? { draws: DRAWS } : {}) });      // budget de temps : illimité par défaut (mesure reproductible, indépendante de la vitesse de la machine) ; --budget 20000 : comme l'appli
   else {      // code d'avant (sans dsMake) : la boucle de dsBuild, telle quelle
     res = []; const base = new Map(), mine = new Set(), wiz0 = { ...wiz };
     for (const v of ctx.DS_VARIANTS_ALL || vm.runInContext('DS_VARIANTS', ctx)) {
@@ -104,7 +106,7 @@ async function buildCase(ctx, D, cs, seed) {
   for (const r of res) {
     BD.main = r.main; BD.wiz = r.wiz;
     const prof = ctx.dwProfile(), tgt = ctx.dwTargets(prof, cmd, pack, r.wiz), sim = r.sim || await ctx.dsimRun(BD, 1500);
-    out.push({ id: r.v.id, main: [...r.main.values()].map(c => [c.key, c.qty]), sc: r.sc.total, parts: r.sc.parts.map(p => Math.round(p.pts * 10) / 10), sim: simPick(sim),
+    out.push({ id: r.v.id, main: [...r.main.values()].map(c => [c.key, c.qty]), sc: r.sc.total, k: r.draws || null, parts: r.sc.parts.map(p => Math.round(p.pts * 10) / 10), sim: simPick(sim),
       prof: { n: prof.n, land: prof.land, mv: Math.round(prof.mv * 100) / 100, cents: prof.cents, gc: prof.gc.length, mld: prof.mld.length, xt: prof.xt.length, combos: prof.combos.length, wincon: prof.wincon, src: prof.src, need: prof.need }, tgt: { land: tgt.land, wincon: tgt.wincon },
       story: (() => { const st = typeof ctx.dwDeckStory === 'function' ? ctx.dwDeckStory(BD) : null; if (st) delete st.plan; return st && JSON.parse(JSON.stringify(st)); })() });
   }
@@ -155,7 +157,9 @@ async function resim(ctx, D, prev, i) {
 }
 async function worker(args) {
   if (args.budget) BUDGET = args.budget;
+  if (args.draws) DRAWS = args.draws;
   const D = JSON.parse(gunzipSync(readFileSync(args.dkw)).toString('utf8')), ctx = coachCtx(args.src, D);
+  if (args.slow > 1) { const R = Date, z = R.now(), F = args.slow; ctx.Date = class extends R { static now() { return z + (R.now() - z) * F; } }; }      // appareil plus lent : le temps vu par le coach passe plus vite
   const out = [];
   if (args.resim) { const prev = JSON.parse(readFileSync(args.resim, 'utf8')); for (const i of args.idx) { const g = await resim(ctx, D, prev, i); if (g) out.push(g); } return out; }
   for (const i of args.idx) {
@@ -169,16 +173,16 @@ if (process.env.COACH_EVAL_CHILD) {
   process.on('message', async a => { try { const r = await worker(a); process.send(JSON.parse(JSON.stringify(r)), () => process.exit(0)); } catch (e) { console.error(e); process.exit(1); } });
 } else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const a = process.argv.slice(2), opt = (k, d) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : d; };
-  const dkw = opt('--dkw'), src = opt('--src', join(root, 'src')), outF = opt('--out', ''), resimF = opt('--resim', ''), seeds = Number(opt('--seeds', 2)), jobs = Number(opt('--jobs', 4)), budget = Number(opt('--budget', 0)) || 0;
+  const dkw = opt('--dkw'), src = opt('--src', join(root, 'src')), outF = opt('--out', ''), resimF = opt('--resim', ''), seeds = Number(opt('--seeds', 2)), jobs = Number(opt('--jobs', 4)), budget = Number(opt('--budget', 0)) || 0, slow = Number(opt('--slow', 1)) || 1, draws = Number(opt('--draws', 0)) || 0;
   const only = opt('--only', ''); const idx = only ? only.split(',').map(s => CASES.findIndex(c => c.id === s || String(CASES.indexOf(c)) === s)).filter(i => i >= 0) : CASES.map((c, i) => i);
   if (!dkw) { console.log('Usage : node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src dir] [--out f.json] [--only id,id] [--seeds 2] [--jobs 4]'); process.exit(1); }
   const t0 = Date.now(), parts = Array.from({ length: jobs }, () => []); idx.forEach((i, j) => parts[j % jobs].push(i));
-  const got = (await Promise.all(parts.filter(p => p.length).map(p => new Promise((res, rej) => { const c = fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, COACH_EVAL_CHILD: '1' }, execArgv: ['--max-old-space-size=4000'] }); c.on('message', res); c.on('error', rej); c.send({ dkw, src, seeds, idx: p, resim: resimF, budget }); })))).flat().sort((x, y) => x.i - y.i);
+  const got = (await Promise.all(parts.filter(p => p.length).map(p => new Promise((res, rej) => { const c = fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, COACH_EVAL_CHILD: '1' }, execArgv: ['--max-old-space-size=4000'] }); c.on('message', res); c.on('error', rej); c.send({ dkw, src, seeds, idx: p, resim: resimF, budget, slow, draws }); })))).flat().sort((x, y) => x.i - y.i);
   // mesures
   const D = JSON.parse(gunzipSync(readFileSync(dkw)).toString('utf8')), by = new Map(D.cards.map(r => [normKey(r[0]), r]));
   const mech = new Map([...readMech(join(root, 'data', 'card-mech.json')).cards].map(([n, m]) => [normKey(n), m]));
   let scry = new Map(); try { const C = JSON.parse(gunzipSync(readFileSync(join(dirname(dkw), 'corpus.json.gz'))).toString('utf8')); for (const [k, x] of Object.entries(C.scry || {})) scry.set(k, { type: x[3], text: x[4] }); } catch (e) { /* sans corpus : types d'après card-mech seulement */ }
-  const rows = [], agg = { draws: [], vers: [], theme: [], score: [], keep7: [], cmdOn: [], screw4: [], kill10: [], killT: [], eng: [], seen6: [], rank: [], staple: [], bad: 0, decks: 0, errs: 0 }, vAgg = {};
+  const rows = [], agg = { k: [], draws: [], vers: [], theme: [], score: [], keep7: [], cmdOn: [], screw4: [], kill10: [], killT: [], eng: [], seen6: [], rank: [], staple: [], bad: 0, decks: 0, errs: 0 }, vAgg = {};
   const SIMX = ['elim10', 'table', 'tableT', 'cmdKill', 'engKeep', 'wipeSurv', 'wiped', 'saved', 'lost'], simX = Object.fromEntries(SIMX.map(k => [k, []]));      // chiffres de la simulation avec adversaires (absents du code d'avant)
   const RL = ['protect', 'removal', 'wipe', 'recursion'], rlBit = Object.fromEntries(RL.map(r => [r, 1 << (D.roles || []).indexOf(r)])), rlAll = Object.fromEntries(RL.map(r => [r, []]));      // part de protection, retraits, balayages, récursion dans les decks (rôles de la base)
   for (const g of got) {
@@ -192,7 +196,7 @@ if (process.env.COACH_EVAL_CHILD) {
     row.vers = r1(avg(ov)); row.versMax = r1(Math.max(0, ...ov)); if (ov.length) agg.vers.push(row.vers);
     row.v = d0.vers.map((v, i) => {
       const th = themeShare(S0[i], themeTags(cs), mech, scry), bad = checks(D, by, cs, d0.cmd, v), ranks = S0[i].map(k => (by.get(k) || [])[8] || 99999);
-      agg.decks++; if (bad.length) agg.bad++;
+      agg.decks++; if (bad.length) agg.bad++; if (v.k) agg.k.push(v.k);      // tirages faits pour cette version (dsMake : selon le temps)
       const x = { id: v.id, sc: v.sc, th: r1(th), rank: med(ranks), staple: r1(ranks.filter(r => r > 0 && r < 300).length / Math.max(1, ranks.length)), sim: v.sim, land: v.prof.land, mv: v.prof.mv, eur: Math.round(v.prof.cents / 100), bad, theme: v.story ? (v.story.tags || []).slice(0, 3).map(t => t.label + ' ' + t.n).join(', ') : '' };
       (vAgg[v.id] = vAgg[v.id] || { sc: [], th: [], keep7: [], cmdOn: [], screw4: [] });
       vAgg[v.id].sc.push(v.sc); vAgg[v.id].th.push(th); if (v.sim) { vAgg[v.id].keep7.push(v.sim.keep7); vAgg[v.id].cmdOn.push(v.sim.cmdOn); vAgg[v.id].screw4.push(v.sim.screw4); }
@@ -203,11 +207,11 @@ if (process.env.COACH_EVAL_CHILD) {
     });
     rows.push(row);
   }
-  const sum = { at: new Date().toISOString(), src, dkw, cases: got.length, seeds, s: Math.round((Date.now() - t0) / 1000),
+  const sum = { at: new Date().toISOString(), src, dkw, cases: got.length, seeds, budget, slow, draws, s: Math.round((Date.now() - t0) / 1000),
     recouvrementTirages: r1(avg(agg.draws) / 100), recouvrementVersions: r1(avg(agg.vers) / 100), partTheme: r1(avg(agg.theme)), noteMed: med(agg.score), noteMoy: avg(agg.score) && Math.round(avg(agg.score) * 10) / 10,
     keep7: avg(agg.keep7) && Math.round(avg(agg.keep7)), cmdOn: avg(agg.cmdOn) && Math.round(avg(agg.cmdOn)), screw4: avg(agg.screw4) && Math.round(avg(agg.screw4)), adversaireMort10: avg(agg.kill10) == null ? null : Math.round(avg(agg.kill10)), tourMort: avg(agg.killT) == null ? null : Math.round(avg(agg.killT) * 10) / 10, moteurEnPlace: avg(agg.eng) == null ? null : Math.round(avg(agg.eng)), cartesVues6: avg(agg.seen6) == null ? null : Math.round(avg(agg.seen6) * 10) / 10, rangMed: med(agg.rank), partStaples: avg(agg.staple) && Math.round(avg(agg.staple) * 10) / 10,
     adversaires: Object.fromEntries(SIMX.map(k => [k, avg(simX[k]) == null ? null : Math.round(avg(simX[k]) * 10) / 10])), roles: Object.fromEntries(RL.map(r => [r, avg(rlAll[r]) == null ? null : Math.round(avg(rlAll[r]) * 10) / 10])),
-    decks: agg.decks, decksEnDefaut: agg.bad, erreurs: agg.errs,
+    decks: agg.decks, decksEnDefaut: agg.bad, erreurs: agg.errs, tiragesParVersion: agg.k.length ? Math.round(avg(agg.k) * 100) / 100 : null, tiragesRepartition: agg.k.length ? Object.fromEntries([1, 2, 3].map(n => [n, agg.k.filter(x => x === n).length])) : null,
     versions: Object.fromEntries(Object.entries(vAgg).map(([k, v]) => [k, { note: Math.round(avg(v.sc) * 10) / 10, theme: r1(avg(v.th)), keep7: Math.round(avg(v.keep7)), cmdOn: Math.round(avg(v.cmdOn)), screw4: Math.round(avg(v.screw4)) }])) };
   console.log(JSON.stringify(sum, null, 1));
   for (const r of rows) console.log(r.err ? `${r.id} ERREUR ${r.err}` : `${r.id.padEnd(15)} ${r.pack ? 'P' : '-'} tirages ${r.draw ?? '-'} % · versions ${r.vers ?? '-'} % (max ${r.versMax ?? '-'}) · ` + r.v.map(v => `${v.id} ${v.sc} th${v.th ?? '-'} rg${v.rank} st${v.staple} k${v.sim ? v.sim.keep7 : '-'}/c${v.sim ? v.sim.cmdOn : '-'}/s${v.sim ? v.sim.screw4 : '-'}${v.sim && v.sim.elim10 != null ? `/a${v.sim.kill10}${v.sim.blind ? '~' + v.sim.blind : ''}/m${v.sim.engKeep ?? '-'}` : ''} L${v.land} ${v.eur}€${v.bad.length ? ' !' + v.bad.join(';') : ''}${v.theme ? ' [' + v.theme + ']' : ''}`).join(' | '));
