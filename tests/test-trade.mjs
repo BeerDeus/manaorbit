@@ -88,7 +88,8 @@ const use = C.deckUse(decks);
 }
 {
   assert.ok(C.isLandType('Land') && C.isLandType('Legendary Land') && C.isLandType('Artifact Land') && C.isLandType('Basic Snow Land — Forest'));
-  assert.ok(!C.isLandType('Creature — Elf') && !C.isLandType('Instant // Land') && !C.isLandType(''), 'carte modale sort // terrain : pas un terrain');
+  assert.ok(!C.isLandType('Creature — Elf') && !C.isLandType('Instant') && !C.isLandType(''), 'sort : pas un terrain');
+  assert.ok(C.isLandType('Instant // Land') && C.isLandType('Land Creature — Forest Dryad'), 'double face modale sort // terrain et Dryad Arbor : terrains (core.js › landKind, même règle que le viewer et le coach)');
   const lib = C.libraryOf([{ k: 'a', q: 4 }, { k: 'cmd', q: 1, cmd: 1 }, { k: 'sb', q: 3, sb: 1 }, { k: 'b', q: 2 }]);
   assert.equal(lib.length, 6, 'commandant et réserve hors de la bibliothèque');
   const h = C.drawHand(lib, 7, C.mulberry32(1)); assert.equal(h.length, 6, 'jamais plus que la bibliothèque');

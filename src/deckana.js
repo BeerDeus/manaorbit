@@ -22,7 +22,7 @@ function daDeckOf(text) {
     const ks = typeof commanderKeys === 'function' ? commanderKeys(text).filter(k => main.has(k)) : [];
     const first = p.main[0], fx = first && dwCard(first.key), m = first && dmOf(first.key);
     if (ks.length) cmdr = ks.slice(0, 2).map(k => ({ key: k, name: main.get(k).name }));
-    else if (first && ((m && m.cd) || (fx && fx.ty & 256 && fx.ty & 2))) cmdr = [{ key: first.key, name: first.name }];
+    else if (first && canCommand(m, fx) === 1) cmdr = [{ key: first.key, name: first.name }];      // même règle que le viewer et l'éditeur (core.js › canCommand)
   }
   for (const c of cmdr) { const x = main.get(c.key); if (x) { if (x.qty > 1) x.qty--; else main.delete(c.key); } }
   return { main, cmdr, wiz: null, skip: null };

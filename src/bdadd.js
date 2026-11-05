@@ -54,7 +54,7 @@ function bdOwn(words) {
   const f = { ...BD.f, q: '' }; let keys = null;
   if (filterActive(f)) { const v = collAll(); if (typeof srchPrep === 'function') srchPrep(v, f); keys = new Set(filterItems(v.all, f).map(it => it.k)); }
   let own = bdIndex().filter(it => (!keys || keys.has(it.k)) && words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') own = own.filter(it => (COLL.meta[it.k] || {}).cd);
+  if (BD.tgt === 'cmdr') own = own.filter(it => canCommand(COLL.meta[it.k]) === 1);
   return own;
 }
 /** Extensions des cartes proposées (bouton « Extension » des filtres) : [[code, nom, cartes]], « Sans édition » en tête. */
@@ -98,7 +98,7 @@ function bdCmdrCi() {
 function bdBulkPlan(list, qOf) {
   const cmd = BD.fmt === 'commander', tgt = !cmd && BD.tgt === 'side' ? 'side' : 'main', ci = bdCmdrCi();
   const P = { tgt, add: [], n: 0, have: 0, ci: 0, basic: 0, full: 0, ill: [], res: [], noCmd: cmd && !BD.cmdr.length, ciUnknown: cmd && BD.cmdr.length > 0 && !ci };
-  let room = tgt === 'side' ? Math.max(0, DK_FORMATS[BD.fmt].side - bdCount(BD.side)) : Infinity;
+  let room = tgt === 'side' ? Math.max(0, DK_FORMATS[BD.fmt].side - bdSideN()) : Infinity;
   const seen = new Set();
   for (const { k, name } of list) {
     if (seen.has(k)) continue; seen.add(k);

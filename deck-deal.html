@@ -8020,8 +8020,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'bb75473a';
-const I18N_FILES = {"de":"i18n/de.ae9e8e23.js","en":"i18n/en.066269aa.js","es":"i18n/es.2e3cacd4.js","it":"i18n/it.96c0c7b8.js","pt":"i18n/pt.3c68a3ea.js"};
+const DD_BUILD = '5090d9eb';
+const I18N_FILES = {"de":"i18n/de.20539bce.js","en":"i18n/en.0c59fbfa.js","es":"i18n/es.bc3575fa.js","it":"i18n/it.43d90278.js","pt":"i18n/pt.3b4e0132.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -8558,31 +8558,56 @@ function deckSecs(text) {
   return out;
 }
 
-/** Lit une decklist (EDHREC, Moxfield, Archidekt, MTGA, MTGO). Terrains de base séparés. Réserve (« SB: », section Sideboard), maybeboard et tokens : ni comptés ni cherchés (voir deckSecs). */
-function parseDeck(text) {
-  const cards = new Map();
-  const basics = new Map();
-  let lines = 0, ignored = 0;
-  for (const [raw, sec] of deckSecs(text)) {
-    const p = parseLine(raw);
-    if (!p) continue;
-    lines++;
-    if (p.ignored) { if (!p.quiet) ignored++; continue; }
-    if (sec === 'side' || sec === 'skip') continue;      // réserve, maybeboard : volontaire, pas signalé
-    const bucket = BASIC_NAMES.has(p.key) ? basics : cards;
-    const cur = bucket.get(p.key);
-    if (cur) cur.qty += p.qty; else bucket.set(p.key, { key: p.key, name: p.name, qty: p.qty, ...(p.dn ? { dn: p.dn } : {}), ...(p.amb ? { amb: p.amb } : {}) });      // dn : nom français à afficher (name reste l'anglais : prix, collection, liens)
-    const x = cur || bucket.get(p.key);      // éditions de la carte (« (CMM) 400 ») : seulement si chacune de ses lignes en donne une (une ligne sans édition : n'importe laquelle)
-    if (!p.ed) x.anyEd = true; else if (!(x.eds || (x.eds = [])).includes(p.ed)) x.eds.push(p.ed);
+/** Analyse unique d'une decklist (sections de deckSecs, une seule lecture de chaque ligne) → { cmdr, main, basics, comp, side, skip, cards, lines, ignored, order } :
+ *  cmdr : cartes sous « Commander » · main : le reste du deck, terrains de base à part (basics) · comp : section « Companion » · side : la réserve (« SB: », « Sideboard ») ·
+ *  skip : Maybeboard, Considering, Tokens (hors du deck) · cards : cmdr + main (les cartes du deck à chercher et chiffrer, dans l'ordre de la liste).
+ *  Chaque carte : { key (normName), name, qty, dn?, amb?, eds?, ln? } (doublons additionnés dans sa section ; eds, ln : voir plus bas).
+ *  Compagnon (règle officielle 702.139a) : il commence la partie hors du jeu, dans la réserve ; en Commander il ne fait pas partie des 100 cartes.
+ *  Il n'est donc compté ni dans le deck ni dans sa valeur ; il reste dans la boîte du deck (réserve : dkSideCards, deck monté). Arena l'écrit aussi dans le Sideboard : compté une fois. */
+function deckModel(text) {
+  const sec = { cmdr: new Map(), main: new Map(), basics: new Map(), comp: new Map(), side: new Map(), skip: new Map(), cards: new Map() };
+  let lines = 0, ignored = 0, i = -1; const order = new Map();      // order : clé → rang de sa première ligne dans le deck (l'éditeur garde l'ordre de la liste, terrains de base compris)
+  const put = (m, p) => {
+    const cur = m.get(p.key), x = cur || { key: p.key, name: p.name, qty: 0, ...(p.dn ? { dn: p.dn } : {}), ...(p.amb ? { amb: p.amb } : {}) };      // dn : nom français à afficher (name reste l'anglais : prix, collection, liens)
+    if (!cur) m.set(p.key, x);
+    x.qty += p.qty;
+    if (!p.ed) x.anyEd = true; else if (!(x.eds || (x.eds = [])).includes(p.ed)) x.eds.push(p.ed);      // éditions de la carte (« (CMM) 400 ») : seulement si chacune de ses lignes en donne une (une ligne sans édition : n'importe laquelle)
     const f = p.foil ? 'yes' : p.nf ? 'no' : '', l = p.lang || '', ls = x.ls || (x.ls = []), g = ls.find(y => y.f === f && y.l === l);      // foil et langue de la ligne (« *F* », « *N* », « *FR* »)
     if (g) g.q += p.qty; else ls.push({ q: p.qty, f, l });
+  };
+  for (const [raw, s] of deckSecs(text)) {
+    i++;
+    const sb = String(raw).trim().match(/^SB:\s*(.+)$/i), p = parseLine(sb ? sb[1] : raw);
+    if (!p) continue;
+    lines++;
+    if (p.ignored) { if (!p.quiet && !sb) ignored++; continue; }      // ligne « SB: » illisible : comme avant, pas signalée
+    const basic = BASIC_NAMES.has(p.key);
+    if (sb || s === 'side') put(sec.side, p);      // réserve, maybeboard : volontaire, pas signalé
+    else if (s === 'skip') put(sec.skip, p);
+    else if (s === 'comp') put(sec.comp, p);
+    else { put(s === 'cmdr' ? sec.cmdr : basic ? sec.basics : sec.main, p); if (!basic) put(sec.cards, p); if (s !== 'cmdr' && !order.has(p.key)) order.set(p.key, i); }
   }
   // ln : les lignes de la carte par foil et langue ({ q, f?: 'yes' | 'no', l? }), seulement si l'une en donne (sinon la recherche garde ses critères, comme avant)
-  for (const m of [cards, basics]) for (const x of m.values()) { if (x.anyEd) delete x.eds; delete x.anyEd; if (x.ls.some(y => y.f || y.l)) x.ln = x.ls.map(y => ({ q: y.q, ...(y.f ? { f: y.f } : {}), ...(y.l ? { l: y.l } : {}) })); delete x.ls; }
-  const c = [...cards.values()], b = [...basics.values()];
-  const copies = c.reduce((a, x) => a + x.qty, 0);
-  const basicCopies = b.reduce((a, x) => a + x.qty, 0);
-  return { cards: c, basics: b, lines, ignored, copies: copies + basicCopies, basicCopies };
+  const out = { lines, ignored, order };
+  for (const [name, m] of Object.entries(sec)) {
+    for (const x of m.values()) { if (x.anyEd) delete x.eds; delete x.anyEd; if (x.ls.some(y => y.f || y.l)) x.ln = x.ls.map(y => ({ q: y.q, ...(y.f ? { f: y.f } : {}), ...(y.l ? { l: y.l } : {}) })); delete x.ls; }
+    out[name] = [...m.values()];
+  }
+  if (out.cmdr.some(c => BASIC_NAMES.has(c.key))) { const b = new Map(out.basics.map(x => [x.key, x])); for (const c of out.cmdr) if (BASIC_NAMES.has(c.key)) { const cur = b.get(c.key); if (cur) cur.qty += c.qty; else out.basics.push({ ...c }); } }      // terrain de base sous « Commander » (liste mal faite) : un terrain du deck
+  return out;
+}
+/** Réserve d'un modèle (deckModel) : side, puis le compagnon s'il n'y est pas déjà (Arena l'écrit dans les deux sections) : [{ key (ownKey), name, qty, comp? }], additionnée par carte. */
+function dkSideOf(md) {
+  const out = new Map();
+  for (const c of md.side) { const k = ownKey(c.name), cur = out.get(k); if (cur) cur.qty += c.qty; else out.set(k, { key: k, name: c.name, qty: c.qty }); }
+  for (const c of md.comp) { const k = ownKey(c.name), cur = out.get(k); if (cur) { cur.qty = Math.max(cur.qty, c.qty); cur.comp = 1; } else out.set(k, { key: k, name: c.name, qty: c.qty, comp: 1 }); }
+  return [...out.values()];
+}
+/** Lit une decklist (EDHREC, Moxfield, Archidekt, MTGA, MTGO) : les cartes du deck (commandant compris, compagnon et réserve exclus), terrains de base séparés. Voir deckModel. */
+function parseDeck(text) {
+  const md = deckModel(text), c = md.cards, b = md.basics;
+  const copies = c.reduce((a, x) => a + x.qty, 0), basicCopies = b.reduce((a, x) => a + x.qty, 0);
+  return { cards: c, basics: b, lines: md.lines, ignored: md.ignored, copies: copies + basicCopies, basicCopies };
 }
 
 /** Retire de la decklist toutes les lignes d'une carte. Retourne le nouveau texte et les lignes retirées (pour annuler). */
@@ -8999,12 +9024,21 @@ function typeBucket(tl) {
   if (b === undefined) { b = typeBucketOf(s); if (TYPE_MEMO.size >= 5000) TYPE_MEMO.clear(); TYPE_MEMO.set(s, b); }
   return b;
 }
+/** Terrain ? Règle unique (viewer, éditeur, main de départ, coach, collection) d'après la ligne de type : 'land' si la face avant est un terrain (Forest, Dryad Arbor
+ *  « Land Creature », Ancient Tomb), 'mdfc' si seule une autre face l'est (double face modale « Instant // Land », Valakut Awakening : jouable comme terrain, compté avec les terrains
+ *  et annoncé « dont N doubles faces »), '' sinon. Une double face qui se transforme en terrain (Search for Azcanta) a la même ligne de type : comptée 'mdfc' aussi. */
+const LAND_MEMO = new Map();      // gardé par ligne de type, comme typeBucket (le coach le relit pour chaque carte à chaque profil)
+function landKind(tl) {
+  const s = String(tl || ''); let k = LAND_MEMO.get(s);
+  if (k === undefined) { const f = s.split('//'); k = /\bland\b/i.test(f[0]) ? 'land' : f.length > 1 && f.slice(1).some(x => /\bland\b/i.test(x)) ? 'mdfc' : ''; if (LAND_MEMO.size >= 5000) LAND_MEMO.clear(); LAND_MEMO.set(s, k); }
+  return k;
+}
 function typeBucketOf(tl) {
   const t = tl.toLowerCase();
+  if (landKind(tl)) return 'Terrains';      // avant « creature » : Dryad Arbor est un terrain ; « Creature // Land » aussi (landKind)
   if (t.includes('creature')) return 'Créatures';
   if (t.includes('planeswalker')) return 'Planeswalkers';
   if (t.includes('battle')) return 'Batailles';
-  if (t.includes('land')) return 'Terrains';
   if (t.includes('artifact')) return 'Artefacts';
   if (t.includes('enchantment')) return 'Enchantements';
   if (t.includes('instant')) return 'Éphémères';
@@ -9014,7 +9048,10 @@ function typeBucketOf(tl) {
 const isLand = i => i.s === 'basic' || (i.tl ? typeBucket(i.tl) === 'Terrains' : false);
 const byName = (a, b) => NAME_CMP(a.dn || a.n, b.dn || b.n);      // dn : nom affiché si différent de n (carte française)
 const byCmcName = (a, b) => ((a.cm ?? 99) - (b.cm ?? 99)) || byName(a, b);
-const sumGroup = items => ({ count: items.reduce((a, i) => a + i.q, 0), cost: items.reduce((a, i) => a + (i.c || 0), 0) });
+const sumGroup = items => ({ count: items.reduce((a, i) => a + i.q, 0), cost: items.reduce((a, i) => a + (i.c || 0), 0), mdfc: items.reduce((a, i) => a + (i.s !== 'basic' && landKind(i.tl) === 'mdfc' ? i.q : 0), 0) });
+/** Groupe des terrains (tri par coût, par type, par rôle) : « dont N doubles faces » quand il en a ; '' sinon (et pour les autres groupes). */
+const landGroupNote = g => (g && g.mdfc > 0 && (g.id === 'land' || g.id === 't-Terrains' || g.id === 'r-land') ? ' · ' + landMdfcText(g.mdfc) : '');
+const landMdfcText = n => TN(n, 'dont {n} double face', 'dont {n} doubles faces');
 /**
  * Regroupe les cartes pour le viewer. sort : 'mana' (colonnes par coût converti, terrains à part) · 'price' (du plus cher au moins cher) · 'type'.
  * ref : relevé de référence (valeur estimée, pas d'offres) : « Sans prix » au lieu de « Sans offre ». sb : carte de la réserve, groupe « Réserve » avant « Introuvables », toujours en fin de liste. Retourne [{ id, label, items, count, cost }] — les groupes vides n'existent pas.
@@ -9228,8 +9265,19 @@ function commanderKeys(text) {
   }
   return out;
 }
-/** Sans en-tête : la première carte de la liste (export EDHREC) est le commandant si elle est légendaire (créature ou planeswalker). */
-const canLead = tl => /legendary/i.test(String(tl || '')) && /(creature|planeswalker)/i.test(String(tl || ''));
+/** Règle unique « peut être commandant » (viewer, coach, éditeur, Mes decks, collection) : règle officielle 903.3 : créature légendaire (ou Véhicule / Vaisseau légendaire
+ *  avec force et endurance), ou carte qui dit « can be your commander » (Teferi, Temporal Archmage…) ; un planeswalker légendaire ordinaire (Jace, the Mind Sculptor) ne l'est pas.
+ *  m = infos de la carte { cd, tl } : cd (canBeCommander, lu sur Scryfall avec le texte Oracle) s'il est connu, sinon la ligne de type (isCmdrType) ;
+ *  x (facultatif) = la carte dans la base du coach (dwCard : ty, bits de la face avant, 256 légendaire, 2 créature), quand la fiche n'est pas encore lue.
+ *  → 1 oui · 0 non · null : pas encore lue. */
+function canCommand(m, x) {
+  if (m && (m.cd === 0 || m.cd === 1)) return m.cd;
+  if (m && m.tl) return isCmdrType(m.tl) ? 1 : 0;
+  if (x && Number.isFinite(x.ty) && x.ty & 256 && x.ty & 2) return 1;      // la base ne connaît pas « can be your commander » : seulement le oui
+  return null;
+}
+/** Sans en-tête : la première carte de la liste (export EDHREC) est le commandant si elle peut l'être (canCommand). metaOf(carte) → infos { cd, tl }. Ancienne signature (ligne de type) acceptée. */
+const canLead = m => canCommand(typeof m === 'string' || m == null ? { tl: m || '' } : m) === 1;
 
 /* ── Créateur de deck (Standard / Commander) ──────────────────────────────────────────────────── */
 const DK_FORMATS = {
@@ -9258,16 +9306,8 @@ function dkMatch(text, f) {
   if (colors) { const have = dkColors(text); for (const c of colors) if (!have.includes(c)) return false; }
   return true;
 }
-/** Réserve d'une liste : lignes « SB: 2 Negate » et section « Sideboard » d'un export (deckSecs) : [{ key, name, qty }] (additionnée par carte). parseDeck ne les voit pas. */
-function dkSideCards(text) {
-  const out = new Map();
-  for (const [raw, sec] of deckSecs(text)) {
-    const m = raw.trim().match(/^SB:\s*(.+)$/i); if (!m && sec !== 'side') continue;
-    const p = parseLine(m ? m[1] : raw); if (!p || p.ignored) continue;
-    const k = ownKey(p.name), cur = out.get(k); if (cur) cur.qty += p.qty; else out.set(k, { key: k, name: p.name, qty: p.qty });
-  }
-  return [...out.values()];
-}
+/** Réserve d'une liste : lignes « SB: 2 Negate », section « Sideboard » d'un export et compagnon (comp : 1, voir deckModel) : [{ key, name, qty, comp? }] (additionnée par carte). parseDeck ne les voit pas. */
+const dkSideCards = text => dkSideOf(deckModel(text));
 /* Carte de présentation d'un deck (liste des decks) : ligne de commentaire « // Deck Deal cover : Sol Ring » dans le texte, donc synchronisée avec lui sans champ de plus. */
 const COVER_LINE = '// Deck Deal cover : ', COVER_RE = /^\s*\/\/\s*Deck Deal cover\s*:\s*(.*?)\s*$/i;
 function dkCover(text) { for (const l of String(text || '').split(/\r?\n/)) { const m = l.match(COVER_RE); if (m && m[1]) return m[1]; } return ''; }
@@ -9318,41 +9358,35 @@ function dkCoverCard(text, metaOf) {
   }
   return pick(best || any || pd.cards[0] || pool[0], true);
 }
-/** Liste du créateur → texte : { fmt, main:[{ name, qty }], side:[{ name, qty }], cmdr:[{ name }], cover (nom de la carte de présentation, facultatif) }.
+/** Liste du créateur → texte : { fmt, main:[{ name, qty }], side:[{ name, qty }], cmdr:[{ name }], comp:[{ name, qty }] (compagnon, section « Companion »), cover (nom de la carte de présentation, facultatif) }.
  *  Même syntaxe que les exports du marché (en-tête « Commander », lignes « SB: ») : le reste de l'app la lit sans rien savoir du créateur. */
-function dkBuildText({ fmt, main, side, cmdr, cover, meta }) {
+function dkBuildText({ fmt, main, side, cmdr, comp, cover, meta }) {
   const out = ['// Deck Deal : ' + (fmt === 'commander' ? 'commander' : 'standard')];
   if (cover) out.push(COVER_LINE + cover);
   for (const l of meta || []) out.push(l);      // autres lignes « // Deck Deal <mot> : … » (tags, origine, suivi) : gardées telles quelles
   if (fmt === 'commander' && cmdr && cmdr.length) { out.push('Commander'); cmdr.forEach(c => out.push('1 ' + c.name)); out.push(''); }
+  if (comp && comp.length) { out.push('Companion'); comp.forEach(c => out.push(c.qty + ' ' + c.name)); out.push(''); }      // compagnon (deckModel) : hors du deck, gardé dans les deux formats
   out.push('Deck');
   (main || []).forEach(c => out.push(c.qty + ' ' + c.name));
   if (fmt !== 'commander' && side && side.length) { out.push(''); side.forEach(c => out.push('SB: ' + c.qty + ' ' + c.name)); }
   return out.join('\n');
 }
-/** Texte → { fmt ('' si inconnu), main, side, cmdr } : cartes dans l'ordre de la liste, doublons additionnés, clé = clé de collection (face avant).
- *  Lit aussi les listes venues d'ailleurs (sections de deckSecs) : « Commander », « Sideboard » et « Companion » (réserve), lignes « SB: », Creatures, Lands… ; Maybeboard, Tokens, About : laissés de côté. */
+/** Texte → { fmt ('' si inconnu), main, side, cmdr, comp } : cartes dans l'ordre de la liste, doublons additionnés, clé = clé de collection (face avant).
+ *  main : le deck, terrains de base compris ; comp : le compagnon (section « Companion », hors du deck : voir deckModel). Lit aussi les listes venues d'ailleurs :
+ *  « Commander », « Sideboard » et lignes « SB: » (réserve), « Companion », Creatures, Lands… ; Maybeboard, Tokens, About : laissés de côté. */
 function dkParse(text) {
-  const main = new Map(), side = new Map(), cmdr = [];
-  const add = (m, p) => { const k = ownKey(p.name), cur = m.get(k); if (cur) cur.qty += p.qty; else m.set(k, { key: k, name: p.name, qty: p.qty }); };
-  for (const [raw, sec] of deckSecs(text)) {
-    const line = raw.trim();
-    if (!line || /^(\/\/|#)/.test(line)) continue;
-    const sb = line.match(/^SB:\s*(.+)$/i);
-    if (sb) { const p = parseLine(sb[1]); if (p && !p.ignored) add(side, p); continue; }
-    const p = parseLine(line); if (!p || p.ignored || sec === 'skip') continue;
-    if (sec === 'cmdr') { const k = ownKey(p.name); if (!cmdr.some(c => c.key === k)) cmdr.push({ key: k, name: p.name }); }
-    else add(sec === 'side' || sec === 'comp' ? side : main, p);
-  }
+  const md = deckModel(text), by = list => { const m = new Map(); for (const c of list) { const k = ownKey(c.name), cur = m.get(k); if (cur) cur.qty += c.qty; else m.set(k, { key: k, name: c.name, qty: c.qty }); } return [...m.values()]; };
+  const cmdr = []; for (const c of md.cmdr) { const k = ownKey(c.name); if (!cmdr.some(x => x.key === k)) cmdr.push({ key: k, name: c.name }); }
+  const o = md.order, main = by([...md.main, ...md.basics.filter(b => o.has(b.key))].sort((a, b) => o.get(a.key) - o.get(b.key)));      // terrains de base à leur place dans la liste
   const meta = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^\/\/\s*Deck Deal \w+\s*:/i.test(l) && !COVER_RE.test(l));      // tags, origine, suivi des cartes manquantes
-  return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text), meta };
+  return { fmt: dkFormat(text), main, side: by(md.side), cmdr, comp: by(md.comp), cover: dkCover(text), meta };
 }
-/** Valeur estimée d'un deck : prix de chaque carte (centimes) × exemplaires, commandant compris, terrains de base et réserve exclus, cartes possédées comprises.
+/** Valeur estimée d'un deck : prix de chaque carte (centimes) × exemplaires, commandant compris, terrains de base, compagnon et réserve exclus (deckModel), cartes possédées comprises.
  *  metaOf(clé) → infos de la carte { eu } ; null/undefined = pas encore lue (à chercher : « missing »). pxOf(clé) → prix estimé (centimes, 0 si inconnu : builder.js › dkPx,
  *  relevé du jour sinon tendance de la fiche), prioritaire sur metaOf(clé).eu ; sans pxOf : la fiche seule.
  *  → { cents, known (cartes chiffrées), total (cartes différentes), missing: [{ key, name }] (fiches à lire), noPrice (lues mais sans prix), wait (ni prix ni fiche : la valeur peut encore monter) } */
 function dkValue(text, metaOf, pxOf) {
-  let cents = 0, known = 0, noPrice = 0, wait = 0; const missing = [], cards = parseDeck(text).cards;
+  let cents = 0, known = 0, noPrice = 0, wait = 0; const missing = [], cards = deckModel(text).cards;
   for (const c of cards) {
     const k = ownKey(c.key), m = metaOf(k), p = pxOf ? pxOf(k) : 0;
     if (!m) missing.push({ key: k, name: c.name });
@@ -9360,9 +9394,9 @@ function dkValue(text, metaOf, pxOf) {
   }
   return { cents: Math.round(cents), known, total: cards.length, missing, noPrice, wait };
 }
-/** Taille d'un deck comptée comme le viewer : tous les exemplaires, commandant et terrains de base compris, réserve « SB: » à part.
+/** Taille d'un deck comptée comme le viewer et l'éditeur (dkCheck) : tous les exemplaires, commandant et terrains de base compris, réserve et compagnon à part (deckModel).
  *  size : 100 si le format Commander est connu (noté par le créateur ou en-tête « Commander »), sinon 0. → { n, size } */
-function dkCount(text) { return { n: parseDeck(text).copies, size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
+function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
 /** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
 function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
 /** Couleurs d'un deck d'après ses terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. */
@@ -9371,12 +9405,15 @@ function dkColors(text) {
   for (const b of parseDeck(text).basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
   return [...'WUBRG'].filter(c => have.has(c)).join('');
 }
-/** Vérifie un deck du créateur. d = { main, side, cmdr } (comme dkParse) ; metaOf(clé) → { ci } ou null (identité de couleur, si connue).
+/** Vérifie un deck du créateur. d = { main, side, cmdr, comp } (comme dkParse) ; metaOf(clé) → { ci, cd, tl, lg } ou null (si connue).
  *  o (Commander, facultatif) : { legal: clé → true | false | null (builder.js › cardLegal : fiche Scryfall, sinon base du coach ; sans lui : metaOf(clé).lg),
  *  br: bracket visé (0 : pas de vérification), facts: { gc, mld, xt, c2, c3 } (deckwiz.js › dwBrFacts) } : règles du bracket (brackets.js), comme l'audit du coach.
- *  Retourne { n (cartes du deck, commandant compris), side, size, issues: [{ lv: 'bad'|'warn', t }] } : « bad » = règle enfreinte, « warn » = deck pas fini. */
+ *  Retourne { n (cartes du deck, commandant compris, compagnon exclu), side (réserve, compagnon compris en Standard), size, issues: [{ lv: 'bad'|'warn', t }] } : « bad » = règle enfreinte, « warn » = deck pas fini.
+ *  Compagnon (deckModel) : jamais dans les 100 cartes d'un Commander ; en Standard, une des 15 cartes de la réserve (compté une fois s'il y est déjà). */
+const dkCompOut = (comp, side) => (comp || []).filter(c => !(side || []).some(x => x.key === c.key));      // compagnon pas déjà écrit dans la réserve
 function dkCheck(fmt, d, metaOf, o) {
-  const f = DK_FORMATS[fmt] || DK_FORMATS.standard, main = d.main || [], side = d.side || [], cmdr = d.cmdr || [], issues = [];
+  const f = DK_FORMATS[fmt] || DK_FORMATS.standard, main = d.main || [], cmdr = d.cmdr || [], issues = [];
+  const side = fmt === 'commander' ? d.side || [] : [...(d.side || []), ...dkCompOut(d.comp, d.side)];
   const sum = a => a.reduce((x, c) => x + c.qty, 0), n = sum(main) + cmdr.length, ns = sum(side);
   if (fmt === 'commander') {
     if (!cmdr.length) issues.push({ lv: 'bad', t: T('Aucun commandant : choisis-en un.') });
@@ -9389,7 +9426,7 @@ function dkCheck(fmt, d, metaOf, o) {
       if (c.qty > max) issues.push({ lv: 'bad', t: max === 1 ? T('{name} : {n} exemplaires (un seul en Commander).', { name: c.name, n: c.qty }) : T('{name} : {n} exemplaires ({max} au maximum).', { name: c.name, n: c.qty, max }) });
       if (cmdr.some(x => x.key === c.key)) issues.push({ lv: 'bad', t: T('{name} est déjà ton commandant.', { name: c.name }) });
     }
-    for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && m.cd === 0) issues.push({ lv: 'warn', t: T('{name} ne peut normalement pas être commandant.', { name: c.name }) }); }      // cd : 0 = carte lue sur Scryfall et non éligible (absent = pas encore lue)
+    for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (canCommand(m) === 0) issues.push({ lv: 'warn', t: T('{name} ne peut normalement pas être commandant.', { name: c.name }) }); }      // cd : 0 = carte lue sur Scryfall et non éligible (absent = pas encore lue)
     const ci = new Set(); let known = cmdr.length > 0;
     for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && typeof m.ci === 'string') for (const x of m.ci) ci.add(x); else known = false; }
     if (known) for (const c of main) { const m = metaOf(c.key); if (m && typeof m.ci === 'string' && [...m.ci].some(x => !ci.has(x))) issues.push({ lv: 'warn', t: T('{name} sort de l\'identité de couleur du commandant.', { name: c.name }) }); }
@@ -9979,9 +10016,9 @@ const engFree = (owned, eng, k, exceptId) => Math.max(0, (Number(owned) || 0) - 
 function engDecksOf(eng, k) { const out = []; for (const id in eng || {}) { const q = (eng[id].q && eng[id].q[k]) || 0; if (q > 0) out.push({ id, n: eng[id].n, q }); } return out; }
 /** Deck monté : pour chaque carte du texte (hors terrains de base), les exemplaires possédés, au plus la quantité du deck. ownedOf : clé → exemplaires possédés. */
 function engSnapshot(text, ownedOf) {
-  const want = new Map();      // clé → exemplaires voulus : deck + réserve (« SB: »), la réserve est dans la boîte du deck aussi
-  for (const c of parseDeck(text).cards) { const k = ownKey(c.key); if (k && !BASIC_NAMES.has(k)) want.set(k, (want.get(k) || 0) + c.qty); }
-  for (const c of dkSideCards(text)) if (c.key && !BASIC_NAMES.has(c.key)) want.set(c.key, (want.get(c.key) || 0) + c.qty);
+  const want = new Map(), md = deckModel(text);      // clé → exemplaires voulus : deck + réserve (« SB: ») + compagnon, la réserve est dans la boîte du deck aussi
+  for (const c of md.cards) { const k = ownKey(c.key); if (k && !BASIC_NAMES.has(k)) want.set(k, (want.get(k) || 0) + c.qty); }
+  for (const c of dkSideOf(md)) if (c.key && !BASIC_NAMES.has(c.key)) want.set(c.key, (want.get(c.key) || 0) + c.qty);
   const q = {};
   for (const [k, w] of want) {
     const n = Math.min(w, Math.max(0, Math.floor(Number(ownedOf(k)) || 0)));
@@ -10027,13 +10064,13 @@ function canBeCommander(c) {
   }
   return 0;
 }
-/** Sans l'info précise (cartes lues avant l'ajout du champ) : d'après la ligne de type. */
-const isCmdrType = tl => /\blegendary\b/i.test(String(tl || '')) && /\bcreature\b/i.test(String(tl || ''));
+/** Sans l'info précise (cartes lues avant l'ajout du champ) : d'après la ligne de type de la face avant (canBeCommander : créature, ou Véhicule / Vaisseau, légendaire). */
+const isCmdrType = tl => { const f = String(tl || '').split('//')[0]; return /\blegendary\b/i.test(f) && /\b(creature|vehicle|spacecraft)\b/i.test(f); };
 /** Classe « commander » d'une carte de la collection : { cx, ed } — cx 0 pas commandant · 1 peut l'être · 2 joué comme commandant dans des decks EDHREC (ed : nombre de decks). edh : résultat de parseEdh, ou null. */
 function cmdrClass(i, edh) {
   const e = edh && edh.by && edh.by.get(i.k);
   if (e) return { cx: 2, ed: e.decks };
-  return { cx: (i.cd != null ? i.cd : isCmdrType(i.tl)) ? 1 : 0, ed: 0 };
+  return { cx: canCommand(i) === 1 ? 1 : 0, ed: 0 };
 }
 /** Lit le texte d'un edh.tsv en modèle { v, at, cmds:[{ slug, decks, ci, names, img }], decks:[{ slug, src, label, url, cards:[[nom, qté]] }], price:[[nom, centimes]], gc:[nom] } (voir edhPack). */
 function edhModelFromTsv(text) {
@@ -10886,8 +10923,8 @@ function readShare(kind, d) {
 }
 
 /* ── Main de départ ────────────────────────────────────────────────────────────────────────────── */
-/** Terrain ? D'après la ligne de type de la face avant (« Land », « Legendary Land »… ; une carte modale « Sort // Terrain » n'en est pas un). */
-const isLandType = tl => /\bland\b/i.test(String(tl || '').split('//')[0]);
+/** Terrain ? Même règle que le viewer et le coach (landKind) : face avant terrain, ou double face modale « Sort // Terrain » (jouable comme terrain). */
+const isLandType = tl => !!landKind(tl);
 /** Bibliothèque d'un deck : un élément par exemplaire (commandants retirés : ils restent dans la zone de commandement). */
 function libraryOf(items) {
   const out = [];
@@ -10913,8 +10950,8 @@ if (typeof module !== 'undefined' && module.exports) {
     parseLine, dropCard, restoreLines, sortCards, ctCardUrl, ctShare, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
-    sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
+    sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
@@ -19087,10 +19124,10 @@ try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type',
 
 /** Deck Commander (bloc « Commander » ou format noté) : bouton « Analyser » (deckana.js). */
 const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
-/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle est légendaire (export EDHREC). */
+/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {
   const ks = commanderKeys(text).filter(k => cards.some(c => c.key === k));
-  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (m && canLead(m.tl)) ks.push(cards[0].key); }
+  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (canCommand(m) === 1) ks.push(cards[0].key); }
   return new Set(ks);
 }
 
@@ -19432,7 +19469,7 @@ function dvGroups() {
   $('#dvCmd', el).innerHTML = cmds.length ? `<div class="dv-cmds">${cmds.map(c => dvHero(c, flat(c), snap, dl)).join('')}</div>` : '';
   const groups = DV.sort === 'role' ? dvRoleGroups(rest, !!snap.ref) : groupSnap(rest, DV.sort, !!snap.ref);
   const hidden = (DV.f.colors.size || DV.f.type || DV.f.cmc !== '') ? all.filter(i => !hasMeta(i)).length : 0;
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${esc(landGroupNote(g))}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
   const cols = g => (view === 'stacks' ? Math.min(2, Math.max(1, g.items.length)) : 1);
   const box = (gi, c = 0) => `<div class="${view === 'grid' ? 'dv-grid' : view === 'strips' ? 'dv-strips' : 'dvp'}" data-gi="${gi}" data-c="${c}"></div>`;
   const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
@@ -19614,10 +19651,10 @@ const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Ma
 function openHand() {
   if (typeof prgAdd === 'function') prgAdd('hd');      // mains de départ tirées (progress.js)
   const snap = DV.snap; if (!snap) return;
-  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);
+  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);      // doubles faces « Sort // Terrain » comprises (landKind), annoncées
   if (lib.length < 7) { toast(T('Il faut au moins 7 cartes dans le deck')); return; }
-  const L = lib.filter(isLand).length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
-  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains'), api => {
+  const L = lib.filter(isLand).length, mdfc = lib.filter(it => it.s !== 'basic' && landKind(it.tl) === 'mdfc').length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
+  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains') + (mdfc ? ' (' + landMdfcText(mdfc) + ')' : ''), api => {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
@@ -27752,13 +27789,16 @@ async function ownLangFetch(list) {
 }
 /** Valeur estimée d'un texte de deck, en chaîne : « ≈ 84 € » (« ≈ 84 €+ » si des cartes n'ont pas de prix), '' tant que rien n'est lu. */
 function dkValueText(v) { return v.known ? `≈ ${fmt(v.cents, mkCur())}${v.known < v.total ? '+' : ''}` : ''; }
-const BD = { el: null, id: null, name: '', fmt: 'standard', cover: '', main: new Map(), side: new Map(), cmdr: [], tab: 'deck', tgt: 'main', q: '', shown: 60, dirty: false, meta: DM, tried: new Set(), cat: null, catErr: '', metaT: 0, issuesOpen: false, idx: null };
+const BD = { el: null, id: null, name: '', fmt: 'standard', cover: '', main: new Map(), side: new Map(), comp: new Map(), cmdr: [], tab: 'deck', tgt: 'main', q: '', shown: 60, dirty: false, meta: DM, tried: new Set(), cat: null, catErr: '', metaT: 0, issuesOpen: false, idx: null };
 const BD_PAGE = 60;
 const BD_BASICS = [['plains', 'Plains', 'Plaine'], ['island', 'Island', 'Île'], ['swamp', 'Swamp', 'Marais'], ['mountain', 'Mountain', 'Montagne'], ['forest', 'Forest', 'Forêt']];
 const bdMeta = dmOf;
 const bdCount = m => { let n = 0; for (const c of m.values()) n += c.qty; return n; };
-const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, cover: BD.cover, meta: BD.dkMeta || [] });
-const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0);
+const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, comp: [...BD.comp.values()], cover: BD.cover, meta: BD.dkMeta || [] });      // comp : compagnon de la liste (core.js › deckModel), gardé à l'enregistrement
+/** Exemplaires de k dans le deck et la réserve ; Standard : le compagnon est une carte de la réserve (compté une fois s'il y est déjà écrit). */
+const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0) + (BD.fmt !== 'commander' && !BD.side.has(k) ? (BD.comp.get(k) || {}).qty || 0 : 0);
+/** Cartes de la réserve (Standard : compagnon compris, comme core.js › dkCheck). */
+const bdSideN = () => bdCount(BD.side) + (BD.fmt !== 'commander' ? dkCompOut([...BD.comp.values()], [...BD.side.values()]).reduce((a, c) => a + c.qty, 0) : 0);
 /** Nom affiché : français si la carte est possédée en français (même règle que la collection), sinon anglais. */
 function bdLabel(k, name) { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || name; }
 const bdCmp = (a, b) => NAME_CMP(bdLabel(a.key, a.name), bdLabel(b.key, b.name));
@@ -27785,13 +27825,13 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), comp: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
     if (!prev) BD.dirty = true;      // liste collée : à enregistrer
-    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover; BD.dkMeta = p.meta;      // la carte de présentation choisie est gardée
-    if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander
+    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); p.comp.forEach(c => BD.comp.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover; BD.dkMeta = p.meta;      // la carte de présentation choisie est gardée
+    if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander ; le compagnon (hors des 100 cartes) reste
   } else BD.fmt = o.fmt === 'commander' ? 'commander' : 'standard';
   if (!prev && Array.isArray(o.cmdr) && BD.fmt === 'commander') { BD.cmdr = o.cmdr.slice(0, 2).map(c => ({ key: c.key, name: c.name })); for (const c of BD.cmdr) BD.main.delete(c.key); BD.dirty = true; }
   if (Array.isArray(o.swaps) && o.swaps.length) {      // échanges conseillés par l'analyse (deckana.js) : appliqués, à enregistrer
@@ -27890,11 +27930,12 @@ function bdChange(tgt, k, name, d, batch) {
   } else {
     const m = BD[tgt], cur = m.get(k), q = cur ? cur.qty : 0;
     if (q + d < 0) return false;
+    if (d > 0 && tgt === 'comp') return no('copies', T('Un seul compagnon'));      // compagnon : seulement celui de la liste, à retirer au besoin
     if (d > 0) {
       if (BD.cmdr.some(c => c.key === k)) return no('copies', T('Cette carte est déjà ton commandant'));
       const max = dkMaxCopies(BD.fmt, k);      // terrains de base, Relentless Rats… : sans limite ; Seven Dwarves 7, Nazgûl 9
       if (bdTot(k) + 1 > max) return no('copies', max === 1 ? T('Commander : un seul exemplaire de chaque carte') : T('{n} exemplaires au maximum (deck et réserve)', { n: max }));
-      if (tgt === 'side' && bdCount(BD.side) + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
+      if (tgt === 'side' && bdSideN() + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
     }
     if (q + d === 0) m.delete(k); else m.set(k, { key: k, name: cur ? cur.name : name, qty: q + d });
   }
@@ -28044,7 +28085,7 @@ function bdVisualHtml() {
   const groups = BD.sort === 'role' && typeof dvRoleGroups === 'function' ? dvRoleGroups(items, true) : groupSnap(items, BD.sort, true);
   BD.vflat = []; let n = 0;
   const tile = (it, sm) => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null, sm); };      // sm : carte recouverte d'une pile, petite image (viewer.js › dvSmall)
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${esc(landGroupNote(g))}</small></h3>`;
   const box = (cls, list) => `<div class="${cls}">${list.map((it, j) => tile(it, cls === 'dvp' && j < list.length - 1)).join('')}</div>`;
   if (!groups.length) return `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   const body = view === 'piles' ? `<div class="dv-piles">${groups.map(g => `<section class="dv-g dv-pile">${head(g)}${box('dvp', g.items)}</section>`).join('')}</div>`
@@ -28055,6 +28096,11 @@ function bdCmdrHtml() {
   if (BD.fmt !== 'commander') return '';
   return `<div class="sec-title">${T(BD.cmdr.length > 1 ? 'Commandants' : 'Commandant')}</div>` + (BD.cmdr.length ? BD.cmdr.map(c => bdRow(c.key, c.name, 1, 'cmdr', 'deck')).join('') : `<button class="btn ghost small" type="button" data-act="pick-cmdr" style="align-self:flex-start">${T('Choisir un commandant')}</button>`);
 }
+/** Compagnon de la liste (section « Companion » d'un export) : hors des 100 cartes d'un Commander, une carte de la réserve en Standard (core.js › deckModel). */
+function bdCompHtml() {
+  if (!BD.comp.size) return '';
+  return `<div class="sec-title">${T('Compagnon')} <span class="bd-opt">${BD.fmt === 'commander' ? T('hors des 100 cartes') : T('dans la réserve')}</span></div>` + [...BD.comp.values()].map(c => bdRow(c.key, c.name, c.qty, 'comp', 'deck')).join('');
+}
 /** Carte touchée dans une vue en images : en grand, avec « Retirer du deck » (et les autres cartes du deck en glissant). */
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
@@ -28063,11 +28109,11 @@ function bdVisualOpen(i) {
   if (list[i]) openCardViewer(list, i);
 }
 function bdDeckHtml() {
-  if (BD.view && BD.view !== 'list' && !BD.split) return bdToolsHtml() + bdCmdrHtml() + bdVisualHtml();
+  if (BD.view && BD.view !== 'list' && !BD.split) return bdToolsHtml() + bdCmdrHtml() + bdCompHtml() + bdVisualHtml();
   const mainAll = [...BD.main.values()], basicKeys = new Set(BD_BASICS.map(b => b[0]));
   const spells = mainAll.filter(c => !BASIC_NAMES.has(c.key)).sort(bdCmp), others = mainAll.filter(c => BASIC_NAMES.has(c.key) && !basicKeys.has(c.key)).sort(bdCmp);
   let h = BD.split ? '' : bdToolsHtml();
-  h += bdCmdrHtml();
+  h += bdCmdrHtml() + bdCompHtml();
   h += `<div class="sec-title">${T('Deck')} · ${nf0(bdCount(BD.main))}</div>`;
   h += spells.length ? spells.map(c => bdRow(c.key, c.name, c.qty, 'main', 'deck')).join('') : `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   h += `<div class="sec-title">${T('Terrains de base')} · ${nf0(mainAll.filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0))}</div>`;
@@ -28092,7 +28138,7 @@ function bdCollHtml() {
   if (!collCount()) return `<div class="deck-empty">${T('Ta collection est vide. Utilise « Chercher » pour ajouter n\'importe quelle carte au deck.')}</div>`;
   const words = normPart(BD.q).split(' ').filter(Boolean);
   let items = bdIndex().filter(it => words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') items = items.filter(it => (COLL.meta[it.k] || {}).cd);
+  if (BD.tgt === 'cmdr') items = items.filter(it => canCommand(COLL.meta[it.k]) === 1);      // règle unique (core.js › canCommand)
   const shown = items.slice(0, BD.shown);
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
@@ -28298,7 +28344,7 @@ function bdOwn(words) {
   const f = { ...BD.f, q: '' }; let keys = null;
   if (filterActive(f)) { const v = collAll(); if (typeof srchPrep === 'function') srchPrep(v, f); keys = new Set(filterItems(v.all, f).map(it => it.k)); }
   let own = bdIndex().filter(it => (!keys || keys.has(it.k)) && words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') own = own.filter(it => (COLL.meta[it.k] || {}).cd);
+  if (BD.tgt === 'cmdr') own = own.filter(it => canCommand(COLL.meta[it.k]) === 1);
   return own;
 }
 /** Extensions des cartes proposées (bouton « Extension » des filtres) : [[code, nom, cartes]], « Sans édition » en tête. */
@@ -28342,7 +28388,7 @@ function bdCmdrCi() {
 function bdBulkPlan(list, qOf) {
   const cmd = BD.fmt === 'commander', tgt = !cmd && BD.tgt === 'side' ? 'side' : 'main', ci = bdCmdrCi();
   const P = { tgt, add: [], n: 0, have: 0, ci: 0, basic: 0, full: 0, ill: [], res: [], noCmd: cmd && !BD.cmdr.length, ciUnknown: cmd && BD.cmdr.length > 0 && !ci };
-  let room = tgt === 'side' ? Math.max(0, DK_FORMATS[BD.fmt].side - bdCount(BD.side)) : Infinity;
+  let room = tgt === 'side' ? Math.max(0, DK_FORMATS[BD.fmt].side - bdSideN()) : Infinity;
   const seen = new Set();
   for (const { k, name } of list) {
     if (seen.has(k)) continue; seen.add(k);
@@ -28608,7 +28654,7 @@ function dwCard(k) {
   const r = DW.byKey && DW.byKey.get(k);
   if (r) return { name: r[0], ci: r[1], cmc: r[2], ty: r[3], roles: r.length < 10 && r[4] & DW_RB.counter ? r[4] & ~DW_RB.removal : r[4], eur: r[5], fl: r[6], prod: r[7] || '', rank: r[8] || 0, mc: r.length >= 10 ? r[9] || '' : null, pt: Array.isArray(r[12]) ? r[12] : null };      // ancienne base (sans coût de mana) : un contresort n'y est jamais un retrait ciblé ; la nouvelle tranche d'après le texte ; pt : [force, endurance, mots-clés] d'une créature (colonne [12], base du 5 novembre ; sinon null : force estimée par la simulation)
   const m = typeof dmOf === 'function' ? dmOf(k) : null; if (!m && !BASIC_NAMES.has(k)) return null;
-  const tl = m ? String(m.tl || '') : 'Basic Land', land = /\bLand\b/.test(tl.split(' // ')[0]);
+  const tl = m ? String(m.tl || '') : 'Basic Land', land = !!landKind(tl);      // même règle que le viewer et la main de départ
   return { name: k, ci: m ? m.ci || '' : '', cmc: m ? m.cm || 0 : 0, ty: land ? 1 : 0, roles: land ? DW_RB.land : 0, eur: m ? m.eu : 0, fl: 0, prod: '', rank: 0 };
 }
 const DW_BASIC_C = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
@@ -28674,7 +28720,7 @@ function dwPips(mc) {
 }
 /** Profil d'un deck (X : { main: Map, cmdr: [] }, l'éditeur par défaut) : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
 function dwProfile(X = BD) {
-  const p = { combos: [], n: 0, nonland: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
+  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
   let mvSum = 0; const all = [...X.main.values()];
   for (const c of all) {
@@ -28682,7 +28728,8 @@ function dwProfile(X = BD) {
     if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur)
     if (dwGC(k, x)) p.gc.push(x ? x.name : c.name);
     if (!x) { p.unk += q; continue; }
-    const land = !!(x.roles & DW_RB.land) || BASIC_NAMES.has(k);
+    const tl = (dmOf(k) || {}).tl, lk = tl ? landKind(tl) : '', land = BASIC_NAMES.has(k) || (tl ? !!lk : !!(x.roles & DW_RB.land));      // règle unique des terrains (core.js › landKind : doubles faces « Sort // Terrain » comprises) ; fiche pas encore lue : la base
+    if (lk === 'mdfc') p.mdfc += q;
     for (const r of DKW_ROLES) if (r === 'land' ? land : x.roles & DW_RB[r]) p[r] += q;
     if (land) { const bc = dwBasicColor(k), pr = bc ? bc : x.prod; for (const col of new Set([...String(pr)].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q; }
     else {
@@ -29240,7 +29287,7 @@ function dwGaugesHtml(prof, tgt, cmd, pack, ro) {
     const n = prof[r], [lo, mid, hi] = tgt[r], st = n < lo ? (n < lo - 3 ? 'bad' : 'low') : n > hi + (r === 'land' ? 0 : 3) ? 'high' : 'ok';
     const max = Math.max(hi + 2, n, 1), pct = v => Math.max(0, Math.min(100, v / max * 100));
     const open = !ro && DW.open === r, miss = Math.max(0, mid - n), tag = ro ? 'div' : 'button';
-    const lbl = st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}');
+    const lbl = (st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}')) + (r === 'land' && prof.mdfc ? ' · ' + landMdfcText(prof.mdfc) : '');      // doubles faces comptées comme terrains, annoncées
     let h = `<div class="dw-g ${st}${open ? ' open' : ''}"><${tag} ${ro ? '' : `type="button" data-act="dw-g" data-r="${r}" aria-expanded="${open}" `}class="dw-gh" title="${esc(T(help))}">
       <span class="dw-gl"><b>${T(label)}</b><small>${esc(lbl)}</small></span><span class="dw-gn"><b>${nf0(n)}</b> / ${mid}</span>
       <span class="dw-bar" aria-hidden="true"><i class="dw-rng" style="left:${pct(lo)}%;width:${Math.max(2, pct(hi) - pct(lo))}%"></i><i class="dw-val" style="width:${pct(n)}%"></i></span></${tag}>`;
@@ -29906,7 +29953,7 @@ function daDeckOf(text) {
     const ks = typeof commanderKeys === 'function' ? commanderKeys(text).filter(k => main.has(k)) : [];
     const first = p.main[0], fx = first && dwCard(first.key), m = first && dmOf(first.key);
     if (ks.length) cmdr = ks.slice(0, 2).map(k => ({ key: k, name: main.get(k).name }));
-    else if (first && ((m && m.cd) || (fx && fx.ty & 256 && fx.ty & 2))) cmdr = [{ key: first.key, name: first.name }];
+    else if (first && canCommand(m, fx) === 1) cmdr = [{ key: first.key, name: first.name }];      // même règle que le viewer et l'éditeur (core.js › canCommand)
   }
   for (const c of cmdr) { const x = main.get(c.key); if (x) { if (x.qty > 1) x.qty--; else main.delete(c.key); } }
   return { main, cmdr, wiz: null, skip: null };

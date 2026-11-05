@@ -333,10 +333,11 @@ const SN = [
 ];
 const names = g => g.items.map(i => i.n);
 
-test('typeBucket : Artifact Creature → Créatures, Artifact Land → Terrains, Land Creature → Créatures', () => {
+test('typeBucket : Artifact Creature → Créatures, Artifact Land → Terrains, Land Creature → Terrains (Dryad Arbor), Sort // Terrain → Terrains', () => {
   assert.equal(C.typeBucket('Artifact Creature — Golem'), 'Créatures');
   assert.equal(C.typeBucket('Artifact Land'), 'Terrains');
-  assert.equal(C.typeBucket('Land Creature — Forest Dryad'), 'Créatures');
+  assert.equal(C.typeBucket('Land Creature — Forest Dryad'), 'Terrains', 'Dryad Arbor : un terrain (landKind)');
+  assert.equal(C.typeBucket('Instant // Land'), 'Terrains'); assert.equal(C.typeBucket('Creature — Elf Druid // Land'), 'Terrains', 'double face modale terrain au dos : avec les terrains');
   assert.equal(C.typeBucket('Legendary Enchantment — Saga'), 'Enchantements');
   assert.equal(C.typeBucket('Instant'), 'Éphémères'); assert.equal(C.typeBucket('Sorcery'), 'Rituels');
   assert.equal(C.typeBucket('Legendary Planeswalker — Jace'), 'Planeswalkers'); assert.equal(C.typeBucket('Battle — Siege'), 'Batailles');
@@ -346,11 +347,11 @@ test('typeBucket : Artifact Creature → Créatures, Artifact Land → Terrains,
 test('groupSnap mana : colonnes par coût, 7+ regroupé, terrains (basiques en dernier), introuvables à la fin', () => {
   const g = C.groupSnap(SN, 'mana');
   assert.deepEqual(g.map(x => x.id), ['m0', 'm1', 'm2', 'm4', 'm7', 'land', 'nf']);
-  assert.deepEqual(names(g[0]), ['Dryad Arbor', 'Mox Amber'], 'Land Creature n\'est pas un terrain ; Mox à coût 0');
+  assert.deepEqual(names(g[0]), ['Mox Amber'], 'Mox à coût 0 ; Dryad Arbor (Land Creature) : avec les terrains (landKind)');
   assert.deepEqual(names(g[1]), ['Llanowar Elves', 'Sol Ring'], 'tri alphabétique dans un groupe');
   assert.equal(g[1].count, 3, 'le nombre d\'exemplaires compte la quantité (2 + 1)'); assert.equal(g[1].cost, 190);
   assert.equal(g[4].label, '7 et plus'); assert.deepEqual(names(g[4]), ['Craterhoof Behemoth']);
-  assert.deepEqual(names(g[5]), ['Command Tower', 'Forest'], 'terrain non basique avant les basiques'); assert.equal(g[5].count, 6);
+  assert.deepEqual(names(g[5]), ['Command Tower', 'Dryad Arbor', 'Forest'], 'terrains non basiques avant les basiques'); assert.equal(g[5].count, 7);
   assert.deepEqual(names(g[6]), ['Phantom Card']);
 });
 
@@ -369,14 +370,14 @@ test('groupSnap prix, relevé de référence : « Sans prix » au lieu de « San
 test('groupSnap type : ordre fixe des familles, groupes vides absents, tri par coût puis nom', () => {
   const g = C.groupSnap(SN, 'type');
   assert.deepEqual(g.map(x => x.label), ['Créatures', 'Artefacts', 'Rituels', 'Terrains', 'Introuvables']);
-  assert.deepEqual(names(g[0]), ['Dryad Arbor', 'Llanowar Elves', 'Craterhoof Behemoth']);
+  assert.deepEqual(names(g[0]), ['Llanowar Elves', 'Craterhoof Behemoth'], 'Dryad Arbor : Terrains');
   assert.deepEqual(names(g[1]), ['Mox Amber', 'Sol Ring', 'Arcane Signet']);
   assert.deepEqual(C.groupSnap([], 'mana'), []);
   assert.deepEqual(C.groupSnap([{ k: 'a', n: 'A', q: 1, s: 'ok', c: 1 }], 'mana').map(x => x.id), ['m0'], 'sans info de mana : coût 0');
 });
 
 test('curveOf : exemplaires par coût, 7+ cumulé, hors terrains et introuvables', () => {
-  assert.deepEqual(C.curveOf(SN), [2, 3, 1, 0, 1, 0, 0, 1]);
+  assert.deepEqual(C.curveOf(SN), [1, 3, 1, 0, 1, 0, 0, 1], 'Dryad Arbor : un terrain, hors courbe');
 });
 
 test('sanitizeSnap : nettoie, borne, ignore le superflu ; null si inutilisable', () => {
@@ -461,7 +462,7 @@ test('commanderKeys : cartes sous l\'en-tête Commander, rien sans en-tête', ()
   assert.deepEqual(C.commanderKeys('Commander (1)\n1 Atraxa, Praetors\' Voice\n\nDeck\n1 Sol Ring'), ['atraxa praetors voice']);
   assert.deepEqual(C.commanderKeys('Commander\n1 Tymna the Weaver\n1 Thrasios, Triton Hero\nDeck\n1 Sol Ring'), ['tymna the weaver', 'thrasios triton hero']);
   assert.deepEqual(C.commanderKeys('1 Cloud, Midgar Mercenary\n1 Sol Ring'), []); assert.deepEqual(C.commanderKeys(''), []);
-  assert.ok(C.canLead('Legendary Creature — Human Soldier')); assert.ok(C.canLead('Legendary Planeswalker — Jace')); assert.ok(!C.canLead('Creature — Elf')); assert.ok(!C.canLead('Legendary Artifact')); assert.ok(!C.canLead(undefined));
+  assert.ok(C.canLead('Legendary Creature — Human Soldier')); assert.ok(!C.canLead('Legendary Planeswalker — Jace'), 'planeswalker ordinaire : pas commandant (canCommand)'); assert.ok(!C.canLead('Creature — Elf')); assert.ok(!C.canLead('Legendary Artifact')); assert.ok(!C.canLead(undefined));
 });
 
 /* ── Collection ───────────────────────────────────────────────────────────────────────────── */
@@ -1033,6 +1034,7 @@ test('canBeCommander : légendaire créature, véhicule/vaisseau avec F/E, texte
   assert.equal(C.canBeCommander(dfc('Legendary Enchantment', 'Legendary Creature — God', 'modal_dfc')), 1, 'double face modale : l\'une ou l\'autre');
   assert.equal(C.canBeCommander(null), 0); assert.equal(C.canBeCommander({}), 0);
   assert.equal(C.isCmdrType('Legendary Creature — Elf'), true); assert.equal(C.isCmdrType('Legendary Artifact'), false); assert.equal(C.isCmdrType(undefined), false);
+  assert.equal(C.isCmdrType('Legendary Artifact — Vehicle'), true, 'Véhicule légendaire (comme canBeCommander)'); assert.equal(C.isCmdrType('Legendary Enchantment — Saga // Legendary Creature — God'), false, 'face avant seulement');
 });
 
 const EDH_TXT = [
@@ -1365,6 +1367,56 @@ test('créateur de deck : lit une liste venue d\'ailleurs (sections, Sideboard, 
   assert.deepEqual(p.cmdr.map(c => c.key), ['atraxa praetors voice']); assert.deepEqual(p.main.map(c => c.key), ['sol ring', 'fire'], 'DFC : clé = face avant');
   assert.deepEqual(p.side.map(c => c.key), ['negate']); assert.equal(p.fmt, '');
   assert.deepEqual(C.dkParse('4 Bolt\n4 Bolt\nSB: 1 Bolt\n').main.map(c => c.qty), [8], 'doublons additionnés');
+});
+/* ── Regroupements du 5 novembre (lot R1) : une seule lecture d'un deck (deckModel), une règle « peut être commandant », une règle des terrains ── */
+const R1_DECK = 'Commander\n1 Lurrus of the Dream-Den\n\nCompanion\n1 Jegantha, the Wellspring\n\nDeck\n' + Array.from({ length: 60 }, (_, i) => '1 Card ' + i).join('\n') + '\n39 Mountain';
+test('compagnon : hors des 100 cartes et de la valeur, gardé dans la réserve, réécrit par l\'éditeur (deckModel)', () => {
+  const md = C.deckModel(R1_DECK);
+  assert.deepEqual(md.cmdr.map(c => c.key), ['lurrus of the dream den']); assert.deepEqual(md.comp.map(c => c.name), ['Jegantha, the Wellspring']);
+  assert.equal(md.main.length, 60); assert.deepEqual(md.basics.map(c => [c.key, c.qty]), [['mountain', 39]]); assert.equal(md.cards.length, 61, 'cartes du deck : commandant + 60');
+  assert.deepEqual(C.dkCount(R1_DECK), { n: 100, size: 100 }, 'Mes decks : 100/100, pas 101'); assert.equal(C.dkCountText(R1_DECK), '100/100 cartes');
+  assert.equal(C.parseDeck(R1_DECK).copies, 100); assert.ok(!C.parseDeck(R1_DECK).cards.some(c => c.key === 'jegantha the wellspring'), 'compagnon : ni cherché ni chiffré');
+  const p = C.dkParse(R1_DECK); assert.deepEqual(p.comp, [{ key: 'jegantha the wellspring', name: 'Jegantha, the Wellspring', qty: 1 }]); assert.deepEqual(p.side, []);
+  const ck = C.dkCheck('commander', p, () => null); assert.equal(ck.n, 100); assert.deepEqual(ck.issues, [], 'éditeur : 100, conforme (même chiffre que Mes decks)');
+  const v = C.dkValue(R1_DECK, () => ({ eu: 100 })); assert.deepEqual([v.cents, v.total], [6100, 61], 'valeur : commandant + 60 cartes, sans le compagnon');
+  assert.deepEqual(C.dkSideCards(R1_DECK), [{ key: 'jegantha the wellspring', name: 'Jegantha, the Wellspring', qty: 1, comp: 1 }], 'viewer : le compagnon dans la réserve');
+  assert.equal(C.engSnapshot(R1_DECK, () => 1)['jegantha the wellspring'], 1, 'deck monté : le compagnon est dans la boîte du deck');
+  // aller-retour par l'éditeur : le compagnon n'est plus perdu
+  const t = C.dkBuildText({ ...p, fmt: 'commander' });
+  assert.match(t, /\nCommander\n1 Lurrus of the Dream-Den\n\nCompanion\n1 Jegantha, the Wellspring\n\nDeck\n/);
+  assert.deepEqual(C.dkParse(t).comp, p.comp); assert.deepEqual(C.dkCount(t), { n: 100, size: 100 }); assert.equal(C.dkValue(t, () => ({ eu: 100 })).cents, 6100, 'éditeur et Mes decks : même valeur');
+  assert.equal(C.dkBuildText({ ...C.dkParse(t), fmt: 'commander' }), t, 'aller-retour identique');
+  // Arena (Standard) : le compagnon est aussi écrit dans le Sideboard → une seule carte de réserve
+  const a = 'Companion\n1 Lurrus of the Dream-Den\n\nDeck\n4 Lightning Bolt\n56 Mountain\n\nSideboard\n1 Lurrus of the Dream-Den\n2 Negate';
+  assert.deepEqual(C.dkSideCards(a).map(c => [c.name, c.qty, c.comp || 0]), [['Lurrus of the Dream-Den', 1, 1], ['Negate', 2, 0]]);
+  const pa = C.dkParse(a), ca = C.dkCheck('standard', pa); assert.deepEqual([ca.n, ca.side, ca.issues.length], [60, 3, 0], 'Standard : 60 + 3 en réserve, Lurrus compté une fois');
+  assert.equal(C.dkCheck('standard', { ...pa, side: pa.side.filter(c => c.key !== 'lurrus of the dream den') }).side, 3, 'compagnon pas écrit dans la réserve : il y compte quand même');
+  assert.deepEqual(C.dkCheck('standard', { main: [{ key: 'mountain', name: 'Mountain', qty: 60 }], side: [], cmdr: [], comp: [{ key: 'a', name: 'A', qty: 1 }] }).side, 1);
+});
+test('peut être commandant : une seule règle (canCommand) pour le viewer, le coach, l\'éditeur et la collection', () => {
+  assert.equal(C.canCommand({ tl: 'Legendary Planeswalker — Jace' }), 0, '« 1 Jace, the Mind Sculptor » en tête : pas commandant');
+  assert.equal(C.canCommand({ tl: 'Legendary Creature — Human Wizard' }), 1); assert.equal(C.canCommand({ tl: 'Legendary Artifact — Vehicle' }), 1);
+  assert.equal(C.canCommand({ cd: 1, tl: 'Legendary Planeswalker — Teferi' }), 1, '« can be your commander » (lu sur Scryfall) l\'emporte');
+  assert.equal(C.canCommand({ cd: 0, tl: 'Legendary Creature — Angel' }), 0, 'bannie : cd lu sur Scryfall l\'emporte');
+  assert.equal(C.canCommand(null), null); assert.equal(C.canCommand({}), null, 'pas encore lue');
+  assert.equal(C.canCommand(null, { ty: 256 | 2 }), 1, 'base du coach : légendaire + créature'); assert.equal(C.canCommand(null, { ty: 256 | 64 }), null);
+  assert.equal(C.canLead({ tl: 'Legendary Planeswalker — Jace' }), false); assert.equal(C.canLead('Legendary Creature — Elf'), true);
+  const c = (name, qty) => ({ key: C.ownKey(name), name, qty }), jace = [{ key: 'jace the mind sculptor', name: 'Jace, the Mind Sculptor' }];
+  const meta = k => (k === 'jace the mind sculptor' ? { tl: 'Legendary Planeswalker — Jace', ci: 'U' } : null);
+  assert.ok(C.dkCheck('commander', { main: [c('Island', 99)], side: [], cmdr: jace }, meta).issues.some(i => /Jace, the Mind Sculptor ne peut normalement pas être commandant/.test(i.t)), 'éditeur : même avis que le viewer');
+  assert.deepEqual(C.cmdrClass({ k: 'jace the mind sculptor', tl: 'Legendary Planeswalker — Jace' }, null), { cx: 0, ed: 0 }, 'collection : même règle');
+});
+test('terrains : une seule règle (landKind) pour le viewer, l\'éditeur, la main de départ et le coach ; doubles faces annoncées', () => {
+  assert.deepEqual(['Basic Land — Forest', 'Land Creature — Forest Dryad', 'Instant // Land', 'Creature — Elf Druid // Land', 'Instant', 'Artifact Land', '', undefined, 'Creature — Merfolk // Island?'].map(C.landKind),
+    ['land', 'land', 'mdfc', 'mdfc', '', 'land', '', '', '']);
+  const items = [{ k: 'forest', n: 'Forest', q: 36, s: 'basic' }, ...['a', 'b', 'c', 'd'].map(k => ({ k, n: k, q: 1, s: 'ok', c: 100, cm: 3, tl: 'Sorcery // Land' })), { k: 'arbor', n: 'Dryad Arbor', q: 1, s: 'ok', c: 50, cm: 0, tl: 'Land Creature — Forest Dryad' }, { k: 'bolt', n: 'Bolt', q: 59, s: 'ok', c: 1, cm: 1, tl: 'Instant' }];
+  const land = C.groupSnap(items, 'mana').find(g => g.id === 'land'); assert.deepEqual([land.count, land.mdfc], [41, 4], 'viewer, tri par coût : 41 terrains dont 4 doubles faces');
+  assert.equal(C.landGroupNote(land), ' · dont 4 doubles faces'); assert.equal(C.landGroupNote({ id: 'm3', mdfc: 4 }), '', 'autres groupes : rien');
+  const tt = C.groupSnap(items, 'type').find(g => g.id === 't-Terrains'); assert.deepEqual([tt.count, tt.mdfc], [41, 4], 'tri par type : le même compte');
+  assert.ok(!C.groupSnap(items, 'type').some(g => g.id === 't-Créatures'), 'Dryad Arbor : avec les terrains');
+  const lib = C.libraryOf(items); assert.equal(lib.filter(it => it.s === 'basic' || C.isLandType(it.tl)).length, 41, 'main de départ : le même compte');
+  assert.deepEqual(C.curveOf(items), [0, 59, 0, 0, 0, 0, 0, 0], 'courbe : sans les terrains');
+  assert.equal(C.landMdfcText(1), 'dont 1 double face');
 });
 test('créateur de deck : cartes en nombre quelconque (« A deck can have any number of cards named … ») ; Seven Dwarves 7, Nazgûl 9', () => {
   const c = (name, qty) => ({ key: C.ownKey(name), name, qty }), cmdr = [{ key: 'karumonix the rat king', name: 'Karumonix, the Rat King' }];

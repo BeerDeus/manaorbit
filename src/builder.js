@@ -163,13 +163,16 @@ async function ownLangFetch(list) {
 }
 /** Valeur estimée d'un texte de deck, en chaîne : « ≈ 84 € » (« ≈ 84 €+ » si des cartes n'ont pas de prix), '' tant que rien n'est lu. */
 function dkValueText(v) { return v.known ? `≈ ${fmt(v.cents, mkCur())}${v.known < v.total ? '+' : ''}` : ''; }
-const BD = { el: null, id: null, name: '', fmt: 'standard', cover: '', main: new Map(), side: new Map(), cmdr: [], tab: 'deck', tgt: 'main', q: '', shown: 60, dirty: false, meta: DM, tried: new Set(), cat: null, catErr: '', metaT: 0, issuesOpen: false, idx: null };
+const BD = { el: null, id: null, name: '', fmt: 'standard', cover: '', main: new Map(), side: new Map(), comp: new Map(), cmdr: [], tab: 'deck', tgt: 'main', q: '', shown: 60, dirty: false, meta: DM, tried: new Set(), cat: null, catErr: '', metaT: 0, issuesOpen: false, idx: null };
 const BD_PAGE = 60;
 const BD_BASICS = [['plains', 'Plains', 'Plaine'], ['island', 'Island', 'Île'], ['swamp', 'Swamp', 'Marais'], ['mountain', 'Mountain', 'Montagne'], ['forest', 'Forest', 'Forêt']];
 const bdMeta = dmOf;
 const bdCount = m => { let n = 0; for (const c of m.values()) n += c.qty; return n; };
-const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, cover: BD.cover, meta: BD.dkMeta || [] });
-const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0);
+const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, comp: [...BD.comp.values()], cover: BD.cover, meta: BD.dkMeta || [] });      // comp : compagnon de la liste (core.js › deckModel), gardé à l'enregistrement
+/** Exemplaires de k dans le deck et la réserve ; Standard : le compagnon est une carte de la réserve (compté une fois s'il y est déjà écrit). */
+const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0) + (BD.fmt !== 'commander' && !BD.side.has(k) ? (BD.comp.get(k) || {}).qty || 0 : 0);
+/** Cartes de la réserve (Standard : compagnon compris, comme core.js › dkCheck). */
+const bdSideN = () => bdCount(BD.side) + (BD.fmt !== 'commander' ? dkCompOut([...BD.comp.values()], [...BD.side.values()]).reduce((a, c) => a + c.qty, 0) : 0);
 /** Nom affiché : français si la carte est possédée en français (même règle que la collection), sinon anglais. */
 function bdLabel(k, name) { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || name; }
 const bdCmp = (a, b) => NAME_CMP(bdLabel(a.key, a.name), bdLabel(b.key, b.name));
@@ -196,13 +199,13 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), comp: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
     if (!prev) BD.dirty = true;      // liste collée : à enregistrer
-    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover; BD.dkMeta = p.meta;      // la carte de présentation choisie est gardée
-    if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander
+    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); p.comp.forEach(c => BD.comp.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover; BD.dkMeta = p.meta;      // la carte de présentation choisie est gardée
+    if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander ; le compagnon (hors des 100 cartes) reste
   } else BD.fmt = o.fmt === 'commander' ? 'commander' : 'standard';
   if (!prev && Array.isArray(o.cmdr) && BD.fmt === 'commander') { BD.cmdr = o.cmdr.slice(0, 2).map(c => ({ key: c.key, name: c.name })); for (const c of BD.cmdr) BD.main.delete(c.key); BD.dirty = true; }
   if (Array.isArray(o.swaps) && o.swaps.length) {      // échanges conseillés par l'analyse (deckana.js) : appliqués, à enregistrer
@@ -301,11 +304,12 @@ function bdChange(tgt, k, name, d, batch) {
   } else {
     const m = BD[tgt], cur = m.get(k), q = cur ? cur.qty : 0;
     if (q + d < 0) return false;
+    if (d > 0 && tgt === 'comp') return no('copies', T('Un seul compagnon'));      // compagnon : seulement celui de la liste, à retirer au besoin
     if (d > 0) {
       if (BD.cmdr.some(c => c.key === k)) return no('copies', T('Cette carte est déjà ton commandant'));
       const max = dkMaxCopies(BD.fmt, k);      // terrains de base, Relentless Rats… : sans limite ; Seven Dwarves 7, Nazgûl 9
       if (bdTot(k) + 1 > max) return no('copies', max === 1 ? T('Commander : un seul exemplaire de chaque carte') : T('{n} exemplaires au maximum (deck et réserve)', { n: max }));
-      if (tgt === 'side' && bdCount(BD.side) + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
+      if (tgt === 'side' && bdSideN() + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
     }
     if (q + d === 0) m.delete(k); else m.set(k, { key: k, name: cur ? cur.name : name, qty: q + d });
   }
@@ -455,7 +459,7 @@ function bdVisualHtml() {
   const groups = BD.sort === 'role' && typeof dvRoleGroups === 'function' ? dvRoleGroups(items, true) : groupSnap(items, BD.sort, true);
   BD.vflat = []; let n = 0;
   const tile = (it, sm) => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null, sm); };      // sm : carte recouverte d'une pile, petite image (viewer.js › dvSmall)
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${esc(landGroupNote(g))}</small></h3>`;
   const box = (cls, list) => `<div class="${cls}">${list.map((it, j) => tile(it, cls === 'dvp' && j < list.length - 1)).join('')}</div>`;
   if (!groups.length) return `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   const body = view === 'piles' ? `<div class="dv-piles">${groups.map(g => `<section class="dv-g dv-pile">${head(g)}${box('dvp', g.items)}</section>`).join('')}</div>`
@@ -466,6 +470,11 @@ function bdCmdrHtml() {
   if (BD.fmt !== 'commander') return '';
   return `<div class="sec-title">${T(BD.cmdr.length > 1 ? 'Commandants' : 'Commandant')}</div>` + (BD.cmdr.length ? BD.cmdr.map(c => bdRow(c.key, c.name, 1, 'cmdr', 'deck')).join('') : `<button class="btn ghost small" type="button" data-act="pick-cmdr" style="align-self:flex-start">${T('Choisir un commandant')}</button>`);
 }
+/** Compagnon de la liste (section « Companion » d'un export) : hors des 100 cartes d'un Commander, une carte de la réserve en Standard (core.js › deckModel). */
+function bdCompHtml() {
+  if (!BD.comp.size) return '';
+  return `<div class="sec-title">${T('Compagnon')} <span class="bd-opt">${BD.fmt === 'commander' ? T('hors des 100 cartes') : T('dans la réserve')}</span></div>` + [...BD.comp.values()].map(c => bdRow(c.key, c.name, c.qty, 'comp', 'deck')).join('');
+}
 /** Carte touchée dans une vue en images : en grand, avec « Retirer du deck » (et les autres cartes du deck en glissant). */
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
@@ -474,11 +483,11 @@ function bdVisualOpen(i) {
   if (list[i]) openCardViewer(list, i);
 }
 function bdDeckHtml() {
-  if (BD.view && BD.view !== 'list' && !BD.split) return bdToolsHtml() + bdCmdrHtml() + bdVisualHtml();
+  if (BD.view && BD.view !== 'list' && !BD.split) return bdToolsHtml() + bdCmdrHtml() + bdCompHtml() + bdVisualHtml();
   const mainAll = [...BD.main.values()], basicKeys = new Set(BD_BASICS.map(b => b[0]));
   const spells = mainAll.filter(c => !BASIC_NAMES.has(c.key)).sort(bdCmp), others = mainAll.filter(c => BASIC_NAMES.has(c.key) && !basicKeys.has(c.key)).sort(bdCmp);
   let h = BD.split ? '' : bdToolsHtml();
-  h += bdCmdrHtml();
+  h += bdCmdrHtml() + bdCompHtml();
   h += `<div class="sec-title">${T('Deck')} · ${nf0(bdCount(BD.main))}</div>`;
   h += spells.length ? spells.map(c => bdRow(c.key, c.name, c.qty, 'main', 'deck')).join('') : `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   h += `<div class="sec-title">${T('Terrains de base')} · ${nf0(mainAll.filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0))}</div>`;
@@ -503,7 +512,7 @@ function bdCollHtml() {
   if (!collCount()) return `<div class="deck-empty">${T('Ta collection est vide. Utilise « Chercher » pour ajouter n\'importe quelle carte au deck.')}</div>`;
   const words = normPart(BD.q).split(' ').filter(Boolean);
   let items = bdIndex().filter(it => words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') items = items.filter(it => (COLL.meta[it.k] || {}).cd);
+  if (BD.tgt === 'cmdr') items = items.filter(it => canCommand(COLL.meta[it.k]) === 1);      // règle unique (core.js › canCommand)
   const shown = items.slice(0, BD.shown);
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
