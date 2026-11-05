@@ -279,12 +279,28 @@ const rules = await p.evaluate(() => {
   core.combos.push(['Swords to Plowshares', 'Wrath of God', 'Test combo', 'S']); DW.comboIdx = null;
   const out = { br2: sug(2, 'wipe'), br3: sug(3, 'wipe') };
   core.combos.pop(); DW.comboIdx = null;
+  // combo à 3 cartes (core.combos3) : Swords + Edgar (le commandant) + Wrath ; un autre dont une seule pièce est là ne compte pas
+  core.combos3 = [['Swords to Plowshares', 'Phyrexian Arena', 'Wrath of God', 'Other combo', 'S']]; DW.combo3Idx = null;
+  const one = sug(2, 'wipe');      // Phyrexian Arena absente : rien à compléter
+  core.combos3 = [['Swords to Plowshares', 'Edgar Markov', 'Wrath of God', 'Test combo 3', 'S']]; DW.combo3Idx = null;
+  out.c3 = { one, br2: sug(2, 'wipe'), br3: sug(3, 'wipe') };
+  { const x = X(4), prof = dwProfile(x), tgt = dwTargets(prof, cmd, pack, x.wiz), l = dwSuggest('wipe', cmd, pack, prof, tgt, 20, x), w = l.find(s => s.k === 'wrath of god'); out.c3.br4 = w ? w.combo : null; out.c3.why = w ? dwComboWhy(w.combo) : ''; }
+  { const x = X(2); x.wiz.avoid = ['combo']; x.wiz.br = 3; const prof = dwProfile(x), tgt = dwTargets(prof, cmd, pack, x.wiz); out.c3.avoid = dwSuggest('wipe', cmd, pack, prof, tgt, 20, x).map(s => s.k); }
+  { const x = X(2); x.main.set('wrath of god', { key: 'wrath of god', name: 'Wrath of God', qty: 1 }); const prof = dwProfile(x); out.c3.prof = prof.combos.map(c => c.join('|')); out.c3.est = dwBracketOf(prof); out.c3.html = dwBracketHtml(prof, x.wiz); out.c3.html3 = dwBracketHtml(prof, { ...x.wiz, br: 3 }); }
+  delete core.combos3; DW.combo3Idx = null;
   const r = DW.byKey.get('phyrexian arena'), fl = r[6]; r[6] = fl | 16; out.ban = sug(3, 'draw'); r[6] = fl;
   return out;
 });
 assert.ok(!rules.br2.includes('wrath of god') && rules.br3.includes('wrath of god'), 'combo à 2 cartes : refusé en bracket 2, permis en bracket 3 ' + JSON.stringify(rules));
 assert.ok(!rules.ban.includes('phyrexian arena'), 'carte interdite en Commander : jamais proposée');
-ok('règles des suggestions : duo de commandants, combo à 2 cartes (bracket 1-2), carte interdite');
+{ const c = rules.c3, j = JSON.stringify(c);
+  assert.ok(!c.br2.includes('wrath of god') && c.br3.includes('wrath of god'), 'combo à 3 cartes : la pièce qui le complète refusée en bracket 2, permise en bracket 3 ' + j);
+  assert.ok(!c.avoid.includes('wrath of god'), 'combos évités : jamais la pièce qui complète ' + j);
+  assert.ok(c.one.includes('wrath of god'), 'une seule autre pièce là : pas un combo à compléter ' + j);
+  assert.deepEqual([...(c.br4 || [])].sort(), ['Edgar Markov', 'Swords to Plowshares'], 'bracket 4 : les deux autres pièces ' + j); assert.match(c.why, /^combo avec (Swords to Plowshares et Edgar Markov|Edgar Markov et Swords to Plowshares)$/);
+  assert.deepEqual(c.prof, ['Swords to Plowshares|Edgar Markov|Wrath of God|Test combo 3|S'], 'combo à 3 cartes complet compté une fois dans le profil ' + j); assert.equal(c.est, 3, 'bracket estimé : 3');
+  assert.match(c.html, /Combo à 3 cartes à éviter en bracket 2 : Swords to Plowshares \+ Edgar Markov \+ Wrath of God \(Test combo 3\)/); assert.match(c.html3, /Combo à 3 cartes, permis en bracket 3/); }
+ok('règles des suggestions : duo de commandants, combo à 2 cartes (bracket 1-2), combo à 3 cartes (brackets 1-2, 3, 4), carte interdite');
 
 /* ── 6 bis) Confort du Coach : prochaines étapes, « À retirer » au-dessus de 100 cartes, échanges dans le Coach (« Pourquoi ? », Échanger, Annuler) ── */
 await p.evaluate(() => openBuilder({ name: 'Trop plein', fmt: 'commander', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Swords to Plowshares\n30 Plains\n34 Swamp\n34 Mountain', wiz: { th: [], br: 2, bud: 0, own: true }, tab: 'coach' }));

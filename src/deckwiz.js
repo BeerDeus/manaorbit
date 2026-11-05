@@ -203,9 +203,10 @@ function dwProfile(X = BD) {
   const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
   if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
-  if (DW.core && Array.isArray(DW.core.combos)) {      // combos à 2 cartes (Commander Spellbook) dont les deux cartes sont dans le deck
-    const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k), idx = dwComboIdx();
-    for (const k of [...X.main.keys(), ...X.cmdr.map(c => c.key)]) for (const e of idx.get(k) || []) if (k < e.p && has(e.p)) p.combos.push(e.c);      // par l'index (rapide : le score du coach relit souvent le profil)
+  if (DW.core && (Array.isArray(DW.core.combos) || Array.isArray(DW.core.combos3))) {      // combos (Commander Spellbook) dont toutes les cartes sont dans le deck : à 2 cartes, puis à 3 cartes
+    const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k), idx = dwComboIdx(), idx3 = dwCombo3Idx(), keys = [...X.main.keys(), ...X.cmdr.map(c => c.key)];
+    for (const k of keys) for (const e of idx.get(k) || []) if (k < e.p && has(e.p)) p.combos.push(e.c);      // par l'index (rapide : le score du coach relit souvent le profil)
+    for (const k of keys) for (const e of idx3.get(k) || []) if (k < e.p && k < e.q && has(e.p) && has(e.q)) p.combos.push(e.c);      // chaque combo compté une fois : par sa pièce dont la clé vient en premier
   }
   p.need = {};      // sources voulues par couleur : le commandant, et le quart le plus exigeant des sorts (recherche § 8.2 : les cartes importantes)
   for (const col of 'WUBRG') { const l = (p.needs[col] || []).sort((a, b) => b - a), q = l.length ? l[Math.floor(l.length / 4)] : 0; p.need[col] = Math.max(q, p.cmdNeed[col] || 0); }
@@ -391,7 +392,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const budLeft = set.bud > 0 ? set.bud - prof.cents - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
   const C = X.info || dwInfo(pack, set, cmd), w = dwW();
   const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
-  const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = DW.core && DW.core.combos ? dwComboIdx() : null, pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 : jamais la 2e carte d'un combo à 2 cartes
+  const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 (ou combos évités) : jamais la carte qui complète un combo à 2 ou 3 cartes
   const cols = cmd ? [...cmd.ci] : [], short = role === 'land' ? cols.filter(c => (prof.src[c] || 0) < (prof.need[c] || 0)) : [];      // terrains : couleurs sous le repère de Karsten
   const curveHi = (X.pace || X.gen) && prof.nonland >= 20 && prof.mv > tgt.mv[2];
   const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
@@ -404,8 +405,8 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
     if (x.fl & 16) return;      // interdite en Commander
     if (x.fl & 1 && gcLeft <= 0) return;
-    let combo2 = '';
-    if (combo) { const ps = combo.get(k); if (ps) for (const e of ps) if (inDeck(e.p)) { if (noCombo) return; combo2 = e.c[0] === x.name ? e.c[1] : e.c[0]; } }
+    const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && noCombo) return;
+    const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
     if (x.fl & 4 && set.br <= 3) return;
     if (x.fl & 2 && set.br <= 2) return;
     if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
@@ -419,7 +420,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (m && o.m == null) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); }      // carte de secours (rang) : sa valeur de base pour le plan
     const v = dwVal(o); let s = v, pair = null;
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
-    if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck
+    if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
     if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
@@ -465,13 +466,31 @@ function dwComboIdx() {
   for (const c of (DW.core && DW.core.combos) || []) { const a = ownKey(c[0]), b = ownKey(c[1]); if (a && b && a !== b) { add(a, b, c); add(b, a, c); } }
   DW.comboIdx = { src: DW.core, m }; return m;
 }
+/** Combos à 3 cartes (Commander Spellbook, core.combos3 : [A, B, C, résultat, étiquette]) : clé de carte → [{ p, q : clés des deux autres pièces, o : leurs noms, c : le combo }]. */
+function dwCombo3Idx() {
+  if (DW.combo3Idx && DW.combo3Idx.src === DW.core) return DW.combo3Idx.m;
+  const m = new Map(), add = (a, p, q, o, c) => { (m.get(a) || m.set(a, []).get(a)).push({ p, q, o, c }); };
+  for (const c of (DW.core && DW.core.combos3) || []) { const a = ownKey(c[0]), b = ownKey(c[1]), d = ownKey(c[2]); if (a && b && d && a !== b && a !== d && b !== d) { add(a, b, d, [c[1], c[2]], c); add(b, a, d, [c[0], c[2]], c); add(d, a, b, [c[0], c[1]], c); } }
+  DW.combo3Idx = { src: DW.core, m }; return m;
+}
+/** Combo (2 cartes d'abord, puis 3) que la carte k complète, les autres pièces étant déjà là (inDeck : clé → vrai) : { c : le combo, o : noms des autres pièces } ou null. */
+function dwComboWith(k, inDeck) {
+  for (const e of dwComboIdx().get(k) || []) if (inDeck(e.p)) return { c: e.c, o: [ownKey(e.c[0]) === k ? e.c[1] : e.c[0]] };
+  for (const e of dwCombo3Idx().get(k) || []) if (inDeck(e.p) && inDeck(e.q)) return { c: e.c, o: e.o };
+  return null;
+}
+const dwCombo3 = c => c.length >= 5;      // combo à 3 cartes : [A, B, C, résultat, étiquette] (à 2 cartes : [A, B, résultat, étiquette])
+const dwComboCards = c => c.slice(0, dwCombo3(c) ? 3 : 2), dwComboRes = c => c[dwCombo3(c) ? 3 : 2];
+const dwComboTxt = c => `${dwComboCards(c).join(' + ')} (${dwComboRes(c)})`;
+/** « combo avec A » (2 cartes) ou « combo avec A et B » (3 cartes) : o, les autres pièces. */
+const dwComboWhy = o => o.length > 1 ? T('combo avec {a} et {b}', { a: o[0], b: o[1] }) : T('combo avec {card}', { card: o[0] });
 const dsNumFr = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 /** Raison d'une suggestion : ce qui la fait remonter. */
 function dwWhy(sg, cmd, X = BD) {
   const o = sg.o, w = [];
   const C = X.info || (DW.infoC && DW.infoC.C), plan = C && C.plan;
   if (typeof dmxReasons === 'function' && plan) w.push(...dmxReasons(sg.k, X, cmd, plan));      // ce que fait la carte pour ce deck (classement par mécaniques)
-  else if (sg.combo) w.push(T('combo avec {card}', { card: sg.combo }));
+  else if (sg.combo) w.push(dwComboWhy(sg.combo));
   if (sg.pair) w.push(T('va avec {card}', { card: sg.pair }));
   if (o.pool && !o.incl && (o.m || 0) >= 0.55) w.push(T('trouvaille : peu jouée, en pleine synergie'));
   if (o.incl >= 5 && cmd) w.push(T('{p} % des decks de {name}', { p: o.incl, name: cmd.names[0].split(',')[0] }));
@@ -699,11 +718,13 @@ function dwBracketHtml(prof, s = BD.wiz) {
   if (prof.mld.length && s.br <= 3) out.push(['bad', T('Destruction massive de terrains interdite en bracket {b} : {list}', { b: b[0], list: prof.mld.join(', ') })]);
   if (prof.xt.length && s.br === 1) out.push(['bad', T('Tours supplémentaires interdits en bracket 1 : {list}', { list: prof.xt.join(', ') })]);
   else if (prof.xt.length && s.br <= 3) out.push(['warn', T('Tours supplémentaires : à ne pas enchaîner en bracket {b} ({list})', { b: b[0], list: prof.xt.join(', ') })]);
-  const cl = prof.combos.slice(0, 4).map(c => `${c[0]} + ${c[1]} (${c[2]})`).join(', ');
-  if (prof.combos.length && s.br <= 2) out.push(['bad', T('Combo à 2 cartes interdit en bracket {b} : {list}', { b: b[0], list: cl })]);
-  else if (prof.combos.length && s.br === 3) out.push(['warn', T('Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})', { list: cl })]);
+  const c2 = prof.combos.filter(c => !dwCombo3(c)), c3 = prof.combos.filter(dwCombo3), cl = l => l.slice(0, 4).map(dwComboTxt).join(', '), has3 = !!(DW.core && DW.core.combos3 && DW.core.combos3.length);
+  if (c2.length && s.br <= 2) out.push(['bad', T('Combo à 2 cartes interdit en bracket {b} : {list}', { b: b[0], list: cl(c2) })]);
+  else if (c2.length && s.br === 3) out.push(['warn', T('Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})', { list: cl(c2) })]);
   else if (!(DW.core && DW.core.combos && DW.core.combos.length) && s.br <= 3) out.push(['info', T('Les combos à 2 cartes ne sont pas vérifiés : à surveiller toi-même.')]);
-  else if (s.br <= 3) out.push(['ok', T('Aucun combo à 2 cartes connu (Commander Spellbook)')]);
+  else if (s.br <= 3 && !c3.length) out.push(['ok', has3 ? T('Aucun combo à 2 ou 3 cartes connu (Commander Spellbook)') : T('Aucun combo à 2 cartes connu (Commander Spellbook)')]);
+  if (c3.length && s.br <= 2) out.push(['bad', T('Combo à 3 cartes à éviter en bracket {b} : {list}', { b: b[0], list: cl(c3) })]);      // pas interdit par les règles officielles, mais hors du niveau d'un deck préconstruit : jamais proposé en bracket 1-2
+  else if (c3.length && s.br === 3) out.push(['info', T('Combo à 3 cartes, permis en bracket 3 : {list}', { list: cl(c3) })]);
   return `<div class="sec-title">${T('Bracket {n} · {name}', { n: b[0], name: b[1] })}</div><ul class="bd-issues dw-br">${out.length ? out.map(([lv, t]) => `<li class="${lv === 'info' ? '' : lv}">${esc(t)}</li>`).join('') : ''}<li class="ok">${esc(b[3] > 10 ? TN(prof.gc.length, '{n} Game Changer, sans limite dans ce bracket', '{n} Game Changers, sans limite dans ce bracket') : TN(prof.gc.length, '{n} Game Changer sur {max} permis', '{n} Game Changers sur {max} permis', { max: b[3] }))}</li></ul>`;
 }
 function dwBudgetHtml(prof, s = BD.wiz) {
@@ -766,11 +787,11 @@ function dwFillBasics(quiet) {
 /** Cartes fétiches (réglages : pets) mises dans le deck X : celles qui respectent les couleurs, les cartes interdites et les règles du bracket. → { in: [noms], out: [noms] } */
 function dwPetsInto(X, cmd) {
   const set = X.wiz || dwDefaults(), got = { in: [], out: [] }; if (!cmd || !(set.pets || []).length || !DW.byKey) return got;
-  const ci = new Set([...cmd.ci]), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], combo = set.br <= 2 ? dwComboIdx() : null;
+  const ci = new Set([...cmd.ci]), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], combo = set.br <= 2, inX = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
   for (const nm of set.pets) {
     const k = ownKey(nm), x = dwCard(k); if (!k || X.main.has(k) || X.cmdr.some(c => c.key === k)) continue;
     const prof = dwProfile(X), bad = !x || !DW.byKey.has(k) || [...String(x.ci)].some(c => !ci.has(c)) || x.fl & 16 || (x.fl & 1 && prof.gc.length >= b[3]) || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)
-      || (combo && (combo.get(k) || []).some(e => X.main.has(e.p) || X.cmdr.some(c => c.key === e.p)));
+      || (combo && dwComboWith(k, inX));      // brackets 1-2 : jamais la pièce qui complète un combo à 2 ou 3 cartes
     if (bad) { got.out.push(nm); continue; }
     X.main.set(k, { key: k, name: x.name, qty: 1 }); got.in.push(x.name);
   }
