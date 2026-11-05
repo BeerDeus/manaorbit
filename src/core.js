@@ -2021,7 +2021,7 @@ const edhCmdHas = (c, toks, alt) => edhWords(c.keys.join(' '), toks) || !!(alt &
 /** Une ligne du classement. Les listes `missing`, `owned` et `gc` (longues, utiles seulement à la feuille d'un deck) ne sont calculées qu'au premier accès. */
 class EdhRow {
   constructor(deck, cmd, total, have, cost, unpriced, mine, br, hit, e, own, eng, held) {
-    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng;      // à acheter : manquantes, plus les possédées engagées dans un deck monté (règle ownFor) this.cost = cost; this.unpriced = unpriced; this.mine = mine;
+    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng; this.cost = cost; this.unpriced = unpriced; this.mine = mine;      // miss : manquantes + possédées engagées dans un deck monté (règle ownFor)
     this.tier = cmd.tier; this.rank = cmd.rank; this.br = br; this.hit = hit; this._e = e; this._o = own; this._h = held || null;
   }
   get missing() { edhDetail(this); return this.missing; }

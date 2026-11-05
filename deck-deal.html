@@ -8020,7 +8020,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'a3af4312';
+const DD_BUILD = '7b86746a';
 const I18N_FILES = {"de":"i18n/de.092f456b.js","en":"i18n/en.4628ed82.js","es":"i18n/es.98e4a3a1.js","it":"i18n/it.f9311d82.js","pt":"i18n/pt.074344ff.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -10272,7 +10272,7 @@ const edhCmdHas = (c, toks, alt) => edhWords(c.keys.join(' '), toks) || !!(alt &
 /** Une ligne du classement. Les listes `missing`, `owned` et `gc` (longues, utiles seulement à la feuille d'un deck) ne sont calculées qu'au premier accès. */
 class EdhRow {
   constructor(deck, cmd, total, have, cost, unpriced, mine, br, hit, e, own, eng, held) {
-    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng;      // à acheter : manquantes, plus les possédées engagées dans un deck monté (règle ownFor) this.cost = cost; this.unpriced = unpriced; this.mine = mine;
+    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng; this.cost = cost; this.unpriced = unpriced; this.mine = mine;      // miss : manquantes + possédées engagées dans un deck monté (règle ownFor)
     this.tier = cmd.tier; this.rank = cmd.rank; this.br = br; this.hit = hit; this._e = e; this._o = own; this._h = held || null;
   }
   get missing() { edhDetail(this); return this.missing; }
