@@ -131,16 +131,16 @@ assert.deepEqual(await p.evaluate(() => {
   const inp = w.querySelector('input'), r1 = dwPersoInput({ type: 'change', target: inp }, { pets: [] }, null), kept = !!w.querySelector('#tKeep');
   const r2 = dwPersoInput({ type: 'input', target: inp }, { pets: [] }, null), redrawn = !w.querySelector('#tKeep'); w.remove(); return [r1, kept, r2, redrawn];
 }), ['live', true, 'live', true]);
-// cartes fétiches et exclusions : recherche par le nom imprimé (index des noms de l'appli, FRX.ix), nom anglais gardé ; anglais toujours possible
-assert.deepEqual(await p.evaluate(() => { const ix0 = FRX.ix; FRX.ix = { list: [{ k: normPart('Anneau solaire'), n: 'Anneau solaire', en: 'Sol Ring' }] };
-  try { return [dwPersoFind('anneau', null, 'ban').map(r => [r[1], r[4]]), dwPersoFind('sol ri', null, 'ban').map(r => r[1]), dwPersoRes(dwPersoFind('anneau', null, 'ban'), 'ban')]; } finally { FRX.ix = ix0; } }),
+// cartes fétiches et exclusions : recherche commune (cardnames.js › cnFind) par le nom imprimé dans la langue de l'appli (ici l'index des cartes, même langue), nom anglais gardé ; anglais toujours possible
+assert.deepEqual(await p.evaluate(() => { const f0 = [FRX.l, FRX.ix]; FRX.l = 'fr'; FRX.ix = frIndex(['Anneau solaire\tSol Ring']);
+  try { return [dwPersoFind('anneau', null, 'ban').map(r => [r[1], r[4]]), dwPersoFind('sol ri', null, 'ban').map(r => r[1]), dwPersoRes(dwPersoFind('anneau', null, 'ban'), 'ban')]; } finally { [FRX.l, FRX.ix] = f0; } }),
   [[['Sol Ring', 'Anneau solaire']], ['Sol Ring'], '<button type="button" class="chip" data-padd="ban" data-n="Sol Ring" title="Sol Ring">+ Anneau solaire</button>']);
-// langue de l'appli (ici le français) d'abord, même quand les cartes sont dans une autre langue (index de la collection en allemand) : les deux sont cherchées
-assert.deepEqual(await p.evaluate(() => { const f0 = [FRX.l, FRX.ix], d0 = { ...DWN };
-  FRX.l = 'de'; FRX.ix = { list: [{ k: normPart('Nächtliches Flüstern'), n: 'Nächtliches Flüstern', en: "Night's Whisper" }] };
-  Object.assign(DWN, { l: 'fr', ix: { list: [{ k: normPart('Murmures nocturnes'), n: 'Murmures nocturnes', en: "Night's Whisper" }], fr: new Map([['nights whisper', 'Murmures nocturnes']]) }, p: null });
-  try { return [dwPersoFind('murmures', null, 'ban').map(r => r[4]), dwPersoFind('flustern', null, 'ban').map(r => r[4]), dwShownName("Night's Whisper"), dwNamesPh()]; } finally { [FRX.l, FRX.ix] = f0; Object.assign(DWN, d0); } }),
-  [['Murmures nocturnes'], ['Nächtliches Flüstern'], 'Murmures nocturnes', 'Nom français ou anglais']);
+// langue de l'appli (ici le français, 2e index CN) d'abord, même quand les cartes sont dans une autre langue (index de la collection en allemand) : les deux sont cherchées,
+// résultat affiché dans la langue de l'appli
+assert.deepEqual(await p.evaluate(() => { const f0 = [FRX.l, FRX.ix], c0 = [CN.l, CN.ix];
+  FRX.l = 'de'; FRX.ix = frIndex(["Nächtliches Flüstern\tNight's Whisper"]); CN.l = 'fr'; CN.ix = frIndex(["Murmures nocturnes\tNight's Whisper"]);
+  try { return [dwPersoFind('murmures', null, 'ban').map(r => r[4]), dwPersoFind('flustern', null, 'ban').map(r => r[4]), dwPersoFind('whisper', null, 'ban').map(r => r[4]), cnName("Night's Whisper"), cnPh()]; } finally { [FRX.l, FRX.ix] = f0; [CN.l, CN.ix] = c0; } }),
+  [['Murmures nocturnes'], ['Murmures nocturnes'], ['Murmures nocturnes'], 'Murmures nocturnes', 'Nom français ou anglais']);
 await p.click('#dwzGo');
 await p.waitForSelector('.bd.on');
 // construction en plusieurs passes : barre de progression, étapes, puis les versions au choix (note, valeur, courbe, rôles)

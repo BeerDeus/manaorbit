@@ -241,7 +241,8 @@ async function openAlertSheet() {
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
         ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
         <div class="sec-title">${T('Suivre une carte')}</div>
-        <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" placeholder="${T('Nom de la carte')}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Suivre')}</button></form>
+        <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" data-cn="1" placeholder="${esc(cnPh())}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Suivre')}</button></form>
+        <div class="ca-list al-sug" id="alSug" role="listbox" aria-label="${T('Suggestions')}"></div>
         <p class="hint" id="alAddMsg" hidden></p>
         <div class="sec-title">${TN(rows.length, '{n} carte surveillée', '{n} cartes surveillées')}</div>
         ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${T('{n} autres cartes surveillées, non listées ici.', { n: nf0(rows.length - AL_ROWS) })}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou suis une carte à la main.')}</p>`}
@@ -257,14 +258,21 @@ async function openAlertSheet() {
       });
       $('#alDeck', api.body).onchange = e => { AC.deck = e.target.checked; alWrite(); alSoon(); setTimeout(() => { alSync(true).then(load).then(paint); }, 50); };
       const um = $('#alUnmute', api.body); if (um) um.onclick = () => { AC.mute = {}; alWrite(); alSoon(); paint(); };
-      const add = $('#alAdd', api.body), msg = $('#alAddMsg', api.body);
+      const add = $('#alAdd', api.body), msg = $('#alAddMsg', api.body), nameIn = $('#alName', add), sugBox = $('#alSug', api.body);
+      let cat = null, picked = null;      // picked : { v (texte du champ), n (nom anglais) } de la suggestion touchée
+      const sugPaint = () => {      // suggestions : nom dans la langue de l'appli ou en anglais (cardnames.js), nom affiché dans la langue de l'appli
+        const q = nameIn.value.trim(); if (!cat || q.length < 2 || (picked && picked.v === nameIn.value)) { sugBox.innerHTML = ''; return; }
+        sugBox.innerHTML = collSuggestX(cat, q, 6, () => { if (nameIn.isConnected) sugPaint(); }).map(x => `<button type="button" class="ca-opt" role="option" data-n="${esc(x.n)}"><span>${sugHtml(x.n, q, x.p || '', x.l)}</span><i>+</i></button>`).join('');
+      };
+      nameIn.oninput = () => { if (!cat) collCatalog().then(c => { cat = c; sugPaint(); }).catch(() => {}); sugPaint(); };
+      sugBox.onclick = e => { const b = e.target.closest('.ca-opt'); if (!b) return; haptic('tap'); nameIn.value = cnName(b.dataset.n); picked = { v: nameIn.value, n: b.dataset.n }; sugBox.innerHTML = ''; };
       add.onsubmit = async e => {
-        e.preventDefault(); const name = $('#alName', add).value.trim(), t = alParseEuros($('#alTarget', add).value); msg.hidden = true; if (!name) return;
+        e.preventDefault(); const typed = nameIn.value.trim(), name = picked && picked.v === nameIn.value ? picked.n : (typed && cnToEn(typed, cat)) || typed, t = alParseEuros($('#alTarget', add).value); msg.hidden = true; if (!name) return;      // nom tapé dans la langue de l'appli ou des cartes : sa carte anglaise
         const btn = $('button', add); btn.disabled = true;
         let known = true; try { const r = await scryCollection([name]); known = !!r.get(ownKey(name)); } catch (x) { /* Scryfall injoignable : on suit quand même */ }
         btn.disabled = false;
-        if (!known) { msg.hidden = false; msg.textContent = T('Carte introuvable chez Scryfall : écris son nom anglais complet.'); return; }
-        alWatch(name, t); haptic('ok'); toast(t ? T('{name} : alerte sous {p}', { name, p: fmt(t) }) : T('{name} : alerte en cas de forte baisse', { name }));
+        if (!known) { msg.hidden = false; msg.textContent = T('Carte introuvable chez Scryfall : choisis-la dans les suggestions ou écris son nom complet.'); return; }
+        alWatch(name, t); haptic('ok'); const shown = cnName(name); toast(t ? T('{name} : alerte sous {p}', { name: shown, p: fmt(t) }) : T('{name} : alerte en cas de forte baisse', { name: shown }));
         await alSync(true); await load(); paint();
       };
       api.body.onclick = async e => {

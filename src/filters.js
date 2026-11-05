@@ -74,7 +74,8 @@ function mountFilters(root, f, onChange, opts = {}) {
     }
   };
   const fire = () => { paint(); onChange(); };
-  inp.addEventListener('input', () => { f.q = inp.value; clr.hidden = !inp.value; clearTimeout(t); t = setTimeout(onChange, 120); });
+  const cnAgain = () => { if (root.isConnected && f.q) onChange(); };      // index des noms de la langue de l'appli arrivé après la frappe : la liste se refait (cardnames.js)
+  inp.addEventListener('input', () => { f.q = inp.value; clr.hidden = !inp.value; clearTimeout(t); t = setTimeout(onChange, 120); if (f.q && typeof cnWhen === 'function') cnWhen(cnAgain); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   clr.onclick = () => { inp.value = ''; f.q = ''; fire(); inp.focus(); };
   btn.onclick = () => {

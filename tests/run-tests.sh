@@ -51,6 +51,7 @@ BROWSER=(
   alerts-dm-e2e.mjs
   deckfind-e2e.mjs
   deckwiz-e2e.mjs
+  cardnames-e2e.mjs
   ctpub-e2e.mjs
 )
 T=("$@")

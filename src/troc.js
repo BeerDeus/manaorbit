@@ -27,7 +27,6 @@ const trocOn = () => !!(CTX.proxy && CTX.troc);
 const trocCodeOf = v => { const c = String(v || '').toUpperCase().replace(/[\s-]/g, ''); return TRC_CODE_RE.test(c) ? c : ''; };
 const trocFmtCode = c => (c ? c.slice(0, 3) + ' ' + c.slice(3) : '');
 const trocUrl = c => { try { return new URL('./?troc=' + c, location.href).href.replace(/#.*$/, ''); } catch (e) { return '?troc=' + c; } };
-const trocNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const trocOpenSt = s => !!s && (s.st === 'wait' || s.st === 'live');
 /** Échange fait et appliqué sur cet appareil, encore annulable des deux côtés (op undo, TROC_UNDO_MS du serveur) : la session est encore relevée. */
 const trocUndoable = () => { const s = TRC.s, u = TRC.undo; return !!(s && u && s.st === 'done' && !s.ud && TRC.c === s.c && u.c === s.c && Date.now() < u.until); };
@@ -545,11 +544,12 @@ function trocPicker({ title, sub, tabs, rows, onTap, kind }) {
   let tab = tabs[0].v, q = '', shown = TRC_PAGE, qt = 0;
   return openSheet(title, sub, api => {
     TRC.pick = api; api.wrap.classList.add('trc-pick');
-    api.body.innerHTML = `${tabs.length > 1 ? '<div class="seg trc-tabs"></div>' : ''}<label class="trc-find"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="${T('Nom français ou anglais')}" aria-label="${T('Chercher une carte')}"></label><div class="trc-pl"></div>`;
+    api.body.innerHTML = `${tabs.length > 1 ? '<div class="seg trc-tabs"></div>' : ''}<label class="trc-find"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="${esc(cnPh())}" aria-label="${T('Chercher une carte')}"></label><div class="trc-pl"></div>`;
     const box = $('.trc-pl', api.body), inp = $('input', api.body);
     api.paint = () => {
       if (!sheets.includes(api)) return;
-      const all = rows(tab), nq = trocNorm(q.trim()), list = nq ? all.filter(it => trocNorm(it.n).includes(nq) || trocNorm(it.dn).includes(nq) || (it.fn && trocNorm(it.fn).includes(nq))) : all, sh = list.slice(0, shown);
+      const all = rows(tab), Q = cnQ(q), ix = cnIx(), list = Q ? all.filter(it => cnItem(it, Q, ix)) : all, sh = list.slice(0, shown);      // nom anglais, affiché, de la langue des cartes ou de l'appli (cardnames.js)
+      if (Q) cnWhen(api.paint);
       const y = api.body.scrollTop;
       imgKeep(box, sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-pk="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TRC_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`
         : `<p class="hint listempty">${all.length ? T('Aucune carte ne correspond.') : tabs.find(t => t.v === tab).empty}</p>`);

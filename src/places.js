@@ -294,7 +294,7 @@ function openProxies() {
   let q = '';
   openSheet(T('Mes proxys'), T('Jamais comptés dans la valeur, l\'échange ni les statistiques'), api => {
     api.wrap.classList.add('prox-sheet');
-    const rows = () => Object.entries(COLL.prox).flatMap(([k, x]) => collLines(x).map(([g, n]) => ({ k, x, g, n }))).filter(r => !q || normPart(r.x.n).includes(normPart(q))).sort((a, b) => NAME_CMP(a.x.n, b.x.n) || lineCmp(a.g, b.g));
+    const rows = () => { const Q = cnQ(q), ix = cnIx(); if (Q) cnWhen(() => { if (sheets.includes(api)) paint(); }); return Object.entries(COLL.prox).flatMap(([k, x]) => collLines(x).map(([g, n]) => ({ k, x, g, n }))).filter(r => !Q || cnItem({ k: r.k, n: r.x.n, fn: frOf(r.k) }, Q, ix)).sort((a, b) => NAME_CMP(a.x.n, b.x.n) || lineCmp(a.g, b.g)); };
     const paint = () => {
       const rs = rows(), tot = Object.values(COLL.prox).reduce((a, x) => a + x.q, 0);
       $('.prox-list', api.body).innerHTML = rs.length ? rs.map(r => `<div class="prox-row" data-k="${esc(r.k)}" data-g="${esc(r.g)}"><span class="prox-main"><b>${esc(r.x.n)}</b><span class="row-meta">${lineTag(r.g) ? `<span class="tag">${esc(lineTag(r.g))}</span>` : ''}${plcRowTag(r.g) || `<button type="button" class="tag plc" data-act="cex">${T('Ranger')}</button>`}</span></span>

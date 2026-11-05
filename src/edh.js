@@ -187,19 +187,21 @@ const edhDate = () => { const d = EDH.data && EDH.data.at ? new Date(EDH.data.at
 function edhRows() {
   if (!EDH.data) return [];
   for (const t of [...EDH.themes]) if (!EDH.data.themeIx.has(t)) EDH.themes.delete(t);      // un thème absent du fichier chargé (version plus ancienne ou plus récente) ne filtre plus rien
-  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join(''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? FRX.l : ''].join('|');
+  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join(''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? CN.v + FRX.l : ''].join('|');
   if (EDH.memo && EDH.memo.sig === sig) return EDH.memo.rows;
   const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
   EDH.memo = { sig, rows }; return rows;
 }
-/* ── Recherche dans la langue des noms (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés du catalogue chargé (FRX.ix.fr : clé anglaise → nom imprimé) sont
-   cherchés avec les noms anglais. Normalisés une fois par catalogue et gardés (≈ 30 000 noms : quelques dizaines de ms), relus si le catalogue change (langue). */
-const EDH_ALT = { ix: null, map: null };
+/* ── Recherche dans la langue de l'appli et dans celle des cartes (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés des index chargés (cardnames.js › cnIx,
+   FRX.ix : clé anglaise → nom imprimé) sont cherchés avec les noms anglais. Normalisés une fois par index et gardés (≈ 30 000 noms : quelques dizaines de ms), relus s'ils changent. */
+const EDH_ALT = { a: null, c: null, map: null };
 function edhAlt() {
-  const ix = FRX.ix; if (!ix || !ix.fr) { if (!FRN.p && typeof frLoad === 'function') frLoad().then(ok => { if (ok && COLL.el && EDH.q) collPaintBody(true); }).catch(() => {}); return null; }      // catalogue pas encore là : chargé (1 requête), la liste se repeint quand il arrive
-  if (EDH_ALT.ix !== ix) { EDH_ALT.ix = ix; EDH_ALT.map = new Map(); }
+  const a = cnIx(), c = FRX.ix && FRX.ix !== a ? FRX.ix : null;
+  if (!FRX.ix && !FRN.p && namesLang()) frLoad().then(ok => { if (ok && COLL.el && EDH.q) collPaintBody(true); }).catch(() => {});      // catalogue pas encore là : chargé (1 requête), la liste se repeint quand il arrive (langue de l'appli : cnReady)
+  if (!a && !c) return null;
+  if (EDH_ALT.a !== a || EDH_ALT.c !== c) Object.assign(EDH_ALT, { a, c, map: new Map() });
   const m = EDH_ALT.map;
-  return k => { let v = m.get(k); if (v === undefined) { const p = ix.fr.get(k); v = p ? normName(p).replace(/ \/\/ /g, ' ') : ''; m.set(k, v); } return v; };
+  return k => { let v = m.get(k); if (v === undefined) { v = [...new Set([a, c].map(ix => ix && ix.fr.get(k)).filter(Boolean))].map(p => normName(p).replace(/ \/\/ /g, ' ')).join(' '); m.set(k, v); } return v; };
 }
 /** Recherche en cours, ou '' : un nom de commandant dès 1 lettre, une carte à partir de 2 (sinon presque tous les decks la contiennent). */
 const edhQuery = () => { const t = edhTokens(EDH.q); return t.length && (EDH.qm === 'cmd' || t.join('').length >= 2) ? EDH.q : ''; };

@@ -437,16 +437,16 @@ function trOpenImg(row) {
   if (list.length) openCardViewer(list, at);
 }
 function openWishAdd() {
-  openSheet(T('Ajouter une carte recherchée'), nmT('Nom anglais ou français déjà connu de Scryfall', 'Nom anglais ou en {lang} déjà connu de Scryfall', 'Nom anglais déjà connu de Scryfall'), api => {
+  openSheet(T('Ajouter une carte recherchée'), cnT('Nom anglais ou français déjà connu de Scryfall', 'Nom anglais ou en {lang} déjà connu de Scryfall', 'Nom anglais déjà connu de Scryfall'), api => {
     api.body.innerHTML = `<div class="field-in"><label class="label" for="waName">${T('Nom de la carte')}</label><input type="text" id="waName" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Mana Crypt" enterkeyhint="search"></div>
       <div class="status" id="waStatus" data-ok="0" hidden><span class="dot"></span><span></span></div><div class="ca-list" id="waList" role="listbox" aria-label="${T('Suggestions')}"></div>`;
     const inp = $('#waName', api.body), list = $('#waList', api.body), stt = $('#waStatus', api.body); let cat = null;
     const say = (t, ok) => { stt.hidden = !t; if (t) { $('span:last-child', stt).textContent = t; stt.dataset.ok = ok ? '1' : '0'; } };
     const paint = () => {
       if (!cat) { list.innerHTML = ''; return; }
-      const q = inp.value.trim(), sug = collSuggest(cat, q);
-      list.innerHTML = sug.map(n => { const k = ownKey(n), w = TR.wish[k]; return `<button type="button" class="ca-opt" role="option" data-n="${esc(n)}"><span>${sugHtml(n, q)}</span><i>${w ? '× ' + w.q : '+'}</i></button>`; }).join('')
-        || (q.length >= 2 ? '<p class="hint">' + T('Aucune carte de ce nom. Vérifie l\'orthographe (nom anglais).') + '</p>' : '');
+      const q = inp.value.trim(), sug = collSuggestX(cat, q, 12, () => { if (inp.isConnected) paint(); });      // langue de l'appli, anglais, langue des cartes (cardnames.js)
+      list.innerHTML = sug.map(({ n, p, l }) => { const k = ownKey(n), w = TR.wish[k]; return `<button type="button" class="ca-opt" role="option" data-n="${esc(n)}"><span>${sugHtml(n, q, p || '', l)}</span><i>${w ? '× ' + w.q : '+'}</i></button>`; }).join('')
+        || (q.length >= 2 ? '<p class="hint">' + T('Aucune carte de ce nom. Vérifie l\'orthographe.') + '</p>' : '');
     };
     list.onclick = e => {
       const b = e.target.closest('.ca-opt'); if (!b) return;
@@ -567,7 +567,7 @@ function openPublicTrade(sh, preview, id, fr) {
   /** Cartes de l'onglet, prêtes pour les filtres (extension, rareté, prix à l'unité : search.js › srchxPrep). */
   const pubAll = () => { const all = (P.sub === 'want' ? sh.want : sh.have).map(pubItem); return typeof srchxPrep === 'function' ? srchxPrep(all, it => trShPx(it).u) : all; };
   mountSeg($('#pubSub', wrap), [...(preview ? [] : [{ v: 'match', label: T('Pour toi'), sub: pubMatchSub(P) }]), { v: 'have', label: T('À échanger'), sub: nf0(pubN(sh.have)) }, { v: 'want', label: T('Recherchées'), sub: nf0(sh.want.length) }], P.sub, v => { P.sub = v; P.shown = TR_PAGE; paint(false); });
-  const pubFb = mountFilters($('#pubF', wrap), P.f, () => { P.shown = TR_PAGE; paint(true); }, { placeholder: T('Nom français ou anglais'), ...(typeof srchxOpts === 'function' ? srchxOpts({ items: pubAll, repaint: () => { if (P.el === wrap) { pubFb.paint(); paint(true); } } }) : {}) });      // mêmes filtres que ma collection : extension, rareté, prix
+  const pubFb = mountFilters($('#pubF', wrap), P.f, () => { P.shown = TR_PAGE; paint(true); }, { placeholder: cnPh(), ...(typeof srchxOpts === 'function' ? srchxOpts({ items: pubAll, repaint: () => { if (P.el === wrap) { pubFb.paint(); paint(true); } } }) : {}) });      // mêmes filtres que ma collection : extension, rareté, prix
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); wrap.__close(); } };
   wrap.__close = () => {
     if (P.el !== wrap) return; P.el = null; document.removeEventListener('keydown', onKey, true); clearTimeout(P.t); clearInterval(P.tick);

@@ -485,7 +485,7 @@ async function amCollSheet(f) {
       if (need.length && dmRun < 3 && dmMissing(need).length) { dmRun++; dmFetch(need).then(got => { if (got && api.wrap.isConnected) paint(); }, () => {}); }
     };
     const again = () => { if (api.wrap.isConnected) { fb.paint(); paint(); } };
-    const fb = mountFilters($('.am-cf', api.body), flt, () => { shown = AM_PAGE; paint(); }, { placeholder: T('Nom français ou anglais'), ...(typeof srchxOpts === 'function' ? srchxOpts({ items: allOf, repaint: again }) : {}) });      // mêmes filtres que ma collection
+    const fb = mountFilters($('.am-cf', api.body), flt, () => { shown = AM_PAGE; paint(); }, { placeholder: cnPh(), ...(typeof srchxOpts === 'function' ? srchxOpts({ items: allOf, repaint: again }) : {}) });      // mêmes filtres que ma collection
     api.wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
     api.wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
     api.body.addEventListener('click', e => {

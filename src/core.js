@@ -245,6 +245,9 @@ const namesLangOf = (card, ui) => (NAMES_LANGS.includes(card) ? card : NAMES_LAN
 /** Clé d'un nom pour l'index français : accents, casse, apostrophes, tirets et espaces ignorés (« L'Aquilon », « l aquilon », « Laquilon » se rejoignent). */
 const frKey = s => normPart(s).replace(/ /g, '');
 const frUse = (ix, l = 'fr') => { FRX.ix = ix || null; FRX.l = l; };
+/** 2e index des noms imprimés : celui de la LANGUE DE L'APPLI quand ce n'est pas celle des cartes (cardnames.js › cnLoad) ; jamais plus de deux index en mémoire (FRX, CN).
+ *  v : version des noms (+ 1 à l'arrivée d'un index : recherches gardées refaites) ; on : écrans qui attendent l'index (cnWhen) ; ms : durée de construction. */
+const CN = { ix: null, l: '', p: null, local: false, fail: 0, v: 0, ms: 0, on: new Set() };
 
 /** Une ligne de decklist → undefined (vide) · { ignored: true } (commentaire, en-tête : + quiet ; invalide : signalée) · { qty, name, key }.
  *  Nom français reconnu (index chargé, sauf o.fr === false) : name et key de la carte anglaise, dn = nom imprimé français, fr = 1 ; nom français de plusieurs cartes : amb = [noms anglais], le nom reste tel qu'écrit.
@@ -267,8 +270,8 @@ function parseLine(raw, o) {
   if (!name || qty < 1 || qty > 999) return { ignored: true };
   const key = normName(name); if (!key) return { ignored: true };
   const out = { qty, name, key, ...(lang ? { lang } : {}), ...(foil ? { foil: 1 } : nf ? { nf: 1 } : {}), ...(ed ? { ed } : {}) };
-  if (FRX.ix && !(o && o.fr === false)) {
-    const f = frLookup(name, lang === FRX.l || !!(o && o.prefer === FRX.l), key.replace(/[ /]/g, ''));
+  if ((FRX.ix || CN.ix) && !(o && o.fr === false)) {      // langue de l'appli (CN), puis langue des cartes (FRX)
+    const f = nmLookup(name, [lang, o && o.prefer], key.replace(/[ /]/g, ''));
     if (f && f.en) { out.name = f.en; out.key = normName(f.en); out.dn = f.p; out.fr = 1; } else if (f && f.amb) out.amb = f.amb;
   }
   return out;
@@ -1332,12 +1335,12 @@ function parseCollection(text, o) {
     break;
   }
   const bins = new Map();      // classeurs ManaBox (« Binder Name ») : id d'emplacement (même nom → même id) → { t, n }
-  const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
+  const map = new Map(), fr = !!(o && o.fr && (FRX.ix || CN.ix)), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
   const add = (name, q, l, d, e, f, a) => {
     name = String(name || '').trim(); q = Math.max(1, Math.min(9999, Math.round(q) || 1));
     if (fr && name) {
-      const f = frLookup(name, (l === '-' ? '' : l || dl) === FRX.l);
-      if (f && f.en) { name = f.en; if (!l) l = FRX.l; nfr++; } else if (f && f.amb && amb.length < 50 && !amb.includes(name)) amb.push(name);
+      const f = nmLookup(name, [l === '-' ? '' : l || dl]);
+      if (f && f.en) { name = f.en; if (!l) l = f.l; nfr++; } else if (f && f.amb && amb.length < 50 && !amb.includes(name)) amb.push(name);
     }
     if (!l) l = dl; else if (l === '-') l = '';
     const k = ownKey(name); if (!name || !k) { skipped++; return; }
@@ -1605,13 +1608,13 @@ function fltAdvOk(i, f, now) {
  *  Filtres avancés (FLT_ADV) : cartes préparées seulement (i.sl, voir plus haut) ; f.now : heure en secondes (tests). */
 function filterItems(items, f) {
   if (!f) return items;
-  const q = normPart(f.q || ''), colors = f.colors && f.colors.size ? f.colors : null, type = f.type || '', cmc = f.cmc === '' || f.cmc == null ? null : Number(f.cmc), cmdr = f.cmdr === 'can' || f.cmdr === 'played' ? f.cmdr : '';
+  const q = normPart(f.q || ''), Q = q && typeof cnQ === 'function' ? cnQ(q) : null, cix = Q ? cnIx(true) : null, colors = f.colors && f.colors.size ? f.colors : null, type = f.type || '', cmc = f.cmc === '' || f.cmc == null ? null : Number(f.cmc), cmdr = f.cmdr === 'can' || f.cmdr === 'played' ? f.cmdr : '';
   const set = f.set === '-' ? '' : f.set || null;      // '' : lignes sans édition ; null : toutes
   const adv = fltAdvCount(f) > 0, now = Number(f.now) || Math.floor(Date.now() / 1000);
   if (!q && !colors && !type && cmc == null && !cmdr && set == null && !adv) return items;
   return items.filter(i => {
     if (set != null && i.eds && !i.eds.includes(set)) return false;      // eds : extensions des lignes de la carte (collection, échange), '' pour une ligne sans édition ; sans eds (deck) : pas de filtre
-    if (q && !normPart(i.n).includes(q) && !(i.dn && normPart(i.dn).includes(q)) && !(i.fn && normPart(i.fn).includes(q))) return false;      // nom anglais, nom affiché (FR) ou nom français de la carte même si l'exemplaire est anglais
+    if (Q ? !cnItem(i, Q, cix) : q && !normPart(i.n).includes(q) && !(i.dn && normPart(i.dn).includes(q)) && !(i.fn && normPart(i.fn).includes(q))) return false;      // nom anglais, nom affiché, nom dans la langue des cartes (exemplaire anglais compris) et dans celle de l'appli (cardnames.js) ; mots dans n'importe quel ordre
     if (cmdr && (i.cx || 0) < (cmdr === 'played' ? 2 : 1)) return false;      // cx : 0 pas commandant · 1 peut l'être · 2 joué comme commandant (EDHREC)
     if (colors || type || cmc != null) {
       if (!hasMeta(i)) return false;
@@ -2350,8 +2353,8 @@ function frIndex(rows, ix) {
  *  Un nom qui est aussi le nom anglais d'une autre carte reste anglais (« Desolation », « Endurance ») sauf preferFr (exemplaire dit français) ou accents du nom imprimé tapés tels quels (« Désolation » = Badlands).
  *  ck : clé frKey déjà calculée. */
 const frAccent = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
-function frLookup(name, preferFr, ck) {
-  const ix = FRX.ix; if (!ix) return null;
+function frLookup(name, preferFr, ck, ix = FRX.ix) {
+  if (!ix) return null;
   const k = ck || frKey(name); if (k.length < 2) return null;
   const e = ix.by.get(k); if (!e) return null;
   if (ix.en.has(k)) {
@@ -2360,8 +2363,15 @@ function frLookup(name, preferFr, ck) {
   }
   return e.amb ? { amb: e.amb.slice(), p: e.p } : { en: e.en, p: e.p };
 }
-/** Nom anglais d'un nom français connu sans ambiguïté, sinon '' (pour les autres écrans : liste de souhaits…). */
-const frToEn = name => { const f = frLookup(name); return f && f.en ? f.en : ''; };
+/** Même chose dans les deux index : langue de l'appli (CN, s'il n'est pas FRX) puis langue des cartes (FRX). prefer : langues dites pour la ligne (« *FR* »,
+ *  « Langue de ces cartes »…) : un nom de cette langue qui est aussi un nom anglais y est lu dans cette langue. → { en | amb, p, l (langue du nom reconnu) } ou null. */
+function nmLookup(name, prefer, ck) {
+  const ps = (prefer || []).filter(Boolean), k = ck || frKey(name);
+  for (const [ix, l] of [[CN.ix !== FRX.ix ? CN.ix : null, CN.l], [FRX.ix, FRX.l]]) { if (!ix) continue; const f = frLookup(name, ps.includes(l), k, ix); if (f) return { ...f, l }; }
+  return null;
+}
+/** Nom anglais d'un nom imprimé connu sans ambiguïté (langue de l'appli, puis des cartes), sinon '' (pour les autres écrans : liste de souhaits…). */
+const frToEn = name => { const f = nmLookup(name); return f && f.en ? f.en : ''; };
 /** Nom imprimé français d'une carte (nom anglais ou clé), '' si l'index ne la connaît pas. */
 const enToFr = name => (FRX.ix && FRX.ix.fr.get(ownKey(name))) || '';
 /** Noms proches d'un nom inconnu (faute de frappe, nom français approché) : [{ n (anglais), p? (imprimé français), score }], les meilleurs d'abord, sans doublon de carte.
@@ -2369,7 +2379,7 @@ const enToFr = name => (FRX.ix && FRX.ix.fr.get(ownKey(name))) || '';
 function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
   const name = String(raw || '').trim(), key = normPart(name.split('//')[0]); if (key.length < 2) return [];
   const out = new Map(), put = (en, p, score) => { const k = ownKey(en); const cur = out.get(k); if (!cur || score > cur.score) out.set(k, { n: en, ...(p ? { p } : {}), score: Math.round(score * 1000) / 1000 }); };
-  const f = frLookup(name, true); if (f && f.en) put(f.en, f.p, 1); else if (f && f.amb) f.amb.forEach(en => put(en, f.p, 0.99));
+  const f = nmLookup(name, [CN.l, FRX.l]); if (f && f.en) put(f.en, f.p, 1); else if (f && f.amb) f.amb.forEach(en => put(en, f.p, 0.99));
   const max = Math.max(1, Math.floor(key.length * (1 - minScore)));
   const scan = (list, get) => {
     for (const e of list) {
@@ -2379,6 +2389,7 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
     }
   };
   if (idx && idx.list) scan(idx.list, (e, s) => put(e.n, '', s));
+  if (CN.ix && CN.ix !== FRX.ix) scan(CN.ix.list, (e, s) => put(e.en, e.n, s));      // langue de l'appli, puis langue des cartes
   if (FRX.ix) scan(FRX.ix.list, (e, s) => put(e.en, e.n, s));
   return [...out.values()].sort((a, b) => b.score - a.score || a.n.localeCompare(b.n)).slice(0, n);
 }
@@ -2666,7 +2677,7 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, frKey, frUse, frIndex, frLookup, frToEn, enToFr, nameSuggest });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, CN, frKey, frUse, frIndex, frLookup, nmLookup, frToEn, enToFr, nameSuggest });
 // Langue des cartes et liens selon la langue de l'utilisateur (test.mjs) : exportés à part, eux aussi
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { MK, MKTS, MK_EU, mkGuess, mkPick, mkUs, mkSfx, mkCur, modeCur, mkMode, SNAP_MODES, mkName, mkAb, mkLabel, mkPx, mkText, tcgUrl, mkUrl, mkWantsUrl });
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { defaultCardLang, cmSite, ctCartUrl, namesLangOf, NAMES_LANGS, ASIA_LANGS, NAMES_ALL_LANGS, CJK_RE });
