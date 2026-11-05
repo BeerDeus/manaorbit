@@ -83,6 +83,11 @@
 .da-why{grid-column:2;font-size:12px;line-height:1.35;color:var(--ink-2)}
 .da-why b.up{color:var(--bad)}
 .da-why b.down{color:var(--good)}
+.da-sw .da-why .da-wh,.dx-sw .da-why .da-wh{display:inline;color:var(--ink);font-weight:650;font-size:12.5px;line-height:1.35}
+.da-why .da-px{font-style:normal;font-weight:700;font-size:11.5px;padding:1px 7px;border-radius:999px;margin-left:4px;white-space:nowrap}
+.da-why .da-px.up{color:var(--bad);background:var(--bad-soft,rgba(220,60,60,.12))}
+.da-why .da-px.down{color:var(--good);background:var(--good-soft)}
+.da-why small{display:block;margin-top:2px;color:var(--ink-3);font-size:11.5px}
 .da-delta{margin-top:6px}
 @media (max-width:380px){.da-pair{grid-template-columns:1fr}.da-arrow{display:none}}
 
@@ -187,6 +192,21 @@
 .dw-brief{display:flex;gap:10px;align-items:flex-start;margin:6px 0 10px;padding:12px 14px;border-radius:14px;background:var(--accent-soft);border-left:4px solid var(--accent)}
 .dw-brief .i{flex:none;width:20px;height:20px;margin-top:1px;color:var(--accent)}
 .dw-brief p{margin:0;font-size:14.5px;line-height:1.5;font-weight:550;color:var(--ink)}
+.dw-brief.clamp:not(.open) p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.dw-brief [data-brief-more]{margin-top:4px;font-size:13px}
+.dw-brief [data-brief-more] .l,.dw-brief.open [data-brief-more] .m{display:none}
+.dw-brief.open [data-brief-more] .l{display:inline}
+/* Plan du deck : lignes courtes étiquetées (thèmes, moteurs, pour gagner) */
+.dw-rows{display:flex;flex-direction:column;gap:8px;margin:4px 0 6px}
+.dw-row{display:grid;grid-template-columns:86px 1fr;gap:8px;align-items:baseline}
+.dw-rl{font-size:11.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--ink-3)}
+.dw-rv{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.dw-pill{display:inline-flex;align-items:baseline;gap:4px;max-width:100%;padding:3px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;line-height:1.3;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dw-pill b{font-weight:750;color:var(--accent)}
+.dw-eng{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;width:100%}
+.dw-eng li{font-size:13px;line-height:1.3}
+.dw-eng li b{font-weight:650}
+.dw-eng li small{display:block;color:var(--ink-3);font-size:11.5px}
 /* Simulation des 10 000 parties, dans le Coach sous « Autre proposition » */
 .dw-simbox{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
 .dw-simbox .sec-title{margin-top:0}
@@ -204,3 +224,24 @@
 .dw-audit li.good::before{content:"✓";color:var(--good)}
 .dw-audit li.warn::before{content:"!";color:var(--warn)}
 .dw-audit li small{display:block;margin-top:2px;color:var(--ink-2)}
+/* Budget et commandant (deckopt.js › dsBudAsk) : question avant la construction quand le commandant coûte au moins la moitié du budget */
+.ds-bud-sheet .btn[data-bud-99]{flex-direction:column;height:auto;min-height:58px;gap:2px;padding:9px 16px;margin-top:12px}
+.ds-bud-sheet .btn[data-bud-99] small{display:block;font-weight:500;font-size:12.5px;opacity:.85}
+.ds-bud-sheet .field-in{margin:16px 0 8px}
+/* Simulation lue d'un coup d'œil (decksim.js › dsimHtml) : 4 chiffres clés, conseils, puis tous les chiffres repliés */
+.ds-key{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ds-key li{display:flex;flex-direction:column;gap:1px;padding:10px 12px;border-radius:12px;background:var(--good-soft)}
+.ds-key li.warn{background:var(--warn-soft)}
+.ds-key li b{font-size:22px;font-weight:750;line-height:1.1;color:var(--good)}
+.ds-key li.warn b{color:var(--warn)}
+.ds-key li span{font-size:13px;font-weight:650;color:var(--ink);line-height:1.25}
+.ds-key li small{font-size:11.5px;color:var(--ink-3)}
+.ds-adv-h{margin:12px 0 4px}
+.ds-adv{margin-top:0}
+.hint.good{color:var(--good);margin-top:10px}
+.ds-more{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.ds-more>summary{cursor:pointer;font-size:13.5px;font-weight:650;color:var(--accent);list-style:none;padding:4px 0}
+.ds-more>summary::-webkit-details-marker{display:none}
+.ds-more>summary::after{content:" ▾"}
+.ds-more[open]>summary::after{content:" ▴"}
+.ds-more .ds-sim{margin-top:8px}

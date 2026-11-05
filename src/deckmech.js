@@ -207,7 +207,7 @@ function dmxPool(cmd, plan) {
 function dmxReasons(k, X, cmd, plan) {
   const m = dmx(k), out = [], nm = cmd ? cmd.names[0].split(',')[0] : '', set = X.wiz || {};
   if ((set.pets || []).some(n => ownKey(n) === k)) out.push(T('ta carte fétiche'));
-  if (DW.core && Array.isArray(DW.core.combos) && set.br >= 3) { for (const e of dwComboIdx().get(k) || []) if (X.main.has(e.p) || X.cmdr.some(c => c.key === e.p)) { out.push(T('combo avec {card}', { card: e.c[0] === (dwCard(k) || {}).name ? e.c[1] : e.c[0] })); break; } }
+  if (DW.core && (Array.isArray(DW.core.combos) || Array.isArray(DW.core.combos3)) && set.br >= 3) { const cw = dwComboWith(k, p => p !== k && (X.main.has(p) || X.cmdr.some(c => c.key === p))); if (cw) out.push(dwComboWhy(cw.o)); }      // combo à 2 ou 3 cartes dont les autres pièces sont là
   if (plan && plan.ai) {      // fiche IA du commandant : cœur du plan, moteur, condition de victoire, piège
     const ai = plan.ai, nmK = n => ownKey(n), has = n => X.main.has(nmK(n)) || X.cmdr.some(c => c.key === nmK(n));
     const e = (ai.eng || []).find(([, cs]) => cs.some(n => nmK(n) === k) && cs.some(n => nmK(n) !== k && has(n)));
@@ -251,14 +251,17 @@ function dwDeckStory(X = BD) {
   E('cimetière', [['self-mill', 'loot', 'discard-outlet'], ['reanimation', 'graveyard-cast']]);
   E('marqueurs', [['counters-p1'], ['proliferate']]);
   E('sorts copiés', [['copy'], ['cost-reduction', 'untap']]);
-  const wincons = cards.filter(c => (dwCard(c.key) || {}).roles & DW_RB.wincon).map(c => c.name);
+  const wk = typeof dwWinKeys === 'function' ? dwWinKeys(X) : null;      // conditions de victoire au sens du plan (comme la jauge, dwProfile) : le commandant quand il gagne lui-même, les cartes de la fiche, puis celles classées « condition de victoire »
+  const wincons = [...new Set([...(wk && wk.cmdr ? X.cmdr.map(c => c.name) : []), ...cards.filter(c => wk && wk.cards.has(c.key)).map(c => c.name), ...cards.filter(c => (dwCard(c.key) || {}).roles & DW_RB.wincon).map(c => c.name)])];
   const pets = (set.pets || []).map(nm => ({ nm, k: ownKey(nm) })), petIn = pets.filter(p => X.main.has(p.k)).map(p => p.nm), petOut = pets.filter(p => !X.main.has(p.k)).map(p => p.nm);
   const notes = [];
   if (plan && plan.user && plan.main.length) notes.push(T('Plan suivi : {m}', { m: plan.main.slice(0, 3).map(i => dmxLabel(DMX.tags[i])).join(', ') }));
   if (petOut.length) notes.push(TN(petOut.length, 'Carte fétiche écartée (couleurs, bracket ou cartes interdites) : {c}', 'Cartes fétiches écartées (couleurs, bracket ou cartes interdites) : {c}', { c: petOut.join(', ') }));
-  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
+  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
   return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
+/** Nom d'un moteur de la fiche du commandant : écrit en français par l'IA ; dans une autre langue, un libellé traduit. */
+const dmxEngName = l => typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr' ? l : T('moteur du plan');
 /** Lecture d'un deck par sa fiche et ses mécaniques (analyse, rapport) : { story, engines: [{ label, have, miss }] (moteurs de la fiche : pièces présentes, pièces qui manquent),
  *  traps: [noms] (pièges de la fiche présents dans le deck), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
  *  ni un rôle, et peu forts), core: [noms] (cœur du plan présent, note 3 de la fiche) } ; null sans classement. */
@@ -266,7 +269,7 @@ function dwDeckAudit(X = BD) {
   if (!dmxOn()) return null;
   const story = dwDeckStory(X); if (!story) return null;
   const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
-  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
+  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
   const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
   const deck = dmxDeck(X), loose = [];
   for (const c of X.main.values()) {

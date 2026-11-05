@@ -45,17 +45,36 @@ const dmOf = k => {
   const e = pxRef(k); if (e) return { ...m, eu: e };
   pxRefEnsure(); return m;
 };
-let PXR_ASK = false;
+/** Prix estimé d'une carte (centimes, 0 si inconnu) : LA règle de la « valeur estimée », la même partout (en-tête de l'éditeur, coach, Mes decks, viewer, image de partage,
+ *  prix de ce qui manque). Relevé du jour (impression la moins chère, marché choisi : data.js › pxParse) s'il est connu, sinon tendance de la fiche (impression par défaut de Scryfall).
+ *  Relevé pas encore lu : demandé (pxRefEnsure), les écrans se redessinent à son arrivée. */
+function dkPx(k) {
+  const e = pxRef(k); if (e) return e;
+  pxRefEnsure(); const m = COLL.meta[k] || DM[k]; return m && m.eu > 0 ? m.eu : 0;
+}
+/** Valeur estimée d'un texte de deck avec cette règle (core.js › dkValue : commandant compris, terrains de base et réserve exclus, cartes possédées comprises).
+ *  ready : faux tant que le relevé du jour n'a pas été essayé (le chiffre changerait à son arrivée : l'en-tête de l'éditeur et Mes decks l'attendent). */
+const dkEst = text => ({ ...dkValue(text, dmOf, dkPx), ready: pxSettled() });
+let PXR_ASK = false, PXR_DONE = false;
+/** Relevé du jour lu, ou déjà essayé (absent, hors ligne, serveur muet plus de 3 s) : la valeur estimée ne changera plus d'elle-même. */
+const pxSettled = () => !!(typeof PXT !== 'undefined' && PXT) || PXR_DONE || typeof pxTable !== 'function';
+/** Écrans ouverts qui affichent une valeur estimée : redessinés (relevé du jour arrivé, ou essayé en vain la première fois). */
+function pxRepaint() {
+  try { if (typeof DV !== 'undefined' && DV.el && DV.snap && (DV.snap.ref || (DV.sb && DV.sb.length))) dvRefresh(); } catch (e) { /* viewer fermé entre-temps */ }
+  try { if (BD.el) bdPaint(); } catch (e) { /* éditeur fermé */ }
+  try { if (typeof dksPaint === 'function') dksPaint(); } catch (e) { /* écran « Mes decks » pas prêt */ }
+  try { if (typeof DK_VALP === 'function') DK_VALP(); } catch (e) { /* feuille d'un deck fermée */ }
+}
 /** Relevé du jour pas encore lu : lu une fois, puis les écrans ouverts qui affichent des prix de référence sont redessinés. */
 function pxRefEnsure() {
   if (PXR_ASK || (typeof PXT !== 'undefined' && PXT) || typeof pxTable !== 'function') return;
   PXR_ASK = true;
+  const settle = () => { if (PXR_DONE) return false; PXR_DONE = true; return true; };
+  const slow = setTimeout(() => { if (settle()) pxRepaint(); }, 3000);      // serveur muet : la valeur des fiches, sans attendre plus
   pxTable().then(t => {
-    PXR_ASK = false; if (!t) return;
-    try { if (typeof DV !== 'undefined' && DV.el && DV.snap && DV.snap.ref) dvRefresh(); } catch (e) { /* viewer fermé entre-temps */ }
-    try { if (BD.el) bdList(); } catch (e) { /* éditeur fermé */ }
-    try { if (typeof dksPaint === 'function') dksPaint(); } catch (e) { /* écran « Mes decks » pas prêt */ }
-  }, () => { PXR_ASK = false; });
+    PXR_ASK = false; clearTimeout(slow); const first = settle();
+    if (t || first) pxRepaint();      // échec : un seul repeint (le premier) ; sinon chaque repeint redemanderait le relevé, puis repeindrait encore
+  }, () => { PXR_ASK = false; clearTimeout(slow); if (settle()) pxRepaint(); });
 }
 const liTried = new Set();
 /** Images, dans la langue de l'exemplaire, des cartes possédées de cette liste ([{ key, name }]) : lues sur Scryfall par lots de 12, une seule fois par carte (gardées 60 jours avec celles de la collection).
@@ -315,9 +334,8 @@ function bdSumHtml() {
   const st = ck.n === ck.size ? 'full' : ck.n > ck.size ? 'over' : '';
   const bad = ck.issues.filter(i => i.lv === 'bad').length;
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
-  const coachPx = BD.fmt === 'commander' && typeof dwProfile === 'function' && typeof DW !== 'undefined' && DW.core && typeof PXT !== 'undefined' && PXT;      // deck Commander : même prix que le coach (relevé du jour, impression la moins chère), pour que la valeur des versions et celle de l'en-tête soient les mêmes
-  const val = coachPx ? (() => { const c = dwProfile().cents; return c > 0 ? `≈ ${fmt(c, mkCur())}` : ''; })() : dkValueText(dkValue(dkBuildText(bdData()), dmOf));
-  const valT = coachPx ? T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus') : T('Prix tendance Cardmarket, cartes possédées comprises, terrains de base exclus');
+  const ev = dkEst(dkBuildText(bdData())), val = ev.ready ? dkValueText(ev) : '';      // règle unique (dkPx) : le même chiffre que le coach, Mes decks et le viewer, dès l'ouverture (pas d'attente de la base du coach)
+  const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
   return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${valT}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
@@ -329,7 +347,7 @@ function bdTags(k, q, ctx) {
   const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
   if (typeof dvGC === 'function' && dvGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (brackets Commander)
-  const buy = () => { const m = bdMeta(k), u = m && Number.isFinite(m.eu) && m.eu > 0 ? m.eu : 0; return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (tendance du marché choisi), s'il est connu
+  const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
   if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
   if (own && eg) { const ds = engDecksOf(XS.eng, k).filter(d => d.id !== BD.id); out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${ds.length === 1 && ds[0].n ? esc(TN(eg, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: eg, deck: ds[0].n })) : TN(eg, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: eg })}</span>`); }
@@ -353,7 +371,7 @@ function bdToolsHtml() {
 }
 /** Cartes de l'éditeur au format du deck viewer (prix de ce qui manque, possession), pour ses vues. */
 function bdViewItems() {
-  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = Number.isFinite(m.eu) && m.eu > 0 ? m.eu : 0;
+  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = BASIC_NAMES.has(k) ? 0 : dkPx(k);
     return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
   return [...[...BD.main.values()].map(c => one(c, 'main')), ...[...BD.side.values()].map(c => one(c, 'side'))];
 }
@@ -492,7 +510,7 @@ function bdViewItem(row) {
   const k = row.dataset.k, m = bdMeta(k); if (!m || !m.im) return null;
   const x = COLL.map[k], l = x ? x.l : '', im = collImage(k, l, m.im, row.dataset.n), own = collQty(k);
   return { key: k, lid: k + '|' + row.dataset.t, name: bdLabel(k, row.dataset.n), ln: row.dataset.n, wl: viewLang(k, true), small: im.src, lang: im.lang, plain: true,
-    extra: `${own ? TN(own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: own }) : T('Pas dans ta collection')}${Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {p}', { p: fmt(m.eu, mkCur()) }) : ''}` };
+    extra: `${own ? TN(own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: own }) : T('Pas dans ta collection')}${dkPx(k) ? ' · ' + T('valeur estimée {p}', { p: fmt(dkPx(k), mkCur()) }) : ''}` };      // même prix que l'en-tête et le viewer (dkPx)
 }
 
 /* ── Interactions ─────────────────────────────────────────────────────────────────────────────── */

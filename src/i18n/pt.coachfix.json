@@ -1,0 +1,12 @@
+{
+ "moteur du plan": "motor do plano",
+ "Même rôle, plus utile dans ce deck avec {name}": "Mesma função, mais útil neste deck com {name}",
+ "Sert mieux le plan de {name}": "Combina melhor com o plano de {name}",
+ "Thème {m} : {n} carte, {t} conseillées": "Tema {m}: {n} carta, {t} recomendadas",
+ "Budget et commandant": "Orçamento e comandante",
+ "{name} coûte {p} à lui seul, sur un budget de {b} : il ne resterait presque rien pour les autres cartes.": "{name} sozinho custa {p} de um orçamento de {b}: quase nada sobraria para as outras cartas.",
+ "Appliquer le budget aux 99 autres cartes": "Aplicar o orçamento às outras 99 cartas",
+ "Budget total : {p}": "Orçamento total: {p}",
+ "Ou revoir le budget du deck ({c})": "Ou reveja o orçamento do deck ({c})",
+ "Construire avec ce budget": "Construir com este orçamento"
+}

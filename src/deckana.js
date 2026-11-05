@@ -11,10 +11,10 @@
    « Ouvrir dans l'éditeur avec N échanges » : les échanges cochés appliqués, onglet Coach ; un deck de Mes decks est modifié (à enregistrer). */
 const DA = { api: null, X: null, id: null, name: '', text: '', off: new Set(), brAuto: true, swaps: [] };
 /** Bracket estimé d'un deck d'après son profil (dwProfile) : 4 avec plus de 3 Game Changers ou une destruction massive de terrains ; 3 avec un Game Changer
- *  plusieurs tours supplémentaires ou un combo à 2 cartes ; 2 sinon (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
+ *  plusieurs tours supplémentaires ou un combo à 2 ou 3 cartes ; 2 sinon (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
 function dwBracketOf(prof) {
   if (prof.gc.length > 3 || prof.mld.length) return 4;
-  if (prof.gc.length || prof.xt.length > 1 || prof.combos.length) return 3;      // combo à 2 cartes : interdit en 1 et 2
+  if (prof.gc.length || prof.xt.length > 1 || prof.combos.length) return 3;      // combo à 2 cartes (interdit en 1 et 2) ou à 3 cartes (à éviter)
   return 2;
 }
 /** Deck à analyser d'après son texte : { main, cmdr } ; sans bloc « Commander », la première carte si elle peut être commandant. */
@@ -40,7 +40,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
   const gaugeRoles = [...DW_GAUGES.map(g => g[0]).filter(r => r !== 'land'), 'wincon'];      // condition de victoire : un rôle comme les autres (jamais retirée pour une carte « mieux jouée » d'un autre rôle)
   const mainRole = r => gaugeRoles.find(g => r & DW_RB[g]) || '';
-  const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x), roles: x.roles } : null; }).filter(Boolean);
+  const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x, true), roles: x.roles } : null; }).filter(Boolean);
   const nonland = cards.filter(c => !(c.roles & DW_RB.land));
   const fits = (W, C) => !lim || C.price <= W.price || total - W.price + C.price <= lim;
   const take = (W, C, why) => { out.push({ out: W, in: C, why }); used.add(W.k); skip.add(C.k); total += C.price - W.price; };
@@ -82,15 +82,19 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
     const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack, info }); s.gain = sc ? sc.raw - base.raw : 0; return s;
   }).filter(s => s.gain >= -0.05).sort((a, b) => (b.why === 'budget') - (a.why === 'budget') || b.gain - a.gain);
 }
-/** Raison d'un échange, en clair. */
-function daWhy(sw, cmd) {
+/** Raison d'un échange, en clair : [raison principale, précisions…] (ce que la carte fait pour ce deck, piège de la fiche). */
+function daWhyParts(sw, cmd) {
   const nm = cmd ? cmd.names[0].split(',')[0] : '', g = DW_GAUGES.find(x => x[0] === sw.why);
-  const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) }) : sw.why === 'mieux' ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Bien plus jouée avec {name}', { name: nm });
-  const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0;
+  const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0, more = b >= a + 10;      // « bien plus jouée » seulement si c'est vrai : l'échange est choisi sur la valeur pour ce deck (mécaniques, fiche), pas sur la seule popularité
+  const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) })
+    : sw.why === 'mieux' ? (more ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Même rôle, plus utile dans ce deck avec {name}', { name: nm }))
+    : more ? T('Bien plus jouée avec {name}', { name: nm }) : T('Sert mieux le plan de {name}', { name: nm });
   const C = DW.infoC && DW.infoC.C, plan = C && C.plan, mech = plan && DA.X && typeof dmxReasons === 'function' ? dmxReasons(sw.in.k, DA.X, cmd, plan).slice(0, 2) : [];      // ce que la carte proposée fait pour ce deck (fiche du commandant, mécaniques)
   const trap = sw.out.o && sw.out.o.trap ? [T('{card} marche mal avec {name}', { card: sw.out.name, name: nm })] : [];
-  return [head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : ''), ...trap, ...mech].join(' · ');
+  return [head, ...(b > a ? [T('{b} % des decks (contre {a} %)', { a, b })] : []), ...trap, ...mech];
 }
+/** Raison d'un échange, en une ligne. */
+const daWhy = (sw, cmd) => daWhyParts(sw, cmd).join(' · ');
 
 /* ── Écran : le coach s'adapte à l'état du deck ──────────────────────────────────────────────────────────────────────────────────────
    · Deck de Mes decks complet (100 cartes) → bilan tout de suite, sans question : bracket estimé (dwBracketOf) ou celui enregistré pour le deck, budget = valeur
@@ -158,7 +162,8 @@ function daActions(prof, tgt, cmd, set, swaps, pack) {
   const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2];
   if (prof.gc.length > b[3]) out.push({ k: 'gc', sg: '−', t: TN(prof.gc.length - b[3], 'Retirer {n} Game Changer', 'Retirer {n} Game Changers'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: b[3] }), gain: 5, issue: T('trop fort pour le bracket visé') });
   if (prof.mld.length && set.br <= 3) out.push({ k: 'mld', sg: '−', t: T('Retirer la destruction de terrains'), s: T('Interdite en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
-  if (prof.combos.length && set.br <= 2) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  if (prof.combos.some(c => !dwCombo3(c)) && set.br <= 2) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  else if (prof.combos.length && set.br <= 2) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 3 cartes'), s: T('À éviter en bracket {b}', { b: b[0] }), gain: 3, issue: T('trop fort pour le bracket visé') });
   if (set.bud > 0 && prof.cents > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
   if (prof.nonland && prof.mv > tgt.mv[2]) out.push({ k: 'curve', sg: '−', t: T('Baisser la courbe de mana'), s: T('Coût moyen {v}, repère {m}', { v: dsNum(prof.mv), m: dsNum(tgt.mv[1], 1) }), gain: Math.min(1, (prof.mv - tgt.mv[2]) / 0.6) * 10, issue: T('la courbe est un peu haute') });
   if (sw) out.push({ k: 'swap', sg: '⇄', t: T('Échanger {a} → {b}', { a: bdLabel(sw.out.k, sw.out.name), b: bdLabel(sw.in.k, sw.in.name) }), s: daWhy(sw, cmd), gain: swGain, issue: sw.issue || '' });
@@ -231,8 +236,10 @@ function daPaint() {
   DA.swaps = mode === 'bilan' && DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
   const acts = DA.acts = sc ? daActions(prof, tgt, cmd, set, DA.swaps, pack).slice(0, 3) : [];
   if (sc) h += daHeadHtml(sc, acts, prof, set, est, pack, mode === 'bilan');
-  if (typeof dwAuditHtml === 'function') h += dwAuditHtml(X);      // ce que fait le deck (fiche du commandant, mécaniques : deckwiz.js › dwAuditHtml)
+  const au = typeof dwAuditParts === 'function' ? dwAuditParts(X) : null;      // ce que fait le deck (fiche du commandant, mécaniques : deckwiz.js › dwAuditParts)
+  const plan = au ? `<div class="sec-title">${T('Ce que fait ton deck')}</div>${au.story}` : '';
   if (mode === 'peek') {      // aperçu d'un deck qui n'est pas à moi
+    h += plan + (au ? au.rows : '');
     const strong = sc ? daStrong(sc, prof, tgt, cmd) : [], weak = acts.filter(a => a.k !== 'swap');
     h += `<div class="sec-title">${T('Points forts')}</div>${strong.length ? `<ul class="cb-pts good">${strong.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien qui ressorte nettement.')}</p>`}`;
     h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="cb-pts warn">${weak.map(a => `<li><b>${esc(a.t)}</b> <small>${esc(a.s)}</small></li>`).join('')}</ul>` : `<p class="hint">${T('Aucun manque net.')}</p>`}`;
@@ -242,7 +249,10 @@ function daPaint() {
     done(T('Ajouter à mes decks')); daSimRun(); return;
   }
   // bilan d'un deck de Mes decks
+  // lu d'un coup d'œil : la note, ce qu'il faut faire, ce que fait le deck (plan court ; points détaillés repliés), la simulation, puis les échanges et le détail repliés
   h += `<div class="sec-title">${T('À faire en priorité')}</div>` + (acts.length ? `<div class="cb-acts">${acts.map(daActHtml).join('')}</div>` : `<p class="hint">${sc && sc.total >= 85 ? T('Rien d\'urgent : le deck est bien équilibré.') : T('Rien d\'urgent à changer.')}</p>`);
+  h += plan;
+  if (au && au.rows) h += daFold('plan', DA.planOpen, T('Points du plan'), [au.warn ? TN(au.warn, '{n} point à revoir', '{n} points à revoir') : T('rien à revoir'), au.good ? TN(au.good, '{n} point en place', '{n} points en place') : ''].filter(Boolean).join(' · '), au.rows);
   h += daSimCard();
   const on = DA.swaps.filter((s, i) => !DA.off.has(i));
   let after = null;
@@ -276,14 +286,14 @@ function daSimRun() {
     if (card) card.outerHTML = daSimCard();
   });
 }
-/** Résumé de la simulation : mains gardées, commandant à temps, couleurs ; « Rapport du coach » pour le reste. */
+/** Résumé de la simulation : mains gardées, commandant à temps, couleurs (quand elles bloquent) ou adversaire éliminé ; « Rapport du coach » pour le reste. */
 function daSimCard() {
   if (typeof dsimEnsure !== 'function' || !DW.core) return '';
   const r = DSIM.sig === dsimSig(DA.X) ? DSIM.res : null; if (r && r.none) return '';
   const tile = (ok, v, t) => `<span class="cb-st ${ok ? 'ok' : 'warn'}"><b>${esc(v)}</b><small>${esc(t)}</small></span>`;
   const body = !r ? `<span class="ds-big"><i style="width:${Math.round((DSIM.prog || 0) * 100)}%"></i></span><small class="cb-sim-w">${T('Parties en cours…')}</small>`
-    : `<div class="cb-sts">${tile(r.keep7 >= 74, r.keep7 + ' %', T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps')) : tile(r.miss3 <= 20, r.miss3 + ' %', T('parties sans terrain avant le tour 4'))}${tile(r.screw4 <= 10, r.screw4 + ' %', T('parties bloquées par les couleurs'))}</div>`;
-  return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('8 premiers tours joués par le coach, sans adversaire')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
+    : `<div class="cb-sts">${tile(r.keep7 >= 74, dsimPct(r.keep7), T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps')) : tile(r.miss3 <= 20, dsimPct(r.miss3), T('parties sans terrain avant le tour 4'))}${r.screw4 > 10 || r.elim10 == null ? tile(r.screw4 <= 10, dsimPct(r.screw4), T('parties bloquées par les couleurs')) : tile(r.kill10 >= 20, dsimPct(r.kill10), T('parties où un adversaire tombe avant le tour 11'))}</div>`;      // 3e case : les couleurs quand elles bloquent, sinon la table
+  return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('10 premiers tours joués par le coach, face à 3 adversaires')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
 }
 /** Réglage changé (formulaire partagé) : bracket ou budget choisis ne suivent plus la liste ; gardés pour un deck de Mes decks ; le bilan suit. */
 function daSetChanged(kind) {
@@ -306,7 +316,7 @@ function daSwapRow(s, i, cmd) {
   const cur = mkCur(), d = s.in.price - s.out.price, open = DA.why && DA.why.has(i);
   return `<div class="da-sw${DA.off.has(i) ? ' off' : ''}"><input type="checkbox" data-da-sw="${i}" ${DA.off.has(i) ? '' : 'checked'} aria-label="${esc(T('Remplacer {a} par {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }))}">
     ${daSwapPair(s)}
-    <span class="da-why">${esc(daWhy(s, cmd))}${d ? ` · <b class="${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</b>` : ''} <button class="link-btn link-inline" type="button" data-da-why="${i}" aria-expanded="${!!open}">${T('Pourquoi ?')}</button></span>
+    <span class="da-why">${(() => { const [hd, ...more] = daWhyParts(s, cmd); return `<b class="da-wh">${esc(hd)}</b>${d ? ` <i class="da-px ${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</i>` : ''}${more.length ? `<small>${esc(more.slice(0, 2).join(' · '))}</small>` : ''}`; })()} <button class="link-btn link-inline" type="button" data-da-why="${i}" aria-expanded="${!!open}">${T('Pourquoi ?')}</button></span>
     ${open && typeof dwSwapWhyHtml === 'function' && DA.ctx ? `<span class="da-wd">${dwSwapWhyHtml(s, DA.ctx.prof, DA.ctx.tgt, cmd)}</span>` : ''}</div>`;
 }
 /** Carte en grand depuis l'analyse : toutes les vignettes des échanges, dans l'ordre affiché (retirée, ajoutée, retirée…). */
@@ -317,7 +327,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
 function daClick(e) {
   if (e.target.closest('[data-da-report]')) { haptic('tap'); openDeckReport(DA.X, DA.name); return; }
   if (e.target.closest('[data-da-edit]')) { DA.setOpen = !DA.setOpen; haptic('tap'); daPaint(); return; }
-  const f = e.target.closest('[data-da-fold]'); if (f) { if (f.dataset.daFold === 'det') DA.detOpen = !DA.detOpen; haptic('tap'); daPaint(); return; }      // « Détail » replié ou déplié
+  const f = e.target.closest('[data-da-fold]'); if (f) { if (f.dataset.daFold === 'det') DA.detOpen = !DA.detOpen; else if (f.dataset.daFold === 'plan') DA.planOpen = !DA.planOpen; haptic('tap'); daPaint(); return; }      // « Détail » replié ou déplié
   if (e.target.closest('[data-da-swt]')) { DA.swOpen = !DA.swOpen; haptic('tap'); daPaint(); return; }      // replier / déplier les échanges conseillés
   const a = e.target.closest('[data-cb-act]'); if (a) { haptic('tap'); daActGo(DA.acts[Number(a.dataset.cbAct)]); return; }
   const w = e.target.closest('[data-da-why]'); if (w) { const i = Number(w.dataset.daWhy); if (DA.why.has(i)) DA.why.delete(i); else DA.why.add(i); haptic('tap'); daPaint(); return; }

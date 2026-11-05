@@ -76,7 +76,7 @@ async function dwGet(q, same) {
   if (!r.ok) return null;
   try { return { j: await r.json(), etag: r.headers.get('etag') || '' }; } catch (e) { return null; }
 }
-/** Index du cœur : clé de carte → rangée [nom, identité, coût, types, rôles, prix, drapeaux, couleurs produites, rang]. */
+/** Index du cœur : clé de carte → rangée [nom, identité, coût, types, rôles, prix, drapeaux, couleurs produites, rang, coût de mana, mécaniques, sous-types, force et endurance]. */
 function dwIndex(core) { const m = new Map(); for (const r of core.cards || []) { const k = ownKey(r[0]); if (k && !m.has(k)) m.set(k, r); } return m; }
 /** Cœur de la base : copie de l'appareil (un jour), sinon le serveur ; une copie plus ancienne sert hors ligne. */
 function dwLoad() {
@@ -118,7 +118,7 @@ function dwPack(kind, slug) {
 /** Rangée de la base pour une carte, ou une rangée de secours d'après la fiche (type, coût, identité) : rôles « terrain » seulement. */
 function dwCard(k) {
   const r = DW.byKey && DW.byKey.get(k);
-  if (r) return { name: r[0], ci: r[1], cmc: r[2], ty: r[3], roles: r.length < 10 && r[4] & DW_RB.counter ? r[4] & ~DW_RB.removal : r[4], eur: r[5], fl: r[6], prod: r[7] || '', rank: r[8] || 0, mc: r.length >= 10 ? r[9] || '' : null };      // ancienne base (sans coût de mana) : un contresort n'y est jamais un retrait ciblé ; la nouvelle tranche d'après le texte
+  if (r) return { name: r[0], ci: r[1], cmc: r[2], ty: r[3], roles: r.length < 10 && r[4] & DW_RB.counter ? r[4] & ~DW_RB.removal : r[4], eur: r[5], fl: r[6], prod: r[7] || '', rank: r[8] || 0, mc: r.length >= 10 ? r[9] || '' : null, pt: Array.isArray(r[12]) ? r[12] : null };      // ancienne base (sans coût de mana) : un contresort n'y est jamais un retrait ciblé ; la nouvelle tranche d'après le texte ; pt : [force, endurance, mots-clés] d'une créature (colonne [12], base du 5 novembre ; sinon null : force estimée par la simulation)
   const m = typeof dmOf === 'function' ? dmOf(k) : null; if (!m && !BASIC_NAMES.has(k)) return null;
   const tl = m ? String(m.tl || '') : 'Basic Land', land = /\bLand\b/.test(tl.split(' // ')[0]);
   return { name: k, ci: m ? m.ci || '' : '', cmc: m ? m.cm || 0 : 0, ty: land ? 1 : 0, roles: land ? DW_RB.land : 0, eur: m ? m.eu : 0, fl: 0, prod: '', rank: 0 };
@@ -185,6 +185,7 @@ function dwProfile(X = BD) {
   let mvSum = 0; const all = [...X.main.values()];
   for (const c of all) {
     const k = c.key, q = c.qty, x = dwCard(k); p.n += q; p.cards++;
+    if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur)
     if (!x) { p.unk += q; continue; }
     const land = !!(x.roles & DW_RB.land) || BASIC_NAMES.has(k);
     for (const r of DKW_ROLES) if (r === 'land' ? land : x.roles & DW_RB[r]) p[r] += q;
@@ -197,15 +198,15 @@ function dwProfile(X = BD) {
       if ((x.roles & DW_RB.ramp) && x.prod) for (const col of new Set([...x.prod].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q * 0.5;      // rampe qui produit la couleur : demi-source (dork, rock ; recherche : Karsten)
     }
     if (x.fl & 1) p.gc.push(x.name); if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
-    if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }
   }
-  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
   const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
   if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
-  if (DW.core && Array.isArray(DW.core.combos)) {      // combos à 2 cartes (Commander Spellbook) dont les deux cartes sont dans le deck
-    const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k), idx = dwComboIdx();
-    for (const k of [...X.main.keys(), ...X.cmdr.map(c => c.key)]) for (const e of idx.get(k) || []) if (k < e.p && has(e.p)) p.combos.push(e.c);      // par l'index (rapide : le score du coach relit souvent le profil)
+  if (DW.core && (Array.isArray(DW.core.combos) || Array.isArray(DW.core.combos3))) {      // combos (Commander Spellbook) dont toutes les cartes sont dans le deck : à 2 cartes, puis à 3 cartes
+    const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k), idx = dwComboIdx(), idx3 = dwCombo3Idx(), keys = [...X.main.keys(), ...X.cmdr.map(c => c.key)];
+    for (const k of keys) for (const e of idx.get(k) || []) if (k < e.p && has(e.p)) p.combos.push(e.c);      // par l'index (rapide : le score du coach relit souvent le profil)
+    for (const k of keys) for (const e of idx3.get(k) || []) if (k < e.p && k < e.q && has(e.p) && has(e.q)) p.combos.push(e.c);      // chaque combo compté une fois : par sa pièce dont la clé vient en premier
   }
   p.need = {};      // sources voulues par couleur : le commandant, et le quart le plus exigeant des sorts (recherche § 8.2 : les cartes importantes)
   for (const col of 'WUBRG') { const l = (p.needs[col] || []).sort((a, b) => b - a), q = l.length ? l[Math.floor(l.length / 4)] : 0; p.need[col] = Math.max(q, p.cmdNeed[col] || 0); }
@@ -228,10 +229,14 @@ function dwWinKeys(X) {
   const v = { cards, cmdr: cm }; if (pack) pack._win2 = { k: cmd.keys.join('+'), v };
   return v;
 }
-/** Prix d'une carte : celui de l'appli (marché choisi) s'il est connu, sinon celui de la base (euros, marché européen seulement). */
-function dwPrice(k, x) {
-  const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; if (t && t.e > 0) return t.e;      // relevé du jour (impression la moins chère, marché choisi) : le même pour toutes les cartes, en deck ou suggérées
-  const m = dmOf(k); if (m && Number.isFinite(m.eu) && m.eu > 0) return m.eu; return !mkUs() && x && x.eur > 0 ? x.eur : 0;
+/** Prix d'une carte : la valeur estimée de l'appli (builder.js › dkPx : relevé du jour, impression la moins chère du marché choisi, sinon tendance de la fiche) s'il est connu,
+ *  sinon celui de la base (euros, marché européen seulement). inDeck : carte du deck (dwProfile) ; relevé du jour lu, la base n'est plus consultée, pour que la valeur du deck
+ *  soit exactement celle de l'en-tête de l'éditeur, de Mes decks et du viewer (dkEst) ; elle ne sert qu'aux cartes suggérées et hors ligne sans relevé. */
+function dwPrice(k, x, inDeck) {
+  const e = typeof dkPx === 'function' ? dkPx(k) : (() => { const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; if (t && t.e > 0) return t.e; const m = dmOf(k); return m && m.eu > 0 ? m.eu : 0; })();      // la règle de l'appli (builder.js › dkPx) ; sans l'éditeur (banc d'essai, mesures dans une vm) : la même, en local
+  if (e > 0) return e;
+  if (inDeck && typeof PXT !== 'undefined' && PXT) return 0;
+  return !mkUs() && x && x.eur > 0 ? x.eur : 0;
 }
 
 /* ── Cibles ───────────────────────────────────────────────────────────────────────────────────────── */
@@ -391,7 +396,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const budLeft = set.bud > 0 ? set.bud - prof.cents - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
   const C = X.info || dwInfo(pack, set, cmd), w = dwW();
   const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
-  const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = DW.core && DW.core.combos ? dwComboIdx() : null, pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 : jamais la 2e carte d'un combo à 2 cartes
+  const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 (ou combos évités) : jamais la carte qui complète un combo à 2 ou 3 cartes
   const cols = cmd ? [...cmd.ci] : [], short = role === 'land' ? cols.filter(c => (prof.src[c] || 0) < (prof.need[c] || 0)) : [];      // terrains : couleurs sous le repère de Karsten
   const curveHi = (X.pace || X.gen) && prof.nonland >= 20 && prof.mv > tgt.mv[2];
   const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
@@ -404,8 +409,8 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
     if (x.fl & 16) return;      // interdite en Commander
     if (x.fl & 1 && gcLeft <= 0) return;
-    let combo2 = '';
-    if (combo) { const ps = combo.get(k); if (ps) for (const e of ps) if (inDeck(e.p)) { if (noCombo) return; combo2 = e.c[0] === x.name ? e.c[1] : e.c[0]; } }
+    const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && noCombo) return;
+    const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
     if (x.fl & 4 && set.br <= 3) return;
     if (x.fl & 2 && set.br <= 2) return;
     if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
@@ -419,7 +424,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (m && o.m == null) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); }      // carte de secours (rang) : sa valeur de base pour le plan
     const v = dwVal(o); let s = v, pair = null;
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
-    if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck
+    if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
     if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
@@ -465,13 +470,31 @@ function dwComboIdx() {
   for (const c of (DW.core && DW.core.combos) || []) { const a = ownKey(c[0]), b = ownKey(c[1]); if (a && b && a !== b) { add(a, b, c); add(b, a, c); } }
   DW.comboIdx = { src: DW.core, m }; return m;
 }
+/** Combos à 3 cartes (Commander Spellbook, core.combos3 : [A, B, C, résultat, étiquette]) : clé de carte → [{ p, q : clés des deux autres pièces, o : leurs noms, c : le combo }]. */
+function dwCombo3Idx() {
+  if (DW.combo3Idx && DW.combo3Idx.src === DW.core) return DW.combo3Idx.m;
+  const m = new Map(), add = (a, p, q, o, c) => { (m.get(a) || m.set(a, []).get(a)).push({ p, q, o, c }); };
+  for (const c of (DW.core && DW.core.combos3) || []) { const a = ownKey(c[0]), b = ownKey(c[1]), d = ownKey(c[2]); if (a && b && d && a !== b && a !== d && b !== d) { add(a, b, d, [c[1], c[2]], c); add(b, a, d, [c[0], c[2]], c); add(d, a, b, [c[0], c[1]], c); } }
+  DW.combo3Idx = { src: DW.core, m }; return m;
+}
+/** Combo (2 cartes d'abord, puis 3) que la carte k complète, les autres pièces étant déjà là (inDeck : clé → vrai) : { c : le combo, o : noms des autres pièces } ou null. */
+function dwComboWith(k, inDeck) {
+  for (const e of dwComboIdx().get(k) || []) if (inDeck(e.p)) return { c: e.c, o: [ownKey(e.c[0]) === k ? e.c[1] : e.c[0]] };
+  for (const e of dwCombo3Idx().get(k) || []) if (inDeck(e.p) && inDeck(e.q)) return { c: e.c, o: e.o };
+  return null;
+}
+const dwCombo3 = c => c.length >= 5;      // combo à 3 cartes : [A, B, C, résultat, étiquette] (à 2 cartes : [A, B, résultat, étiquette])
+const dwComboCards = c => c.slice(0, dwCombo3(c) ? 3 : 2), dwComboRes = c => c[dwCombo3(c) ? 3 : 2];
+const dwComboTxt = c => `${dwComboCards(c).join(' + ')} (${dwComboRes(c)})`;
+/** « combo avec A » (2 cartes) ou « combo avec A et B » (3 cartes) : o, les autres pièces. */
+const dwComboWhy = o => o.length > 1 ? T('combo avec {a} et {b}', { a: o[0], b: o[1] }) : T('combo avec {card}', { card: o[0] });
 const dsNumFr = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 /** Raison d'une suggestion : ce qui la fait remonter. */
 function dwWhy(sg, cmd, X = BD) {
   const o = sg.o, w = [];
   const C = X.info || (DW.infoC && DW.infoC.C), plan = C && C.plan;
   if (typeof dmxReasons === 'function' && plan) w.push(...dmxReasons(sg.k, X, cmd, plan));      // ce que fait la carte pour ce deck (classement par mécaniques)
-  else if (sg.combo) w.push(T('combo avec {card}', { card: sg.combo }));
+  else if (sg.combo) w.push(dwComboWhy(sg.combo));
   if (sg.pair) w.push(T('va avec {card}', { card: sg.pair }));
   if (o.pool && !o.incl && (o.m || 0) >= 0.55) w.push(T('trouvaille : peu jouée, en pleine synergie'));
   if (o.incl >= 5 && cmd) w.push(T('{p} % des decks de {name}', { p: o.incl, name: cmd.names[0].split(',')[0] }));
@@ -535,25 +558,43 @@ function dwSimInner() {
   const r = dsimEnsure(BD, () => { const box = BD.el && BD.tab === 'coach' && BD.el.querySelector('.dw-simbox'); if (box) box.innerHTML = dwSimInner(); });
   return dsimHtml(r && !r.none ? r : null, DSIM.prog || 0);
 }
-/** Plan du deck (données : deckmech.js › dwDeckStory) : une ligne de thèmes, les moteurs, les conditions de victoire, les remarques. */
-function dwStoryHtml(st) {
+/** Plan du deck (données : deckmech.js › dwDeckStory), lisible d'un coup d'œil : le texte de la fiche (3 lignes, « Lire tout »), puis trois lignes courtes
+ *  étiquetées : thèmes (pastilles « 35 Goblin »), moteurs (un par ligne, ses cartes en petit), pour gagner (pastilles) ; remarques en petit.
+ *  o.label : titre « Plan du deck » (faux dans l'analyse, qui a le sien). */
+function dwStoryHtml(st, o = {}) {
   if (!st) return '';
-  const bits = [...(st.tribe ? [T('{t} ×{n}', { t: st.tribe.t, n: st.tribe.n })] : []), ...st.tags.slice(0, 3).map(t => T('{m} ×{n}', { m: t.label, n: t.n }))];
-  const eng = st.engines.map(e => T('{e} ({c})', { e: e.label, c: e.cards.slice(0, 3).join(', ') }));
   const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // texte de la fiche IA : écrit en français
-  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<blockquote class="dw-brief"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><p>${esc(st.brief)}</p></blockquote>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
-    <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
+  const tags = [...(st.tribe ? [[st.tribe.n, st.tribe.t]] : []), ...st.tags.slice(0, 3).map(t => [t.n, t.label])];
+  const pill = (n, l) => `<span class="dw-pill">${n != null ? `<b>${esc(String(n))}</b>` : ''}${esc(l)}</span>`;
+  const row = (lab, inner) => `<div class="dw-row"><span class="dw-rl">${esc(lab)}</span><div class="dw-rv">${inner}</div></div>`;
+  const long = st.brief && st.brief.length > 190;
+  return `<div class="dw-story">${o.label === false ? '' : `<p class="label">${T('Plan du deck')}</p>`}${st.brief && fr ? `<div class="dw-brief${long ? ' clamp' : ''}"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><div><p>${esc(st.brief)}</p>${long ? `<button class="link-btn link-inline" type="button" data-brief-more aria-expanded="false"><span class="m">${T('Lire tout')}</span><span class="l">${T('Réduire')}</span></button>` : ''}</div></div>` : ''}
+    <div class="dw-rows">${tags.length ? row(T('Thèmes'), tags.map(([n, l]) => pill(n, l)).join('')) : ''}
+    ${st.engines.length ? row(T('Moteurs'), `<ul class="dw-eng">${st.engines.map(e => { const byCards = e.ai && !fr, head = byCards ? e.cards.slice(0, 2).join(' + ') : e.label, rest = byCards ? e.cards.slice(2, 4) : e.cards.slice(0, 3); return `<li><b>${esc(head)}</b>${rest.length ? `<small>${esc(rest.join(', '))}</small>` : ''}</li>`; }).join('')}</ul>`) : ''}
+    ${st.wincons.length ? row(T('Pour gagner'), st.wincons.slice(0, 4).map(n => pill(null, n)).join('')) : `<p class="hint warn">${esc(T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>`}</div>
+    ${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
 }
-/** Analyse d'un deck (deckana.js) : ce que fait le deck d'après la fiche du commandant et les mécaniques (plan, moteurs à compléter, pièges, cartes isolées). */
+if (typeof document !== 'undefined') document.addEventListener('click', e => {      // « Lire tout » / « Réduire » le texte du plan (sans redessiner l'écran)
+  const b = e.target.closest && e.target.closest('[data-brief-more]'); if (!b) return;
+  const box = b.closest('.dw-brief'), open = !box.classList.contains('open'); box.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open)); haptic('tap');
+});
+/** Analyse d'un deck (deckana.js) : ce que fait le deck d'après la fiche du commandant et les mécaniques. → { story (plan, sans titre), rows (points : cœur du plan,
+ *  conditions de victoire, moteurs incomplets, pièges, cartes isolées), warn (nombre de points à revoir), good } ; null sans classement. */
+function dwAuditParts(X) {
+  const au = typeof dwDeckAudit === 'function' ? dwDeckAudit(X) : null; if (!au) return null;
+  const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = []; let warn = 0, good = 0;
+  if (au.core.length) { rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6))); good++; }
+  if (au.wins.length) { rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4))); good++; }
+  const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // nom du moteur de la fiche : écrit en français ; ailleurs, ses cartes déjà là
+  for (const e of au.engines) { rows.push(li('warn', e.ai && !fr ? T('Moteur incomplet ({c}) : il manque', { c: e.have.slice(0, 2).join(' + ') }) : T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
+  if (au.traps.length) { rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5))); warn++; }
+  if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
+  return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };
+}
+/** Analyse d'un deck, en un bloc (titre, plan, points). */
 function dwAuditHtml(X) {
-  const au = typeof dwDeckAudit === 'function' ? dwDeckAudit(X) : null; if (!au) return '';
-  const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = [];
-  if (au.core.length) rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6)));
-  if (au.wins.length) rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4)));
-  for (const e of au.engines) rows.push(li('warn', T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3)));
-  if (au.traps.length) rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5)));
-  if (au.loose.length) rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose));
-  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${dwStoryHtml(au.story).replace('<p class="label">' + T('Plan du deck') + '</p>', '')}${rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : ''}`;
+  const a = dwAuditParts(X); if (!a) return '';
+  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${a.story}${a.rows}`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
 const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;
@@ -615,10 +656,12 @@ function dwPersoClick(e, s) {
   else if (t.dataset.padd) { const k = t.dataset.padd, l = s[k] = s[k] || []; if (!l.includes(t.dataset.n)) { if (l.length >= (k === 'pets' ? 20 : 40)) toast(T('{n} au plus', { n: k === 'pets' ? 20 : 40 })); else l.push(t.dataset.n); } }
   haptic('tap'); return true;
 }
-/** Saisie dans le bloc (recherche de cartes, type de créature, originalité) : vrai si traitée ; repaint : vrai s'il faut redessiner. */
+/** Saisie dans le bloc (recherche de cartes, type de créature, originalité) : vrai si traitée ; repaint : vrai s'il faut redessiner.
+ *  Recherche de cartes : résultats redessinés à la frappe seulement ; « change » (champ qui perd le focus quand on touche un résultat) ne redessine rien,
+ *  sinon le bouton touché disparaissait sous le doigt et la carte n'était ajoutée qu'au 2e appui. */
 function dwPersoInput(e, s, cmd) {
   const t = e.target; if (!t || !t.id) return false;
-  if (t.dataset.pq) { const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
+  if (t.dataset.pq) { if (e.type !== 'input') return 'live'; const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
   if (/Tribe$/.test(t.id)) { s.tribe = String(t.value || '').trim().slice(0, 30); return e.type === 'change'; }
   if (/Orig$/.test(t.id)) { s.orig = Math.max(0, Math.min(100, Math.round(Number(t.value) || 0))); return e.type === 'change'; }
   return false;
@@ -699,11 +742,13 @@ function dwBracketHtml(prof, s = BD.wiz) {
   if (prof.mld.length && s.br <= 3) out.push(['bad', T('Destruction massive de terrains interdite en bracket {b} : {list}', { b: b[0], list: prof.mld.join(', ') })]);
   if (prof.xt.length && s.br === 1) out.push(['bad', T('Tours supplémentaires interdits en bracket 1 : {list}', { list: prof.xt.join(', ') })]);
   else if (prof.xt.length && s.br <= 3) out.push(['warn', T('Tours supplémentaires : à ne pas enchaîner en bracket {b} ({list})', { b: b[0], list: prof.xt.join(', ') })]);
-  const cl = prof.combos.slice(0, 4).map(c => `${c[0]} + ${c[1]} (${c[2]})`).join(', ');
-  if (prof.combos.length && s.br <= 2) out.push(['bad', T('Combo à 2 cartes interdit en bracket {b} : {list}', { b: b[0], list: cl })]);
-  else if (prof.combos.length && s.br === 3) out.push(['warn', T('Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})', { list: cl })]);
+  const c2 = prof.combos.filter(c => !dwCombo3(c)), c3 = prof.combos.filter(dwCombo3), cl = l => l.slice(0, 4).map(dwComboTxt).join(', '), has3 = !!(DW.core && DW.core.combos3 && DW.core.combos3.length);
+  if (c2.length && s.br <= 2) out.push(['bad', T('Combo à 2 cartes interdit en bracket {b} : {list}', { b: b[0], list: cl(c2) })]);
+  else if (c2.length && s.br === 3) out.push(['warn', T('Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})', { list: cl(c2) })]);
   else if (!(DW.core && DW.core.combos && DW.core.combos.length) && s.br <= 3) out.push(['info', T('Les combos à 2 cartes ne sont pas vérifiés : à surveiller toi-même.')]);
-  else if (s.br <= 3) out.push(['ok', T('Aucun combo à 2 cartes connu (Commander Spellbook)')]);
+  else if (s.br <= 3 && !c3.length) out.push(['ok', has3 ? T('Aucun combo à 2 ou 3 cartes connu (Commander Spellbook)') : T('Aucun combo à 2 cartes connu (Commander Spellbook)')]);
+  if (c3.length && s.br <= 2) out.push(['bad', T('Combo à 3 cartes à éviter en bracket {b} : {list}', { b: b[0], list: cl(c3) })]);      // pas interdit par les règles officielles, mais hors du niveau d'un deck préconstruit : jamais proposé en bracket 1-2
+  else if (c3.length && s.br === 3) out.push(['info', T('Combo à 3 cartes, permis en bracket 3 : {list}', { list: cl(c3) })]);
   return `<div class="sec-title">${T('Bracket {n} · {name}', { n: b[0], name: b[1] })}</div><ul class="bd-issues dw-br">${out.length ? out.map(([lv, t]) => `<li class="${lv === 'info' ? '' : lv}">${esc(t)}</li>`).join('') : ''}<li class="ok">${esc(b[3] > 10 ? TN(prof.gc.length, '{n} Game Changer, sans limite dans ce bracket', '{n} Game Changers, sans limite dans ce bracket') : TN(prof.gc.length, '{n} Game Changer sur {max} permis', '{n} Game Changers sur {max} permis', { max: b[3] }))}</li></ul>`;
 }
 function dwBudgetHtml(prof, s = BD.wiz) {
@@ -766,11 +811,11 @@ function dwFillBasics(quiet) {
 /** Cartes fétiches (réglages : pets) mises dans le deck X : celles qui respectent les couleurs, les cartes interdites et les règles du bracket. → { in: [noms], out: [noms] } */
 function dwPetsInto(X, cmd) {
   const set = X.wiz || dwDefaults(), got = { in: [], out: [] }; if (!cmd || !(set.pets || []).length || !DW.byKey) return got;
-  const ci = new Set([...cmd.ci]), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], combo = set.br <= 2 ? dwComboIdx() : null;
+  const ci = new Set([...cmd.ci]), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], combo = set.br <= 2, inX = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
   for (const nm of set.pets) {
     const k = ownKey(nm), x = dwCard(k); if (!k || X.main.has(k) || X.cmdr.some(c => c.key === k)) continue;
     const prof = dwProfile(X), bad = !x || !DW.byKey.has(k) || [...String(x.ci)].some(c => !ci.has(c)) || x.fl & 16 || (x.fl & 1 && prof.gc.length >= b[3]) || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)
-      || (combo && (combo.get(k) || []).some(e => X.main.has(e.p) || X.cmdr.some(c => c.key === e.p)));
+      || (combo && dwComboWith(k, inX));      // brackets 1-2 : jamais la pièce qui complète un combo à 2 ou 3 cartes
     if (bad) { got.out.push(nm); continue; }
     X.main.set(k, { key: k, name: x.name, qty: 1 }); got.in.push(x.name);
   }

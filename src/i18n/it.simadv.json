@@ -1,0 +1,16 @@
+{
+ "Le coach a joué les 10 premiers tours avec ce deck, {n} fois, face à 3 adversaires à 40 points de vie : mains de départ, terrains, couleurs, commandant, puis le plan (attaques contre leurs bloqueurs, jetons, drain, moteurs), leurs retraits et un balayage probable entre les tours 5 et 7. Des règles simples et du hasard.": "Il coach ha giocato i primi 10 turni con questo mazzo, {n} volte, contro 3 avversari a 40 punti vita: mani iniziali, terre, colori, comandante, poi il piano (attacchi contro i loro bloccanti, pedine, drenaggio, motori), le loro rimozioni e una probabile spazzata tra i turni 5 e 7. Regole semplici e caso.",
+ "jamais avant le tour 9 : {p}": "mai prima del turno 9: {p}",
+ "{p} avant le tour 5": "{p} prima del turno 5",
+ "des parties où au moins un adversaire tombe avant le tour 11": "delle partite in cui almeno un avversario cade prima del turno 11",
+ "{e} adversaires éliminés sur 3 en moyenne": "{e} avversari su 3 eliminati in media",
+ "table battue : {p}": "tavolo battuto: {p}",
+ "des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage": "delle partite in cui il motore è ancora lì al turno 10, nonostante rimozioni e spazzata",
+ "moteur encore là au tour qui suit le balayage : {p}": "motore ancora lì il turno dopo la spazzata: {p}",
+ "La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.": "Il tavolo regge: più creature che superano i bloccanti (volare, travolgere, minacciare), rimozioni per i loro bloccanti o una condizione di vittoria.",
+ "Moteur souvent détruit par les adversaires : de la protection (équipements, contresorts, sorts qui protègent) ou de la récursion pour le remonter.": "Motore spesso distrutto dagli avversari: protezione (equipaggiamenti, contromagie, magie che proteggono) o ricorsione per rimetterlo in piedi.",
+ "Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)": "Partite di prova: {v} (mani iniziali, terre, colori, contro 3 avversari)",
+ "un adversaire éliminé avant le tour 11 : {p}": "un avversario eliminato prima del turno 11: {p}",
+ "parties où un adversaire tombe avant le tour 11": "partite in cui un avversario cade prima del turno 11",
+ "10 premiers tours joués par le coach, face à 3 adversaires": "primi 10 turni giocati dal coach, contro 3 avversari"
+}

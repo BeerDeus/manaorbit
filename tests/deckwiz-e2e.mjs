@@ -123,14 +123,23 @@ ok('bracket (Game Changers, destruction de terrains, combo à 2 cartes), terrain
 await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
 await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); await p.waitForSelector('.dw-start[data-v="build"]'); await one(p);
 await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ'); await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
-await p.waitForSelector('#dwzGo'); await p.click('[data-br="2"]'); await p.click('[data-bud="10000"]'); await p.click('#dwzGo');
+await p.waitForSelector('#dwzGo'); await p.click('[data-br="2"]'); await p.click('[data-bud="10000"]');
+// cartes fétiches et exclusions : le champ de recherche qui perd le focus (« change », au moment où l'on touche un résultat) ne redessine plus la liste sous le doigt
+// (la carte n'était ajoutée qu'au 2e appui) ; la frappe (« input ») la redessine (bloc testé ici sans la base classée par mécaniques, qui l'affiche)
+assert.deepEqual(await p.evaluate(() => {
+  const w = document.createElement('div'); w.innerHTML = '<div class="field-in"><input id="tPetQ" data-pq="pets" value="whisper"></div><div class="dw-pres" data-pres="pets"><button id="tKeep"></button></div>'; document.body.append(w);
+  const inp = w.querySelector('input'), r1 = dwPersoInput({ type: 'change', target: inp }, { pets: [] }, null), kept = !!w.querySelector('#tKeep');
+  const r2 = dwPersoInput({ type: 'input', target: inp }, { pets: [] }, null), redrawn = !w.querySelector('#tKeep'); w.remove(); return [r1, kept, r2, redrawn];
+}), ['live', true, 'live', true]);
+await p.click('#dwzGo');
 await p.waitForSelector('.bd.on');
 // construction en plusieurs passes : barre de progression, étapes, puis les versions au choix (note, valeur, courbe, rôles)
 await p.waitForSelector('.ds-sheet', { timeout: 15000 });
 await p.waitForSelector('.ds-v', { timeout: 30000 });
 const vers = await p.$$eval('.ds-v', l => l.map(x => x.querySelector('.ds-vh b').textContent + ' ' + x.querySelector('.ds-vn').textContent.replace(/\s+/g, '')));
 assert.ok(vers.length >= 3 && /^Équilibrée \d+\/100$/.test(vers[0]) && vers.some(v => /^Plus agressive/.test(v)) && vers.some(v => /^Plus contrôle/.test(v)), 'versions : ' + vers.join(' | '));
-assert.ok(await p.$('.ds-v.best em'), 'meilleure note signalée');
+{ const sc = await p.$$eval('.ds-v .ds-vn', l => l.map(x => parseInt(x.textContent, 10))), top = Math.max(...sc), uniq = sc.filter(v => v === top).length === 1;      // « Meilleure note » : seulement quand une version est seule en tête
+  assert.equal(await p.$$eval('.ds-v em', l => l.length), uniq ? 1 : 0, 'meilleure note signalée seulement si une version est seule en tête : ' + sc.join(', ')); }
 await shot(p, 'versions');
 await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
 const gen = await p.evaluate(() => { const m = new Map([...BD.main].map(([k, c]) => [k, c.qty])); let n = 0; for (const q of m.values()) n += q; return { keys: [...m.keys()], n, plains: m.get('plains') || 0, swamp: m.get('swamp') || 0, mountain: m.get('mountain') || 0, prof: (p => ({ land: p.land, ramp: p.ramp, cents: p.cents, gc: p.gc.length }))(dwProfile()) }; });
@@ -151,7 +160,9 @@ assert.equal(await p.$('.dx-regen'), null);
 await p.click('[data-act="dw-set"]'); await p.waitForSelector('#dwBud'); await p.fill('#dwBud', '8'); await p.dispatchEvent('#dwBud', 'change');
 await p.waitForSelector('.dx-regen'); const before5 = await p.evaluate(() => [...BD.main.keys()].sort().join());
 assert.ok(await p.$('.dw-bud [data-act="dw-regen"]'), 'au-dessus du budget : « Reconstruire avec ce budget » dans la section Budget');
-await p.click('.dx-regen [data-act="dw-regen"]'); await p.waitForSelector('.ds-v', { timeout: 30000 }); await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet') && !document.querySelector('.dx-regen') && BD.main.size > 3);
+await p.click('.dx-regen [data-act="dw-regen"]');
+await p.waitForSelector('.ds-bud-sheet [data-bud-new]'); await p.fill('#dsBudNew', '8'); await p.click('.ds-bud-sheet [data-bud-new]');      // Edgar (5 €) sur 8 € : la question d'abord ; le joueur garde 8 €
+await p.waitForSelector('.ds-v', { timeout: 30000 }); await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet') && !document.querySelector('.dx-regen') && BD.main.size > 3);
 assert.ok(await p.evaluate(() => dwProfile().cents <= 800), 'reconstruit sous 8 € : cartes possédées comprises dans la valeur');
 assert.equal(await p.$('.dw-bud [data-act="dw-regen"]'), null, 'sous le budget : plus de bouton');
 await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); }); await p.waitForFunction(b => [...BD.main.keys()].sort().join() === b, before5);
@@ -160,10 +171,11 @@ await p.click('[data-act="dw-set"]');
 ok('deck du coach : budget changé → « Recréer le deck » (annulable) ou « Garder le deck »');
 // rapport du coach : sections, combo du deck, combos à une carte près, cartes touchables, copie
 await p.evaluate(() => { bdChange('main', 'sol ring', 'Sol Ring', 1); });      // Sol Ring + Armageddon (combo de la base de test) : à une carte près
+await p.evaluate(() => { DW.core.combos3 = [['Sol Ring', 'Edgar Markov', 'Swords to Plowshares', 'Test combo 3', 'S']]; DW.combo3Idx = null; });      // combo à 3 cartes complet (le commandant en est une pièce)
 await p.click('[data-act="dw-report"]'); await p.waitForSelector('.dr-body .da-sum');
 const rep = await txt(p, '.dr-body');
 for (const t of ['Ce que fait ton commandant', 'Comment le deck gagne', 'Comment le jouer', 'Main de départ', 'Interaction', 'Points faibles', 'Combos à une carte près', 'Rôle de chaque carte']) assert.ok(rep.includes(t), 'rapport : ' + t);
-assert.match(rep, /Tu as Sol Ring : avec Armageddon, Infinite fun/); assert.match(rep, /retraits? ciblés? : [^.]*Swords to Plowshares/);
+assert.match(rep, /Tu as Sol Ring : avec Armageddon, Infinite fun/); assert.match(rep, /1 combo à 3 cartes dans le deck\s*Sol Ring \+ Edgar Markov \+ Swords to Plowshares : Test combo 3/, 'rapport : combo à 3 cartes'); assert.match(rep, /retraits? ciblés? : [^.]*Swords to Plowshares/);
 assert.match(rep, /\d+ \/100 Note du coach/, 'rapport : note du coach'); assert.ok(await p.$('.dr-body .ds-parts[open]'), 'rapport : détail de la note ouvert');
 // simulation de 1 000 parties : deck de test assez grand (37 terrains), résultats chiffrés, conseils ; même deck, mêmes résultats (graine fixe)
 const sim = await p.evaluate(async () => {
@@ -182,8 +194,8 @@ assert.match(sim.html, /Simulation de 10 000 parties .* % des mains de 7 cartes 
 await p.waitForFunction(() => /Simulation de 1 000 parties|Note du coach/.test(document.querySelector('.dr-body').textContent));
 await shot(p, 'rapport');
 await p.click('.dr-body .dr-c[data-k="swords to plowshares"]'); await p.waitForSelector('.imgv'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
-await closeSheets(p);
-ok('rapport du coach : sections, combos, cartes agrandies');
+await closeSheets(p); await p.evaluate(() => { delete DW.core.combos3; DW.combo3Idx = null; });
+ok('rapport du coach : sections, combos (2 et 3 cartes), cartes agrandies');
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('générer le deck : rôles, plan, terrains, couleurs, bracket, budget ; annulable ; Compléter');
 
@@ -219,9 +231,9 @@ assert.match(await txt(p, '[data-da-swt]'), /^Échanges conseillés 1 échange �
 assert.match(await txt(p, '.cb-set'), /^Réglages bracket 2 \(estimé\) · limite [\d\s,]+ € \(valeur actuelle\) Modifier$/, 'budget = valeur actuelle');
 await shot(p, 'coach-bilan');
 await p.click('[data-da-swt]'); await p.waitForSelector('.da-sw');
-const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + x.querySelector('.da-why').textContent.replace(/\s*Pourquoi \?$/, '')).map(t => t.replace(/\s+/g, ' ').trim()));
+const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + [...x.querySelectorAll('.da-why .da-wh, .da-why .da-px, .da-why small')].map(e => e.textContent).join(' · ')).map(t => t.replace(/\s+/g, ' ').trim()));
 let sws = await swRows();
-assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · 80 % des decks (contre 0 %) · −4,60 €');
+assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · −4,60 € · 80 % des decks (contre 0 %)');
 // vignettes : image de la fiche ou de Scryfall par le nom ; un toucher agrandit la carte (retirée, ajoutée…)
 assert.deepEqual(await p.$$eval('.da-sw .thumb', t => t.map(x => !!x.querySelector('img') && x.dataset.zoom)), ['da', 'da']);
 await p.waitForFunction(() => document.querySelectorAll('.da-sw .thumb img.ok').length === 2, null, { timeout: 10000 });      // images chargées et visibles (classe ok), pas seulement présentes
@@ -279,12 +291,28 @@ const rules = await p.evaluate(() => {
   core.combos.push(['Swords to Plowshares', 'Wrath of God', 'Test combo', 'S']); DW.comboIdx = null;
   const out = { br2: sug(2, 'wipe'), br3: sug(3, 'wipe') };
   core.combos.pop(); DW.comboIdx = null;
+  // combo à 3 cartes (core.combos3) : Swords + Edgar (le commandant) + Wrath ; un autre dont une seule pièce est là ne compte pas
+  core.combos3 = [['Swords to Plowshares', 'Phyrexian Arena', 'Wrath of God', 'Other combo', 'S']]; DW.combo3Idx = null;
+  const one = sug(2, 'wipe');      // Phyrexian Arena absente : rien à compléter
+  core.combos3 = [['Swords to Plowshares', 'Edgar Markov', 'Wrath of God', 'Test combo 3', 'S']]; DW.combo3Idx = null;
+  out.c3 = { one, br2: sug(2, 'wipe'), br3: sug(3, 'wipe') };
+  { const x = X(4), prof = dwProfile(x), tgt = dwTargets(prof, cmd, pack, x.wiz), l = dwSuggest('wipe', cmd, pack, prof, tgt, 20, x), w = l.find(s => s.k === 'wrath of god'); out.c3.br4 = w ? w.combo : null; out.c3.why = w ? dwComboWhy(w.combo) : ''; }
+  { const x = X(2); x.wiz.avoid = ['combo']; x.wiz.br = 3; const prof = dwProfile(x), tgt = dwTargets(prof, cmd, pack, x.wiz); out.c3.avoid = dwSuggest('wipe', cmd, pack, prof, tgt, 20, x).map(s => s.k); }
+  { const x = X(2); x.main.set('wrath of god', { key: 'wrath of god', name: 'Wrath of God', qty: 1 }); const prof = dwProfile(x); out.c3.prof = prof.combos.map(c => c.join('|')); out.c3.est = dwBracketOf(prof); out.c3.html = dwBracketHtml(prof, x.wiz); out.c3.html3 = dwBracketHtml(prof, { ...x.wiz, br: 3 }); }
+  delete core.combos3; DW.combo3Idx = null;
   const r = DW.byKey.get('phyrexian arena'), fl = r[6]; r[6] = fl | 16; out.ban = sug(3, 'draw'); r[6] = fl;
   return out;
 });
 assert.ok(!rules.br2.includes('wrath of god') && rules.br3.includes('wrath of god'), 'combo à 2 cartes : refusé en bracket 2, permis en bracket 3 ' + JSON.stringify(rules));
 assert.ok(!rules.ban.includes('phyrexian arena'), 'carte interdite en Commander : jamais proposée');
-ok('règles des suggestions : duo de commandants, combo à 2 cartes (bracket 1-2), carte interdite');
+{ const c = rules.c3, j = JSON.stringify(c);
+  assert.ok(!c.br2.includes('wrath of god') && c.br3.includes('wrath of god'), 'combo à 3 cartes : la pièce qui le complète refusée en bracket 2, permise en bracket 3 ' + j);
+  assert.ok(!c.avoid.includes('wrath of god'), 'combos évités : jamais la pièce qui complète ' + j);
+  assert.ok(c.one.includes('wrath of god'), 'une seule autre pièce là : pas un combo à compléter ' + j);
+  assert.deepEqual([...(c.br4 || [])].sort(), ['Edgar Markov', 'Swords to Plowshares'], 'bracket 4 : les deux autres pièces ' + j); assert.match(c.why, /^combo avec (Swords to Plowshares et Edgar Markov|Edgar Markov et Swords to Plowshares)$/);
+  assert.deepEqual(c.prof, ['Swords to Plowshares|Edgar Markov|Wrath of God|Test combo 3|S'], 'combo à 3 cartes complet compté une fois dans le profil ' + j); assert.equal(c.est, 3, 'bracket estimé : 3');
+  assert.match(c.html, /Combo à 3 cartes à éviter en bracket 2 : Swords to Plowshares \+ Edgar Markov \+ Wrath of God \(Test combo 3\)/); assert.match(c.html3, /Combo à 3 cartes, permis en bracket 3/); }
+ok('règles des suggestions : duo de commandants, combo à 2 cartes (bracket 1-2), combo à 3 cartes (brackets 1-2, 3, 4), carte interdite');
 
 /* ── 6 bis) Confort du Coach : prochaines étapes, « À retirer » au-dessus de 100 cartes, échanges dans le Coach (« Pourquoi ? », Échanger, Annuler) ── */
 await p.evaluate(() => openBuilder({ name: 'Trop plein', fmt: 'commander', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Swords to Plowshares\n30 Plains\n34 Swamp\n34 Mountain', wiz: { th: [], br: 2, bud: 0, own: true }, tab: 'coach' }));
@@ -310,6 +338,34 @@ await p.evaluate(() => { const t = document.querySelector('#toast button'); if (
 await shot(p, 'coach-etapes');
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('coach : prochaines étapes, à retirer (raisons, terrains en trop), échanges dans le coach (Pourquoi ?, Échanger, Annuler)');
+
+/* ── Raisons des échanges, commandant qui coûte presque tout le budget ── */
+{
+  const why = await p.evaluate(() => { const cmd = { names: ['Edgar Markov'] }; const sw = (a, b, w) => daWhy({ why: w, out: { name: 'A', o: { incl: a } }, in: { k: 'x', name: 'B', o: { incl: b } } }, cmd); return [sw(24, 20, 'mieux'), sw(5, 45, 'mieux'), sw(0, 0, 'plan'), sw(0, 44, 'plan')]; });
+  assert.doesNotMatch(why[0], /bien plus jouée/, 'proposée moins jouée (20 % contre 24 %) : pas « bien plus jouée » : ' + why[0]);
+  assert.match(why[0], /^Même rôle, plus utile dans ce deck avec Edgar Markov/);
+  assert.match(why[1], /^Même rôle, bien plus jouée avec Edgar Markov · 45 % des decks \(contre 5 %\)/);
+  assert.match(why[2], /^Sert mieux le plan de Edgar Markov/); assert.match(why[3], /^Bien plus jouée avec Edgar Markov/);
+  // budget de 8 € pour Edgar (5 €) : la question d'abord ; « Appliquer le budget aux 99 autres cartes » → budget total = 8 € + le commandant, gardé (plus de question)
+  await p.evaluate(() => openBuilder({ name: 'Budget serré', fmt: 'commander', cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }], wiz: dwSane({ br: 2, bud: 800 }) })); await p.waitForSelector('.bd.on');
+  await p.click('#bdSeg .seg-opt[data-v="coach"]'); await p.waitForFunction(() => DW.core && DW.cmd.has('edgar-markov'));
+  await p.evaluate(() => { dwBuild(); }); await p.waitForSelector('.ds-bud-sheet [data-bud-99]');
+  assert.match(await txt(p, '.ds-bud-sheet .sheet-body'), /Edgar Markov coûte 5,00 € à lui seul, sur un budget de 8,00 €/);
+  assert.match(await txt(p, '.ds-bud-sheet [data-bud-99]'), /Appliquer le budget aux 99 autres cartes\s*Budget total : 13,00 €/);
+  assert.equal(await p.$eval('#dsBudNew', i => i.value), '20', 'budget conseillé prérempli (arrondi à 10 €)');
+  await p.click('.ds-bud-sheet [data-bud-99]'); await p.waitForSelector('.ds-sheet', { timeout: 15000 });
+  assert.deepEqual(await p.evaluate(() => [BD.wiz.bud, BD.wiz.budAck]), [1300, 1300]);
+  await p.evaluate(() => DS.api && DS.api.close()); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  await p.evaluate(() => { dwBuild(); }); await p.waitForSelector('.ds-sheet', { timeout: 15000 }); assert.equal(await p.$('.ds-bud-sheet'), null, 'choix gardé : plus de question');
+  await p.evaluate(() => DS.api && DS.api.close()); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  // « Revoir le budget » : le montant saisi
+  await p.evaluate(() => { BD.wiz.bud = 600; delete BD.wiz.budAck; dwBuild(); }); await p.waitForSelector('.ds-bud-sheet [data-bud-new]');
+  await p.fill('#dsBudNew', '40'); await p.click('.ds-bud-sheet [data-bud-new]'); await p.waitForSelector('.ds-sheet', { timeout: 15000 });
+  assert.deepEqual(await p.evaluate(() => [BD.wiz.bud, BD.wiz.budAck]), [4000, 4000]);
+  await p.evaluate(() => DS.api && DS.api.close()); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
+  await p.evaluate(() => bdClose(true));
+}
+ok('échanges : « bien plus jouée » seulement si c\'est vrai ; commandant qui coûte presque tout le budget : question avant la construction (99 autres cartes ou autre budget), choix gardé');
 
 /* ── 7) Base du coach indisponible : modèle de base, pas de suggestions ── */
 dkwOff = true;

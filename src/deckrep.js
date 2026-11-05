@@ -49,8 +49,11 @@ function drReportHtml(X) {
   h += `<div class="sec-title">${T('Comment le deck gagne')}</div>`;
   for (const t of themes) { const lbl = dwThemeLabel(t, thChoices), inf = typeof edhThemeInfo === 'function' ? edhThemeInfo({ label: ((pack && pack.thl) || []).concat((cmd && cmd.th) || []).find(x => x[0] === t)?.[1] || t }) : ''; if (inf) h += `<p class="dr-p"><b>${esc(lbl)} :</b> ${edhInfoHtml(inf)}</p>`; }
   const combos = prof.combos || [];
-  if (combos.length) h += `<p class="dr-h">${TN(combos.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p><ul class="dr-ul">${combos.slice(0, 8).map(c => `<li>${drCard(ownKey(c[0]), c[0])} + ${drCard(ownKey(c[1]), c[1])} : <i>${esc(c[2])}</i></li>`).join('')}</ul>${est <= 2 || set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
-  const win = spells.filter(has('wincon'));
+  const cb2 = combos.filter(c => !dwCombo3(c)), cb3 = combos.filter(dwCombo3), cbLi = l => `<ul class="dr-ul">${l.slice(0, 8).map(c => `<li>${dwComboCards(c).map(n => drCard(ownKey(n), n)).join(' + ')} : <i>${esc(dwComboRes(c))}</i></li>`).join('')}</ul>`;
+  if (cb2.length) h += `<p class="dr-h">${TN(cb2.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p>${cbLi(cb2)}${est <= 2 || set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
+  if (cb3.length) h += `<p class="dr-h">${TN(cb3.length, '{n} combo à 3 cartes dans le deck', '{n} combos à 3 cartes dans le deck')}</p>${cbLi(cb3)}${set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 3 cartes sont à éviter en bracket 1 et 2.')}</p>` : ''}`;
+  const wk = typeof dwWinKeys === 'function' ? dwWinKeys(X) : null;      // conditions de victoire au sens du plan (comme la jauge) : le commandant quand il gagne lui-même, les cartes de la fiche
+  const win = [...(wk && wk.cmdr ? cm : []), ...spells.filter(c => has('wincon')(c) || (wk && wk.cards.has(c.k)))];
   if (win.length) h += `<p class="dr-h">${T('Conditions de victoire')}</p><p class="dr-p">${drList(win.slice(0, 8))}</p>`;
   if (!combos.length && !win.length) h += `<p class="hint">${T('Aucun combo ni condition de victoire identifiés : le deck gagne surtout au combat, grâce à son commandant et ses pièces maîtresses.')}</p>`;
   const key = spells.filter(c => (c.o.syn || 0) >= 10 || (c.o.incl || 0) >= 45).sort((a, b) => b.v - a.v).slice(0, 8);
@@ -79,8 +82,8 @@ function drReportHtml(X) {
   for (const c of cmd.ci) { const need = prof.need && prof.need[c]; if (need && (prof.src[c] || 0) < need - 2) weak.push(T('Sources de {c} : {n} pour {m} conseillées', { c, n: Math.round(prof.src[c] || 0), m: need })); }
   if (prof.mv > 3.5) weak.push(T('Courbe haute (coût moyen {v}) : départs lents', { v: prof.mv.toFixed(2) }));
   h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="bd-issues">${weak.map(w => `<li class="warn">${esc(w)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien d\'alarmant : le deck est dans la norme de chaque catégorie.')}</p>`}`;
-  // Simulation de 1 000 parties (decksim.js) : résultat gardé pour ce deck, sinon barre de progression pendant le calcul
-  if (typeof dsimHtml === 'function') h += `<div id="drSim">${DSIM.sig === dsimSig(X) && DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog)}</div>`;
+  // Simulation de 10 000 parties face à 3 adversaires (decksim.js) : résultat gardé pour ce deck, sinon barre de progression pendant le calcul
+  if (typeof dsimHtml === 'function') h += `<div id="drSim">${DSIM.sig === dsimSig(X) && DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res, 0, { open: true })) : dsimHtml(null, DSIM.prog)}</div>`;
   // Combos à une carte près
   if (DW.core && Array.isArray(DW.core.combos)) {
     const inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k), ci = new Set([...cmd.ci]), all = [];
@@ -120,7 +123,7 @@ function drPaint() {
   if (!DW.core && DW.p) { b.innerHTML = `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`; return; }
   const open = $('.dr-roles', b) && $('.dr-roles', b).open, keep = b.scrollTop;
   b.innerHTML = drReportHtml(DR.X); b.scrollTop = keep; if (open) $('.dr-roles', b).open = true;
-  if (typeof dsimEnsure === 'function' && DW.core) dsimEnsure(DR.X, () => { const el = DR.api && sheets.includes(DR.api) && $('#drSim', DR.api.body); if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog); });
+  if (typeof dsimEnsure === 'function' && DW.core) dsimEnsure(DR.X, () => { const el = DR.api && sheets.includes(DR.api) && $('#drSim', DR.api.body); if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res, 0, { open: true })) : dsimHtml(null, DSIM.prog); });
   Promise.all(DR.X.cmdr.map(c => drCmdText(c.name))).then(txts => {
     const el = $('#drCmdTxt', b); if (!el) return;
     el.innerHTML = txts.some(Boolean) ? txts.map((t, i) => `${DR.X.cmdr.length > 1 ? `<b>${esc(DR.X.cmdr[i].name)}</b><br>` : ''}${esc(t || '—').replace(/\n/g, '<br>')}`).join('<br><br>') : esc(T('Texte de la carte indisponible (hors ligne).'));

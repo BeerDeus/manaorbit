@@ -351,7 +351,21 @@ export function bulkParse(buf) {
   const out = []; for (const l of txt.split('\n')) { const t = l.trim(); if (!t) continue; try { out.push(JSON.parse(t)); } catch (e) { /* ligne illisible : ignorée */ } }
   return out;
 }
-/** Carte Scryfall (oracle) → { name, ci, cmc, type, text, eur (centimes), gc, legal, prod (couleurs produites), mc } ; null si hors Commander ou sans nom. */
+/** Mots-clés de combat d'une créature (bits de la colonne [12]) : 1 évasion (vol, menace, peur, intimidation, ombre, imblocable…), 2 piétinement, 4 célérité,
+ *  8 double initiative, 16 contact mortel, 32 défense talismanique ou linceul, 64 indestructible. */
+const PT_KW = [[1, /^(Flying|Menace|Fear|Intimidate|Shadow|Horsemanship|Skulk)$/], [2, /^Trample$/], [4, /^Haste$/], [8, /^Double strike$/], [16, /^Deathtouch$/], [32, /^(Hexproof|Shroud)$/], [64, /^Indestructible$/]];
+/** Force et endurance d'une créature (face avant) : [force, endurance] (null si ce n'est pas un nombre : *, X, 1+*), plus ses mots-clés de combat (PT_KW) s'il y en a ;
+ *  null si la face avant n'est pas une créature. */
+export function ptOf(c) {
+  const faces = c && Array.isArray(c.card_faces) ? c.card_faces : [], f = faces[0] && faces[0].power !== undefined ? faces[0] : c || {};
+  const type = String((faces[0] && faces[0].type_line) || (c && c.type_line) || '').split(' // ')[0];
+  if (!/\bCreature\b/.test(type) || f.power === undefined) return null;
+  const num = v => /^-?\d+$/.test(String(v)) ? Number(v) : null, text = String((faces[0] && faces[0].oracle_text) || c.oracle_text || ''), nm = String((faces[0] && faces[0].name) || c.name || '');
+  let kw = 0; for (const k of Array.isArray(c.keywords) ? c.keywords : []) for (const [b, re] of PT_KW) if (re.test(k) && (!faces.length || text.toLowerCase().includes(k.toLowerCase()))) kw |= b;      // carte à deux faces : les mots-clés de la face avant seulement
+  if (nm && text.split('\n').some(l => l === nm + ' can\'t be blocked.' || l === 'This creature can\'t be blocked.')) kw |= 1;      // imblocable
+  return kw ? [num(f.power), num(f.toughness), kw] : [num(f.power), num(f.toughness)];
+}
+/** Carte Scryfall (oracle) → { name, ci, cmc, type, text, eur (centimes), gc, legal, prod (couleurs produites), mc, rank, pt } ; null si hors Commander ou sans nom. */
 export function scryCard(c) {
   if (!c || typeof c.name !== 'string' || c.layout === 'art_series' || c.layout === 'token' || c.layout === 'double_faced_token' || c.layout === 'emblem') return null;
   const faces = Array.isArray(c.card_faces) ? c.card_faces : [], f0 = faces[0] || {};
@@ -364,7 +378,7 @@ export function scryCard(c) {
     const m = /search your library for (?:an? |up to \w+ )?([^.]*?)cards?/i.exec(text);
     if (m) prod = /basic land/i.test(m[1]) ? 'WUBRG' : [['Plains', 'W'], ['Island', 'U'], ['Swamp', 'B'], ['Mountain', 'R'], ['Forest', 'G']].filter(([w]) => m[1].includes(w)).map(x => x[1]).join('');
   }
-  return { name: c.name, ci: (c.color_identity || []).join(''), cmc: Number(c.cmc) || 0, type, text, eur: Math.round((eur || usd * 0.92) * 100), gc: c.game_changer ? 1 : 0, legal: legal ? 1 : 0, prod, mc: String(c.mana_cost || f0.mana_cost || '').slice(0, 60), rank: Number(c.edhrec_rank) || 0 };
+  return { name: c.name, ci: (c.color_identity || []).join(''), cmc: Number(c.cmc) || 0, type, text, eur: Math.round((eur || usd * 0.92) * 100), gc: c.game_changer ? 1 : 0, legal: legal ? 1 : 0, prod, mc: String(c.mana_cost || f0.mana_cost || '').slice(0, 60), rank: Number(c.edhrec_rank) || 0, pt: ptOf(c) };
 }
 async function scryAll() {
   const local = process.env.DECKDB_BULK;
@@ -402,8 +416,8 @@ async function pricesDaily() {
   catch (e) { log('  prix du jour illisibles (' + e.message + ')'); return null; }
 }
 /** Fiches Scryfall gardées dans le corpus (texte raccourci) : un passage sans le fichier oracle-cards (panne, réseau) garde des couleurs et des coûts justes. */
-const scryPack = x => [x.name, x.ci, x.cmc, x.type, String(x.text || '').slice(0, 400), x.eur, x.gc, x.legal, x.prod, x.mc, x.rank];
-const scryUnpack = a => ({ name: a[0], ci: a[1], cmc: a[2], type: a[3], text: a[4], eur: a[5], gc: a[6], legal: a[7], prod: a[8], mc: a[9], rank: a[10] });
+const scryPack = x => [x.name, x.ci, x.cmc, x.type, String(x.text || '').slice(0, 400), x.eur, x.gc, x.legal, x.prod, x.mc, x.rank, x.pt || null];
+const scryUnpack = a => ({ name: a[0], ci: a[1], cmc: a[2], type: a[3], text: a[4], eur: a[5], gc: a[6], legal: a[7], prod: a[8], mc: a[9], rank: a[10], pt: Array.isArray(a[11]) ? a[11] : null });
 /** Complète par /cards/collection (75 par requête) les cartes du corpus absentes (fichier indisponible, ou cartes toutes neuves). */
 async function scryFill(S, names) {
   const need = [...new Set(names)].filter(n => !S.has(normKey(n))); let got = 0;
@@ -436,28 +450,36 @@ async function taggerRoles(C) {
   return out;
 }
 
-/* ── 4 bis) Commander Spellbook : combos à 2 cartes (règle des brackets 1 à 3) ─────────────────────────── */
+/* ── 4 bis) Commander Spellbook : combos à 2 et 3 cartes (règles des brackets) ──────────────────────────── */
 const CSB = process.env.CSB_BASE || 'https://backend.commanderspellbook.com/';
-/** Variante Commander Spellbook → [carte A, carte B, résultat, étiquette de bracket] si c'est un combo à 2 cartes infini ou gagnant, sinon null. */
-export function csbCombo(v) {
+/** Variante Commander Spellbook → [carte A, carte B, (carte C,) résultat, étiquette de bracket] si c'est un combo de n cartes (2 ou 3) infini ou gagnant, sans pièce générique (requires), sinon null. */
+export function csbCombo(v, n = 2) {
   const uses = (v && Array.isArray(v.uses) ? v.uses : []).map(u => u && u.card && u.card.name).filter(Boolean);
   const prod = (v && Array.isArray(v.produces) ? v.produces : []).map(x => x && x.feature && x.feature.name).filter(Boolean);
-  if (uses.length !== 2 || (v.requires && v.requires.length)) return null;
+  if (uses.length !== n || new Set(uses).size !== n || (v.requires && v.requires.length)) return null;
   const win = prod.find(x => /win the game/i.test(x)) || prod.find(x => /^infinite/i.test(x)); if (!win) return null;
-  return [uses[0], uses[1], String(win).slice(0, 60), String(v.bracketTag || '').slice(0, 3)];
+  return [...uses, String(win).slice(0, 60), String(v.bracketTag || '').slice(0, 3)];
 }
-/** Les combos à 2 cartes les plus joués (une fois par semaine) : C.combos. */
-async function spellbook(C, max = 4000) {
-  if (C.comboAt && Date.now() - Date.parse(C.comboAt) < 7 * DAY && Array.isArray(C.combos) && C.combos.length) return;
-  const out = [], seen = new Set(); let url = CSB + 'variants/?' + new URLSearchParams({ q: 'cards=2 legal:commander', limit: '100', ordering: '-popularity' }), n = 0;
-  while (url && out.length < max && n < 80 && left() > BUDGET_MS * 0.5) {
-    let j = null; try { j = await getJson(url, { gap: 400 }); } catch (e) { log('  Commander Spellbook : ' + e.message); break; }
-    n++; if (!j) break;
-    for (const v of j.results || []) { const c = csbCombo(v); if (!c) continue; const k = [normKey(c[0]), normKey(c[1])].sort().join('|'); if (seen.has(k)) continue; seen.add(k); out.push(c); }
-    url = typeof j.next === 'string' && j.next.startsWith(CSB) ? j.next : '';
+/** Combos à 3 cartes, sans ceux qui contiennent un combo à 2 cartes connu (variante plus longue du même combo : déjà comptée). */
+export function combos3Of(c3, c2) {
+  const two = new Set((Array.isArray(c2) ? c2 : []).map(c => [normKey(c[0]), normKey(c[1])].sort().join('|')));
+  return (Array.isArray(c3) ? c3 : []).filter(c => { const k = c.slice(0, 3).map(normKey); return !two.has([k[0], k[1]].sort().join('|')) && !two.has([k[0], k[2]].sort().join('|')) && !two.has([k[1], k[2]].sort().join('|')); });
+}
+/** Les combos les plus joués, une fois par semaine : à 2 cartes (C.combos, 4 000 au plus, C.comboAt) et à 3 cartes (C.combos3, 2 500 au plus, C.combo3At ; lus aussi
+ *  quand ils manquent alors que les combos à 2 cartes sont récents). */
+async function spellbook(C) {
+  for (const [n, key, atKey, max, pages] of [[2, 'combos', 'comboAt', 4000, 80], [3, 'combos3', 'combo3At', 2500, 50]]) {
+    if (C[atKey] && Date.now() - Date.parse(C[atKey]) < 7 * DAY && Array.isArray(C[key]) && C[key].length) continue;
+    const out = [], seen = new Set(); let url = CSB + 'variants/?' + new URLSearchParams({ q: `cards=${n} legal:commander`, limit: '100', ordering: '-popularity' }), p = 0;
+    while (url && out.length < max && p < pages && left() > BUDGET_MS * 0.5) {
+      let j = null; try { j = await getJson(url, { gap: 400 }); } catch (e) { log('  Commander Spellbook : ' + e.message); break; }
+      p++; if (!j) break;
+      for (const v of j.results || []) { const c = csbCombo(v, n); if (!c || out.length >= max) continue; const k = c.slice(0, n).map(normKey).sort().join('|'); if (seen.has(k)) continue; seen.add(k); out.push(c); }
+      url = typeof j.next === 'string' && j.next.startsWith(CSB) ? j.next : '';
+    }
+    if (out.length) { C[key] = out; C[atKey] = new Date().toISOString(); }
+    log(`  Commander Spellbook : ${out.length} combos à ${n} cartes (${p} pages)`);
   }
-  if (out.length) { C.combos = out; C.comboAt = new Date().toISOString(); }
-  log(`  Commander Spellbook : ${out.length} combos à 2 cartes (${n} pages)`);
 }
 
 /* ── 5) Agrégats ────────────────────────────────────────────────────────────────────────────────── */
@@ -501,7 +523,9 @@ export function pairsOf(C, info, cards) {
 /* ── Classement des cartes par mécaniques (data/card-mech.json : agents IA, chaque lot relu par un arbitre ; taxonomie data/card-mech-taxonomy.md) ──
    Dans la table des cartes : [10] = [rôles (bits, ordre de mech.roles), provides (indices de mech.tags), wants (indices), types de créature soutenus (0 si aucun), force 1-5],
    null pour une carte pas encore classée (extension sortie depuis : l'ancienne méthode garde la main) ; [11] = sous-types de la face avant (« Elf Druid »,
-   « Equipment », « Aura »… ; « Changeling » ajouté pour un changelin), lus sur la ligne de type (ce que le classement ne contient pas, volontairement). */
+   « Equipment », « Aura »… ; « Changeling » ajouté pour un changelin), lus sur la ligne de type (ce que le classement ne contient pas, volontairement) ;
+   [12] = [force, endurance, mots-clés de combat (ptOf, s'il y en a)] d'une créature (face avant, fiche Scryfall ; null si * ou X), absente pour les autres
+   cartes (simulation : decksim.js). */
 const MECH_FILE = process.env.DECKDB_MECH || join(here, 'data', 'card-mech.json');
 /** { meta, tax, by: Map(clé → { roles, provides, wants, tribes, power }) } ; null si le fichier manque. */
 export function mechLoad(file = MECH_FILE) {
@@ -553,6 +577,7 @@ export function aggregate(C, S, tagger, cmds, mech = null) {
     const flags = (gc ? 1 : 0) | (m.xt || /take an extra turn/i.test(s ? s.text : '') ? 2 : 0) | (m.mld ? 4 : 0) | (m.tu || roles & RB.tutor ? 8 : 0) | (s.legal ? 0 : 16);      // 16 : interdite en Commander (légendaire gardée pour lire les decks qui l'ont)
     const row = [name, s ? s.ci : '', cmc, typeBits(s ? s.type : m.ty), roles, s ? s.eur : 0, flags, s && (/\bLand\b/.test(s.type) || roles & RB.ramp) ? s.prod : '', s && s.rank ? Math.min(65535, s.rank) : 0, s && !/\bLand\b/.test(String(s.type).split(' // ')[0]) ? String(s.mc || '').replace(/\s+\/\/\s+.*$/, '') : ''];      // [9] coût de mana (face avant) : symboles de couleur sans attendre la fiche
     if (mech) row.push(mc ? mechRow(mc, mech.tax) : null, subTypes(s.type, s.text));      // [10] mécaniques, [11] sous-types
+    if (s.pt && typeBits(s.type) & 2) { while (row.length < 12) row.push(row.length === 10 ? null : ''); row.push(s.pt); }      // [12] créature : [force, endurance, mots-clés] de la face avant (null : * ou X) ; absente pour les autres cartes
     cards.push(row); info.set(k, { roles, cmc, gc });
   }
   cards.sort((a, b) => (a[0] < b[0] ? -1 : 1));
@@ -586,7 +611,7 @@ export function aggregate(C, S, tagger, cmds, mech = null) {
   const pairs = pairsOf(C, info, cards);
   const themes = {}; for (const [s, p] of Object.entries(C.tags)) if (p && p.cards && p.cards.length) themes[s] = { n: p.n, cards: p.cards.slice(0, 250), cmds: (p.cmds || []).slice(0, 40) };
   const mechMeta = mech ? { v: mech.meta.v, at: mech.meta.at, tax: mech.tax.version, roles: mech.tax.roles, tags: mech.tax.tags, n: cards.filter(r => r[10]).length } : undefined;
-  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], mech: mechMeta, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size, mech: mechMeta ? mechMeta.n : 0, briefs: briefs.size } };
+  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], combos3: combos3Of(C.combos3, C.combos), mech: mechMeta, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size, mech: mechMeta ? mechMeta.n : 0, briefs: briefs.size } };
 }
 
 /* ── Principal ──────────────────────────────────────────────────────────────────────────────────── */

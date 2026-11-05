@@ -429,11 +429,11 @@ function simgColl() {
   const top = st.topUnit.slice(0, 3).map(i => { const ci = collImage(i.k, i.l, i.im); return { name: i.dn || i.n, img: ci.src, ln: i.n, wl: ci.lang === 'en' && i.l !== 'en' ? imgLang() : '', eur: i.up / 100 }; });      // wl : comme la vignette (collection.js › collImage), version de l'appli lue si besoin
   return simgShare({ kind: 'coll', value: st.valued ? st.value / 100 : 0, n: st.unique, copies: st.copies, top, date: Date.now() });
 }
-/** Deck enregistré ({ id }) ou liste ({ text, name }) : nom, commandant ou format, couleurs, carte de présentation, valeur estimée (tendance Cardmarket), cartes. */
+/** Deck enregistré ({ id }) ou liste ({ text, name }) : nom, commandant ou format, couleurs, carte de présentation, valeur estimée (builder.js › dkEst : la même que Mes decks et l'éditeur), cartes. */
 function simgDeckSpec(o) {
   const d = o && o.id ? findDeck(o.id) : null, text = d ? d.text : String((o && o.text) || ''), name = d ? d.name : String((o && o.name) || 'Deck');
   const pd = parseDeck(text), cmd = commanderKeys(text).map(k => pd.cards.find(c => c.key === k)).filter(Boolean), fk = dkFmtOf(text);
-  const cv = dkCoverCard(text, dmOf), v = dkValue(text, dmOf);
+  const cv = dkCoverCard(text, dmOf), v = typeof dkEst === 'function' ? dkEst(text) : dkValue(text, dmOf);
   const ci = cmd.length ? [...new Set(cmd.flatMap(c => [...String((dmOf(ownKey(c.key)) || {}).ci || '')]))].join('') : '';
   const colors = [...'WUBRG'].filter(c => (ci || dkColors(text)).includes(c)).join('');
   const sub = cmd.length ? cmd.map(c => c.dn || c.name).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';

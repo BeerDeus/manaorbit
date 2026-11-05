@@ -399,7 +399,8 @@ function buildSnap() {
   return sanitizeSnap(snap);
 }
 
-/** Relevé de référence d'un deck sans prix gardé (ou dont tout est possédé) : valeur estimée au prix tendance Cardmarket, image / coût / type lus sur Scryfall (cache des decks).
+/** Relevé de référence d'un deck sans prix gardé (ou dont tout est possédé) : valeur estimée (builder.js › dkPx : relevé du jour, impression la moins chère, sinon tendance de la fiche),
+ *  la même que l'en-tête de l'éditeur et Mes decks ; image / coût / type lus sur Scryfall (cache des decks).
  *  c = valeur des q exemplaires (pas un coût d'achat) · ow = exemplaires libres dans la collection · ref : relevé de référence, jamais enregistré. */
 function refSnapOf(text, id, pub) {
   const pd = parseDeck(text); if (!pd.cards.length && !pd.basics.length) return null;
@@ -408,7 +409,7 @@ function refSnapOf(text, id, pub) {
   const items = [];
   for (const c of pd.cards) {
     const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
-    const eu = m.eu > 0 ? m.eu : typeof pxRef === 'function' ? pxRef(ownKey(c.key)) : 0;      // fiche pas encore lue ou sans prix : relevé du jour (builder.js › pxRef)
+    const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0;      // règle unique de la valeur estimée (builder.js › dkPx)
     const it = { k: c.key, n: c.name, q: c.qty, s: eu > 0 ? 'ok' : Number.isFinite(m.eu) ? 'ok' : 'none' };
     if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
     if (m.cm != null) { it.cm = m.cm; it.mc = m.mc; it.tl = m.tl; it.cl = m.cl; }
@@ -426,13 +427,13 @@ function refSnapOf(text, id, pub) {
 const dvFmt = c => fmt(c, DV.snap && !DV.snap.ref ? modeCur(DV.snap.mode) : mkCur());
 /** Rien à acheter ni à chiffrer dans ce relevé (tout est possédé) : seul le relevé de référence a quelque chose à montrer. */
 const snapNothingToBuy = snap => !snap.items.some(i => i.s !== 'own' && i.s !== 'basic');
-/** Réserve (Standard, lignes « SB: ») : cartes à part, jamais comptées dans le total ; prix = tendance Cardmarket (la recherche d'offres ne la chiffre pas). sb : 1 · k préfixé « sb: ». */
+/** Réserve (Standard, lignes « SB: ») : cartes à part, jamais comptées dans le total ; prix = valeur estimée (builder.js › dkPx ; la recherche d'offres ne la chiffre pas). sb : 1 · k préfixé « sb: ». */
 function sbItemsOf(text, id, pub) {
   const out = [];
   for (const c of dkSideCards(text)) {
     const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
-    const it = { k: 'sb:' + k, n: c.name, q: Math.min(999, c.qty), s: Number.isFinite(m.eu) ? 'ok' : 'none', sb: 1 };
-    if (it.s === 'ok') it.c = Math.round(m.eu * c.qty);
+    const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0, it = { k: 'sb:' + k, n: c.name, q: Math.min(999, c.qty), s: eu > 0 || Number.isFinite(m.eu) ? 'ok' : 'none', sb: 1 };
+    if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
     if (m.cm != null) { it.cm = m.cm; it.mc = m.mc; it.tl = m.tl; it.cl = m.cl; }
     if (m.im) it.im = m.im;
     if (ow > 0) it.ow = ow;
@@ -585,7 +586,7 @@ function dvFrame(snap) {
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
   const copies = items.reduce((a, i) => a + i.q, 0), miss = items.filter(i => i.s === 'nf').length, none = items.filter(i => i.s === 'none' || i.s === 'nohub').length, own = items.filter(i => i.s === 'own').length;
   const ref = !!snap.ref, old = !ref && !DV.live && snapAge(snap) === 'old';
-  const crit = ref ? T('Valeur estimée · prix tendance Cardmarket') + (items.some(i => i.ow) ? ' · ✓ ' + T('dans ta collection') : '') : [LANGS[snap.lang] || snap.lang, snap.mode === 'cm' ? T('Prix tendance Cardmarket') : snap.mode === 'zero' ? 'CardTrader Zero' : 'Direct'].filter(Boolean).join(' · ');
+  const crit = ref ? T('Valeur estimée · prix du jour de l\'impression la moins chère') + (items.some(i => i.ow) ? ' · ✓ ' + T('dans ta collection') : '') : [LANGS[snap.lang] || snap.lang, snap.mode === 'cm' ? T('Prix tendance Cardmarket') : snap.mode === 'zero' ? 'CardTrader Zero' : 'Direct'].filter(Boolean).join(' · ');
   const when = ref ? (DV.loading ? T('Lecture des cartes et des prix…') : T('Prix de référence, pas des offres')) : DV.live ? T('Prix de la recherche en cours') : T('Prix du {date} · {ago}', { date: dateShort(snap.at), ago: relTime(snap.at) });
   DV.dl = snapDeltas(items, snap.pv);
   const sbN = DV.sb.reduce((a, i) => a + i.q, 0), sbTxt = sbN ? ' · ' + T('réserve {n}', { n: sbN }) : '';
@@ -689,7 +690,7 @@ function dvGroups() {
   $('#dvCmd', el).innerHTML = cmds.length ? `<div class="dv-cmds">${cmds.map(c => dvHero(c, flat(c), snap, dl)).join('')}</div>` : '';
   const groups = DV.sort === 'role' ? dvRoleGroups(rest, !!snap.ref) : groupSnap(rest, DV.sort, !!snap.ref);
   const hidden = (DV.f.colors.size || DV.f.type || DV.f.cmc !== '') ? all.filter(i => !hasMeta(i)).length : 0;
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix tendance') : ''}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
   const cols = g => (view === 'stacks' ? Math.min(2, Math.max(1, g.items.length)) : 1);
   const box = (gi, c = 0) => `<div class="${view === 'grid' ? 'dv-grid' : view === 'strips' ? 'dv-strips' : 'dvp'}" data-gi="${gi}" data-c="${c}"></div>`;
   const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
@@ -776,7 +777,7 @@ function dvItemFor(it) {
   const ref = it.rf ? ' · ' + T('réf. Cardmarket {price}', { price: dvFmt(it.rf) }) : '';
   const own = it.ow ? (it.ow >= it.q ? T('dans ta collection') : TN(it.ow, '{n} possédée sur {total}', '{n} possédées sur {total}', { total: it.q })) : '';
   const rf2 = (DV.snap && DV.snap.ref) || it.sb;
-  const extra = it.s === 'basic' ? T('Terrain de base') : rf2 ? [it.sb ? T('Réserve') : '', it.s === 'ok' ? dvFmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q }) : '') + ' · ' + T('prix tendance Cardmarket') : T('Prix inconnu'), own].filter(Boolean).join(' · ') : it.s === 'ok' ? [dvFmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q - (it.ow || 0) }) : ''), it.d, it.sl].filter(Boolean).join(' · ') + (it.sh ? ' · ' + TN(it.sh, '{n} manquante', '{n} manquantes') : '') + (it.ow ? ' · ' + TN(it.ow, '{n} possédée', '{n} possédées') : '') + ref + mv
+  const extra = it.s === 'basic' ? T('Terrain de base') : rf2 ? [it.sb ? T('Réserve') : '', it.s === 'ok' ? dvFmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q }) : '') + ' · ' + T('prix du jour de l\'impression la moins chère') : T('Prix inconnu'), own].filter(Boolean).join(' · ') : it.s === 'ok' ? [dvFmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q - (it.ow || 0) }) : ''), it.d, it.sl].filter(Boolean).join(' · ') + (it.sh ? ' · ' + TN(it.sh, '{n} manquante', '{n} manquantes') : '') + (it.ow ? ' · ' + TN(it.ow, '{n} possédée', '{n} possédées') : '') + ref + mv
     : it.s === 'own' ? T('Dans ta collection') : T('Aucune offre avec tes critères');
   const ol = !!it.ol;      // image de ta propre carte (sa langue) : pas la version de l'offre, donc ni extension ni numéro à relire sur Scryfall
   const nm = it.im ? null : zoomNamed(it.k, it.n, it.n, '');      // fiche pas encore lue (terrain de base, deck jamais cherché) : la carte par son nom
@@ -802,7 +803,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
   DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }
-  // Pas de prix gardé (ou tout est possédé, donc rien à chiffrer) : même viewer, avec la valeur estimée du deck au prix tendance Cardmarket
+  // Pas de prix gardé (ou tout est possédé, donc rien à chiffrer) : même viewer, avec la valeur estimée du deck (builder.js › dkPx, comme l'éditeur et Mes decks)
   DV.text = adhoc ? text : live ? S.run.text : d ? d.text : ''; DV.loading = false;
   if (!DV.snap || snapNothingToBuy(DV.snap)) DV.snap = refSnapOf(DV.text, DV.deckId, DV.pub);
   dvRebuild();
