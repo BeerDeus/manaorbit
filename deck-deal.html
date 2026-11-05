@@ -8017,7 +8017,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '3d75040f';
+const DD_BUILD = 'fd4092d8';
 const I18N_FILES = {"de":"i18n/de.856da484.js","en":"i18n/en.a3d2ec93.js","es":"i18n/es.2aff4691.js","it":"i18n/it.1800cf28.js","pt":"i18n/pt.c10fc899.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -29009,28 +29009,49 @@ function dwPersoHtml(s, cmd, px) {
   const det = cmd ? dmxCmdTags(cmd) : [], all = s._allMech ? DMX_PICK : DMX_PICK.slice(0, 18), mech = [...new Set([...det, ...(s.mech || []), ...all])];
   const chip = (attr, v, on, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}="${esc(v)}" aria-pressed="${on}">${esc(label)}</button>`;
   const tribes = [...dmxTribes().keys()].slice(0, 120), ct = cmd ? dmxCmdTribes(cmd) : [];
-  const shown = n => (typeof frOf === 'function' && frOf(ownKey(n))) || n;      // nom imprimé dans la langue des cartes (sinon anglais) ; le réglage garde le nom anglais
+  const shown = dwShownName;      // nom dans la langue de l'appli (sinon des cartes, sinon anglais) ; le réglage garde le nom anglais
   const list = (l, attr) => l.length ? `<div class="dw-chips">${l.map(n => `<button type="button" class="chip on" ${attr}="${esc(n)}" aria-label="${esc(T('Retirer {name}', { name: shown(n) }))}">${esc(shown(n))} ×</button>`).join('')}</div>` : '';
   const o = Number.isFinite(s.orig) ? s.orig : DW_ORIG0;
   return `<p class="label">${T('Mécaniques à mettre en avant (4 au plus)')}</p>${det.length ? `<p class="hint">${esc(T('Repérées pour ce commandant : {m}', { m: det.map(dmxLabel).join(', ') }))}</p>` : ''}
     <div class="dw-chips">${mech.map(t => chip('data-pm', t, (s.mech || []).includes(t), dmxLabel(t))).join('')}${s._allMech ? '' : `<button type="button" class="chip" data-pm-all="1">${T('Toutes les mécaniques')}</button>`}</div>
     <div class="field-in"><label class="label" for="${px}Tribe">${T('Type de créature (tribal)')}</label><input type="text" id="${px}Tribe" list="${px}TribeL" maxlength="30" autocomplete="off" placeholder="${esc(ct[0] || 'Elf, Dragon, Zombie…')}" value="${esc(s.tribe || '')}"><datalist id="${px}TribeL">${tribes.map(t => `<option value="${esc(t)}">`).join('')}</datalist></div>
     ${ct.length && !s.tribe ? `<div class="dw-chips">${ct.slice(0, 3).map(t => chip('data-ptr', t, false, t)).join('')}</div>` : ''}
-    <div class="field-in"><label class="label" for="${px}PetQ">${T('Cartes fétiches à inclure')}</label><input type="search" id="${px}PetQ" data-pq="pets" autocomplete="off" spellcheck="false" placeholder="${T('Nom français ou anglais')}"></div><div class="dw-pres" data-pres="pets"></div>${list(s.pets || [], 'data-ppx')}
-    <div class="field-in"><label class="label" for="${px}BanQ">${T('Cartes à exclure')}</label><input type="search" id="${px}BanQ" data-pq="ban" autocomplete="off" spellcheck="false" placeholder="${T('Nom français ou anglais')}"></div><div class="dw-pres" data-pres="ban"></div>${list(s.ban || [], 'data-pbx')}
+    <div class="field-in"><label class="label" for="${px}PetQ">${T('Cartes fétiches à inclure')}</label><input type="search" id="${px}PetQ" data-pq="pets" autocomplete="off" spellcheck="false" placeholder="${esc(dwNamesPh())}"></div><div class="dw-pres" data-pres="pets"></div>${list(s.pets || [], 'data-ppx')}
+    <div class="field-in"><label class="label" for="${px}BanQ">${T('Cartes à exclure')}</label><input type="search" id="${px}BanQ" data-pq="ban" autocomplete="off" spellcheck="false" placeholder="${esc(dwNamesPh())}"></div><div class="dw-pres" data-pres="ban"></div>${list(s.ban || [], 'data-pbx')}
     <p class="label">${T('Styles à éviter')}</p><div class="dw-chips">${DMX_AVOID.map(([id, l]) => chip('data-pa', id, (s.avoid || []).includes(id), T(l))).join('')}</div>
     <div class="field-in"><label class="label" for="${px}Orig">${T('Originalité : {v} %', { v: o })}</label><input type="range" id="${px}Orig" min="0" max="100" step="10" value="${o}"><p class="hint">${esc(o <= 20 ? T('Classique : les cartes qui ont fait leurs preuves avec ce commandant.') : o >= 70 ? T('Trouvailles : moins de staples, des cartes peu jouées qui font exactement ce que veut ton deck.') : T('Équilibré : des valeurs sûres et quelques trouvailles.'))}</p></div>`;
 }
-/** Cartes trouvées pour une recherche (fétiches : dans les couleurs du commandant), par le nom anglais ou le nom imprimé dans la langue des cartes
- *  (index des noms de l'appli, FRX.ix : français, allemand… ; lu à la première recherche s'il manque). → [[clé, nom anglais, rang du mot, rang EDHREC, libellé affiché]] */
+/** Index des noms imprimés dans la LANGUE DE L'APPLI (recherche des cartes fétiches et à exclure) : celui de l'appli quand il est déjà dans cette langue (FRX.ix),
+ *  sinon le sien, lu une fois (même catalogue que les noms de la collection : scryFrCached / scryFrStatic), sans toucher à celui de la collection. null tant qu'il n'est pas prêt. */
+const DWN = { l: '', ix: null, p: null, fail: 0 };
+const dwNamesLang = () => typeof NAMES_LANGS !== 'undefined' && NAMES_LANGS.includes(I18N.lang) ? I18N.lang : '';
+function dwNamesIx() {
+  const l = dwNamesLang(); if (!l) return null;
+  if (typeof FRX !== 'undefined' && FRX.l === l && FRX.ix) return FRX.ix;
+  if (DWN.l === l && DWN.ix) return DWN.ix;
+  if (DWN.l !== l) { DWN.l = l; DWN.ix = null; DWN.fail = 0; }
+  if (!DWN.p && Date.now() - DWN.fail > 60000 && typeof scryFrStatic === 'function' && typeof frIndex === 'function') DWN.p = (async () => {
+    const rec = (await scryFrCached(l).catch(() => null)) || await scryFrStatic(undefined, l).catch(() => null);
+    if (!rec || DWN.l !== l) { DWN.fail = Date.now(); return; }
+    const ix = frIndex([]); for (let i = 0; i < rec.rows.length; i += 2500) { frIndex(rec.rows.slice(i, i + 2500), ix); await new Promise(r => setTimeout(r, 0)); }
+    if (DWN.l === l) DWN.ix = ix;
+  })().catch(() => { DWN.fail = Date.now(); }).finally(() => { DWN.p = null; });
+  return null;
+}
+/** Nom d'une carte dans la langue de l'appli (sinon dans celle des cartes, sinon anglais). */
+const dwShownName = n => { const k = ownKey(n), ix = dwNamesIx(); return (ix && ix.fr && ix.fr.get(k)) || (typeof frOf === 'function' && frOf(k)) || n; };
+/** Libellé du champ de recherche : « Nom français ou anglais », « Nom en allemand ou en anglais »… selon la langue de l'appli. */
+const dwNamesPh = () => { const l = dwNamesLang(); return l === 'fr' ? T('Nom français ou anglais') : l ? T('Nom en {lang} ou en anglais', { lang: (typeof LANGS !== 'undefined' && LANGS[l]) || l }) : T('Nom de la carte'); };
+/** Cartes trouvées pour une recherche (fétiches : dans les couleurs du commandant), par le nom anglais, le nom dans la langue de l'appli et celui dans la
+ *  langue des cartes (index FRX.ix de la collection). → [[clé, nom anglais, rang du mot, rang EDHREC, libellé affiché]] */
 function dwPersoFind(q, cmd, kind) {
   const w = ownKey(q || ''); if (!w || w.length < 2 || !DW.byKey) return [];
   const ci = cmd ? new Set([...cmd.ci]) : null, out = new Map();
-  const take = (k, r, pos, label) => { if (r[6] & 16) return; if (kind === 'pets' && ci && [...String(r[1])].some(c => !ci.has(c))) return; const o = out.get(k); if (!o || pos < o[2]) out.set(k, [k, r[0], pos, r[8] || 99999, label || r[0]]); };
+  const take = (k, r, pos, label) => { if (r[6] & 16) return; if (kind === 'pets' && ci && [...String(r[1])].some(c => !ci.has(c))) return; const o = out.get(k); if (!o || pos < o[2] || (label && o[4] === r[0])) out.set(k, [k, r[0], Math.min(pos, o ? o[2] : 9), r[8] || 99999, label || (o && o[4]) || r[0]]); };
   for (const [k, r] of DW.byKey) if (k.includes(w)) take(k, r, k.startsWith(w) ? 0 : 1);
-  const ix = typeof FRX !== 'undefined' ? FRX.ix : null;
-  if (ix && ix.list) { const wp = normPart(q); if (wp.length >= 2) for (const e of ix.list) { if (!e.k.includes(wp)) continue; const k = ownKey(e.en), r = DW.byKey.get(k); if (r) take(k, r, e.k.startsWith(wp) ? 0 : 1, e.n); } }      // nom imprimé (« Anneau solaire » → Sol Ring)
-  else if (typeof frLoad === 'function' && typeof namesLang === 'function' && namesLang()) frLoad();      // noms imprimés pas encore lus : la frappe suivante en profite
+  const wp = normPart(q), cardIx = typeof FRX !== 'undefined' ? FRX.ix : null;
+  for (const ix of [...new Set([dwNamesIx(), cardIx])]) if (ix && ix.list && wp.length >= 2) for (const e of ix.list) { if (!e.k.includes(wp)) continue; const k = ownKey(e.en), r = DW.byKey.get(k); if (r) take(k, r, e.k.startsWith(wp) ? 0 : 1, e.n); }      // nom imprimé (« Anneau solaire », « Blitzschlag »)
+  if (!cardIx && typeof frLoad === 'function' && typeof namesLang === 'function' && namesLang()) frLoad();      // noms de la langue des cartes pas encore lus : la frappe suivante en profite
   return [...out.values()].sort((a, b) => a[2] - b[2] || a[3] - b[3]).slice(0, 6);
 }
 const dwPersoRes = (list, kind) => list.map(([, n, , , label]) => `<button type="button" class="chip" data-padd="${kind}" data-n="${esc(n)}"${label && label !== n ? ` title="${esc(n)}"` : ''}>+ ${esc(label || n)}</button>`).join('');      // nom imprimé affiché, nom anglais gardé (réglages, base du coach)
