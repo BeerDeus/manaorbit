@@ -6,7 +6,7 @@
    construction (deckwiz.js › dwAutoBuild) suivie d'une amélioration : la carte ajoutée la plus faible est échangée contre la meilleure candidate tant que
    la note monte, puis des terrains de base contre des terrains qui comblent les couleurs en manque. Barre de progression ; le joueur choisit sa version. */
 const DS = { api: null, last: null };
-const dsNum = (v, d = 2) => Number(v).toLocaleString(LOC(), { minimumFractionDigits: d, maximumFractionDigits: d });
+const dsNum = (v, d = 2) => num(v, d);
 const DS_PARTS = [['roles', 'Rôles', 30], ['mana', 'Mana', 25], ['curve', 'Courbe', 10], ['syn', 'Synergie', 25], ['rules', 'Règles et budget', 10]];
 const dsRoleLabel = r => T((DW_GAUGES.find(g => g[0] === r) || [r, r === 'wincon' ? 'Conditions de victoire' : r])[1]);
 
@@ -376,7 +376,7 @@ async function dsBuild(undoTo, seed) {
     if (!alive()) return quit(); set('px', 'done', t ? T('{n} prix', { n: nf0(t.map.size) }) : T('prix de la base'), 0.08);
     set('pk', 'run', '', 0.1, T('Lecture des cartes conseillées…'));
     await Promise.all([dwPack('c', cmd.slug), ...wiz0.th.map(x => dwPack('t', x))]).catch(() => null);
-    if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack && (pack.n || pack.nd) ? T('{n} decks étudiés', { n: nf0(pack.n || pack.nd || 0) }) : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
+    if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack && (pack.n || pack.nd) ? TN(pack.n || pack.nd || 0, '{n} deck étudié', '{n} decks étudiés') : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
     const span = 0.76 / list.length, idx = new Map(list.map((v, i) => [v.id, i]));
     BD.wiz = { ...wiz0, seed: seed || dsSeed() };
     const res = await dsMake({ empty, list, seed: BD.wiz.seed, alive, step: (v, ph, part, n, e) => {
@@ -386,7 +386,7 @@ async function dsBuild(undoTo, seed) {
       if (ph === 'skip') return set(v.id, 'skip', T('déjà petit budget'), f);
       if (ph === 'build') return set(v.id, 'run', T('construction') + draw, f, T('Construction : {v}', { v: v.name }));
       if (ph === 'opt') return set(v.id, 'run', T('amélioration') + draw, f, n ? T('Amélioration : {v} · passe {n}', { v: v.name, n }) : T('Amélioration : {v} (échanges carte à carte tant que la note monte)', { v: v.name }));
-      if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? T('Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name, n }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)', { v: v.name }));
+      if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? TN(n, 'Essais en partie : {v} · {n} série de 1 500 parties', 'Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)', { v: v.name }));
     } });
     if (!res || !alive()) return quit();
     for (const r of res) set(r.v.id, 'done', T('note {n} · {p}', { n: r.sc.total, p: fmt(r.prof.cents, cur) }) + (r.sim ? ' · ' + T('{p} % de mains gardées', { p: r.sim.keep7 }) : '') + (r.kept + r.fixed ? ' · ' + TN(r.kept + r.fixed, '{n} échange', '{n} échanges') : '') + (r.draws > 1 ? ' · ' + TN(r.draws, '{n} tirage', '{n} tirages') : ''));

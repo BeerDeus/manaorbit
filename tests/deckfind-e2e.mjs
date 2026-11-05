@@ -110,7 +110,7 @@ ok('« + au deck » : ajoutée à la liste du deck (ligne après la dernière ca
 /* ── 4) « Voir plus » : 35 cartes « Shared » de plus dans la collection (100 % des decks, identité inconnue) ── */
 await p.evaluate(() => { collAdd(Array.from({ length: 35 }, (_, i) => ({ k: 'shared ' + i, n: 'Shared ' + i, q: 1 })), 'add'); DV.framed = null; dvRender(); });
 await openSec(p);
-assert.equal((await rows(p)).length, 30, '30 premières'); assert.match(await txt(p, '#dfSec .df-more'), /Voir plus \(8 restantes\)/);
+assert.equal((await rows(p)).length, 30, '30 premières'); assert.match(await txt(p, '#dfSec .df-more'), /Afficher 8 de plus \(8 autres\)/);
 await p.click('#dfSec .df-more'); await p.waitForFunction(() => document.querySelectorAll('#dfSec .df-row').length === 38);
 assert.deepEqual((await rows(p)).slice(-3), ['arcane signet', 'swords to plowshares', 'wrath of god'], '100 % d\'abord');
 assert.equal(!!(await p.$('#dfSec .df-more')), false);

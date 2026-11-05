@@ -384,7 +384,7 @@ function opnStatsHtml(rows) {
   const top = st.top.slice(0, 10).map(i => `<div class="crow ro"><span class="thumb" style="--h:${hash32(i.k) % 360}">${esc((i.dn.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(i.lot, mkCur()))}</b>${i.q > 1 ? `<small>${esc(fmt(i.up, mkCur()))} × ${nf0(i.q)}</small>` : ''}</span></div>`).join('');
   return `<div class="opn-main"><div class="cs-tiles opn-st3"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>
     ${st.unknown ? `<p class="hint">${T('Stats sur {a} cartes lues ; {b} sans infos pour l\'instant.', { a: nf0(st.known), b: nf0(st.unknown) })}</p>` : ''}
-    <h3 class="cs-h">${T('Courbe de mana')} <small>${T('{n} sorts', { n: nf0(st.spells) })}</small></h3>${curveBars(st.curve, false)}
+    <h3 class="cs-h">${T('Courbe de mana')} <small>${TN(st.spells, '{n} sort', '{n} sorts')}</small></h3>${curveBars(st.curve, false)}
     <h3 class="cs-h">${T('Couleurs')} <small>${T('sorts')}</small></h3>${barsHtml(colorRows)}
     <h3 class="cs-h">${T('Familles')} <small>${T('exemplaires')}</small></h3>${barsHtml(TYPE_ORDER.map(t => [esc(T(t)), st.types[t], 'k-t']))}
     ${top ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${top}</div>` : ''}</div>`;

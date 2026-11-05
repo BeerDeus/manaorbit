@@ -417,9 +417,9 @@ function trocBal(get, give) {
 function trocBalHtml(get, give, any) {
   const b = trocBal(get, give), x = b.base ? 50 + Math.max(-1, Math.min(1, b.d / b.base)) * 46 : 50;
   const txt = !b.base ? (any ? T('Pas encore de prix pour comparer') : T('Ajoutez des cartes de chaque côté')) : b.even ? T('Équilibré') : b.d > 0 ? T('Tu reçois {v} de plus', { v: fmt(b.d, trcCur()) }) : T('Tu donnes {v} de plus', { v: fmt(-b.d, trcCur()) });
-  return `<div class="trc-bal" data-lv="${b.lv}" role="img" aria-label="${esc(txt + (b.base && !b.even ? ' (' + b.pct + ' %)' : ''))}">
+  return `<div class="trc-bal" data-lv="${b.lv}" role="img" aria-label="${esc(txt + (b.base && !b.even ? ' (' + pct(b.pct) + ')' : ''))}">
     <div class="trc-meter" aria-hidden="true"><span>${T('tu donnes plus')}</span><i class="trc-track"><i class="trc-mark" style="--x:${x.toFixed(1)}%"></i></i><span>${T('tu reçois plus')}</span></div>
-    <div class="trc-bt"><b>${esc(txt)}</b>${b.base && !b.even ? `<em>${b.pct} %</em>` : ''}</div></div>`;
+    <div class="trc-bt"><b>${esc(txt)}</b>${b.base && !b.even ? `<em>${pct(b.pct)}</em>` : ''}</div></div>`;
 }
 /** Liste courte (récapitulatif, fin, historique) : une ligne par carte et par ligne (langue|édition|foil), demandée ou non ; sous le nom : drapeau, édition, « ✦ Foil ». */
 function trocMiniList(list) {
@@ -551,7 +551,7 @@ function trocPicker({ title, sub, tabs, rows, onTap, kind }) {
       if (!sheets.includes(api)) return;
       const all = rows(tab), nq = trocNorm(q.trim()), list = nq ? all.filter(it => trocNorm(it.n).includes(nq) || trocNorm(it.dn).includes(nq) || (it.fn && trocNorm(it.fn).includes(nq))) : all, sh = list.slice(0, shown);
       const y = api.body.scrollTop;
-      imgKeep(box, sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-pk="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TRC_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`
+      imgKeep(box, sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${moreBtn(sh.length, list.length, TRC_PAGE, 'data-pk="more"')}`
         : `<p class="hint listempty">${all.length ? T('Aucune carte ne correspond.') : tabs.find(t => t.v === tab).empty}</p>`);
       api.body.scrollTop = y;
     };

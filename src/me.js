@@ -28,7 +28,7 @@ const meRow = (me, title, value, warn, id) => `<button type="button" class="me-r
 /** « Badges » : paliers obtenus sur le total, en gros (chaque palier compte pour un badge). */
 function meBadgesRow() {
   let c; try { c = prgCount(); } catch (e) { return ''; }
-  return `<button type="button" class="me-row me-bdg-row" data-me="niveau"><span class="me-t">${T('Badges')}</span><span class="me-v me-bdg" aria-label="${esc(T('{n} badges obtenus sur {t}', { n: nf0(c.got), t: nf0(c.all) }))}"><b>${nf0(c.got)}</b><span aria-hidden="true">/ ${nf0(c.all)}</span></span>${meChev}</button>`;
+  return `<button type="button" class="me-row me-bdg-row" data-me="niveau"><span class="me-t">${T('Badges')}</span><span class="me-v me-bdg" aria-label="${esc(TN(c.got, '{n} badge obtenu sur {t}', '{n} badges obtenus sur {t}', { t: nf0(c.all) }))}"><b>${nf0(c.got)}</b><span aria-hidden="true">/ ${nf0(c.all)}</span></span>${meChev}</button>`;
 }
 /** Ce qui change l'affichage de la fiche : elle n'est repeinte que si ceci change (une synchro ne doit pas fermer la liste des langues qu'on parcourt). */
 function meSigNow() {

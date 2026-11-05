@@ -64,7 +64,7 @@ function puHomePaint() {
   const cur = PU.el ? partieLoad() : puCur(), live = cur && !cur.fin, x = $('.hm-pu-drop', box);
   x.hidden = !live; box.classList.toggle('live', !!live);
   if (live) { const l = cur.debut ? T('Abandonner la partie') : T('Supprimer la partie'); x.setAttribute('aria-label', l); x.title = l; }
-  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? T('En cours · tour {t} · {n} joueurs', { t: cur.tour, n: cur.places.length }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Commander, Standard ou libre');
+  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? TN(cur.places.length, 'En cours · tour {t} · {n} joueur', 'En cours · tour {t} · {n} joueurs', { t: cur.tour }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Commander, Standard ou libre');
   $('.hm-pu-go', box).textContent = live ? T('Reprendre') : T('Nouvelle partie');
 }
 /** Bouton principal : reprend la partie en cours, sinon en prépare une nouvelle (dans le format de la dernière fois, ou jeu : lien ?compteur=<format> d'une annonce du bot Discord). */
@@ -583,7 +583,7 @@ function puRename(pos, done, face) {
 function puLastTxt(st, e) {
   if (!e) return ''; const nm = puName(st, e.p), sg = n => (n > 0 ? '+' : '−') + Math.abs(n);
   if (e.a === 'v') return T('{name} : {n} PV', { name: nm, n: sg(e.n) });
-  if (e.a === 'b') return T('{name} : {n} blessures de commandant', { name: nm, n: sg(e.n) });
+  if (e.a === 'b') return TN(Math.abs(e.n), '{name} : {n} blessure de commandant', '{name} : {n} blessures de commandant', { name: nm, n: sg(e.n) });
   if (e.a === 'c') { const c = PU_CNT.find(([k]) => k === e.k); return c ? T('{name} : {what} {n}', { name: nm, what: T(c[1]), n: sg(e.n) }) : ''; }
   if (e.a === 'n') return T('Tour suivant');
   if (e.a === 'm' || e.a === 'i') return (e.a === 'm' ? T('Monarque') : T('Initiative')) + (e.p ? ' : ' + nm : '');
@@ -1282,12 +1282,12 @@ function puStatsJeuHtml(items, jf) {
 /** Statistiques (core : partieStats) : chiffres clés, mes decks, adversaires, commandants vus à ma table. */
 function puStatsHtml(s) {
   if (!s.n) return `<p class="hint">${T('Tes statistiques arrivent avec tes parties : celles où ta place est connue (créées ici, table rejointe, ou « c\'était moi » sur un résultat).')}</p>`;
-  const pc = (a, b) => (b ? Math.round((a / b) * 100) : 0) + ' %', bar = (a, b) => `<span class="pu-sbar" aria-hidden="true"><i style="width:${b ? Math.round((a / b) * 100) : 0}%"></i></span>`;
+  const pc = (a, b) => pct(b ? Math.round((a / b) * 100) : 0), bar = (a, b) => `<span class="pu-sbar" aria-hidden="true"><i style="width:${b ? Math.round((a / b) * 100) : 0}%"></i></span>`;
   const sec = (h, sub, rows) => (rows ? `<p class="pu-h">${h}</p>${sub ? `<p class="hint pu-st-sub">${sub}</p>` : ''}<ul class="pu-st">${rows}</ul>` : '');
   return `<div class="pu-kpis">
       <div><b>${s.n}</b><small>${TN(s.n, 'partie', 'parties')}</small></div>
       <div><b>${pc(s.wins, s.n)}</b><small>${TN(s.wins, '{n} victoire', '{n} victoires')}</small></div>
-      <div><b>${esc(puDur(s.duree))}</b><small>${T('{n} tours en moyenne', { n: String(s.tours).replace('.', I18N.lang === 'en' ? '.' : ',') })}</small></div>
+      <div><b>${esc(puDur(s.duree))}</b><small>${TN(s.tours, '{n} tour en moyenne', '{n} tours en moyenne')}</small></div>
       <div><b>${s.serie}</b><small>${T('d\'affilée (record {n})', { n: s.best })}</small></div></div>
     ${sec(T('Mes decks'), '', s.decks.slice(0, 15).map(d => `<li><span class="pu-who"><b>${esc(d.nom || d.commandant)}</b>${d.nom && d.commandant && d.commandant !== d.nom ? `<small>${esc(d.commandant)}</small>` : ''}</span><span class="pu-sv"><b>${pc(d.wins, d.n)}</b><small>${esc(T('{w} sur {n}', { w: d.wins, n: d.n }))}</small></span>${bar(d.wins, d.n)}</li>`).join(''))}
     ${sec(T('Adversaires'), T('Tes victoires – les siennes'), s.adv.slice(0, 15).map(a => `<li><span class="pu-who"><b>${esc(a.nom)}</b><small>${TN(a.n, '{n} partie ensemble', '{n} parties ensemble')}</small></span><span class="pu-sv"><b>${a.mine} – ${a.theirs}</b></span>${bar(a.mine, a.mine + a.theirs)}</li>`).join(''))}

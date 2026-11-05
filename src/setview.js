@@ -147,7 +147,7 @@ function setvPaint() {
     + (list.length ? '' : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`);
   body.innerHTML = shown.map(setvTile).join('');
   const left = list.length - shown.length;
-  more.hidden = left <= 0; if (left > 0) more.textContent = T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(SETV_PAGE, left)), b: nf0(left) });
+  more.hidden = left <= 0; if (left > 0) more.textContent = moreLabel(left, SETV_PAGE);
 }
 /** Liste de souhaits ou collection changée ailleurs (carte en grand…) : étoiles et pastilles repeintes. */
 function setvSoon() { if (SETV.el && SETV.st === 'done') { clearTimeout(SETV.t); SETV.t = setTimeout(setvPaint, 60); } }

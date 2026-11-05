@@ -766,7 +766,7 @@ function dwGaugesHtml(prof, tgt, cmd, pack, ro) {
 }
 function dwLandHelp(prof, tgt, cmd) {
   const basics = [...BD.main.values()].filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0);
-  const txt = prof.nonland >= 25 ? T('Coût moyen {mv}, {c} sorts de rampe ou de pioche à 2 mana ou moins : {n} terrains conseillés.', { mv: prof.mv.toFixed(2), c: prof.cheap, n: tgt.land[1] }) : T('Ajoute d\'abord tes sorts : la cible des terrains suivra le coût moyen du deck.');
+  const txt = prof.nonland >= 25 ? T('Coût moyen {mv}, {c} sorts de rampe ou de pioche à 2 mana ou moins : {n} terrains conseillés.', { mv: num(prof.mv, 2), c: prof.cheap, n: tgt.land[1] }) : T('Ajoute d\'abord tes sorts : la cible des terrains suivra le coût moyen du deck.');
   return `<p class="hint">${esc(txt)}</p>${cmd && cmd.ci ? `<button class="btn ghost small" type="button" data-act="dw-basics">${T('Compléter avec des terrains de base')}</button>` : ''}${basics ? `<p class="hint">${TN(basics, '{n} terrain de base dans le deck.', '{n} terrains de base dans le deck.')}</p>` : ''}`;
 }
 function dwSugHtml(role, cmd, pack, prof, tgt) {
@@ -787,8 +787,8 @@ function dwSugRow(s, cmd) {
 }
 function dwManaHtml(prof, tgt, cmd) {
   const cols = [...(cmd ? cmd.ci : '')]; let h = `<div class="sec-title">${T('Mana')}</div><div class="dw-mana">`;
-  const avg = prof.nonland ? prof.mv.toFixed(2) : '—';
-  h += `<p class="dw-line"><span>${T('Coût moyen (hors terrains)')}</span><b>${avg}</b><small>${T('repère {v}', { v: Number(tgt.mv[1]).toFixed(1) })}</small></p>`;
+  const avg = prof.nonland ? num(prof.mv, 2) : '—';
+  h += `<p class="dw-line"><span>${T('Coût moyen (hors terrains)')}</span><b>${avg}</b><small>${T('repère {v}', { v: num(tgt.mv[1], 1) })}</small></p>`;
   const mx = Math.max(1, ...prof.curve);
   h += `<div class="dw-curve" role="img" aria-label="${esc(T('Courbe de mana'))}">${prof.curve.map((n, i) => `<span><i style="height:${Math.round(n / mx * 100)}%"></i><b>${n}</b><small>${i === 7 ? '7+' : i}</small></span>`).join('')}</div>`;
   if (cols.length) {
