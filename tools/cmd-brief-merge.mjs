@@ -22,7 +22,7 @@ export function readBriefs(file = BRIEF_FILE) {
 export function mergeBriefs(dir, tax = taxonomy(), known = null, cards = null) {
   const T = new Set(tax.tags), st = { lots: 0, cmds: 0, missing: [], badTags: 0, badCards: 0, syn: 0 }, out = new Map();
   for (const f of readdirSync(join(dir, 'in')).filter(f => /^c-\d+\.json$/.test(f)).sort()) {
-    const sent = JSON.parse(readFileSync(join(dir, 'in', f), 'utf8')), arb = join(dir, 'arb', f), p = existsSync(arb) ? arb : join(dir, 'out', f);      // fiche relue par l'arbitre d'abord
+    const sent = JSON.parse(readFileSync(join(dir, 'in', f), 'utf8')), arb2 = join(dir, 'arb2', f), arb = existsSync(arb2) ? arb2 : join(dir, 'arb', f), p = existsSync(arb) ? arb : join(dir, 'out', f);      // fiche relue par l'arbitre d'abord (arb2 : deuxième relecture, sur le texte Oracle)
     if (p === arb) st.arb = (st.arb || 0) + 1;
     if (!existsSync(p)) { st.missing.push(f); continue; }
     let got; try { got = JSON.parse(readFileSync(p, 'utf8')); } catch (e) { st.missing.push(f + ' (illisible)'); continue; }
