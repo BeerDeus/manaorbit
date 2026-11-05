@@ -82,6 +82,17 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   assert.match(await tc(p, '.tr-row[data-k="sol ring"] .tr-q'), /^≈ 1,20\s€\s*× 3/, 'prix unitaire du fichier de prix (Scryfall : 1,50 €)'); assert.match(await tc(p, '.tr-row[data-k="llanowar elves"] .tr-q'), /^≈ 0,25\s€\s*× 2/);
   await p.waitForFunction(() => /^2 cartes · 5 exemplaires ≈/.test((document.querySelector('.tr-sum') || {}).innerText || ''), null, { timeout: 5000 }).catch(() => {});      // innerText sans espaces tant que l'en-tête n'est pas encore mis en page (battery chargée) : attendu avant d'être lu
   assert.match(await txt(p, '.tr-sum'), /^2 cartes · 5 exemplaires ≈ 4,10\s€ Prix à l'unité : tendance Cardmarket \(.+\)$/, '3 × 1,20 + 2 × 0,25, et sa base');
+  // même carte, même prix (règle unique, builder.js › dkPx) : Échange 1,20 € (relevé du jour ; Scryfall : 1,50 €) = liste « Cartes » = fiche de la carte = valeur de la collection
+  await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('.coll.m-coll.on .crow');
+  await p.waitForFunction(() => /1,20/.test((document.querySelector('.coll.m-coll .crow[data-k="sol ring"] .px.cm b') || {}).textContent || ''), null, { timeout: 8000 });
+  assert.equal(await p.$eval('.coll.m-coll .crow[data-k="sol ring"] .px.cm', e => e.getAttribute('title')), 'Cardmarket : valeur estimée (impression la moins chère)', 'ligne sans édition : le prix de référence, dit comme tel');
+  assert.equal(await p.evaluate(() => [collLineEu('sol ring', 'fr'), dkPx('sol ring'), trPrice('sol ring'), collCardVal('sol ring')].join(' ')), '120 120 120 600', 'collection, decks, échanges : un seul prix ; valeur = 5 × 1,20');
+  await p.evaluate(() => openCardSheet('sol ring')); await p.waitForSelector('.sheet-wrap.open .cs-pt');
+  assert.match(await tc(p, '.sheet-wrap.open .cs-pt .cs-pr:not(.cs-ph) .px.cm:not(.foil)'), /^1,20\s€$/, 'fiche de la carte : le même prix (avant : 1,50 €, l\'impression par défaut)');
+  assert.match(await tc(p, '.sheet-wrap.open .cs-val b'), /^6,00\s€$/, 'valeur de tes 5 exemplaires : 5 × 1,20');
+  await sheetsClose();
+  await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade .tr-box'); await p.waitForFunction(() => !document.querySelector('.coll.m-coll'));
+  ok('même carte, même prix : Échange, liste « Cartes », fiche de la carte et valeur au prix de référence (relevé du jour)');
   await p.selectOption('#trSort', 'price'); await p.waitForFunction(() => document.querySelector('.tr-list .tr-row').dataset.k === 'sol ring');
   assert.deepEqual(await p.$$eval('.tr-list .tr-row', r => r.map(x => x.dataset.k)), ['sol ring', 'llanowar elves'], 'tri par prix');
   await p.selectOption('#trMin', '100'); await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 1);

@@ -190,7 +190,7 @@ const errsAll = [];
   const all = await raw(p), w = all.find(c => c.coll), coll = JSON.parse(w.coll);
   assert.deepEqual(coll, { pa: '2026-10-08T09:05:44Z', c: [['craterhoof behemoth', 1, 800], ['sol ring', 2, 120], ['arcane signet', 1, 30]] },
     'coll : [clé, exemplaires, prix du fichier (le plus bas des impressions)], plus grosses valeurs d\'abord, date du fichier');
-  const d = JSON.parse(w.data); assert.deepEqual([d.v, d.d, d.dd, d.n, d.b], [1100, -400, 7, 3, 'scan'], 'mêmes chiffres que sans estimation');
+  const d = JSON.parse(w.data); assert.deepEqual([d.v, d.d, d.dd, d.n, d.b], [1070, -400, 7, 3, 'scan'], 'valeur au prix de référence (relevé du jour : 2 × 1,20 + 8,00 + 0,30, comme la liste et les decks), variation des relevés');
   assert.equal(pxHits, 1, 'fichier de prix lu une fois');
   assert.ok(w.coll.length < 200, 'compact : ' + w.coll.length + ' caractères pour 3 cartes');
   const n = all.length; await p.evaluate(() => homeSoon(0)); await p.waitForTimeout(2200);

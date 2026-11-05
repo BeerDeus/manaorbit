@@ -31,7 +31,7 @@ function lotInSet(prints, set, l) {
 const lotEu = c => {
   const a = c.f ? 'ef' : 'eu', b = c.f ? 'eu' : 'ef';      // exemplaires foil : le prix foil, à défaut le normal
   if (c.pick) return c.pick[a] > 0 ? c.pick[a] : c.pick[b] > 0 ? c.pick[b] : null;
-  const m = COLL.meta[c.k]; return m && m[a] > 0 ? m[a] : m && m.eu > 0 ? m.eu : null;
+  return refPx(c.k, !!c.f) || null;      // sans édition : le prix de référence (builder.js › refPx), comme la collection
 };
 /** Grande image de la carte : l'édition choisie, sinon la dernière impression dans sa langue, sinon l'image anglaise de Scryfall. */
 function lotImg(c) {

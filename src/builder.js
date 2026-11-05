@@ -52,6 +52,13 @@ function dkPx(k) {
   const e = pxRef(k); if (e) return e;
   pxRefEnsure(); const m = COLL.meta[k] || DM[k]; return m && m.eu > 0 ? m.eu : 0;
 }
+/** Prix de référence d'un exemplaire dont l'édition n'est pas connue (centimes, 0 si inconnu) : dkPx, la même règle partout (collection, Stats, accueil, widget,
+ *  courbe de valeur, scan, lot, échanges, « De ta collection pour ce deck ») ; foil : le prix foil de la fiche (Scryfall), à défaut dkPx. m : fiche d'une carte pas encore
+ *  dans COLL.meta ni DM (lue par le scan), dont le prix sert en dernier recours. Exemplaire d'une édition connue : le prix de cette édition (collection.js › collLineEu). */
+function refPx(k, f, m) {
+  const x = m || COLL.meta[k] || DM[k]; if (f && x && x.ef > 0) return x.ef;
+  return dkPx(k) || (x && x.eu > 0 ? x.eu : 0);
+}
 /** Valeur estimée d'un texte de deck avec cette règle (core.js › dkValue : commandant compris, terrains de base et réserve exclus, cartes possédées comprises).
  *  ready : faux tant que le relevé du jour n'a pas été essayé (le chiffre changerait à son arrivée : l'en-tête de l'éditeur et Mes decks l'attendent). */
 const dkEst = text => ({ ...dkValue(text, dmOf, dkPx), ready: pxSettled() });
@@ -64,6 +71,15 @@ function pxRepaint() {
   try { if (BD.el) bdPaint(); } catch (e) { /* éditeur fermé */ }
   try { if (typeof dksPaint === 'function') dksPaint(); } catch (e) { /* écran « Mes decks » pas prêt */ }
   try { if (typeof DK_VALP === 'function') DK_VALP(); } catch (e) { /* feuille d'un deck fermée */ }
+  try { pxRepaintColl(); } catch (e) { /* collection pas encore lue */ }
+}
+/** Valeur de la collection, accueil, Stats, scan, fiche d'une carte : au prix de référence (refPx), redessinés quand le relevé du jour arrive. */
+function pxRepaintColl() {
+  if (typeof COLL === 'undefined' || !collCount()) return;
+  COLL.seq++; if (typeof VAL !== 'undefined') VAL.memo = null;
+  paintCollSection(); if (COLL.el) collPaintBody(true);
+  if (typeof SC !== 'undefined' && SC.el) scanPaintList();
+  if (typeof csSoon === 'function') csSoon();
 }
 /** Relevé du jour pas encore lu : lu une fois, puis les écrans ouverts qui affichent des prix de référence sont redessinés. */
 function pxRefEnsure() {

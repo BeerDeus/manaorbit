@@ -45,7 +45,7 @@ function prgScan(items) {
     if (x.es === 'art' || x.es === 'sym') c.sa = (c.sa || 0) + q;
     if (x.ambBy === 'foot' || x.ambBy === 'art' || x.ambBy === 'man') c.sh = (c.sh || 0) + 1;
     if (pk && Number(pk.y) > 1990 && Number(pk.y) < 2003) c.so = (c.so || 0) + q;
-    const eu = (typeof pkEu === 'function' && pkEu(pk)) || ((COLL.meta[x.key] || {}).eu > 0 ? COLL.meta[x.key].eu : 0); if (eu > best) best = eu;
+    const eu = (typeof pkEu === 'function' && pkEu(pk)) || (typeof refPx === 'function' ? refPx(x.key, false) : 0); if (eu > best) best = eu;      // édition lue : son prix, sinon le prix de référence (builder.js › refPx)
     if (pk && fresh.has(pk.set)) { const k = 'nw_' + pk.set, was = c[k] || 0; c[k] = was + q; if (was < 30 && c[k] >= 30) c.sn = (c.sn || 0) + 1; }
   }
   for (const k of Object.keys(c)) if (k.startsWith('nw_') && !fresh.has(k.slice(3))) delete c[k];      // extensions sorties depuis plus de 7 jours : le décompte s'arrête

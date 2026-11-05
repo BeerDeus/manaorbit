@@ -1627,10 +1627,13 @@ const filterActive = f => !!f && !!((f.q || '').trim() || (f.colors && f.colors.
 /* ── Valeur de la collection dans le temps : relevés quotidiens, variations de prix carte par carte ─────────────── */
 const VAL_MAX = 400;
 const dayOf = t => Math.floor((t - new Date(t).getTimezoneOffset() * 60000) / 86400000);     // jour calendaire local
-/** Ajoute un relevé { t, v (centimes), n (cartes), q (exemplaires) } : un seul par jour (le dernier remplace), trié, VAL_MAX au plus (les plus anciens partent). */
+/** Règle du relevé gardée avec lui : r = 1 (prix de référence de l'appli : édition possédée, sinon relevé du jour, impression la moins chère ; absent : relevé d'avant,
+ *  tendance de l'impression par défaut), vo (jour du changement de règle : la même collection à l'ancienne règle, pour raccorder la courbe : value.js › valHist). */
+const histRule = h => ({ ...(h.r === 1 ? { r: 1 } : {}), ...(Number.isFinite(h.vo) && h.vo > 0 ? { vo: Math.round(h.vo) } : {}) });
+/** Ajoute un relevé { t, v (centimes), n (cartes), q (exemplaires), r?, vo? } : un seul par jour (le dernier remplace), trié, VAL_MAX au plus (les plus anciens partent). */
 function histPush(hist, snap, max = VAL_MAX) {
   const out = (Array.isArray(hist) ? hist : []).filter(h => h && Number.isFinite(h.t) && Number.isFinite(h.v) && dayOf(h.t) !== dayOf(snap.t));
-  out.push({ t: snap.t, v: Math.round(snap.v), n: snap.n | 0, q: snap.q | 0 });
+  out.push({ t: snap.t, v: Math.round(snap.v), n: snap.n | 0, q: snap.q | 0, ...histRule(snap) });
   out.sort((a, b) => a.t - b.t);
   return out.length > max ? out.slice(out.length - max) : out;
 }
@@ -1745,12 +1748,12 @@ function histMerge(a, b, max = VAL_MAX) {
   const by = new Map();
   for (const h of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
     if (!h || !Number.isFinite(h.t) || !Number.isFinite(h.v)) continue;
-    const d = dayOf(h.t), cur = by.get(d); if (!cur || h.t > cur.t) by.set(d, { t: h.t, v: Math.round(h.v), n: h.n | 0, q: h.q | 0 });
+    const d = dayOf(h.t), cur = by.get(d); if (!cur || h.t > cur.t) by.set(d, { t: h.t, v: Math.round(h.v), n: h.n | 0, q: h.q | 0, ...histRule(h) });
   }
   const out = [...by.values()].sort((x, y) => x.t - y.t);
   return out.length > max ? out.slice(out.length - max) : out;
 }
-const histSame = (a, b) => { const x = histMerge(a, []), y = histMerge(b, []); return x.length === y.length && x.every((h, i) => h.t === y[i].t && h.v === y[i].v); };
+const histSame = (a, b) => { const x = histMerge(a, []), y = histMerge(b, []); return x.length === y.length && x.every((h, i) => h.t === y[i].t && h.v === y[i].v && (h.r || 0) === (y[i].r || 0) && (h.vo || 0) === (y[i].vo || 0)); };
 
 /* ── Commander : éligibilité d'une carte, données EDHREC (edh.tsv), decks à compléter ─────────────────────────── */
 /** Carte Scryfall → 1 si elle peut être commandant, sinon 0 : légendaire créature (face avant ; les deux faces d'une double face modale), Véhicule ou Vaisseau légendaire avec force/endurance, texte « can be your commander » ; légale en Commander. */
@@ -2653,7 +2656,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 

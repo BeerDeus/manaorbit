@@ -43,7 +43,7 @@ ok('Illustrations d\'une ligne : symbole, extension et prix de chaque édition')
 await p.click('.imgv-v:not(.def) >> nth=1');
 await p.waitForFunction(() => /wrath|sol-ring-v1\.jpg/.test((document.querySelector('.imgv-img.ok') || {}).src || ''), null, { timeout: 6000 });
 assert.match(await txt(p, '.imgv-vh'), /Double Masters 2022 · édition de ta carte/);
-assert.match(await txt(p, '.imgv-extra'), /prix Cardmarket 3,50/); assert.match(await txt(p, '.imgv-sub'), /2X2 101/);
+assert.match(await txt(p, '.imgv-extra'), /prix de cette édition 3,50/, 'édition de la ligne : son prix, dit comme tel'); assert.match(await txt(p, '.imgv-sub'), /2X2 101/);
 assert.equal(await stored(), '1 Edgar Markov *EN*\n2 Sol Ring (2X2) 101 *FR*', 'édition enregistrée avec la ligne (texte du compte)');
 assert.equal(await p.$eval('.imgv-v:not(.def) >> nth=1', e => e.getAttribute('aria-pressed')), 'true'); assert.equal(await txt(p, '.imgv-v.def'), 'Sans édition');
 await closeImg();

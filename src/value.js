@@ -6,7 +6,7 @@
 const VAL_MK = mkSfx(), VAL_HIST_KEY = 'deckdeal:coll:hist' + VAL_MK, VAL_RESET_KEY = 'deckdeal:coll:histreset' + VAL_MK, VAL_AT_KEY = 'deckdeal:coll:pxat' + VAL_MK,      // marché TCGplayer : sa propre courbe (dollars)
   VAL_THR_KEY = 'deckdeal:coll:alert', VAL_SEEN_KEY = 'deckdeal:coll:alertseen', VAL_BASE_KEY = 'coll:base';
 const VAL_EVERY = 20 * 3600e3, VAL_THRS = [10, 25, 50];
-const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8, ro: null };      // ro : suit la largeur de la courbe des Stats (valFit)
+const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8, ro: null, hv: null };      // ro : suit la largeur de la courbe des Stats (valFit)
 
 function valRead() {
   try {
@@ -60,16 +60,45 @@ function prcOver(k, ed) {
 }
 const valSetSeen = d => { VAL.seen = d; try { localStorage.setItem(VAL_SEEN_KEY, String(d)); } catch (e) { /* stockage indisponible */ } };
 
-/** Enregistre le relevé du jour et les prix de référence, d'après les prix Cardmarket (eu) déjà lus dans COLL.meta. */
+/** Valeur de la collection à l'ancienne règle (édition possédée, sinon tendance de l'impression par défaut de Scryfall) : seulement le jour du changement de règle,
+ *  pour raccorder la courbe (vo du relevé, valHist). */
+function valOldRule() {
+  let v = 0;
+  for (const k in COLL.map) {
+    const m = COLL.meta[k] || {};
+    for (const [g, q] of collLines(COLL.map[k])) { const f = lineFoil(g), u = edEu(lineEd(g), f) ?? (f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : null); if (u > 0) v += u * q; }
+  }
+  return v;
+}
+/** Enregistre le relevé du jour et les prix de référence. Valeur : la même règle que la liste, les Stats, l'accueil et le widget (collection.js › collLineEu : prix de l'édition
+ *  possédée quand il est connu, sinon le prix de référence, builder.js › refPx) ; variations : le prix de référence de la carte (dkPx : changer d'édition n'est pas une
+ *  variation du marché). Relevé du jour lu d'abord (sinon la valeur suivrait l'ancienne règle) ; lu, le relevé porte r = 1 (core.js › histRule). */
 async function valCommit() {
   await valLoad();
-  const items = collItems(), now = Date.now(), p = {}; let v = 0, n = 0, q = 0;
-  for (const i of items) if (i.eu > 0) { v += collCardVal(i.k) || i.eu * i.q; n++; q += i.q; const r = (COLL.meta[i.k] || {}).eu; p[i.k] = r > 0 ? r : i.eu; }      // valeur : éditions comprises ; variations : prix de référence de la carte (changer d'édition n'est pas une variation du marché)
+  if (typeof pxTable === 'function' && !PXT) await Promise.race([pxTable().catch(() => null), new Promise(r => setTimeout(r, 4000))]);      // serveur muet : pas plus de 4 s d'attente (relevé à l'ancienne règle, sans r)
+  const items = collItems(), now = Date.now(), p = {}, px = !!PXT; let v = 0, n = 0, q = 0;
+  for (const i of items) if (i.eu > 0) { v += collCardVal(i.k) || i.eu * i.q; n++; q += i.q; const r = dkPx(i.k); p[i.k] = r > 0 ? r : i.eu; }
   if (!n) return false;
-  VAL.hist = histPush(VAL.hist, { t: now, v, n, q });
-  const nb = baseRoll(VAL.base, p, now), chg = nb !== VAL.base; VAL.base = nb;
-  VAL.at = now; VAL.memo = null; VAL.err = '';
+  const day = dayOf(now), snap = { t: now, v, n, q };
+  if (px) {
+    snap.r = 1;
+    const before = VAL.hist.filter(h => dayOf(h.t) !== day);
+    if (before.some(h => !h.r) && !before.some(h => h.vo > 0)) snap.vo = valOldRule();      // premier relevé à la nouvelle règle : la même collection à l'ancienne, pour raccorder la courbe
+  }
+  VAL.hist = histPush(VAL.hist, snap);
+  const base = px && VAL.base && VAL.base.r !== 1 ? null : VAL.base;      // références d'avant (tendance de l'impression par défaut) : oubliées, sinon chaque carte passerait pour une baisse
+  let nb = baseRoll(base, p, now); if (px && nb.r !== 1) nb = { ...nb, r: 1 };
+  const chg = nb !== VAL.base; VAL.base = nb;
+  VAL.at = now; VAL.memo = null; VAL.hv = null; VAL.err = '';
   valSave(chg); xsPushSoon('history'); return true;
+}
+/** Relevés à afficher (courbe, variations, accueil, widget) : ceux d'avant le changement de règle (sans r) ramenés à la règle d'aujourd'hui par le rapport mesuré
+ *  le jour du changement (v / vo) : ni chute ni saut dans la courbe et les variations à 7 et 30 jours. Les relevés gardés ne changent pas. */
+function valHist() {
+  const h = VAL.hist; if (VAL.hv && VAL.hv.src === h) return VAL.hv.out;
+  const b = h.find(x => x.r === 1 && x.vo > 0), f = b ? b.v / b.vo : 1;
+  const out = !b || f === 1 ? h : h.map(x => (!x.r && x.t < b.t ? { ...x, v: Math.round(x.v * f) } : x));
+  VAL.hv = { src: h, out }; return out;
 }
 /** « Recommencer la courbe » (Stats) : les relevés d'avant disparaissent, ici et dans le compte. reset (date) part avec l'historique (meta/history) :
  *  un autre appareil ou une copie plus ancienne ne fait jamais revenir un relevé d'avant (extras.js › xsRemote). Le relevé du jour est refait aussitôt. */
@@ -117,7 +146,7 @@ function valMovers() {
   const ref = baseRef(VAL.base); if (!ref) return null;
   const sig = [VAL.at, VAL.thr, collCount(), COLL.u, ref.t].join('|');
   if (VAL.memo && VAL.memo.sig === sig) return VAL.memo.mv;
-  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: x.n, q: x.q, eu: (COLL.meta[k] || {}).eu })), ref, VAL.thr);
+  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: x.n, q: x.q, eu: dkPx(k) })), ref, VAL.thr);      // prix de référence (dkPx), comme les références de valCommit
   mv.since = ref.t; mv.by = new Map(mv.list.map(x => [x.k, x])); mv.ready = VAL.at - ref.t >= VAL_EVERY;      // moins de 20 h d'écart : rien n'a pu bouger, on n'affiche pas de variation
   VAL.memo = { sig, mv }; return mv;
 }
@@ -159,7 +188,7 @@ function valFit(host) {
     if (!cw) return;      // collection cachée
     const W = desk ? cw : 320, H = desk ? Math.max(150, Math.min(230, Math.round(W * 0.36))) : 132, vb = (s.getAttribute('viewBox') || '').split(' ');
     if (Math.abs(Number(vb[2]) - W) < 2 && Number(vb[3]) === H) return;
-    s.outerHTML = valChartHtml(VAL.hist, W, H);
+    s.outerHTML = valChartHtml(valHist(), W, H);
   };
   draw();      // tout de suite : jamais une image de la courbe étirée
   let raf = 0;
@@ -177,7 +206,7 @@ function valMoveRow(m) {
 }
 /** Sections « Valeur dans le temps » et « Variations des prix » de l'onglet Stats. */
 function valStatsHtml() {
-  const h = VAL.hist, run = VAL.run;
+  const h = valHist(), run = VAL.run;
   const ago = VAL.at ? pxAgo(VAL.at) : '', status = run ? T('Lecture des prix · {a} / {b}', { a: nf0(run.done), b: nf0(run.total) }) : VAL.err ? esc(VAL.err) : VAL.at ? T('Dernier relevé : {ago}', { ago }) : T('Aucun relevé pour l\'instant');
   const act = run ? '' : `<button class="link-btn" type="button" data-act="valnow">${T('Actualiser')}</button>`;
   let chart;

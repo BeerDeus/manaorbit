@@ -46,8 +46,8 @@ function dfRows(e, c, inc) {
 }
 /** Nom affiché d'une carte possédée : français si l'exemplaire l'est (comme la collection), sinon anglais. */
 const dfName = k => { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || (x && x.n) || k; };
-/** Prix d'une carte possédée (centimes) : celui de la collection, sinon celui du fichier EDHREC ; 0 si inconnu. */
-const dfPrice = (e, x) => { const m = COLL.meta[x.k]; const u = m ? unitPrice(m) : null; return u || e.pr[x.id] || 0; };
+/** Prix d'une carte possédée (centimes) : le prix de référence (celui des decks et de la carte dans la collection), sinon celui du fichier EDHREC ; 0 si inconnu. */
+const dfPrice = (e, x) => dkPx(x.k) || e.pr[x.id] || 0;      // builder.js › dkPx : relevé du jour (impression la moins chère), sinon la fiche
 /** Emplacements de la carte (places.js) : « Classeur rouge », « Non rangé »… */
 function dfPlaces(k) {
   const ps = [...new Set(collLines(COLL.map[k]).map(([g]) => (typeof plcOf === 'function' ? plcOf(g) : '')))];
