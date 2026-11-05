@@ -358,10 +358,10 @@ try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type',
 
 /** Deck Commander (bloc « Commander » ou format noté) : bouton « Analyser » (deckana.js). */
 const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
-/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle est légendaire (export EDHREC). */
+/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {
   const ks = commanderKeys(text).filter(k => cards.some(c => c.key === k));
-  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (m && canLead(m.tl)) ks.push(cards[0].key); }
+  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (canCommand(m) === 1) ks.push(cards[0].key); }
   return new Set(ks);
 }
 
@@ -690,7 +690,7 @@ function dvGroups() {
   $('#dvCmd', el).innerHTML = cmds.length ? `<div class="dv-cmds">${cmds.map(c => dvHero(c, flat(c), snap, dl)).join('')}</div>` : '';
   const groups = DV.sort === 'role' ? dvRoleGroups(rest, !!snap.ref) : groupSnap(rest, DV.sort, !!snap.ref);
   const hidden = (DV.f.colors.size || DV.f.type || DV.f.cmc !== '') ? all.filter(i => !hasMeta(i)).length : 0;
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${esc(landGroupNote(g))}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
   const cols = g => (view === 'stacks' ? Math.min(2, Math.max(1, g.items.length)) : 1);
   const box = (gi, c = 0) => `<div class="${view === 'grid' ? 'dv-grid' : view === 'strips' ? 'dv-strips' : 'dvp'}" data-gi="${gi}" data-c="${c}"></div>`;
   const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
@@ -872,10 +872,10 @@ const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Ma
 function openHand() {
   if (typeof prgAdd === 'function') prgAdd('hd');      // mains de départ tirées (progress.js)
   const snap = DV.snap; if (!snap) return;
-  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);
+  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);      // doubles faces « Sort // Terrain » comprises (landKind), annoncées
   if (lib.length < 7) { toast(T('Il faut au moins 7 cartes dans le deck')); return; }
-  const L = lib.filter(isLand).length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
-  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains'), api => {
+  const L = lib.filter(isLand).length, mdfc = lib.filter(it => it.s !== 'basic' && landKind(it.tl) === 'mdfc').length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
+  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains') + (mdfc ? ' (' + landMdfcText(mdfc) + ')' : ''), api => {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);

@@ -12,6 +12,16 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Regroupements du 5 novembre : une seule lecture d'un deck, une règle « commandant », une règle des terrains (lot R1)
+
+**Fait (Claude, branche locale `lot-r1`, pas poussée : le propriétaire fusionne)** — README › « Créer un deck dans l'app » › « Une seule lecture d'un deck, une seule règle » ; code `core.js` (`deckModel`, `dkSideOf`, `canCommand`, `landKind`, `landGroupNote`), `builder.js` (section Compagnon), `viewer.js`, `deckana.js`, `deckwiz.js`, `bdadd.js` ; tests `test.mjs`, `test-import.mjs`, `test-trade.mjs`, `builder-e2e.mjs` › G :
+- Deck : `deckModel(text)` lit la liste une fois ; compagnon **hors des 100 cartes et de la valeur** (règle 702.139a), dans la réserve ; l'éditeur le réécrit (section `Companion`) au lieu de le perdre ; Mes decks, feuille, À monter, éditeur et viewer disent le même chiffre.
+- Commandant : `canCommand` partout (créature légendaire, Véhicule / Vaisseau légendaire, « can be your commander ») ; un planeswalker légendaire en tête d'une liste sans en-tête n'est plus pris pour le commandant par le viewer.
+- Terrains : `landKind` partout (Dryad Arbor = terrain ; double face terrain au dos comptée avec les terrains, « dont N doubles faces » dans le viewer, l'éditeur, la main de départ, la jauge du coach).
+- [ ] Ouvert : une double face qui se **transforme** en terrain (Search for Azcanta, Ojer Taq) a la même ligne de type qu'une double face modale : comptée comme terrain (il faudrait garder `layout` dans les fiches des cartes).
+- [ ] Ouvert : choisir un compagnon dans l'éditeur (seul celui d'une liste importée est gardé ; « + » refusé) ; publier dans la Communauté ne garde pas le compagnon (`pubFromText` : cartes du deck seulement) ; les decks publiés ou enregistrés avant ce lot gardent leur ancien relevé (compagnon compté) jusqu'au prochain.
+- [ ] Ouvert : une liste sans en-tête dont la 1re carte peut être commandant ouvre l'éditeur sans commandant (le viewer et le coach la prennent) ; la base du coach (gen-deckdb) range encore les doubles faces d'après la ligne de type entière : rien à changer tant que `landKind` lit la fiche.
+
 ## Point du 5 novembre (soir) : éditeur de deck, ajouter en nombre (rangement, filtres, appui long)
 
 **Fait (Claude, branche locale `lot-add`, pas poussée : le propriétaire fusionne)** — README › « Créer un deck dans l'app » › « Ajouter en nombre » ; code `src/bdadd.js` (+ `builder.js`, `search.js` › `srchSync`, `back.js`, `core.js` › `dkCheck`), test `tests/bdadd-e2e.mjs` :

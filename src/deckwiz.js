@@ -120,7 +120,7 @@ function dwCard(k) {
   const r = DW.byKey && DW.byKey.get(k);
   if (r) return { name: r[0], ci: r[1], cmc: r[2], ty: r[3], roles: r.length < 10 && r[4] & DW_RB.counter ? r[4] & ~DW_RB.removal : r[4], eur: r[5], fl: r[6], prod: r[7] || '', rank: r[8] || 0, mc: r.length >= 10 ? r[9] || '' : null, pt: Array.isArray(r[12]) ? r[12] : null };      // ancienne base (sans coût de mana) : un contresort n'y est jamais un retrait ciblé ; la nouvelle tranche d'après le texte ; pt : [force, endurance, mots-clés] d'une créature (colonne [12], base du 5 novembre ; sinon null : force estimée par la simulation)
   const m = typeof dmOf === 'function' ? dmOf(k) : null; if (!m && !BASIC_NAMES.has(k)) return null;
-  const tl = m ? String(m.tl || '') : 'Basic Land', land = /\bLand\b/.test(tl.split(' // ')[0]);
+  const tl = m ? String(m.tl || '') : 'Basic Land', land = !!landKind(tl);      // même règle que le viewer et la main de départ
   return { name: k, ci: m ? m.ci || '' : '', cmc: m ? m.cm || 0 : 0, ty: land ? 1 : 0, roles: land ? DW_RB.land : 0, eur: m ? m.eu : 0, fl: 0, prod: '', rank: 0 };
 }
 const DW_BASIC_C = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
@@ -180,14 +180,15 @@ function dwPips(mc) {
 }
 /** Profil d'un deck (X : { main: Map, cmdr: [] }, l'éditeur par défaut) : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
 function dwProfile(X = BD) {
-  const p = { combos: [], n: 0, nonland: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
+  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
   let mvSum = 0; const all = [...X.main.values()];
   for (const c of all) {
     const k = c.key, q = c.qty, x = dwCard(k); p.n += q; p.cards++;
     if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur)
     if (!x) { p.unk += q; continue; }
-    const land = !!(x.roles & DW_RB.land) || BASIC_NAMES.has(k);
+    const tl = (dmOf(k) || {}).tl, lk = tl ? landKind(tl) : '', land = BASIC_NAMES.has(k) || (tl ? !!lk : !!(x.roles & DW_RB.land));      // règle unique des terrains (core.js › landKind : doubles faces « Sort // Terrain » comprises) ; fiche pas encore lue : la base
+    if (lk === 'mdfc') p.mdfc += q;
     for (const r of DKW_ROLES) if (r === 'land' ? land : x.roles & DW_RB[r]) p[r] += q;
     if (land) { const bc = dwBasicColor(k), pr = bc ? bc : x.prod; for (const col of new Set([...String(pr)].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q; }
     else {
@@ -744,7 +745,7 @@ function dwGaugesHtml(prof, tgt, cmd, pack, ro) {
     const n = prof[r], [lo, mid, hi] = tgt[r], st = n < lo ? (n < lo - 3 ? 'bad' : 'low') : n > hi + (r === 'land' ? 0 : 3) ? 'high' : 'ok';
     const max = Math.max(hi + 2, n, 1), pct = v => Math.max(0, Math.min(100, v / max * 100));
     const open = !ro && DW.open === r, miss = Math.max(0, mid - n), tag = ro ? 'div' : 'button';
-    const lbl = st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}');
+    const lbl = (st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}')) + (r === 'land' && prof.mdfc ? ' · ' + landMdfcText(prof.mdfc) : '');      // doubles faces comptées comme terrains, annoncées
     let h = `<div class="dw-g ${st}${open ? ' open' : ''}"><${tag} ${ro ? '' : `type="button" data-act="dw-g" data-r="${r}" aria-expanded="${open}" `}class="dw-gh" title="${esc(T(help))}">
       <span class="dw-gl"><b>${T(label)}</b><small>${esc(lbl)}</small></span><span class="dw-gn"><b>${nf0(n)}</b> / ${mid}</span>
       <span class="dw-bar" aria-hidden="true"><i class="dw-rng" style="left:${pct(lo)}%;width:${Math.max(2, pct(hi) - pct(lo))}%"></i><i class="dw-val" style="width:${pct(n)}%"></i></span></${tag}>`;
