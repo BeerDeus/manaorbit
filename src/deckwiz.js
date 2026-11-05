@@ -538,25 +538,42 @@ function dwSimInner() {
   const r = dsimEnsure(BD, () => { const box = BD.el && BD.tab === 'coach' && BD.el.querySelector('.dw-simbox'); if (box) box.innerHTML = dwSimInner(); });
   return dsimHtml(r && !r.none ? r : null, DSIM.prog || 0);
 }
-/** Plan du deck (données : deckmech.js › dwDeckStory) : une ligne de thèmes, les moteurs, les conditions de victoire, les remarques. */
-function dwStoryHtml(st) {
+/** Plan du deck (données : deckmech.js › dwDeckStory), lisible d'un coup d'œil : le texte de la fiche (3 lignes, « Lire tout »), puis trois lignes courtes
+ *  étiquetées : thèmes (pastilles « 35 Goblin »), moteurs (un par ligne, ses cartes en petit), pour gagner (pastilles) ; remarques en petit.
+ *  o.label : titre « Plan du deck » (faux dans l'analyse, qui a le sien). */
+function dwStoryHtml(st, o = {}) {
   if (!st) return '';
-  const bits = [...(st.tribe ? [T('{t} ×{n}', { t: st.tribe.t, n: st.tribe.n })] : []), ...st.tags.slice(0, 3).map(t => T('{m} ×{n}', { m: t.label, n: t.n }))];
-  const eng = st.engines.map(e => T('{e} ({c})', { e: e.label, c: e.cards.slice(0, 3).join(', ') }));
   const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // texte de la fiche IA : écrit en français
-  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<blockquote class="dw-brief"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><p>${esc(st.brief)}</p></blockquote>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
-    <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
+  const tags = [...(st.tribe ? [[st.tribe.n, st.tribe.t]] : []), ...st.tags.slice(0, 3).map(t => [t.n, t.label])];
+  const pill = (n, l) => `<span class="dw-pill">${n != null ? `<b>${esc(String(n))}</b>` : ''}${esc(l)}</span>`;
+  const row = (lab, inner) => `<div class="dw-row"><span class="dw-rl">${esc(lab)}</span><div class="dw-rv">${inner}</div></div>`;
+  const long = st.brief && st.brief.length > 190;
+  return `<div class="dw-story">${o.label === false ? '' : `<p class="label">${T('Plan du deck')}</p>`}${st.brief && fr ? `<div class="dw-brief${long ? ' clamp' : ''}"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><div><p>${esc(st.brief)}</p>${long ? `<button class="link-btn link-inline" type="button" data-brief-more aria-expanded="false"><span class="m">${T('Lire tout')}</span><span class="l">${T('Réduire')}</span></button>` : ''}</div></div>` : ''}
+    <div class="dw-rows">${tags.length ? row(T('Thèmes'), tags.map(([n, l]) => pill(n, l)).join('')) : ''}
+    ${st.engines.length ? row(T('Moteurs'), `<ul class="dw-eng">${st.engines.map(e => `<li><b>${esc(e.label)}</b><small>${esc(e.cards.slice(0, 3).join(', '))}</small></li>`).join('')}</ul>`) : ''}
+    ${st.wincons.length ? row(T('Pour gagner'), st.wincons.slice(0, 4).map(n => pill(null, n)).join('')) : `<p class="hint warn">${esc(T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>`}</div>
+    ${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
 }
-/** Analyse d'un deck (deckana.js) : ce que fait le deck d'après la fiche du commandant et les mécaniques (plan, moteurs à compléter, pièges, cartes isolées). */
+if (typeof document !== 'undefined') document.addEventListener('click', e => {      // « Lire tout » / « Réduire » le texte du plan (sans redessiner l'écran)
+  const b = e.target.closest && e.target.closest('[data-brief-more]'); if (!b) return;
+  const box = b.closest('.dw-brief'), open = !box.classList.contains('open'); box.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open)); haptic('tap');
+});
+/** Analyse d'un deck (deckana.js) : ce que fait le deck d'après la fiche du commandant et les mécaniques. → { story (plan, sans titre), rows (points : cœur du plan,
+ *  conditions de victoire, moteurs incomplets, pièges, cartes isolées), warn (nombre de points à revoir), good } ; null sans classement. */
+function dwAuditParts(X) {
+  const au = typeof dwDeckAudit === 'function' ? dwDeckAudit(X) : null; if (!au) return null;
+  const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = []; let warn = 0, good = 0;
+  if (au.core.length) { rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6))); good++; }
+  if (au.wins.length) { rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4))); good++; }
+  for (const e of au.engines) { rows.push(li('warn', T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
+  if (au.traps.length) { rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5))); warn++; }
+  if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
+  return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };
+}
+/** Analyse d'un deck, en un bloc (titre, plan, points). */
 function dwAuditHtml(X) {
-  const au = typeof dwDeckAudit === 'function' ? dwDeckAudit(X) : null; if (!au) return '';
-  const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = [];
-  if (au.core.length) rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6)));
-  if (au.wins.length) rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4)));
-  for (const e of au.engines) rows.push(li('warn', T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3)));
-  if (au.traps.length) rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5)));
-  if (au.loose.length) rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose));
-  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${dwStoryHtml(au.story).replace('<p class="label">' + T('Plan du deck') + '</p>', '')}${rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : ''}`;
+  const a = dwAuditParts(X); if (!a) return '';
+  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${a.story}${a.rows}`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
 const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;
