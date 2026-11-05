@@ -78,8 +78,8 @@ assert.deepEqual(await p.$$eval('.cs-top .crow .row-price', n => n.map(x => [...
 await p.click('.cs-h [data-v="lot"]');
 // plus de 10 cartes : tranches de 10, « Afficher plus » jusqu'au bout
 await p.evaluate(() => { for (let i = 0; i < 25; i++) { const k = 'zz test ' + i; COLL.map[k] = { n: 'ZZ Test ' + i, q: i % 3 + 1 }; COLL.meta[k] = { cm: 1, tl: 'Artifact', cl: '', eu: 100 + i * 10 }; } collPaintBody(false); });
-assert.equal(await p.$$eval('.cs-top .crow', r => r.length), 10); assert.match(await txt(p, '[data-act="topmore"]'), /Afficher 10 de plus · 18 restantes/);
-await p.click('[data-act="topmore"]'); assert.equal(await p.$$eval('.cs-top .crow', r => r.length), 20); assert.match(await txt(p, '[data-act="topmore"]'), /Afficher 8 de plus · 8 restantes/);
+assert.equal(await p.$$eval('.cs-top .crow', r => r.length), 10); assert.match(await txt(p, '[data-act="topmore"]'), /Afficher 10 de plus \(18 autres\)/);
+await p.click('[data-act="topmore"]'); assert.equal(await p.$$eval('.cs-top .crow', r => r.length), 20); assert.match(await txt(p, '[data-act="topmore"]'), /Afficher 8 de plus \(8 autres\)/);
 await p.click('[data-act="topmore"]'); assert.equal(await p.$$eval('.cs-top .crow', r => r.length), 28); assert.equal(await p.$('[data-act="topmore"]'), null, 'tout est affiché');
 assert.equal(await p.$eval('.cs-top .crow:last-child .row-name', e => e.textContent), 'Llanowar Elves', 'la plus petite en dernier'); assert.ok(await p.$eval('.dv-scroll', e => e.scrollHeight > e.clientHeight + 200), 'la liste défile');
 await p.click('.cs-h [data-v="one"]'); assert.equal(await p.$$eval('.cs-top .crow', r => r.length), 10, 'changer de classement repart à 10'); await p.click('.cs-h [data-v="lot"]');
@@ -308,7 +308,7 @@ await q.evaluate(() => { const o = collItems; window.__items = 0; collItems = ()
 await q.click('.coll-more[data-act="more"]'); await q.waitForFunction(() => document.querySelectorAll('.coll-list .crow').length === 240);
 assert.equal(await q.$eval('.coll-list .crow', r => r.__first), 1, 'lignes déjà là gardées : la tranche suivante est ajoutée, pas de repaint complet');
 assert.equal(await q.evaluate(() => window.__items), 0, 'liste triée gardée : rien n\'est relu ni retrié pour « Afficher plus »');
-assert.match(await txt(q, '.coll-more[data-act="more"]'), /^Afficher 60 de plus · 60 restantes$/); assert.deepEqual(await shownKeys(), await freshKeys(240), 'même ordre, mêmes lignes qu\'un repaint complet');
+assert.match(await txt(q, '.coll-more[data-act="more"]'), /^Afficher 60 de plus \(60 autres\)$/); assert.deepEqual(await shownKeys(), await freshKeys(240), 'même ordre, mêmes lignes qu\'un repaint complet');
 // une ligne retirée entre-temps : repli sur le repaint complet (aucune carte sautée)
 const one = await q.$$eval('.coll-list .crow', r => r.find(x => x.querySelector('.qstep b').textContent === '1').dataset.k);
 await q.click(`.crow[data-k="${one}"] [data-d="-1"]`); await q.waitForSelector('.sheet [data-ok]'); await q.click('.sheet [data-ok]'); await q.waitForFunction(k => !document.querySelector(`.crow[data-k="${k}"]`), one);

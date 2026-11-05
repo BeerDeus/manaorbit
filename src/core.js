@@ -98,6 +98,19 @@ function TN(n, one, many, v) {
   const key = (pr ? pr.select(x) === 'one' : x === 1) ? one : many;
   return T(key, { n: x.toLocaleString(LOC()), ...v });
 }
+/** Nombre écrit dans la locale de l'appli (LOC) : num(1234) → « 1 234 » (français), « 1,234 » (anglais) ; num(3.125, 2) → « 3,13 » : d décimales toujours écrites
+ *  (sans d : jusqu'à 3, comme toLocaleString). Jamais toFixed dans un texte (« 3.12 » en français). */
+const num = (v, d) => Number(v || 0).toLocaleString(LOC(), d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Pourcentage, v en points : pct(78) → « 78 % » (français, allemand, espagnol), « 78% » (anglais, italien, portugais) : clé '{n} %' des dictionnaires ; d : décimales (num).
+ *  Jamais « + ' %' » hors de T. */
+const pct = (v, d) => T('{n} %', { n: num(v, d) });
+/** « Afficher plus » des listes par tranches : libellé unique (left : éléments pas encore montrés, step : taille de la tranche de l'écran). */
+const moreLabel = (left, step) => TN(left, 'Afficher {a} de plus ({n} autre)', 'Afficher {a} de plus ({n} autres)', { a: num(Math.min(step, left)) });
+/** Bouton « Afficher plus » : '' quand tout est montré (shown ≥ total) ; attrs : attributs du bouton (data-act…), classe par défaut « btn ghost block coll-more ». */
+function moreBtn(shown, total, step, attrs = '') {
+  const left = total - shown; if (!(left > 0)) return '';
+  return `<button type="button" ${/\bclass=/.test(attrs) ? '' : 'class="btn ghost block coll-more" '}${attrs}>${moreLabel(left, step)}</button>`;
+}
 /** Locale des nombres et des dates : fr-FR ; anglais : celle du navigateur (en-US, en-GB…) ; autre langue : sa variante du téléphone (de-AT, es-MX, it-CH, pt-PT…),
  *  sinon celle de LOC_DEF (de-DE, es-ES, it-IT ; portugais : pt-BR, celui des cartes Magic). Les prix restent en euros : la locale n'en change que l'écriture (« 1.234,56 € » en allemand). */
 const LOC_DEF = { de: 'de-DE', es: 'es-ES', it: 'it-IT', pt: 'pt-BR' }, LOC_MEMO = {};
@@ -1763,6 +1776,14 @@ function engTotal(eng, k, exceptId) {
 const engFree = (owned, eng, k, exceptId) => Math.max(0, (Number(owned) || 0) - engTotal(eng, k, exceptId));
 /** Decks qui engagent la carte k : [{ id, n, q }]. */
 function engDecksOf(eng, k) { const out = []; for (const id in eng || {}) { const q = (eng[id].q && eng[id].q[k]) || 0; if (q > 0) out.push({ id, n: eng[id].n, q }); } return out; }
+/** Règle unique « possédée » / « à acheter » (éditeur, coach, viewer, recherche, alertes, De ta collection) : la carte k pour le deck deckId.
+ *  own : exemplaires possédés · free : libres pour ce deck = possédés − réservés par les AUTRES decks montés (un deck ne se retire pas ses propres exemplaires ;
+ *  deck pas encore enregistré, ou pas à moi : deckId null, toute réservation compte) · held : own − free (possédés mais engagés ailleurs) · decks : ces autres decks [{ id, n, q }].
+ *  À acheter = quantité du deck − free, partout. */
+function engOwnFor(owned, eng, k, deckId) {
+  const own = Math.max(0, Math.floor(Number(owned) || 0)), free = engFree(own, eng, k, deckId);
+  return { own, free, held: own - free, decks: own > free ? engDecksOf(eng, k).filter(d => d.id !== deckId) : [] };
+}
 /** Deck monté : pour chaque carte du texte (hors terrains de base), les exemplaires possédés, au plus la quantité du deck. ownedOf : clé → exemplaires possédés. */
 function engSnapshot(text, ownedOf) {
   const want = new Map(), md = deckModel(text);      // clé → exemplaires voulus : deck + réserve (« SB: ») + compagnon, la réserve est dans la boîte du deck aussi
@@ -2000,7 +2021,7 @@ const edhCmdHas = (c, toks, alt) => edhWords(c.keys.join(' '), toks) || !!(alt &
 /** Une ligne du classement. Les listes `missing`, `owned` et `gc` (longues, utiles seulement à la feuille d'un deck) ne sont calculées qu'au premier accès. */
 class EdhRow {
   constructor(deck, cmd, total, have, cost, unpriced, mine, br, hit, e, own, eng, held) {
-    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have; this.cost = cost; this.unpriced = unpriced; this.mine = mine;
+    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng; this.cost = cost; this.unpriced = unpriced; this.mine = mine;      // miss : manquantes + possédées engagées dans un deck monté (règle ownFor)
     this.tier = cmd.tier; this.rank = cmd.rank; this.br = br; this.hit = hit; this._e = e; this._o = own; this._h = held || null;
   }
   get missing() { edhDetail(this); return this.missing; }
@@ -2015,8 +2036,9 @@ function edhDetail(r) {
     if (e.bs[id]) return;
     if (e.pr[id] > 0) full += e.pr[id] * q; else fullNo += q;
     const h = Math.min(q, own[id]), m = q - h, g = e.gcA[id] === 1; if (g) gcs.push(e.names[id]);
-    if (m) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m, u: u > 0 ? u : null, gc: g }); }
-    if (h) owned.push({ k: e.keys[id], n: e.names[id], q: h, gc: g, eg: h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0))) });      // eg : parmi ces exemplaires, ceux déjà réservés par un deck monté
+    const eg = h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0)));      // eg : exemplaires possédés déjà réservés par un deck monté : à acheter pour ce deck (règle ownFor)
+    if (m + eg) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m + eg, u: u > 0 ? u : null, gc: g, ...(eg ? { eg } : {}) }); }
+    if (h - eg) owned.push({ k: e.keys[id], n: e.names[id], q: h - eg, gc: g });
   };
   for (const id of c.ids) one(id, 1);
   for (let j = e.off[d.i], z = e.off[d.i + 1]; j < z; j++) one(e.ids[j], e.qty[j]);
@@ -2052,12 +2074,12 @@ function edhRank(edh, qty, o = {}) {
       if (!hit.length) continue;
     } else if (cmdOk) { if (!cmdOk[c.i]) cmdOk[c.i] = edhCmdHas(c, toks, alt) ? 1 : -1; if (cmdOk[c.i] < 0) continue; }
     let total = 0, have = 0, cost = 0, unpriced = 0, gcN = 0, eng = 0;
-    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; if (own[id] > 0) { have++; if (hold && own[id] <= hold[id]) eng++; } else { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }
+    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; const engd = own[id] > 0 && hold && own[id] <= hold[id]; if (own[id] > 0) { have++; if (engd) eng++; } if (!(own[id] > 0) || engd) { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }      // engagé dans un deck monté : possédé, mais à acheter (même règle que ownFor)
     for (let j = a; j < z; j++) {
       const id = ids[j]; if (bs[id]) continue;
       const q = qa[j], ow = own[id], h = ow < q ? ow : q; total += q; have += h; if (gcA[id]) gcN++;
-      if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eng += h - (fr < h ? fr : h); }
-      if (h < q) { const m = q - h, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }
+      let eg = 0; if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eg = h - (fr < h ? fr : h); eng += eg; }
+      if (h - eg < q) { const m = q - h + eg, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }      // à acheter : manquantes et engagées ailleurs
     }
     if (total < 20 || total > 105) continue;      // liste tronquée, ou faussée (cartes en trop : un deck de Commander en compte 100)
     if (o.budget > 0 && cost > o.budget) continue;
@@ -2069,7 +2091,7 @@ function edhRank(edh, qty, o = {}) {
 }
 /** Tris des decks EDHREC : have (le plus de cartes possédées), miss, cost (le moins cher à compléter), pop (meilleur rang : celui du mois si le fichier en a un). */
 const EDH_SORT_BY = {
-  have: (a, b) => (b.have - a.have) || (a.miss - b.miss) || (a.cost - b.cost), miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),
+  have: (a, b) => ((b.have - b.eng) - (a.have - a.eng)) || (a.miss - b.miss) || (a.cost - b.cost), miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),      // have : possédées libres (les engagées dans un deck monté sont à acheter)
   cost: (a, b) => (a.cost - b.cost) || (a.miss - b.miss), pop: (a, b) => (a.cmd.rank - b.cmd.rank) || (a.miss - b.miss),
 };
 /** Paliers d'un tri suivi d'un second (« Meilleur tier, puis moins cher ») : à palier égal, le second départage. Tier (S → D) · part possédée par tranches de 10 % · cartes manquantes par 10 · coût à compléter par tranches (30 / 60 / 100 / 200 / 400 €). */
@@ -2701,12 +2723,14 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
+// Nombres, pourcentages et « Afficher plus » écrits dans la langue de l'appli : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient

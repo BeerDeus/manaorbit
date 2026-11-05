@@ -61,7 +61,7 @@ export const CASES = [
 /** Le coach dans une vm : globals de l'appli remplacés par des doublures (ni écran, ni collection, ni fiches). */
 export function coachCtx(srcDir, D) {
   const ctx = { console, Map, Set, Math, Number, String, Object, Array, JSON, Date, Infinity, isFinite, Promise, setTimeout, Float64Array, Uint8Array, Int32Array,
-    DAY: 864e5, BASIC_NAMES: BASICS, ownKey: normKey, dmOf: () => null, collQty: () => 0, mkUs: () => false, PXT: null, T: (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v && v[k] != null ? v[k] : m), TN: (n, a, b, v) => (n > 1 ? b : a).replace(/\{(\w+)\}/g, (m, k) => k === 'n' ? n : v && v[k] != null ? v[k] : m),
+    DAY: 864e5, BASIC_NAMES: BASICS, ownKey: normKey, dmOf: () => null, collQty: () => 0, ownFree: () => 0, mkUs: () => false, PXT: null, T: (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v && v[k] != null ? v[k] : m), TN: (n, a, b, v) => (n > 1 ? b : a).replace(/\{(\w+)\}/g, (m, k) => k === 'n' ? n : v && v[k] != null ? v[k] : m),
     LOC: () => 'fr-FR', fmt: (c) => (c / 100).toFixed(2) + ' €', mkCur: () => 'EUR', nf0: n => String(Math.round(n)), esc: s => String(s), haptic: () => {}, toast: () => {}, bdPaint: () => {}, bdMetaSoon: () => {}, bdList: () => {},
     BD: { main: new Map(), cmdr: [], el: {} }, labOn: () => false, localStorage: null, sheets: [], EDH: undefined };
   vm.createContext(ctx);

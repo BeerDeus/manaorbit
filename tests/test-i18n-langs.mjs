@@ -29,7 +29,7 @@ const SAME = {
   de: ['Coach', 'Tags', 'Orange', 'Solide', 'Synergie', 'Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor', 'Saison', 'Flamme'],
   es: ['Niv. {n}', 'Rentable', 'de {name}', 'libre', 'Libre', 'Arsenal', 'Shogun', 'Mentor', 'Indestructible', 'Variantes', 'tribal', '{t} (tribal)', 'auras'],
   it: ['Coach', 'Taipei', 'Tokyo', '{n} PV', 'Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore', 'Cyborg', 'Shogun', '{n} badge', 'sec'],
-  pt: ['Moscou', 'Tags', 'Vitrine', 'Variantes', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Cardmarket ou CardTrader', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor', 'tribal', '{t} (tribal)', 'auras'],
+  pt: ['Moscou', 'Tags', 'Vitrine', 'Variantes', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Cardmarket ou CardTrader', 'Decks EDHREC', '{n} decks EDHREC', '{n} deck EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor', 'tribal', '{t} (tribal)', 'auras'],
 };
 const sameOk = (l, k) => SAME['*'].includes(k) || (SAME[l] || []).includes(k) || !/\p{L}/u.test(k.replace(/\{\w+\}/g, '').replace(/<[^>]+>/g, ''));
 const vars = s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort();
@@ -76,3 +76,108 @@ for (const l of LANGS) {
     if (conflicts.length) { console.log(`  ${l} : même clé, traductions différentes selon le fichier (à relire) : ${conflicts.length}`); for (const x of conflicts) console.log('    · ' + x); }
   });
 }
+
+/* ── Nombres, pourcentages, pluriels et « Afficher plus » (lot R4, 5 novembre) ─────────────────────────────────────────────────────────────
+   Règles (DEV.md › « Textes ») : un nombre variable passe par TN (pluriel) ; un nombre écrit dans un texte par num (jamais toFixed) ; un
+   pourcentage par pct (jamais « ' %' » collé hors de T) ; un bouton « Afficher plus » par moreBtn / moreLabel. */
+const SRC = new URL('../src/', import.meta.url);
+const SRCS = readdirSync(SRC).filter(f => f.endsWith('.js')).sort().map(f => ({ f, s: readFileSync(new URL(f, SRC), 'utf8') }));
+/** Appels T( / nmT( / TN( : { f, line, fn, args (texte entre les parenthèses), keys (textes littéraux : le 1er pour T, 2e et 3e argument pour TN) }. */
+function calls() {
+  const out = [];
+  for (const { f, s } of SRCS) for (const m of s.matchAll(/(?<![\w.$])(T|nmT|TN)\(/g)) {
+    let j = m.index + m[0].length, d = 1, q = null; const st = j, cut = [];
+    for (; j < s.length && d; j++) {
+      const c = s[j];
+      if (q) { if (c === '\\') j++; else if (c === q) q = null; continue; }
+      if (c === '\'' || c === '"' || c === '`') q = c; else if ('([{'.includes(c)) d++; else if (')]}'.includes(c)) d--; else if (c === ',' && d === 1) cut.push(j);
+    }
+    const args = s.slice(st, j - 1), parts = [st, ...cut, j - 1].slice(0, -1).map((a, i, A) => s.slice(i ? a + 1 : a, i + 1 < A.length ? A[i + 1] : j - 1).trim());
+    const lit = x => { const r = /^'((?:[^'\\]|\\.)*)'$|^"((?:[^"\\]|\\.)*)"$|^`((?:[^`\\$]|\\.)*)`$/.exec(x || ''); return r ? (r[1] ?? r[2] ?? r[3]).replace(/\\(.)/g, '$1') : null; };
+    out.push({ f, line: s.slice(0, m.index).split('\n').length, fn: m[1], args, keys: (m[1] === 'TN' ? parts.slice(1, 3) : parts.slice(0, 1)).map(lit).filter(k => k != null) });
+  }
+  return out;
+}
+const CALLS = calls();
+// Mots qui ne changent pas au pluriel, ou qui ne se rapportent pas au nombre (« {n} sans prix », « {n} dans ta collection », « {n} s »).
+const PL_SAME = new Set(['sans', 'dans', 'depuis', 'mois', 'fois', 'plus', 's', 'ms', 'prix']);
+// T('… {n} …s') gardés en T : le nombre ne vaut jamais 1 (constante, ou texte choisi seulement au-delà de 1 ; le singulier a son propre texte).
+const PL_KEEP = {
+  '{n} exemplaires au maximum (deck et réserve)': 'max ≥ 2 (1 : « Commander : un seul exemplaire… »)',
+  'Réserve : {n} cartes au maximum': 'réserve du format : 15',
+  '/ {n} cartes': 'taille du deck : 60 ou 100',
+  'il y a {n} jours': '2 à 13 jours (hier : son texte)', 'il y a {n} semaines': '2 à 8 semaines',
+  '{name} : {n} exemplaires (un seul en Commander).': 'texte d\'erreur : 2 ou plus', '{name} : {n} exemplaires ({max} au maximum).': 'texte d\'erreur : plus que max',
+  'Réserve de {n} cartes ({max} au maximum).': 'texte d\'erreur : plus de 15',
+  'Classement ouvert aux comptes de plus de {n} jours, connectés avec Google ou une adresse vérifiée. Ta partie compte pour tes badges.': 'constante (7 jours)',
+  'Simulation de {n} parties': 'constante (10 000)',
+  'Cibles calculées sur {n} decks réels (Archidekt, EDHREC) et la formule des terrains de Frank Karsten.': 'corpus du coach (milliers)',
+  'Banc d\'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.': 'banc du coach (centaines)',
+  'Coût moyen {mv}, {c} sorts de rampe ou de pioche à 2 mana ou moins : {n} terrains conseillés.': 'cible de terrains (≥ 30)',
+  'Magic a {a} ans aujourd\'hui : {n} reliques de plus se cachent dans l\'appli.': 'constante de la fête (5)',
+  'Le 5 août 1993 sortait Alpha. {a} ans plus tard, le musée fête ça : {n} reliques de plus se cachent dans l\'appli aujourd\'hui.': 'constante de la fête (5)',
+  'Les cloches sont revenues de Rome : elles sèment {n} œufs de plus aujourd\'hui.': 'constante de la fête (5)',
+  'Parties le Jeudi saint, elles ont sonné le retour de Pâques et semé {n} œufs de plus dans l\'appli aujourd\'hui.': 'constante de la fête (5)',
+  'Les {n} salles sont ouvertes : le musée est complet.': 'toutes les salles (constante)', 'Les {n} poussins sont nés : ton nid est complet.': 'tous les poussins (constante)',
+  'Dé à {n} faces': 'dé de 2 faces ou plus',
+  'Ce lot compte {n} exemplaires de {name} : en retirer un': 'montré seulement au-delà de 1',
+  '{n} pareilles': 'groupe de 2 ou plus (diagnostic du scan)',
+  '{n} recherches enregistrées au plus : supprimes-en une d\'abord (appui long sur son nom)': 'constante (SRCH_MAX)',
+  'Réservée par {n} decks montés': 'montré seulement au-delà de 1 deck',
+  '{n} relevés · de {min} à {max}': 'courbe montrée à partir de 2 relevés',
+};
+
+test('pluriels : pas de T(\'… {n} mots…s\') (« 1 cartes ») : TN(n, singulier, pluriel), sauf nombre jamais égal à 1 (PL_KEEP)', () => {
+  const bad = [], kept = new Set();
+  for (const c of CALLS) if (c.fn !== 'TN') for (const k of c.keys) {
+    const w = /\{n\}\s+(?:<\/?\w+>)?([\p{L}'’-]+)/u.exec(k);
+    if (!w || !/s$/.test(w[1]) || PL_SAME.has(w[1])) continue;
+    if (Object.prototype.hasOwnProperty.call(PL_KEEP, k)) { kept.add(k); continue; }
+    bad.push(`src/${c.f}:${c.line} : ${JSON.stringify(k)}`);
+  }
+  assert.deepEqual(bad, [], 'texte au pluriel pour un nombre qui peut valoir 1 : TN(n, \'{n} carte\', \'{n} cartes\') (singulier traduit dans src/i18n/<langue>.*.json), ou PL_KEEP avec la raison');
+  assert.deepEqual(Object.keys(PL_KEEP).filter(k => !kept.has(k)), [], 'PL_KEEP : texte disparu du code, à retirer de la liste');
+});
+
+test('pluriels : chaque TN(n, singulier, pluriel) traduit dans chaque langue', () => {
+  const miss = [];
+  const tn = CALLS.filter(c => c.fn === 'TN' && c.keys.length === 2);
+  assert.ok(tn.length > 300, 'appels TN trouvés : ' + tn.length);
+  const D = Object.fromEntries(['en', ...LANGS.filter(l => FILES[l])].map(l => [l, merged(l)]));
+  for (const c of tn) {
+    for (const [l, d] of Object.entries(D)) for (const k of c.keys) if (!(k in d)) miss.push(`${l} : src/${c.f}:${c.line} : ${JSON.stringify(k)}`);
+  }
+  assert.deepEqual(miss, [], 'forme sans traduction (nouveau texte : src/i18n/<langue>.r4.json ou le fichier de son module)');
+});
+
+test('pourcentages et nombres : pct et num, jamais « \' %\' » collé ni toFixed dans un texte', () => {
+  const bad = [];
+  for (const { f, s } of SRCS) s.split('\n').forEach((l, i) => {
+    const code = l.replace(/\s\/\/ .*$/, '');      // commentaires ignorés ; '%' sans espace : CSS (largeurs)
+    if (/^\s*(\*|\/\*|\/\/)/.test(code)) return;
+    if (/' %'|" %"|\$\{[^{}`]*\} %/.test(code) && !/\b(width|height|left|top|--[\w-]+)\s*:\s*\$\{[^{}`]*\} ?%/.test(code)) bad.push(`src/${f}:${i + 1} : ${code.trim().slice(0, 120)}`);
+  });
+  assert.deepEqual(bad, [], 'pourcentage écrit hors de T : pct(v) (« 78 % » en français, « 78% » en anglais)');
+  const fx = CALLS.filter(c => /\.toFixed\(/.test(c.args)).map(c => `src/${c.f}:${c.line} : ${c.args.slice(0, 100)}`);
+  assert.deepEqual(fx, [], 'toFixed dans un texte (« 3.12 » en français) : num(v, décimales)');
+});
+
+test('num, pct, moreLabel, moreBtn : locale et dictionnaires de la langue', () => {
+  const C = require('../src/core.js'), { num, pct, moreLabel, moreBtn, TN, i18nPick } = C;
+  const all = Object.fromEntries(['en', 'de'].map(l => [l, merged(l)]));
+  try {
+    i18nPick({ nav: 'fr-FR', robot: true, all });
+    assert.deepEqual([num(1234), num(3.14159, 2), num(0.5, 1), num(null), pct(78), pct(12.5, 1)], [(1234).toLocaleString('fr-FR'), '3,14', '0,5', '0', '78 %', '12,5 %']);
+    assert.equal(moreLabel(1, 30), 'Afficher 1 de plus (1 autre)'); assert.equal(moreLabel(45, 30), 'Afficher 30 de plus (45 autres)');
+    assert.equal(moreLabel(1234, 60), `Afficher 60 de plus (${(1234).toLocaleString('fr-FR')} autres)`, 'nombre à la française');
+    assert.equal(moreBtn(10, 10, 5, 'data-act="more"'), '', 'tout est montré : pas de bouton'); assert.equal(moreBtn(12, 10, 5), '');
+    assert.equal(moreBtn(0, 3, 2, 'data-act="more"'), '<button type="button" class="btn ghost block coll-more" data-act="more">Afficher 2 de plus (3 autres)</button>');
+    assert.equal(moreBtn(5, 6, 5, 'class="link-btn df-more" data-df="more"'), '<button type="button" class="link-btn df-more" data-df="more">Afficher 1 de plus (1 autre)</button>', 'classe de l\'écran gardée');
+    assert.deepEqual([TN(1, '{n} carte reçue', '{n} cartes reçues'), TN(2, '{n} carte reçue', '{n} cartes reçues')], ['1 carte reçue', '2 cartes reçues']);
+    i18nPick({ nav: 'en-US', robot: false, saved: 'en', all });
+    assert.deepEqual([num(1234), num(3.14159, 2), pct(78), moreLabel(1, 30), moreLabel(45, 30)], ['1,234', '3.14', '78%', 'Show 1 more (1 left)', 'Show 30 more (45 left)']);
+    assert.deepEqual([TN(1, '{n} carte reçue', '{n} cartes reçues'), TN(1, 'Collection exportée ({n} carte)', 'Collection exportée ({n} cartes)'), TN(3, 'Collection exportée ({n} carte)', 'Collection exportée ({n} cartes)')], ['1 card received', 'Collection exported (1 card)', 'Collection exported (3 cards)']);
+    i18nPick({ nav: 'de-DE', robot: false, saved: 'de', all });
+    assert.deepEqual([num(1234.5, 1), pct(78), moreLabel(1, 30)], ['1.234,5', '78 %', '1 weitere anzeigen (noch 1)']);
+  } finally { i18nPick({ nav: 'fr-FR', robot: true, all: {} }); }
+});

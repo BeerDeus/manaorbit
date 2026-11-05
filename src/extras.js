@@ -65,8 +65,13 @@ const engIsOn = id => !!(XS.eng[id] && Object.keys(XS.eng[id].q).length);
 /** Empreinte des decks montés (id + date de dernière modification) : sert à invalider les listes qui en dépendent. */
 const engSig = () => Object.keys(XS.eng).sort().map(id => id + ':' + XS.eng[id].at).join(',');
 const engCount = id => (XS.eng[id] ? Object.values(XS.eng[id].q).reduce((a, x) => a + x, 0) : 0);
+/** Règle unique « possédée » / « à acheter » (core.js › engOwnFor) : { own, free, held, decks } de la carte k pour le deck deckId ; à acheter = quantité − free.
+ *  Éditeur (BD.id), coach (X.id), viewer (DV.deckId), recherche (S.deckId), alertes, De ta collection : tous passent par ici. */
+function ownFor(k, deckId) { return engOwnFor(collQty(k), XS.eng, k, deckId); }
+/** ownFor(k, deckId).free sans construire l'objet (boucles du coach). */
+function ownFree(k, deckId) { return engFree(collQty(k), XS.eng, k, deckId); }
 /** Exemplaires libres pour le deck en cours de recherche : possédés − réservés par les autres decks montés. */
-const engOwned = k => engFree(collQty(k), XS.eng, k, S.deckId);
+const engOwned = k => ownFree(k, S.deckId);
 /** Exemplaires de la liste courante mis de côté par d'autres decks (non déduits du panier) et les decks concernés. */
 function engHeldBack(cards) {
   let n = 0; const names = new Set();

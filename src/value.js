@@ -155,7 +155,7 @@ const valMove = k => { const mv = valMovers(); return mv && mv.ready ? mv.by.get
 /** Nombre de prix en mouvement à signaler et pas encore écartés (accueil, bannière). */
 const valAlertN = () => { const mv = valMovers(); return mv && mv.ready && VAL.seen !== dayOf(VAL.at) ? mv.list.length : 0; };
 
-const valPct = p => (p > 0 ? '+' : p < 0 ? '−' : '') + T('{n} %', { n: nf0(Math.round(Math.abs(p))) });
+const valPct = p => (p > 0 ? '+' : p < 0 ? '−' : '') + pct(Math.round(Math.abs(p)));
 const valEur = c => (c > 0 ? '+' : c < 0 ? '−' : '') + fmt(Math.abs(c), mkCur());
 const valCls = x => (x > 0 ? 'vu' : x < 0 ? 'vd' : '');
 const valDate = t => new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
@@ -216,14 +216,14 @@ function valStatsHtml() {
   const val = `<h3 class="cs-h">${T('Valeur dans le temps')} <small>${T('tendance Cardmarket')}</small></h3><div class="vl-box">${chart}<div class="vl-foot"><span>${status}</span>${act}</div></div>
     <p class="hint">${T('Un relevé par jour, gardé sur cet appareil (et sur ton compte si tu es connecté). La valeur varie aussi quand tu ajoutes ou retires des cartes.')}${h.length ? ` <button class="link-btn" type="button" data-act="valreset">${T('Recommencer la courbe')}</button>` : ''}</p>`;
   const mv = valMovers();
-  const thr = `<span class="cs-sw" role="group" aria-label="${T('Seuil de variation')}">${VAL_THRS.map(t => `<button type="button" data-act="valthr" data-v="${t}" aria-pressed="${VAL.thr === t}" class="${VAL.thr === t ? 'on' : ''}">${T('{n} %', { n: t })}</button>`).join('')}</span>`;
+  const thr = `<span class="cs-sw" role="group" aria-label="${T('Seuil de variation')}">${VAL_THRS.map(t => `<button type="button" data-act="valthr" data-v="${t}" aria-pressed="${VAL.thr === t}" class="${VAL.thr === t ? 'on' : ''}">${pct(t)}</button>`).join('')}</span>`;
   let body;
   if (!mv || !mv.ready) body = `<p class="hint">${VAL.base ? T('Suivi commencé le {d} : les variations s\'affichent dès qu\'un jour a passé.', { d: esc(valDate(VAL.base.cur.t)) }) : T('Les variations s\'affichent après le premier relevé et un jour d\'écart.')}</p>`;
   else {
     const shown = mv.list.slice(0, VAL.topN), more = mv.list.length - shown.length;
     body = `<div class="vl-sum"><span>${T('Marché sur ta collection depuis le {d}', { d: esc(valDate(mv.since)) })}</span><b class="${valCls(mv.total)}">${valEur(mv.total)}</b></div>
       <p class="hint cs-topnote">${T('Prix Cardmarket carte par carte, hors cartes ajoutées depuis. Seules comptent les hausses et baisses d\'au moins {t} % et 0,20 € par exemplaire.', { t: VAL.thr })}</p>
-      ${shown.length ? `<div class="cs-top vl-top">${shown.map(valMoveRow).join('')}</div>${more > 0 ? `<button class="btn ghost block coll-more" type="button" data-act="valmore">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(8, more)), b: nf0(more) })}</button>` : ''}` : `<p class="hint listempty">${T('Aucune carte n\'a bougé de plus de {t} %.', { t: VAL.thr })}</p>`}`;
+      ${shown.length ? `<div class="cs-top vl-top">${shown.map(valMoveRow).join('')}</div>${moreBtn(0, more, 8, 'data-act="valmore"')}` : `<p class="hint listempty">${T('Aucune carte n\'a bougé de plus de {t} %.', { t: VAL.thr })}</p>`}`;
   }
   return `${val}<h3 class="cs-h" id="valMv">${T('Variations des prix')} ${thr}</h3>${body}`;
 }

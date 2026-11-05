@@ -1078,7 +1078,7 @@ test('edhRank : possédées / manquantes / coût, basics ignorés, filtres et tr
   assert.equal(e.eng, 0, 'sans held : rien d\'engagé');
   const hd = { 'sol ring': 1, 'arcane signet': 1, 'fire': 2, 'edgar markov': 1 }, rh = C.edhRank(d, qty, { sort: 'miss', held: k => hd[k] || 0 }), byh = Object.fromEntries(rh.map(r => [r.cmd.slug, r]));
   assert.equal(byh['edgar-markov'].have, 5); assert.equal(byh['edgar-markov'].eng, 3, 'commandant + Sol Ring + Fire // Ice ; Arcane Signet : 2 possédées, 1 réservée, 1 libre → pas engagée');
-  assert.deepEqual(byh['edgar-markov'].owned.filter(x => x.eg).map(x => [x.k, x.eg]).sort(), [['edgar markov', 1], ['fire', 1], ['sol ring', 1]], 'détail par carte (eg)');
+  assert.deepEqual(byh['edgar-markov'].missing.filter(x => x.eg).map(x => [x.k, x.eg]).sort(), [['edgar markov', 1], ['fire', 1], ['sol ring', 1]], 'détail par carte (eg) : engagées = à acheter'); assert.equal(byh['edgar-markov'].miss, 22 + 3, 'miss compte les engagées');
   assert.equal(byh['tymna-thrasios'].eng, 1, 'Sol Ring seulement'); assert.equal(byh['tymna-thrasios'].have, 2);
   assert.equal(C.edhRank(d, qty, { sort: 'miss', held: k => 99 }).find(r => r.cmd.slug === 'edgar-markov').eng, 5, 'tout réservé : toutes les possédées sont engagées, jamais plus');
   // recherche dans la langue des noms puis en anglais : alt(clé) = nom imprimé normalisé (« anneau solaire » trouve Sol Ring, « bolt » reste anglais)
@@ -1308,6 +1308,14 @@ test('cartes engagées : réservation par deck, exemplaires libres, fusion entre
   assert.equal(C.engFree(1, eng, 'llanowar elves'), 0); assert.equal(C.engFree(1, eng, 'llanowar elves', 'a'), 1);
   assert.equal(C.engFree(0, eng, 'sol ring'), 0, 'jamais négatif');
   assert.deepEqual(C.engDecksOf(eng, 'sol ring').map(d => d.id), ['a', 'b']);
+  // règle unique « possédée / à acheter » (engOwnFor, extras.js › ownFor) : un seul exemplaire, monté dans A, vu depuis B, depuis A, depuis un deck pas encore enregistré
+  const e1 = { A: { n: 'Deck A', at: t, q: { 'sol ring': 1 } } }, pick = o => [o.own, o.free, o.held, o.decks.map(d => d.n)];
+  assert.deepEqual(pick(C.engOwnFor(1, e1, 'sol ring', 'B')), [1, 0, 1, ['Deck A']], 'depuis B : possédé, 0 libre, engagé dans A → 1 à acheter');
+  assert.deepEqual(pick(C.engOwnFor(1, e1, 'sol ring', 'A')), [1, 1, 0, []], 'depuis A : le deck garde ses propres exemplaires');
+  assert.deepEqual(pick(C.engOwnFor(1, e1, 'sol ring', null)), [1, 0, 1, ['Deck A']], 'deck pas encore enregistré (ou pas à moi) : toute réservation compte');
+  assert.deepEqual(pick(C.engOwnFor(3, eng, 'sol ring', 'c')), [3, 1, 2, ['Deck A', 'Deck B']], '3 possédés, 2 réservés par A et B');
+  assert.deepEqual(pick(C.engOwnFor(1, eng, 'sol ring', 'c')), [1, 0, 1, ['Deck A', 'Deck B']], 'held au plus own');
+  assert.deepEqual(pick(C.engOwnFor(0, eng, 'sol ring', 'c')), [0, 0, 0, []], 'non possédée : rien d\'engagé');
   assert.deepEqual(C.engActive(eng).map(x => x[0]), ['a', 'b'], 'un deck démonté (q vide) n\'engage rien');
   // fusion : la trace la plus récente de chaque deck gagne, un démontage plus récent l'emporte, les vieilles traces vides disparaissent
   const dev1 = { a: { n: 'Deck A', at: t + 10, q: {} }, b: { n: 'Deck B', at: t, q: { 'sol ring': 1 } } };

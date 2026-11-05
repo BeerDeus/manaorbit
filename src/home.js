@@ -62,7 +62,7 @@ function homePaint() {
   } else { HM.v = null; val.textContent = T('Commencer'); cnt.textContent = T('Ajoute tes cartes'); dl.hidden = true; }
   const start = !n && !sv;                                                               // collection vide : « Pour commencer » à la place de la ligne sous l'orbe (et de la courbe sur ordinateur)
   $('#hmStart').hidden = !start; $('#collSub').hidden = start; $('.hm-dk-val', home).hidden = start;
-  orb.setAttribute('aria-label', n ? T('Ma collection : {v}, {n} cartes', { v: val.textContent, n: nf0(n) }) : T('Ma collection : ajoute tes cartes'));
+  orb.setAttribute('aria-label', n ? TN(n, 'Ma collection : {v}, {n} carte', 'Ma collection : {v}, {n} cartes', { v: val.textContent }) : T('Ma collection : ajoute tes cartes'));
   widgetSoon();                                                                          // widget Android : mêmes chiffres (widget.js)
   homeLands();
   // Échange

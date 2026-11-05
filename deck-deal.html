@@ -8020,8 +8020,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '5090d9eb';
-const I18N_FILES = {"de":"i18n/de.20539bce.js","en":"i18n/en.0c59fbfa.js","es":"i18n/es.bc3575fa.js","it":"i18n/it.43d90278.js","pt":"i18n/pt.3b4e0132.js"};
+const DD_BUILD = '5971bfb8';
+const I18N_FILES = {"de":"i18n/de.092f456b.js","en":"i18n/en.4628ed82.js","es":"i18n/es.98e4a3a1.js","it":"i18n/it.f9311d82.js","pt":"i18n/pt.074344ff.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -8348,6 +8348,19 @@ function TN(n, one, many, v) {
   let pr = PLURAL[l]; if (pr === undefined) { try { pr = PLURAL[l] = new Intl.PluralRules(l); } catch (e) { pr = PLURAL[l] = null; } }
   const key = (pr ? pr.select(x) === 'one' : x === 1) ? one : many;
   return T(key, { n: x.toLocaleString(LOC()), ...v });
+}
+/** Nombre écrit dans la locale de l'appli (LOC) : num(1234) → « 1 234 » (français), « 1,234 » (anglais) ; num(3.125, 2) → « 3,13 » : d décimales toujours écrites
+ *  (sans d : jusqu'à 3, comme toLocaleString). Jamais toFixed dans un texte (« 3.12 » en français). */
+const num = (v, d) => Number(v || 0).toLocaleString(LOC(), d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Pourcentage, v en points : pct(78) → « 78 % » (français, allemand, espagnol), « 78% » (anglais, italien, portugais) : clé '{n} %' des dictionnaires ; d : décimales (num).
+ *  Jamais « + ' %' » hors de T. */
+const pct = (v, d) => T('{n} %', { n: num(v, d) });
+/** « Afficher plus » des listes par tranches : libellé unique (left : éléments pas encore montrés, step : taille de la tranche de l'écran). */
+const moreLabel = (left, step) => TN(left, 'Afficher {a} de plus ({n} autre)', 'Afficher {a} de plus ({n} autres)', { a: num(Math.min(step, left)) });
+/** Bouton « Afficher plus » : '' quand tout est montré (shown ≥ total) ; attrs : attributs du bouton (data-act…), classe par défaut « btn ghost block coll-more ». */
+function moreBtn(shown, total, step, attrs = '') {
+  const left = total - shown; if (!(left > 0)) return '';
+  return `<button type="button" ${/\bclass=/.test(attrs) ? '' : 'class="btn ghost block coll-more" '}${attrs}>${moreLabel(left, step)}</button>`;
 }
 /** Locale des nombres et des dates : fr-FR ; anglais : celle du navigateur (en-US, en-GB…) ; autre langue : sa variante du téléphone (de-AT, es-MX, it-CH, pt-PT…),
  *  sinon celle de LOC_DEF (de-DE, es-ES, it-IT ; portugais : pt-BR, celui des cartes Magic). Les prix restent en euros : la locale n'en change que l'écriture (« 1.234,56 € » en allemand). */
@@ -10014,6 +10027,14 @@ function engTotal(eng, k, exceptId) {
 const engFree = (owned, eng, k, exceptId) => Math.max(0, (Number(owned) || 0) - engTotal(eng, k, exceptId));
 /** Decks qui engagent la carte k : [{ id, n, q }]. */
 function engDecksOf(eng, k) { const out = []; for (const id in eng || {}) { const q = (eng[id].q && eng[id].q[k]) || 0; if (q > 0) out.push({ id, n: eng[id].n, q }); } return out; }
+/** Règle unique « possédée » / « à acheter » (éditeur, coach, viewer, recherche, alertes, De ta collection) : la carte k pour le deck deckId.
+ *  own : exemplaires possédés · free : libres pour ce deck = possédés − réservés par les AUTRES decks montés (un deck ne se retire pas ses propres exemplaires ;
+ *  deck pas encore enregistré, ou pas à moi : deckId null, toute réservation compte) · held : own − free (possédés mais engagés ailleurs) · decks : ces autres decks [{ id, n, q }].
+ *  À acheter = quantité du deck − free, partout. */
+function engOwnFor(owned, eng, k, deckId) {
+  const own = Math.max(0, Math.floor(Number(owned) || 0)), free = engFree(own, eng, k, deckId);
+  return { own, free, held: own - free, decks: own > free ? engDecksOf(eng, k).filter(d => d.id !== deckId) : [] };
+}
 /** Deck monté : pour chaque carte du texte (hors terrains de base), les exemplaires possédés, au plus la quantité du deck. ownedOf : clé → exemplaires possédés. */
 function engSnapshot(text, ownedOf) {
   const want = new Map(), md = deckModel(text);      // clé → exemplaires voulus : deck + réserve (« SB: ») + compagnon, la réserve est dans la boîte du deck aussi
@@ -10251,7 +10272,7 @@ const edhCmdHas = (c, toks, alt) => edhWords(c.keys.join(' '), toks) || !!(alt &
 /** Une ligne du classement. Les listes `missing`, `owned` et `gc` (longues, utiles seulement à la feuille d'un deck) ne sont calculées qu'au premier accès. */
 class EdhRow {
   constructor(deck, cmd, total, have, cost, unpriced, mine, br, hit, e, own, eng, held) {
-    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have; this.cost = cost; this.unpriced = unpriced; this.mine = mine;
+    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng; this.cost = cost; this.unpriced = unpriced; this.mine = mine;      // miss : manquantes + possédées engagées dans un deck monté (règle ownFor)
     this.tier = cmd.tier; this.rank = cmd.rank; this.br = br; this.hit = hit; this._e = e; this._o = own; this._h = held || null;
   }
   get missing() { edhDetail(this); return this.missing; }
@@ -10266,8 +10287,9 @@ function edhDetail(r) {
     if (e.bs[id]) return;
     if (e.pr[id] > 0) full += e.pr[id] * q; else fullNo += q;
     const h = Math.min(q, own[id]), m = q - h, g = e.gcA[id] === 1; if (g) gcs.push(e.names[id]);
-    if (m) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m, u: u > 0 ? u : null, gc: g }); }
-    if (h) owned.push({ k: e.keys[id], n: e.names[id], q: h, gc: g, eg: h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0))) });      // eg : parmi ces exemplaires, ceux déjà réservés par un deck monté
+    const eg = h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0)));      // eg : exemplaires possédés déjà réservés par un deck monté : à acheter pour ce deck (règle ownFor)
+    if (m + eg) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m + eg, u: u > 0 ? u : null, gc: g, ...(eg ? { eg } : {}) }); }
+    if (h - eg) owned.push({ k: e.keys[id], n: e.names[id], q: h - eg, gc: g });
   };
   for (const id of c.ids) one(id, 1);
   for (let j = e.off[d.i], z = e.off[d.i + 1]; j < z; j++) one(e.ids[j], e.qty[j]);
@@ -10303,12 +10325,12 @@ function edhRank(edh, qty, o = {}) {
       if (!hit.length) continue;
     } else if (cmdOk) { if (!cmdOk[c.i]) cmdOk[c.i] = edhCmdHas(c, toks, alt) ? 1 : -1; if (cmdOk[c.i] < 0) continue; }
     let total = 0, have = 0, cost = 0, unpriced = 0, gcN = 0, eng = 0;
-    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; if (own[id] > 0) { have++; if (hold && own[id] <= hold[id]) eng++; } else { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }
+    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; const engd = own[id] > 0 && hold && own[id] <= hold[id]; if (own[id] > 0) { have++; if (engd) eng++; } if (!(own[id] > 0) || engd) { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }      // engagé dans un deck monté : possédé, mais à acheter (même règle que ownFor)
     for (let j = a; j < z; j++) {
       const id = ids[j]; if (bs[id]) continue;
       const q = qa[j], ow = own[id], h = ow < q ? ow : q; total += q; have += h; if (gcA[id]) gcN++;
-      if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eng += h - (fr < h ? fr : h); }
-      if (h < q) { const m = q - h, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }
+      let eg = 0; if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eg = h - (fr < h ? fr : h); eng += eg; }
+      if (h - eg < q) { const m = q - h + eg, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }      // à acheter : manquantes et engagées ailleurs
     }
     if (total < 20 || total > 105) continue;      // liste tronquée, ou faussée (cartes en trop : un deck de Commander en compte 100)
     if (o.budget > 0 && cost > o.budget) continue;
@@ -10320,7 +10342,7 @@ function edhRank(edh, qty, o = {}) {
 }
 /** Tris des decks EDHREC : have (le plus de cartes possédées), miss, cost (le moins cher à compléter), pop (meilleur rang : celui du mois si le fichier en a un). */
 const EDH_SORT_BY = {
-  have: (a, b) => (b.have - a.have) || (a.miss - b.miss) || (a.cost - b.cost), miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),
+  have: (a, b) => ((b.have - b.eng) - (a.have - a.eng)) || (a.miss - b.miss) || (a.cost - b.cost), miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),      // have : possédées libres (les engagées dans un deck monté sont à acheter)
   cost: (a, b) => (a.cost - b.cost) || (a.miss - b.miss), pop: (a, b) => (a.cmd.rank - b.cmd.rank) || (a.miss - b.miss),
 };
 /** Paliers d'un tri suivi d'un second (« Meilleur tier, puis moins cher ») : à palier égal, le second départage. Tier (S → D) · part possédée par tranches de 10 % · cartes manquantes par 10 · coût à compléter par tranches (30 / 60 / 100 / 200 / 400 €). */
@@ -10952,12 +10974,14 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
+// Nombres, pourcentages et « Afficher plus » écrits dans la langue de l'appli : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
@@ -12327,7 +12351,7 @@ async function runLive(cards, opts, hooks, signal) {
       hooks.step('prints', 'run', label()); hooks.progress(0.15 * done / total);
     });
   } finally { limScry.onWait = null; }
-  hooks.step('prints', 'done', T('{n} cartes', { n: total }));
+  hooks.step('prints', 'done', TN(total, '{n} carte', '{n} cartes'));
 
   hooks.step('catalog', 'run', T('Extensions…'));
   const exps = await getExpansions(signal);
@@ -12341,7 +12365,7 @@ async function runLive(cards, opts, hooks, signal) {
     bpIndex.set(id, await getBlueprints(id, signal)); bd++;
     hooks.step('catalog', 'run', T('{done} / {total} extensions', { done: bd, total: ids.length })); hooks.progress(0.15 + 0.25 * bd / ids.length);
   });
-  hooks.step('catalog', 'done', T('{n} extensions', { n: ids.length }));
+  hooks.step('catalog', 'done', TN(ids.length, '{n} extension', '{n} extensions'));
 
   const plan = cards.map(c => {
     const w = edWant(c), bps = mapBlueprints(c, printsUse(c), exps, bpIndex);
@@ -12366,7 +12390,7 @@ async function runLive(cards, opts, hooks, signal) {
   // Foil et langue par ligne (c.ln : « *F* », « *N* », « *FR* ») : la carte cherche les offres de chacune de ses lignes (lnQueries), les autres ceux de la recherche
   const first = await offersPass(entries.map(e => (e.c.ln ? { ...e, qs: lnQueries(e.c, opts) } : e)), opts.lang, opts, signal, (e, offers) => hooks.card(e.c.key, { offers, bps: e.bps, img: e.img, meta: e.meta }), tick({ from: 0.4, to: 0.95 }));
   hooks.cacheAge(first.cacheAge);
-  hooks.step('offers', 'done', first.mode === 'job' ? T('sur le serveur · {n} s', { n: Math.max(1, Math.round((performance.now() - t0) / 1000)) }) : T('{n} requêtes · {s} s', { n: first.total, s: Math.max(1, Math.round((performance.now() - t0) / 1000)) }));
+  hooks.step('offers', 'done', first.mode === 'job' ? T('sur le serveur · {n} s', { n: Math.max(1, Math.round((performance.now() - t0) / 1000)) }) : TN(first.total, '{n} requête · {s} s', '{n} requêtes · {s} s', { s: Math.max(1, Math.round((performance.now() - t0) / 1000)) }));
 
   if (opts.fallbackEn && opts.lang !== 'en') {
     const miss = entries.filter(e => e.bps.length && hooks.needsEn(e.c.key, e.c));      // une ligne qui impose sa langue n'a pas de repli
@@ -12377,7 +12401,7 @@ async function runLive(cards, opts, hooks, signal) {
         hooks.card(e.c.key, { offers, bps: e.bps, img: e.img, meta: e.meta, fellBack: true });
       }, (done, total, info) => { hooks.progress(0.95 + 0.05 * fd / miss.length); if (info && info.mode === 'job') hooks.rate(info.rps || 0, info.sent || 0, info.cached ? T('{n} depuis le cache', { n: info.cached }) : ''); });
       hooks.cacheAge(second.cacheAge);
-      hooks.step('fallback', 'done', T('{n} cartes', { n: miss.length }));
+      hooks.step('fallback', 'done', TN(miss.length, '{n} carte', '{n} cartes'));
     } else hooks.step('fallback', 'skip', T('Inutile'));
   } else hooks.step('fallback', 'skip', T('Désactivé'));
   hooks.hint(false);
@@ -12396,10 +12420,10 @@ async function runDemo(cards, opts, hooks, signal) {
   const total = cards.length;
   hooks.step('prints', 'run', '0 / ' + total);
   for (let i = 0; i < total; i++) { await sleep(14 + (hash32(cards[i].key) % 16), signal); hooks.step('prints', 'run', (i + 1) + ' / ' + total); hooks.progress(0.15 * (i + 1) / total); }
-  hooks.step('prints', 'done', T('{n} cartes', { n: total }));
+  hooks.step('prints', 'done', TN(total, '{n} carte', '{n} cartes'));
   hooks.step('catalog', 'run', T('Extensions…'));
   const nExp = 9; for (let i = 1; i <= nExp; i++) { await sleep(70, signal); hooks.step('catalog', 'run', T('{done} / {total} extensions', { done: i, total: nExp })); hooks.progress(0.15 + 0.25 * i / nExp); }
-  hooks.step('catalog', 'done', T('{n} extensions', { n: nExp }));
+  hooks.step('catalog', 'done', TN(nExp, '{n} extension', '{n} extensions'));
   hooks.step('offers', 'run', '0 / ' + total);
   let reqs = 0; const t0 = performance.now();
   const skip = opts.skip || new Set();
@@ -12413,7 +12437,7 @@ async function runDemo(cards, opts, hooks, signal) {
     hooks.progress(0.4 + 0.55 * (i + 1) / total);
     hooks.rate(reqs / Math.max(1, (performance.now() - t0) / 1000), reqs);
   }
-  hooks.step('offers', 'done', T('{n} requêtes simulées', { n: reqs }));
+  hooks.step('offers', 'done', TN(reqs, '{n} requête simulée', '{n} requêtes simulées'));
   if (opts.fallbackEn && opts.lang !== 'en') {
     const miss = cards.filter(c => !skip.has(c.key) && hooks.needsEn(c.key, c));
     if (miss.length) {
@@ -12423,7 +12447,7 @@ async function runDemo(cards, opts, hooks, signal) {
         hooks.card(miss[i].key, { offers: makeDemoOffers(miss[i], 'en'), bps: [{ id: 1 }], img: null, fellBack: true });
         hooks.step('fallback', 'run', (i + 1) + ' / ' + miss.length); hooks.progress(0.95 + 0.05 * (i + 1) / miss.length);
       }
-      hooks.step('fallback', 'done', T('{n} cartes', { n: miss.length }));
+      hooks.step('fallback', 'done', TN(miss.length, '{n} carte', '{n} cartes'));
     } else hooks.step('fallback', 'skip', T('Inutile'));
   } else hooks.step('fallback', 'skip', T('Désactivé'));
   hooks.progress(1);
@@ -13068,16 +13092,15 @@ function setStep(id, state, detail) {
 }
 function setProgress(f) {
   f = Math.max(0, Math.min(1, f));
-  $('#progFill').style.width = (f * 100).toFixed(1) + '%'; $('#progPct').textContent = T('{n} %', { n: Math.round(f * 100) });
+  $('#progFill').style.width = (f * 100).toFixed(1) + '%'; $('#progPct').textContent = pct(Math.round(f * 100));
   if (S.run) { S.run.frac = f; paintSearchTask(); }
 }
 function paintSearchTask() {
   const r = S.run, t = r && r.task; if (!t || t.done) return;
-  t.set(Math.round(r.frac * 100), 100, T('{n} %', { n: Math.round(r.frac * 100) }) + (r.step ? ' · ' + r.step : ''));
+  t.set(Math.round(r.frac * 100), 100, pct(Math.round(r.frac * 100)) + (r.step ? ' · ' + r.step : ''));
 }
 function setRate(rps, total, extra) {
-  const dec = (new Intl.NumberFormat(LOC()).formatToParts(1.5).find(p => p.type === 'decimal') || { value: '.' }).value;      // virgule décimale de la langue (français, allemand…)
-  $('#progRate').textContent = T('{total} requêtes · {rps} / s', { total, rps: rps.toFixed(1).replace('.', dec) }) + (extra ? ' · ' + extra : '');
+  $('#progRate').textContent = T('{total} requêtes · {rps} / s', { total: num(total), rps: num(rps, 1) }) + (extra ? ' · ' + extra : '');
 }
 
 /** Une ligne de la liste : le bouton de la carte + une petite croix (visible une fois la carte scannée). */
@@ -13157,7 +13180,7 @@ function applyView(force) {
 }
 function paintUndo() {
   const n = S.removed.length, bar = $('#undoBar'); bar.hidden = !n; if (!n) return;
-  $('#undoTxt').textContent = n === 1 ? T('{name} retirée de la liste', { name: S.removed[0].name }) : T('{n} cartes retirées de la liste', { n });
+  $('#undoTxt').textContent = n === 1 ? T('{name} retirée de la liste', { name: S.removed[0].name }) : TN(n, '{n} carte retirée de la liste', '{n} cartes retirées de la liste');
   $('#undoAll').textContent = n === 1 ? T('Remettre') : T('Tout remettre');
 }
 /** Retire une carte de la liste (et donc du panier) : ses lignes sortent de la decklist, annulable. */
@@ -13177,7 +13200,7 @@ function undoRemove(all) {
   const ta = $('#deckText'); let n = 0, last = null;
   do { last = S.removed.pop(); ta.value = restoreLines(ta.value, last.removed); n++; } while (all && S.removed.length);
   S.isSample = false; refreshDeck(); paintUndo(); haptic('tap'); scheduleRecompute(true);
-  toast(n > 1 ? T('{n} cartes remises', { n }) : T('{name} remise', { name: last.name }));
+  toast(n > 1 ? TN(n, '{n} carte remise', '{n} cartes remises') : T('{name} remise', { name: last.name }));
 }
 
 /** Message + action pour un refus d'accès du proxy, selon la raison renvoyée (auth_required, forbidden, bad_token, bad_app_key…). */
@@ -13448,7 +13471,7 @@ function updateRow(el, c, v, st) {
     if (top.foil) tags.push('<span class="tag accent">Foil</span>');
     if (pick.parts.length > 1) tags.push(`<span class="tag">${TN(pick.parts.length - 1, '+{n} offre', '+{n} offres')}</span>`);
     if (pick.short > 0) tags.push(`<span class="tag warn">${T('Il en manque {n}', { n: pick.short })}</span>`);
-    if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">${mkAb()} ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + T('{n} %', { n: ri.pct }) : ''}</span>`);
+    if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">${mkAb()} ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + pct(ri.pct) : ''}</span>`);
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
     const small = pick.parts.length === 1 && n > 1 ? `${n} × ${fmt(top.price, top.cur)}` : '';
     imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`);
@@ -13562,7 +13585,7 @@ function updateRecap() {
   if (!isCm() && S.opts.fallbackEn && S.opts.lang !== 'en') crit.push(T('repli anglais'));
   if (exactOn()) crit.push(T('éditions exactes'));
   { const lf = lns.some(l => l.f), ll = lns.some(l => l.l); if (lf || ll) crit.push(lf && ll ? T('foil et langue par ligne') : lf ? T('foil par ligne') : T('langue par ligne')); }      // « *F* », « *FR* » : ces lignes gardent les leurs
-  const html = `<div class="recap-top"><b>${r.found}</b><span> / ${T('{n} cartes trouvées', { n: r.total })}</span><i></i><span>${TN(r.copies, '{n} exemplaire', '{n} exemplaires')}</span></div>`
+  const html = `<div class="recap-top"><b>${r.found}</b><span> / ${TN(r.total, '{n} carte trouvée', '{n} cartes trouvées')}</span><i></i><span>${TN(r.copies, '{n} exemplaire', '{n} exemplaires')}</span></div>`
     + (chips.length ? `<div class="recap-chips">${chips.join('')}</div>` : '')
     + `<div class="recap-crit">${esc(crit.join(' · ').replace(/^./, m => m.toUpperCase()))}</div>`;
   if (host._sig !== html) { host._sig = html; host.innerHTML = html; }
@@ -13580,12 +13603,12 @@ function openOfferSheet(key) {
   const ownBtn = api => {
     if (!need0) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'link-btn link-inline ownbtn';
-    b.textContent = need0 > 1 ? T('Je possède déjà ces {n} exemplaires', { n: need0 }) : T('Je possède déjà cette carte');
+    b.textContent = TN(need0, 'Je possède déjà cette carte', 'Je possède déjà ces {n} exemplaires');
     b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: T('Annuler'), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
     api.body.appendChild(b);
   };
   if (isCm()) {
-    openSheet(c.dn || c.name, c.qty > 1 ? T('{n} exemplaires', { n: c.qty }) : null, api => {
+    openSheet(c.dn || c.name, c.qty > 1 ? TN(c.qty, '{n} exemplaire', '{n} exemplaires') : null, api => {
       const o = (S.fo[key] || [])[0];
       api.body.innerHTML = `${o ? `<div class="cm-price"><b>${fmt(o.price)}</b><span>${T('Prix tendance Cardmarket de l\'impression la moins chère, par exemplaire.')}</span></div>` : `<p class="hint">${st.notFound ? T('Scryfall ne connaît pas ce nom. Corrige-le dans la liste.') : T('Aucun prix Cardmarket connu pour cette carte.')}</p>`}
         <a class="btn ghost small" href="${esc(mkUrl(c.name, userLang()))}" target="_blank" rel="noopener noreferrer" style="align-self:flex-start">${T('Voir sur Cardmarket ↗')}</a>
@@ -13595,7 +13618,7 @@ function openOfferSheet(key) {
     return;
   }
   const lw = lnOn(c) ? lnNeed(c).map(l => l.l || S.opts.lang) : S.opts.lang;      // langue(s) voulue(s) : celles des lignes (« *DE* »)
-  openSheet(c.dn || c.name, c.qty > 1 ? T('{n} exemplaires', { n: c.qty }) : null, api => {
+  openSheet(c.dn || c.name, c.qty > 1 ? TN(c.qty, '{n} exemplaire', '{n} exemplaires') : null, api => {
     if (!list.length) {
       const canEn = S.opts.lang !== 'en' && !st.fellBack && !st.notFound && lnCanEn(c);
       const hubOnly = !st.notFound && (S.fo[key] || []).length > 0; // des offres existent, mais aucune compatible Zero
@@ -13623,7 +13646,7 @@ function openOfferSheet(key) {
     api.body.innerHTML = `<div class="offers">${list.map(o => `<div class="offer-row"><button type="button" class="offer" data-id="${esc(o.id)}" aria-pressed="${chosen.has(o.id)}">
       <span class="o-who">${esc(o.seller)}${o.country ? `<i>${esc(o.country)}</i>` : ''}</span><span class="o-price">${fmt(o.price, o.cur)}</span>
       <span class="o-meta"><span class="tag">${esc((o.set || '').toUpperCase())}${o.num ? ' ' + esc(o.num) : ''}</span><span class="tag">${esc(COND_SHORT[o.cond] || o.cond)}</span>${langTag(o.lang, lw)}${o.foil ? '<span class="tag accent">Foil</span>' : ''}${o.hub ? '<span class="tag good">Zero</span>' : ''}<span class="tag">${T('{n} dispo', { n: o.qty })}</span></span></button>${link(o)}</div>`).join('')}</div>
-      ${ri ? `<p class="hint refline" data-l="${ri.level}">${T('<b>Réf. Cardmarket {ref}</b> par exemplaire (prix Scryfall) · ton prix {unit}', { ref: esc(fmt(ri.ref)), unit: esc(fmt(ri.unit)) })}${ri.diff === 0 ? '' : ` (${ri.pct > 0 ? '+' : '−'}${T('{n} %', { n: Math.abs(ri.pct) })})`}</p>` : ''}
+      ${ri ? `<p class="hint refline" data-l="${ri.level}">${T('<b>Réf. Cardmarket {ref}</b> par exemplaire (prix Scryfall) · ton prix {unit}', { ref: esc(fmt(ri.ref)), unit: esc(fmt(ri.unit)) })}${ri.diff === 0 ? '' : ` (${ri.pct > 0 ? '+' : '−'}${pct(Math.abs(ri.pct))})`}</p>` : ''}
       ${mode === 'zero' ? `<p class="hint">${T('Seules les offres compatibles Zero sont listées.')}</p>` : ''}${S.run.live ? `<p class="hint">${T('Touche ↗ pour voir la carte et ses vendeurs sur CardTrader.')}</p>` : ''}`;
     ownBtn(api); alWatchBtn(api, c.name);
     api.body.onclick = e => {
@@ -14175,7 +14198,7 @@ function handleLaunch() {
 function putDeckText(text, name, o) {
   S.opts.exactEd = !!(o && o.exactEd); saveStore();      // éditions exactes : seulement pour une liste qui le demande (masterset) ; une liste partagée, n'importe quelle édition
   const ta = $('#deckText'); ta.value = text; S.isSample = false; S.deckId = null; S.removed = []; if (S.view !== 'input') showView('input'); refreshDeck();
-  toast((name ? name + ' · ' : '') + T('{n} cartes reçues', { n: S.deck.cards.length })); window.scrollTo({ top: $('.field').offsetTop - 70, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  toast((name ? name + ' · ' : '') + TN(S.deck.cards.length, '{n} carte reçue', '{n} cartes reçues')); window.scrollTo({ top: $('.field').offsetTop - 70, behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
 /** Contenu reçu du menu « Partager » : une decklist en texte, ou un lien (EDHREC, Archidekt) lu par le serveur. Moxfield n'a pas d'API publique : ses liens ne sont pas lus. */
 async function onShared(sh) {
@@ -14194,7 +14217,7 @@ function paintCollSwitch() {
   const n = collCount(); row.hidden = !n; if (!n) return;
   $('#optColl').checked = S.useColl;
   const own = S.deck.cards.filter(c => c.own > 0).length, held = S.useColl ? engHeldBack(S.deck.cards) : { n: 0, names: [] };
-  const decks = held.names.length > 2 ? T('{n} decks', { n: held.names.length }) : held.names.join(' ' + T('et') + ' ');
+  const decks = held.names.length > 2 ? TN(held.names.length, '{n} deck', '{n} decks') : held.names.join(' ' + T('et') + ' ');
   const note = held.n ? ' ' + TN(held.n, '{n} exemplaire réservé par {decks} n\'est pas compté.', '{n} exemplaires réservés par {decks} ne sont pas comptés.', { decks }) : '';
   $('#collHint').textContent = !S.useColl ? T('Désactivé : toutes les cartes sont cherchées.')
     : (own ? TN(own, '{n} carte de cette liste est dans ta collection : non cherchée.', '{n} cartes de cette liste sont dans ta collection : non cherchées.') : T('Aucune carte de cette liste n\'est dans ta collection.')) + note;
@@ -19174,7 +19197,7 @@ function refSnapOf(text, id, pub) {
   const cmd = dkFormat(text) === 'standard' ? new Set() : commandersOf(text, pd.cards, c => dmOf(ownKey(c.key)));
   const items = [];
   for (const c of pd.cards) {
-    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
+    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, ownFree(k, id));
     const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0;      // règle unique de la valeur estimée (builder.js › dkPx)
     const it = { k: c.key, n: c.name, q: c.qty, s: eu > 0 ? 'ok' : Number.isFinite(m.eu) ? 'ok' : 'none' };
     if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
@@ -19197,7 +19220,7 @@ const snapNothingToBuy = snap => !snap.items.some(i => i.s !== 'own' && i.s !== 
 function sbItemsOf(text, id, pub) {
   const out = [];
   for (const c of dkSideCards(text)) {
-    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
+    const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, ownFree(k, id));
     const eu = typeof dkPx === 'function' ? dkPx(k) : m.eu > 0 ? m.eu : 0, it = { k: 'sb:' + k, n: c.name, q: Math.min(999, c.qty), s: eu > 0 || Number.isFinite(m.eu) ? 'ok' : 'none', sb: 1 };
     if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
     if (m.cm != null) { it.cm = m.cm; it.mc = m.mc; it.tl = m.tl; it.cl = m.cl; }
@@ -19352,7 +19375,7 @@ function dvEvolution(snap, dl) {
 function dvRefLine(items) {
   const t = refTotals(items); if (t.cards < 3) return '';
   const lvl = t.pct <= 5 ? 'good' : t.pct >= 40 ? 'warn' : '';
-  return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(dvFmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + Math.abs(t.pct) + ' %'}</b></div>`;
+  return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(dvFmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + pct(Math.abs(t.pct))}</b></div>`;
 }
 
 /** Rappel des cartes pas légales en Commander (deck Commander), comme l'alerte du résumé de l'éditeur (core.js › dkCheck). */
@@ -19618,7 +19641,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
     else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
     else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
     else if (act === 'cm') cmCopy(dvMissing());
-    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => engFree(collQty(k), XS.eng, k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
+    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
     else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
     else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
     else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
@@ -19644,10 +19667,10 @@ async function refreshDeckPrices(id) {
 }
 
 /** Cartes qui manquent au deck affiché (deck + réserve − collection libre ; deck public : tout le deck, la collection du visiteur n'est pas lue ici). */
-const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => engFree(collQty(k), XS.eng, k, DV.deckId));
+const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => ownFree(k, DV.deckId));
 
 /* ── Main de départ : 7 cartes au hasard dans la bibliothèque (commandant et réserve à part), et les chances d'avoir 0 à 7 terrains (loi hypergéométrique) ── */
-const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Math.round(p * 100))) + ' %';
+const pctTxt = p => (p >= 0.995 ? pct(100) : p < 0.005 && p > 0 ? '< ' + pct(1) : pct(Math.round(p * 100)));      // p : fraction (0,74 → « 74 % »)
 function openHand() {
   if (typeof prgAdd === 'function') prgAdd('hd');      // mains de départ tirées (progress.js)
   const snap = DV.snap; if (!snap) return;
@@ -19799,7 +19822,7 @@ const collQty = k => (COLL.map[k] && COLL.map[k].q) || 0;
 /** Exemplaires de la carte k dans ces éditions précises ('cmm|400' ; « 0400 » et « 400 » : la même) : recherche aux éditions exactes. f, l : foil ('yes' | 'no') et langue
  *  d'une ligne de la liste (« *F* », « *N* », « *FR* ») : seulement les exemplaires de cette finition et de cette langue. */
 function collEdQty(k, eds, f, l) { const want = new Set((eds || []).map(edNorm)); let n = 0; for (const [g, q] of collLines(COLL.map[k])) if (want.has(edNorm(lineEd(g))) && (!f || lineFoil(g) === (f === 'yes')) && (!l || lineLang(g) === l)) n += q; return n; }
-const nf0 = n => Number(n || 0).toLocaleString(LOC());
+const nf0 = n => num(n);      // = num (core.js) : nombre entier dans la locale de l'appli
 
 /** Collection complète de cet appareil (cartes, proxys, emplacements) ; collDocSet la remplace. */
 const collDocNow = () => collDoc(COLL.map, COLL.prox, COLL.places);
@@ -20458,7 +20481,7 @@ async function pxRun(targets, o = {}) {
     st.task.finish(T('Prix réels à jour'), 'ok', got);
   } catch (e) {
     const n = st.real + st.none;
-    if (e.name === 'AbortError') { COLL.pxMsg = { t: T('Lecture interrompue : {cards}', { cards: TN(n, '{n} carte lue', '{n} cartes lues') }), bad: false }; st.task.finish(T('Prix réels interrompus'), 'warn', T('{n} cartes lues', { n: nf0(n) })); }
+    if (e.name === 'AbortError') { COLL.pxMsg = { t: T('Lecture interrompue : {cards}', { cards: TN(n, '{n} carte lue', '{n} cartes lues') }), bad: false }; st.task.finish(T('Prix réels interrompus'), 'warn', TN(n, '{n} carte lue', '{n} cartes lues')); }
     else { const m = pxError(e); COLL.pxMsg = { t: m + (n ? ' (' + TN(n, '{n} carte déjà lue', '{n} cartes déjà lues') + ')' : ''), bad: true }; st.task.finish(T('Prix réels : échec'), 'bad', m); }
   } finally {
     COLL.pxRun = null; pxSave(); collPaintHead(); if (COLL.el) collPaintBody(true); paintCollSection();
@@ -20874,7 +20897,7 @@ function collDownload(body, ext, type, n = collCount(), part = false) {
   try {
     const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
     a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast(T('Collection exportée ({n} cartes)', { n: nf0(n) }));
+    toast(TN(n, 'Collection exportée ({n} carte)', 'Collection exportée ({n} cartes)'));
   } catch (e) { toast(T('Export impossible sur ce navigateur')); }
 }
 /** La collection telle qu'affichée : recherche, filtres (couleur, type, rareté, prix, langue, finition…), emplacement ouvert (Rangement, deck), extension ;
@@ -20892,7 +20915,7 @@ function collShownMap() {
 function collExport() {
   if (!collCount()) { toast(T('Ta collection est vide')); return; }
   const shown = collShownMap(); let scope = shown ? 'shown' : 'all';      // filtres en cours : on demande quoi exporter (les cartes affichées d'abord, c'est ce qu'on regarde)
-  const subOf = () => scope === 'shown' ? T('{n} cartes · {c} exemplaires', { n: nf0(shown.n), c: nf0(shown.c) }) : T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) });
+  const subOf = () => scope === 'shown' ? TN(shown.n, '{n} carte', '{n} cartes') + ' · ' + TN(shown.c, '{n} exemplaire', '{n} exemplaires') : TN(collCount(), '{n} carte', '{n} cartes') + ' · ' + TN(collCopies(), '{n} exemplaire', '{n} exemplaires');
   openSheet(T('Exporter ma collection'), subOf(), api => {
     api.body.innerHTML = `${shown ? `<p class="label">${T('Que veux-tu exporter ?')}</p><div class="seg ex-seg" id="exScope" role="radiogroup" aria-label="${T('Que veux-tu exporter ?')}"></div>` : ''}<div class="ex-list">
       <button class="ex-opt" type="button" data-x="csv"><b>${T('Fichier CSV')}</b><span>${T('Pour Moxfield, ManaBox, Archidekt, Deckbox… Une ligne par carte et par langue.')}</span></button>
@@ -20994,14 +21017,14 @@ function collStatsHtml(items) {
   const colorRows = [['W', T('Blanc')], ['U', T('Bleu')], ['B', T('Noir')], ['R', T('Rouge')], ['G', T('Vert')]].map(([c, n]) => [`<i class="mc mc-${c.toLowerCase()}">${c}</i>${n}`, st.colors[c], 'k-' + c.toLowerCase()])
     .concat([['<i class="mc mc-m">M</i>' + T('Multicolore'), st.colors.M, 'k-m'], ['<i class="mc mc-n">C</i>' + T('Incolore'), st.colors.C, 'k-n']]);
   const typeRows = TYPE_ORDER.map(t => [esc(T(t)), st.types[t], 'k-t']);
-  const nums = `<div class="cs-tiles"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div class="cs-val" role="button" tabindex="0" data-act="pxsrc"${ctOff ? ' data-ctno="1"' : ''} aria-label="${ctOff ? T('Valeur de la collection, source Cardmarket : touche pour ajouter ton token CardTrader') : T('Valeur de la collection, source {a} : touche pour passer à {b}', { a: cm ? 'Cardmarket' : 'CardTrader', b: cm ? 'CardTrader' : 'Cardmarket' })}"><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${cm ? T('valeur · tendance Cardmarket') + (st.valued < st.known ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : '') : st.real ? (st.valued > st.real ? T('valeur · {n} au prix réel CardTrader, {m} estimées Cardmarket', { n: nf0(st.real), m: nf0(st.valued - st.real) }) : T('valeur · {n} au prix réel CardTrader', { n: nf0(st.real) })) : T('valeur ≈ tendance Cardmarket') + (st.valued && st.valued < st.known ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : '')}</span>${`<div class="cs-src"><div class="cs-sw" aria-hidden="true"><i${cm ? '' : ' class="on"'}>CT</i><i${cm ? ' class="on"' : ''}>CM</i></div><small>${ctOff ? T('CT : prix réels avec ton token CardTrader') : cm && !items.some(i => i.rp > 0) ? T('CT : aucun prix lu · touche pour changer') : st.alt.valued ? T('{src} : {v} · touche pour changer', { src: cm ? 'CT' : 'CM', v: esc(fmt(st.alt.value, mkCur())) }) : T('touche pour changer')}</small></div>`}</div></div>`;      // aucune offre CardTrader lue : le chiffre « CT » ne serait que l'estimation Cardmarket
+  const nums = `<div class="cs-tiles"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div class="cs-val" role="button" tabindex="0" data-act="pxsrc"${ctOff ? ' data-ctno="1"' : ''} aria-label="${ctOff ? T('Valeur de la collection, source Cardmarket : touche pour ajouter ton token CardTrader') : T('Valeur de la collection, source {a} : touche pour passer à {b}', { a: cm ? 'Cardmarket' : 'CardTrader', b: cm ? 'CardTrader' : 'Cardmarket' })}"><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${cm ? T('valeur · tendance Cardmarket') + (st.valued < st.known ? ' ' + TN(st.valued, '({n} carte)', '({n} cartes)') : '') : st.real ? (st.valued > st.real ? T('valeur · {n} au prix réel CardTrader, {m} estimées Cardmarket', { n: nf0(st.real), m: nf0(st.valued - st.real) }) : T('valeur · {n} au prix réel CardTrader', { n: nf0(st.real) })) : T('valeur ≈ tendance Cardmarket') + (st.valued && st.valued < st.known ? ' ' + TN(st.valued, '({n} carte)', '({n} cartes)') : '')}</span>${`<div class="cs-src"><div class="cs-sw" aria-hidden="true"><i${cm ? '' : ' class="on"'}>CT</i><i${cm ? ' class="on"' : ''}>CM</i></div><small>${ctOff ? T('CT : prix réels avec ton token CardTrader') : cm && !items.some(i => i.rp > 0) ? T('CT : aucun prix lu · touche pour changer') : st.alt.valued ? T('{src} : {v} · touche pour changer', { src: cm ? 'CT' : 'CM', v: esc(fmt(st.alt.value, mkCur())) }) : T('touche pour changer')}</small></div>`}</div></div>`;      // aucune offre CardTrader lue : le chiffre « CT » ne serait que l'estimation Cardmarket
   const note = miss ? `<p class="hint">${T('Stats sur {a} cartes lues ; {b} sans infos pour l\'instant.', { a: nf0(st.known), b: nf0(miss) })}</p>` : '';
   const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : 'EUR');
-  const top = list.length ? `<h3 class="cs-h">${T('Les plus chères')} <span class="cs-sw" role="group" aria-label="${T('Classer par')}"><button type="button" data-act="topby" data-v="lot" aria-pressed="${byLot}" class="${byLot ? 'on' : ''}">${T('Par lot')}</button><button type="button" data-act="topby" data-v="one" aria-pressed="${!byLot}" class="${byLot ? '' : 'on'}">${T('Par carte')}</button></span></h3><p class="hint cs-topnote">${byLot ? T('Classées par valeur du lot : prix × exemplaires.') : T('Classées par prix d\'un exemplaire.')}</p><div class="cs-top">${shown.map(i => `<div class="crow ro" data-k="${esc(i.k)}"><span class="thumb" style="--h:${hash32(i.k) % 360}"${zoomAt('coll', i.dn || i.n)}>${esc((i.n.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn || i.n)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}${i.rl ? '<span class="tag real">' + T('prix réel') + '</span>' : ''}</span></span><span class="row-price"><b>${esc(fmt(byLot ? i.lot : i.up, cur(i)))}</b>${i.q > 1 ? `<small>${byLot ? `${esc(fmt(i.up, cur(i)))} × ${nf0(i.q)}` : `× ${nf0(i.q)} = ${esc(fmt(i.lot, cur(i)))}`}</small>` : ''}</span></div>`).join('')}</div>${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="topmore">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(10, list.length - shown.length)), b: nf0(list.length - shown.length) })}</button>` : ''}` : '';
+  const top = list.length ? `<h3 class="cs-h">${T('Les plus chères')} <span class="cs-sw" role="group" aria-label="${T('Classer par')}"><button type="button" data-act="topby" data-v="lot" aria-pressed="${byLot}" class="${byLot ? 'on' : ''}">${T('Par lot')}</button><button type="button" data-act="topby" data-v="one" aria-pressed="${!byLot}" class="${byLot ? '' : 'on'}">${T('Par carte')}</button></span></h3><p class="hint cs-topnote">${byLot ? T('Classées par valeur du lot : prix × exemplaires.') : T('Classées par prix d\'un exemplaire.')}</p><div class="cs-top">${shown.map(i => `<div class="crow ro" data-k="${esc(i.k)}"><span class="thumb" style="--h:${hash32(i.k) % 360}"${zoomAt('coll', i.dn || i.n)}>${esc((i.n.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn || i.n)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}${i.rl ? '<span class="tag real">' + T('prix réel') + '</span>' : ''}</span></span><span class="row-price"><b>${esc(fmt(byLot ? i.lot : i.up, cur(i)))}</b>${i.q > 1 ? `<small>${byLot ? `${esc(fmt(i.up, cur(i)))} × ${nf0(i.q)}` : `× ${nf0(i.q)} = ${esc(fmt(i.lot, cur(i)))}`}</small>` : ''}</span></div>`).join('')}</div>${moreBtn(shown.length, list.length, 10, 'data-act="topmore"')}` : '';
   const share = st.unique ? `<div class="simg-coll"><button class="link-btn" type="button" data-act="simgcoll"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager en image')}</button></div>` : '';      // image de la collection (simg.js)
   // .cs-col : sans effet sur le téléphone (display:contents, css/stats.css) ; deux colonnes sur ordinateur (zz-desktop.css) : valeur et variations | le reste
   return `${nums}${share}${note}<div class="cs-cols"><div class="cs-col">${valStatsHtml()}</div><div class="cs-col">
-    <h3 class="cs-h">${T('Courbe de mana')} <small>${T('{n} sorts', { n: nf0(st.spells) })}</small></h3>${curveBars(st.curve, false)}
+    <h3 class="cs-h">${T('Courbe de mana')} <small>${TN(st.spells, '{n} sort', '{n} sorts')}</small></h3>${curveBars(st.curve, false)}
     <h3 class="cs-h">${T('Couleurs')} <small>${T('sorts')}</small></h3>${barsHtml(colorRows)}
     <h3 class="cs-h">${T('Familles')} <small>${T('exemplaires')}</small></h3>${barsHtml(typeRows)}${top}</div></div>`;
 }
@@ -21101,7 +21124,7 @@ function collPaintBody(keep) {
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
       ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
-      ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`);
+      ${moreBtn(shown.length, sorted.length, COLL_PAGE, 'data-act="more"')}`);
     COLL.painted = sorted;
   }
   if (COLL.win && COLL.tab === 'list') { const lst = $('.coll-list', host); if (lst) collWinMark(COLL.win, lst); else COLL.win = null; } else COLL.win = null;
@@ -21122,7 +21145,7 @@ function collMore() {
   else list.insertAdjacentHTML('beforeend', collRowsHtml(sorted, from, COLL.shown));
   if (!btn.isConnected) return;
   const left = sorted.length - COLL.shown;
-  if (left > 0) btn.textContent = T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, left)), b: nf0(left) }); else btn.remove();
+  if (left > 0) btn.textContent = moreLabel(left, COLL_PAGE); else btn.remove();
 }
 function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */
@@ -21309,7 +21332,7 @@ function openCollUnknown() {
         <div class="uk-sug" role="radiogroup" aria-label="${T('Noms proches de {name}', { name: esc(x.n) })}"><span class="hint">${T('Recherche de noms proches…')}</span></div>
         <div class="uk-acts"><button class="btn small" type="button" data-uk="rep" disabled>${T('Remplacer')}</button><button class="btn ghost small" type="button" data-uk="del">${T('Supprimer')}</button></div></div>`;
     };
-    api.body.innerHTML = `<div class="uk-list">${rows.map(rowHtml).join('')}</div>${keys.length > rows.length ? `<p class="hint">${T('Et {n} autres : corrige d\'abord ceux-ci, la liste se complète ensuite.', { n: nf0(keys.length - rows.length) })}</p>` : ''}`;
+    api.body.innerHTML = `<div class="uk-list">${rows.map(rowHtml).join('')}</div>${keys.length > rows.length ? `<p class="hint">${TN(keys.length - rows.length, 'Et {n} autre : corrige d\'abord ceux-ci, la liste se complète ensuite.', 'Et {n} autres : corrige d\'abord ceux-ci, la liste se complète ensuite.')}</p>` : ''}`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`);
     const paintSug = k => {
       const el = $(`.uk-row[data-k="${CSS.escape(k)}"]`, api.body); if (!el) return;
@@ -21432,13 +21455,13 @@ function openCollImport(initial) {
       if (!parsed) { go.textContent = T('Importer'); return; }
       if (!parsed.items.length) { sum.className = 'ci-sum bad'; sum.textContent = parsed.format === 'csv' ? T('Aucune carte lue dans ce CSV : il faut une colonne « Name » (ou « Nom »).') : T('Aucune ligne reconnue. Une carte par ligne : « 3 Sol Ring ».'); return; }
       const rep = mode() === 'replace' && collCount();
-      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(parsed.items.length, '<b>{n}</b> carte différente', '<b>{n}</b> cartes différentes')} · ${TN(parsed.copies, '<b>{n}</b> exemplaire', '<b>{n}</b> exemplaires')}</div><span>${parsed.format === 'csv' ? T('Fichier CSV') : T('Liste texte')}${parsed.fr ? ' · ' + (FRX.l === 'fr' ? TN(parsed.fr, '{n} nom français reconnu', '{n} noms français reconnus') : TN(parsed.fr, '{n} nom en {lang} reconnu', '{n} noms en {lang} reconnus', { lang: LANGS[FRX.l] || FRX.l })) : ''}${parsed.skipped ? ' · ' + TN(parsed.skipped, '{n} ligne ignorée', '{n} lignes ignorées') : ''}${parsed.listed ? ' · ' + TN(parsed.listed, '{n} carte d\'une liste ManaBox (souhaits) laissée de côté', '{n} cartes de listes ManaBox (souhaits) laissées de côté') : ''}${parsed.places && Object.keys(parsed.places).length ? ' · ' + TN(Object.keys(parsed.places).length, '{n} classeur rangé en emplacement', '{n} classeurs rangés en emplacements') : ''}${rep ? ' · ' + T('remplace les {n} cartes actuelles', { n: nf0(collCount()) }) : ''}</span>`;      // un bloc par ligne : la carte .ci-sum est une colonne flex
+      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(parsed.items.length, '<b>{n}</b> carte différente', '<b>{n}</b> cartes différentes')} · ${TN(parsed.copies, '<b>{n}</b> exemplaire', '<b>{n}</b> exemplaires')}</div><span>${parsed.format === 'csv' ? T('Fichier CSV') : T('Liste texte')}${parsed.fr ? ' · ' + (FRX.l === 'fr' ? TN(parsed.fr, '{n} nom français reconnu', '{n} noms français reconnus') : TN(parsed.fr, '{n} nom en {lang} reconnu', '{n} noms en {lang} reconnus', { lang: LANGS[FRX.l] || FRX.l })) : ''}${parsed.skipped ? ' · ' + TN(parsed.skipped, '{n} ligne ignorée', '{n} lignes ignorées') : ''}${parsed.listed ? ' · ' + TN(parsed.listed, '{n} carte d\'une liste ManaBox (souhaits) laissée de côté', '{n} cartes de listes ManaBox (souhaits) laissées de côté') : ''}${parsed.places && Object.keys(parsed.places).length ? ' · ' + TN(Object.keys(parsed.places).length, '{n} classeur rangé en emplacement', '{n} classeurs rangés en emplacements') : ''}${rep ? ' · ' + TN(collCount(), 'remplace la carte actuelle', 'remplace les {n} cartes actuelles') : ''}</span>`;      // un bloc par ligne : la carte .ci-sum est une colonne flex
       go.textContent = TN(parsed.items.length, 'Importer {n} carte', 'Importer {n} cartes');
       // noms que Scryfall ne connaîtra pas (catalogue des noms anglais + index français) : signalés avant l'import, corrigeables après
       if (!COLL.names) { if (!catAsked) { catAsked = true; collCatalog().then(() => { if (ta.isConnected) paint(); }).catch(() => {}); } return; }
       const unk = parsed.items.filter(x => !BASIC_NAMES.has(x.k) && !COLL.names.idx.by.has(x.k)).map(x => x.n), amb = new Set(parsed.amb);
       if (!unk.length) return;
-      const show = unk.slice(0, 4).map(n => '<b>' + esc(n) + '</b>' + (amb.has(n) ? ' ' + (FRX.l === 'fr' ? T('(nom français de plusieurs cartes)') : T('(nom en {lang} de plusieurs cartes)', { lang: LANGS[FRX.l] || FRX.l })) : '')).join(', ') + (unk.length > 4 ? ' ' + T('et {n} autres', { n: nf0(unk.length - 4) }) : '');
+      const show = unk.slice(0, 4).map(n => '<b>' + esc(n) + '</b>' + (amb.has(n) ? ' ' + (FRX.l === 'fr' ? T('(nom français de plusieurs cartes)') : T('(nom en {lang} de plusieurs cartes)', { lang: LANGS[FRX.l] || FRX.l })) : '')).join(', ') + (unk.length > 4 ? ' ' + TN(unk.length - 4, 'et {n} autre', 'et {n} autres') : '');
       flag.hidden = false; flag.innerHTML = `<svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span>${TN(unk.length, '{n} nom inconnu de Scryfall : {list}. Tu pourras le corriger après l\'import.', '{n} noms inconnus de Scryfall : {list}. Tu pourras les corriger après l\'import.', { list: show })}</span>`;
     };
     ta.oninput = paint; lang.onchange = () => { haptic('tap'); paint(); };
@@ -21512,7 +21535,7 @@ function paintGlance() {
   const api = GLANCE.api; if (!api || !sheets.includes(api)) { GLANCE.api = null; return; }
   const items = collAll().all, st = collStats(items, 'cm'), e = COLL.enrich, top = st.topUnit[0];
   const reading = e && e.ph === 'info';
-  const val = st.valued ? `<b>${esc(fmt(st.value, mkCur()))}</b><span>${T('valeur · tendance Cardmarket')}${st.valued < st.unique ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : ''}</span>` : `<b>—</b><span>${reading ? T('lecture des prix…') : T('aucun prix connu')}</span>`;
+  const val = st.valued ? `<b>${esc(fmt(st.value, mkCur()))}</b><span>${T('valeur · tendance Cardmarket')}${st.valued < st.unique ? ' ' + TN(st.valued, '({n} carte)', '({n} cartes)') : ''}</span>` : `<b>—</b><span>${reading ? T('lecture des prix…') : T('aucun prix connu')}</span>`;
   const prog = reading ? `<p class="hint gl-prog">${T('Lecture des cartes sur Scryfall · {a} / {b}', { a: nf0(e.done), b: nf0(e.total) })}</p>` : '';
   const best = top ? `<h3 class="cs-h">${T('La plus chère')}</h3><div class="crow ro gl-top"><span class="thumb" style="--h:${hash32(top.k) % 360}">${esc(((top.dn || top.n).trim()[0] || '?').toUpperCase())}${top.im ? `<img alt="" decoding="async" src="${esc(collImage(top.k, top.l, top.im).src)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(top.dn || top.n)}</span>${top.q > 1 ? `<span class="row-meta"><span class="tag accent">× ${nf0(top.q)}</span></span>` : ''}</span><span class="row-price"><b>${esc(fmt(top.up, mkCur()))}</b></span></div>` : '';
   let dk = ''; const eg = edhGate();
@@ -22725,15 +22748,15 @@ function edhResHtml() {
   if (q && !card) {
     const toks = edhTokens(q), alt = edhAlt(), found = EDH.data.cmds.filter(c => edhCmdHas(c, toks, alt)), has = EDH.data.withDeck || (EDH.data.withDeck = new Set(EDH.data.decks.map(d => d.cmd.slug))), nod = found.filter(c => !has.has(c.slug)).sort((a, b) => a.rank - b.rank);
     if (!found.length) none = T('Aucun commandant ne correspond à « {q} ».', { q: esc(EDH.q.trim()) });
-    else if (nod.length) note = `<p class="hint dk-note">${T('Sans deck dans le fichier (fourni pour les 2 000 commandants les plus joués) : {list}.', { list: nod.slice(0, 6).map(c => esc(c.names.join(' + ')) + ' ' + T('(n° {n})', { n: nf0(c.rank) })).join(', ') + (nod.length > 6 ? ' ' + T('et {n} autres', { n: nod.length - 6 }) : '') })}</p>`;
+    else if (nod.length) note = `<p class="hint dk-note">${T('Sans deck dans le fichier (fourni pour les 2 000 commandants les plus joués) : {list}.', { list: nod.slice(0, 6).map(c => esc(c.names.join(' + ')) + ' ' + T('(n° {n})', { n: nf0(c.rank) })).join(', ') + (nod.length > 6 ? ' ' + TN(nod.length - 6, 'et {n} autre', 'et {n} autres') : '') })}</p>`;
   } else if (q) {
     none = T('Aucun deck ne contient « {q} » avec ces réglages.', { q: esc(EDH.q.trim()) });
     const cnt = new Map(); for (const r of rows) for (const [k, n] of r.hit) { const e = cnt.get(k); if (e) e[1]++; else cnt.set(k, [n, 1]); }
     const top = [...cnt.values()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    if (top.length) note = `<p class="hint dk-note">${T('Cartes trouvées : {list}.', { list: top.slice(0, 5).map(([n, c]) => '<b>' + esc(n) + '</b> (' + nf0(c) + ')').join(', ') + (top.length > 5 ? ' ' + T('et {n} autres', { n: top.length - 5 }) : '') })}</p>`;
+    if (top.length) note = `<p class="hint dk-note">${T('Cartes trouvées : {list}.', { list: top.slice(0, 5).map(([n, c]) => '<b>' + esc(n) + '</b> (' + nf0(c) + ')').join(', ') + (top.length > 5 ? ' ' + TN(top.length - 5, 'et {n} autre', 'et {n} autres') : '') })}</p>`;
   } else if (EDH.qm === 'card' && edhTokens(EDH.q).length) note = `<p class="hint dk-note">${T('Tape au moins 2 lettres.')}</p>`;
   return `${sum}${note}${shown.length ? `<div class="coll-list">${shown.map((r, i) => edhRowHtml(r, i)).join('')}</div>` : `<p class="hint listempty">${none}</p>`}
-    ${rows.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="dmore">${T('Afficher {n} de plus · {rest} restants', { n: nf0(Math.min(30, rows.length - shown.length)), rest: nf0(rows.length - shown.length) })}</button>` : ''}`;
+    ${moreBtn(shown.length, rows.length, 30, 'data-act="dmore"')}`;
 }
 function edhRowHtml(r, i) {
   const c = r.cmd, name = c.names.join(' + '), img = (ownLangImg(c.keys[0]) || {}).src || c.img || (COLL.meta[c.keys[0]] && COLL.meta[c.keys[0]].im) || '', pct = Math.round(100 * (r.have - r.eng) / r.total), pe = Math.min(100 - pct, Math.round(100 * r.eng / r.total));      // bleu : possédées et libres · orange : possédées mais engagées dans un deck monté
@@ -22843,16 +22866,16 @@ function openEdhDeck(r) {
   const c = r.cmd, name = c.names.join(' + '), url = r.deck.url || (r.deck.src === 'edhrec' ? 'https://edhrec.com/average-decks/' + encodeURIComponent(c.slug) : '');
   openSheet(name, `${r.tier ? T('Tier {t} · n° {n}', { t: r.tier, n: nf0(r.rank) }) + ' · ' : ''}${T('{have} / {total} possédées', { have: nf0(r.have), total: nf0(r.total) })}${r.eng ? ` (${TN(r.eng, 'dont {n} engagée', 'dont {n} engagées')})` : ''} · ${edhSrcLabel(r.deck)}`, api => {
     const row = (x, own) => {
-      const tg = (c.keys.includes(x.k) ? `<span class="tag accent">${T('Commandant')}</span>` : '') + (own && x.eg ? `<span class="tag warn" title="${T('Déjà réservé par un de tes decks montés')}">${TN(x.eg, 'dont {n} engagée', 'dont {n} engagées')}</span>` : '') + (x.gc ? `<span class="tag warn" title="${T('Liste Game Changers (brackets Commander)')}">${T('Game Changer')}</span>` : '');
-      const ex = own ? T('Dans ta collection') + (x.q > 1 ? ' · × ' + x.q : '') + (x.eg ? ' · ' + TN(x.eg, 'dont {n} engagée', 'dont {n} engagées') : '') : T('À acheter') + (x.q > 1 ? ' × ' + x.q : '') + (x.u ? ' · ≈ ' + fmt(x.u * x.q, mkCur()) : '');
+      const tg = (c.keys.includes(x.k) ? `<span class="tag accent">${T('Commandant')}</span>` : '') + (x.eg ? `<span class="tag warn" title="${T('Déjà réservé par un de tes decks montés')}">${TN(x.eg, 'dont {n} engagée', 'dont {n} engagées')}</span>` : '') + (x.gc ? `<span class="tag warn" title="${T('Liste Game Changers (brackets Commander)')}">${T('Game Changer')}</span>` : '');
+      const ex = own ? T('Dans ta collection') + (x.q > 1 ? ' · × ' + x.q : '') + (x.eg ? ' · ' + TN(x.eg, 'dont {n} engagée', 'dont {n} engagées') : '') : T('À acheter') + (x.q > 1 ? ' × ' + x.q : '') + (x.u ? ' · ≈ ' + fmt(x.u * x.q, mkCur()) : '') + (x.eg ? ' · ' + TN(x.eg, 'dont {n} engagée', 'dont {n} engagées') : '');      // possédée mais réservée par un deck monté : à acheter pour ce deck
       return `<div class="crow ro dk-card" role="button" tabindex="0" data-ik="${esc(x.k)}" data-nm="${esc(x.n)}" data-ex="${esc(ex)}" aria-label="${T('{name} : voir en grand', { name: esc(x.n) })}"><span class="thumb" data-ik="${esc(x.k)}" style="--h:${hash32(x.k) % 360}">${esc((x.n.trim()[0] || '?').toUpperCase())}</span><span class="row-main"><span class="row-name">${esc(x.n)}</span>${tg ? `<span class="row-meta">${tg}</span>` : ''}</span><span class="row-price"><b>${own ? '✓' : x.u ? esc(fmt(x.u * x.q, mkCur())) : '—'}</b>${x.q > 1 ? `<small>× ${x.q}${!own && x.u ? ' · ' + esc(fmt(x.u, mkCur())) : ''}</small>` : ''}</span></div>`;
     };
     const cmdSet = new Set(c.keys), byK = new Map([...r.missing.map(x => [x.k, [x, false]]), ...r.owned.map(x => [x.k, [x, true]])]);
     const hitSet = new Set((r.hit || []).map(h => h[0]).filter(k => !cmdSet.has(k))), hitRows = [...hitSet].map(k => byK.get(k)).filter(Boolean);      // cartes cherchées : juste sous le commandant
     const cmdRows = c.keys.map(k => byK.get(k)).filter(Boolean), buy = r.missing.filter(x => !cmdSet.has(x.k) && !hitSet.has(x.k)), have = r.owned.filter(x => !cmdSet.has(x.k) && !hitSet.has(x.k));      // le commandant est toujours en tête, avec son prix ou ✓
     const lvl = [r.tier ? T(EDH.data && EDH.data.rk === 'month' ? 'Tier {t} · n° {n} sur EDHREC ce mois-ci' : 'Tier {t} · n° {n} sur EDHREC', { t: esc(r.tier), n: nf0(r.rank) }) : '', r.gc.length ? `<span title="${esc(edhBracketNote(r))}">${TN(r.gc.length, '{n} Game Changer', '{n} Game Changers')}</span>` : ''].filter(Boolean).join(' · ');
-    const dk = r.deck, info = [`<b>${esc(edhKindName(dk.k) || T('Deck'))}</b>`, dk.k === 'comm' && dk.label ? T('deck de {name}', { name: '<b>' + esc(dk.label) + '</b>' }) : '', dk.u ? T('mis à jour {ago} ({date})', { ago: esc(agoDay(dk.u)), date: esc(new Date(dk.u + 'T12:00:00Z').toLocaleDateString(LOC())) }) : '', dk.v ? T('{n} vues', { n: nf0(dk.v) }) : '', r.full ? T('deck complet ≈ {p}', { p: esc(fmt(r.full, mkCur())) + (r.fullNo ? '+' : '') }) : ''].filter(Boolean).join(' · ');
-    api.body.innerHTML = `<div class="ci-sum"><div>${TN(r.miss, '<b>{n}</b> carte à acheter', '<b>{n}</b> cartes à acheter')}${r.cost ? ' · ≈ <b>' + esc(fmt(r.cost, mkCur())) + '</b>' : ''}</div><span>${r.unpriced ? T('{n} sans prix connu', { n: r.unpriced }) + ' · ' : ''}${c.dm ? T('{n} decks ce mois', { n: nf0(c.dm) }) + ' · ' : c.decks ? T('{n} decks EDHREC', { n: nf0(c.decks) }) + ' · ' : ''}${T('couleurs {c}', { c: esc(c.ci || T('incolore')) })}</span>${lvl ? `<span>${lvl}</span>` : ''}<span class="dk-info">${info}</span><p class="hint dk-kinfo">${esc(EDH_KIND_HELP[dk.k] ? T(EDH_KIND_HELP[dk.k]) : '')}</p>${c.th.length ? `<details class="ci-thd"><summary title="${T('Nombre de decks EDHREC du commandant qui ont ce thème')}">${T('Thèmes EDHREC : {list}', { list: c.th.map(([i, n]) => esc(edhThemeName(EDH.data.themes[i])) + ' (' + nf0(n) + ')').join(' · ') })}</summary><dl class="ci-thl">${c.th.map(([i]) => { const t = EDH.data.themes[i], inf = edhThemeInfo(t); return `<dt>${esc(edhThemeName(t))}</dt>${inf ? `<dd>${edhInfoHtml(inf)}</dd>` : ''}`; }).join('')}</dl></details>` : ''}</div>
+    const dk = r.deck, info = [`<b>${esc(edhKindName(dk.k) || T('Deck'))}</b>`, dk.k === 'comm' && dk.label ? T('deck de {name}', { name: '<b>' + esc(dk.label) + '</b>' }) : '', dk.u ? T('mis à jour {ago} ({date})', { ago: esc(agoDay(dk.u)), date: esc(new Date(dk.u + 'T12:00:00Z').toLocaleDateString(LOC())) }) : '', dk.v ? TN(dk.v, '{n} vue', '{n} vues') : '', r.full ? T('deck complet ≈ {p}', { p: esc(fmt(r.full, mkCur())) + (r.fullNo ? '+' : '') }) : ''].filter(Boolean).join(' · ');
+    api.body.innerHTML = `<div class="ci-sum"><div>${TN(r.miss, '<b>{n}</b> carte à acheter', '<b>{n}</b> cartes à acheter')}${r.cost ? ' · ≈ <b>' + esc(fmt(r.cost, mkCur())) + '</b>' : ''}</div><span>${r.unpriced ? T('{n} sans prix connu', { n: r.unpriced }) + ' · ' : ''}${c.dm ? TN(c.dm, '{n} deck ce mois', '{n} decks ce mois') + ' · ' : c.decks ? TN(c.decks, '{n} deck EDHREC', '{n} decks EDHREC') + ' · ' : ''}${T('couleurs {c}', { c: esc(c.ci || T('incolore')) })}</span>${lvl ? `<span>${lvl}</span>` : ''}<span class="dk-info">${info}</span><p class="hint dk-kinfo">${esc(EDH_KIND_HELP[dk.k] ? T(EDH_KIND_HELP[dk.k]) : '')}</p>${c.th.length ? `<details class="ci-thd"><summary title="${T('Nombre de decks EDHREC du commandant qui ont ce thème')}">${T('Thèmes EDHREC : {list}', { list: c.th.map(([i, n]) => esc(edhThemeName(EDH.data.themes[i])) + ' (' + nf0(n) + ')').join(' · ') })}</summary><dl class="ci-thl">${c.th.map(([i]) => { const t = EDH.data.themes[i], inf = edhThemeInfo(t); return `<dt>${esc(edhThemeName(t))}</dt>${inf ? `<dd>${edhInfoHtml(inf)}</dd>` : ''}`; }).join('')}</dl></details>` : ''}</div>
       ${cmdRows.length ? `<h3 class="cs-h">${cmdRows.length > 1 ? T('Commandants') : T('Commandant')}</h3><div class="cs-top dk-cmd">${cmdRows.map(([x, o]) => row(x, o)).join('')}</div>` : ''}
       ${hitRows.length ? `<h3 class="cs-h">${hitRows.length > 1 ? T('Cartes cherchées') : T('Carte cherchée')}</h3><div class="cs-top dk-hit">${hitRows.map(([x, o]) => row(x, o)).join('')}</div>` : ''}
       ${buy.length ? `<h3 class="cs-h">${[...cmdRows, ...hitRows].some(([, o]) => !o) ? T('Autres cartes à acheter') : T('À acheter')} <small>${TN(buy.reduce((a, x) => a + x.q, 0), '{n} carte', '{n} cartes')}</small></h3><div class="cs-top dk-miss">${buy.map(x => row(x, false)).join('')}</div>` : r.miss ? '' : `<p class="hint">${T('Tu as déjà toutes les cartes de ce deck.')}</p>`}
@@ -23465,12 +23488,12 @@ function dfPaint() {
     : !tgt ? `<p class="hint df-note">${T('Ce deck n\'est pas dans Mes decks : « + au deck » l\'y enregistre, avec la carte.')}</p>` : '';
   const fr = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.df-row') : null, fk = fr && body.contains(fr) ? fr.dataset.k : '';      // repeint (synchro de Mes decks) : le focus reste sur la même carte
   body.innerHTML = `${note}<div class="df-list">${shown.map(x => dfRowHtml(e, x, cname, canAdd)).join('')}</div>
-    ${rows.length > shown.length ? `<button class="link-btn df-more" type="button" data-df="more">${T('Voir plus ({n} restantes)', { n: nf0(rows.length - shown.length) })}</button>` : ''}`;
+    ${moreBtn(shown.length, rows.length, DF_PAGE, 'class="link-btn df-more" data-df="more"')}`;
   const back = fk && $$('.df-row', body).find(r => r.dataset.k === fk); if (back) { const b = $('.df-add', back); if (b) b.focus({ preventScroll: true }); }
 }
 function dfRowHtml(e, x, cname, canAdd) {
   const it = COLL.map[x.k], m = COLL.meta[x.k] || {}, nm = dfName(x.k), hue = hash32(x.k) % 360, img = m.im ? collImage(x.k, it.l, m.im).src : '';
-  const pct = pctTxt(x.r), price = dfPrice(e, x), pl = dfPlaces(x.k), own = collQty(x.k), free = engFree(own, XS.eng, x.k, DV.deckId), ds = engDecksOf(XS.eng, x.k).filter(d => d.id !== DV.deckId);
+  const pct = pctTxt(x.r), price = dfPrice(e, x), pl = dfPlaces(x.k), o = ownFor(x.k, DV.deckId), own = o.own, free = o.free, ds = o.decks;      // règle unique (extras.js › ownFor)
   const tags = [`<span class="tag df-pl" title="${esc(pl.join(' · '))}">${esc(pl[0] || T('Non rangé'))}${pl.length > 1 ? ' +' + (pl.length - 1) : ''}</span>`];
   if (ds.length) tags.push(`<span class="tag warn df-eng" title="${esc(ds.map(d => d.n).join(' · '))}">${free > 0 ? TN(own - free, '{n} engagée ailleurs', '{n} engagées ailleurs') : ds.length > 1 ? T('Réservée par {n} decks montés', { n: ds.length }) : T('Réservée par « {name} »', { name: esc(ds[0].n) })}</span>`);
   return `<div class="crow df-row" data-k="${esc(x.k)}"><span class="thumb" style="--h:${hue}"${zoomAt('dfc', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, it.n, img, it.l || '')}>` : ''}</span>
@@ -23720,7 +23743,7 @@ const valMove = k => { const mv = valMovers(); return mv && mv.ready ? mv.by.get
 /** Nombre de prix en mouvement à signaler et pas encore écartés (accueil, bannière). */
 const valAlertN = () => { const mv = valMovers(); return mv && mv.ready && VAL.seen !== dayOf(VAL.at) ? mv.list.length : 0; };
 
-const valPct = p => (p > 0 ? '+' : p < 0 ? '−' : '') + T('{n} %', { n: nf0(Math.round(Math.abs(p))) });
+const valPct = p => (p > 0 ? '+' : p < 0 ? '−' : '') + pct(Math.round(Math.abs(p)));
 const valEur = c => (c > 0 ? '+' : c < 0 ? '−' : '') + fmt(Math.abs(c), mkCur());
 const valCls = x => (x > 0 ? 'vu' : x < 0 ? 'vd' : '');
 const valDate = t => new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
@@ -23781,14 +23804,14 @@ function valStatsHtml() {
   const val = `<h3 class="cs-h">${T('Valeur dans le temps')} <small>${T('tendance Cardmarket')}</small></h3><div class="vl-box">${chart}<div class="vl-foot"><span>${status}</span>${act}</div></div>
     <p class="hint">${T('Un relevé par jour, gardé sur cet appareil (et sur ton compte si tu es connecté). La valeur varie aussi quand tu ajoutes ou retires des cartes.')}${h.length ? ` <button class="link-btn" type="button" data-act="valreset">${T('Recommencer la courbe')}</button>` : ''}</p>`;
   const mv = valMovers();
-  const thr = `<span class="cs-sw" role="group" aria-label="${T('Seuil de variation')}">${VAL_THRS.map(t => `<button type="button" data-act="valthr" data-v="${t}" aria-pressed="${VAL.thr === t}" class="${VAL.thr === t ? 'on' : ''}">${T('{n} %', { n: t })}</button>`).join('')}</span>`;
+  const thr = `<span class="cs-sw" role="group" aria-label="${T('Seuil de variation')}">${VAL_THRS.map(t => `<button type="button" data-act="valthr" data-v="${t}" aria-pressed="${VAL.thr === t}" class="${VAL.thr === t ? 'on' : ''}">${pct(t)}</button>`).join('')}</span>`;
   let body;
   if (!mv || !mv.ready) body = `<p class="hint">${VAL.base ? T('Suivi commencé le {d} : les variations s\'affichent dès qu\'un jour a passé.', { d: esc(valDate(VAL.base.cur.t)) }) : T('Les variations s\'affichent après le premier relevé et un jour d\'écart.')}</p>`;
   else {
     const shown = mv.list.slice(0, VAL.topN), more = mv.list.length - shown.length;
     body = `<div class="vl-sum"><span>${T('Marché sur ta collection depuis le {d}', { d: esc(valDate(mv.since)) })}</span><b class="${valCls(mv.total)}">${valEur(mv.total)}</b></div>
       <p class="hint cs-topnote">${T('Prix Cardmarket carte par carte, hors cartes ajoutées depuis. Seules comptent les hausses et baisses d\'au moins {t} % et 0,20 € par exemplaire.', { t: VAL.thr })}</p>
-      ${shown.length ? `<div class="cs-top vl-top">${shown.map(valMoveRow).join('')}</div>${more > 0 ? `<button class="btn ghost block coll-more" type="button" data-act="valmore">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(8, more)), b: nf0(more) })}</button>` : ''}` : `<p class="hint listempty">${T('Aucune carte n\'a bougé de plus de {t} %.', { t: VAL.thr })}</p>`}`;
+      ${shown.length ? `<div class="cs-top vl-top">${shown.map(valMoveRow).join('')}</div>${moreBtn(0, more, 8, 'data-act="valmore"')}` : `<p class="hint listempty">${T('Aucune carte n\'a bougé de plus de {t} %.', { t: VAL.thr })}</p>`}`;
   }
   return `${val}<h3 class="cs-h" id="valMv">${T('Variations des prix')} ${thr}</h3>${body}`;
 }
@@ -23892,8 +23915,13 @@ const engIsOn = id => !!(XS.eng[id] && Object.keys(XS.eng[id].q).length);
 /** Empreinte des decks montés (id + date de dernière modification) : sert à invalider les listes qui en dépendent. */
 const engSig = () => Object.keys(XS.eng).sort().map(id => id + ':' + XS.eng[id].at).join(',');
 const engCount = id => (XS.eng[id] ? Object.values(XS.eng[id].q).reduce((a, x) => a + x, 0) : 0);
+/** Règle unique « possédée » / « à acheter » (core.js › engOwnFor) : { own, free, held, decks } de la carte k pour le deck deckId ; à acheter = quantité − free.
+ *  Éditeur (BD.id), coach (X.id), viewer (DV.deckId), recherche (S.deckId), alertes, De ta collection : tous passent par ici. */
+function ownFor(k, deckId) { return engOwnFor(collQty(k), XS.eng, k, deckId); }
+/** ownFor(k, deckId).free sans construire l'objet (boucles du coach). */
+function ownFree(k, deckId) { return engFree(collQty(k), XS.eng, k, deckId); }
 /** Exemplaires libres pour le deck en cours de recherche : possédés − réservés par les autres decks montés. */
-const engOwned = k => engFree(collQty(k), XS.eng, k, S.deckId);
+const engOwned = k => ownFree(k, S.deckId);
 /** Exemplaires de la liste courante mis de côté par d'autres decks (non déduits du panier) et les decks concernés. */
 function engHeldBack(cards) {
   let n = 0; const names = new Set();
@@ -24128,7 +24156,7 @@ function alItems() {
       if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
       for (const c of parseDeck(d.text).cards) {
         const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
-        if (c.qty - engFree(collQty(k), XS.eng, k, d.id) <= 0) continue;
+        if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
         put(k, c.name, 0, d.name);
       }
     }
@@ -24213,7 +24241,7 @@ function alWatchMany(cards, deck) {
 /** Deck tout juste enregistré : s'il lui manque des cartes et que les alertes sont possibles mais coupées, action « Activer » pour le toast « Deck enregistré · Me prévenir des baisses ? » ; sinon null. */
 function alSaveOffer(text, id) {
   if (AC.on || !alAvail()) return null;
-  if (!parseDeck(text).cards.some(c => { const k = ownKey(c.key); return c.qty > engFree(collQty(k), XS.eng, k, id); })) return null;      // tout est déjà possédé : rien qui puisse baisser
+  if (!parseDeck(text).cards.some(c => { const k = ownKey(c.key); return c.qty > ownFree(k, id); })) return null;      // tout est déjà possédé : rien qui puisse baisser
   return { label: T('Activer'), fn: async () => {
     const was = AC.deck; AC.deck = true;                                                       // ce deck doit être surveillé, même si « cartes manquantes de mes decks » avait été coupé
     const r = await alEnable(); if (r.ok) { haptic('ok'); toast(T('Alertes de prix activées'), { label: T('Régler'), fn: () => openAlertSheet() }); alPaintBox(); } else { AC.deck = was; toast(alWhy(r)); }
@@ -24291,14 +24319,14 @@ async function openAlertSheet() {
       const rowHtml = r => {
         const tags = [...(r.d || []).map(d => T('Manque à {deck}', { deck: esc(d) })), r.h ? (r.t ? T('Cible {p}', { p: esc(fmt(r.t)) }) : (AC.watch[r.k] || {}).d ? '' : T('Suivie à la main')) : '', r.u ? T('hausse et baisse') : ''].filter(Boolean).join(' · ');
         return `<div class="al-row" data-k="${esc(r.k)}"><span class="al-n"><b>${esc(r.n)}</b><small>${tags}</small></span>
-          <span class="al-px">${r.c ? `<b>${esc(fmt(r.c))}</b>${r.b && r.pct ? `<small class="${r.pct < 0 ? 'dn' : 'up'}">${r.pct > 0 ? '+' : '−'}${Math.abs(r.pct)} %</small>` : ''}` : `<small>${T('pas encore de prix')}</small>`}</span>
+          <span class="al-px">${r.c ? `<b>${esc(fmt(r.c))}</b>${r.b && r.pct ? `<small class="${r.pct < 0 ? 'dn' : 'up'}">${r.pct > 0 ? '+' : '−'}${pct(Math.abs(r.pct))}</small>` : ''}` : `<small>${T('pas encore de prix')}</small>`}</span>
           <button class="ib-x" type="button" data-rm="${esc(r.k)}" aria-label="${T(r.h ? 'Ne plus suivre {name}' : 'Exclure de la surveillance {name}', { name: esc(r.n) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
       };
       const dmWhy = alDscOk() && data && data.dm && data.dmErr ? data.dmErr : '';      // dernier MP impossible : la raison donnée par le serveur
       const dmErr = !dmWhy ? '' : dmWhy === 'closed' ? T('MP Discord refusés : vérifie tes réglages de confidentialité Discord.') : dmWhy === 'member' ? T('MP Discord impossibles : tu n\'es plus sur le serveur Mana Orbit.')
         : dmWhy === 'unlinked' ? T('MP Discord impossibles : ton compte Discord n\'est plus lié.') : T('Dernier MP Discord non envoyé (Discord injoignable) : nouvel essai à la prochaine alerte.');
       api.body.innerHTML = `
-        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(h.n)}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="${h.why === 'rise' ? 'up' : 'dn'}">${h.why === 'target' ? T('sous ta cible') : (h.why === 'rise' ? '+' : '−') + h.pct + ' %'}</small></span></div>`).join('')}</div>` : ''}
+        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(h.n)}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="${h.why === 'rise' ? 'up' : 'dn'}">${h.why === 'target' ? T('sous ta cible') : (h.why === 'rise' ? '+' : '−') + pct(h.pct)}</small></span></div>`).join('')}</div>` : ''}
         <div class="switch-row"><span class="t"><b>${T('Cartes manquantes de mes decks')}</b><span class="hint">${T('Toutes les cartes qu\'il te reste à acheter pour tes decks enregistrés.')}</span></span><label class="switch"><input type="checkbox" id="alDeck" ${AC.deck ? 'checked' : ''}><i></i></label></div>
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
         ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
@@ -24306,11 +24334,11 @@ async function openAlertSheet() {
         <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" placeholder="${T('Nom de la carte')}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Suivre')}</button></form>
         <p class="hint" id="alAddMsg" hidden></p>
         <div class="sec-title">${TN(rows.length, '{n} carte surveillée', '{n} cartes surveillées')}</div>
-        ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${T('{n} autres cartes surveillées, non listées ici.', { n: nf0(rows.length - AL_ROWS) })}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou suis une carte à la main.')}</p>`}
+        ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${TN(rows.length - AL_ROWS, '{n} autre carte surveillée, non listée ici.', '{n} autres cartes surveillées, non listées ici.')}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou suis une carte à la main.')}</p>`}
         ${muted ? `<p class="hint">${TN(muted, '{n} carte exclue de la surveillance', '{n} cartes exclues de la surveillance')} · <button class="link-btn link-inline" type="button" id="alUnmute">${T('Rétablir')}</button></p>` : ''}
         <p class="hint">${esc(last)}</p>`;
       api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Couper')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);
-      mountSeg($('#alThr', api.body), AL_THRS.map(v => ({ v: String(v), label: v + ' %' })), String(AC.thr), v => { AC.thr = Number(v); alWrite(); alSoon(); });
+      mountSeg($('#alThr', api.body), AL_THRS.map(v => ({ v: String(v), label: pct(v) })), String(AC.thr), v => { AC.thr = Number(v); alWrite(); alSoon(); });
       const dmSeg = $('#alDm', api.body);
       if (dmSeg) mountSeg(dmSeg, [{ v: 'push', label: T('Notification') }, { v: 'only', label: T('Discord (MP)') }, { v: 'both', label: T('Les deux') }], AC.dm || 'push', async v => {
         const dm = v === 'push' ? '' : v;
@@ -25062,7 +25090,7 @@ function scanPaintList() {
   const shown = rest.filter((x, i) => i < SC.show || x === SC.lastIt), more = rest.length - shown.length;      // longue session : les SC.show dernières (et la dernière touchée) ; le reste sur demande, la liste se repeint vite
   const ask = scanEdAsk();
   imgKeep(list, sssBandHtml() + (ask ? scanEdAskHtml(ask) : '') + pend + miss + (arr.length ? sec(T('À vérifier'), ' warn', maybe) + sec(TN(todo.reduce((a, x) => a + x.q, 0), '{n} édition à choisir', '{n} éditions à choisir'), ' todo', todo) + dps.map(p => sec(T('À ranger dans « {place} »', { place: plcName(p) }), ' apart', apart.filter(x => scanDp(x) === p))).join('') + sec(T('Dans le scan'), '', shown)
-      + (more > 0 ? `<button type="button" class="btn ghost block sc-more" data-a="more">${esc(TN(more, 'Afficher plus ({n} autre)', 'Afficher plus ({n} autres)'))}</button>` : '')
+      + moreBtn(shown.length, shown.length + more, 20, 'class="btn ghost block sc-more" data-a="more"')
     : pend || miss ? '' : '<p class="hint sc-empty">' + T('Les cartes reconnues apparaîtront ici avec leur miniature Scryfall. Tu peux corriger les quantités avant d\'ajouter.') + '</p>'));      // miniatures déjà là : gardées (la liste se repeint à chaque carte lue)
   if (keep && keep.row) {
     const rows = [...list.querySelectorAll('.sc-item')], r = (keep.row.dataset.id && rows.find(x => x.dataset.id === keep.row.dataset.id)) || rows.find(x => x.dataset.k && x.dataset.k === keep.row.dataset.k);
@@ -25935,7 +25963,7 @@ function scanDiag(on) {
   if (!SC.ltObs && typeof PerformanceObserver !== 'undefined') { try { SC.ltObs = new PerformanceObserver(l => { for (const e of l.getEntries()) SC.lt.push(performance.now()); }); SC.ltObs.observe({ type: 'longtask', buffered: false }); } catch (e) { SC.ltObs = null; } }
   const paint = () => {
     const tr = SC.stream && SC.stream.getVideoTracks()[0], st = (tr && tr.getSettings && tr.getSettings()) || {}, now = performance.now(); SC.lt = SC.lt.filter(t => now - t < 10000);
-    box.textContent = [T('aperçu {n} i/s', { n: SC.fps ? SC.fps.toFixed(0) : '–' }), `${st.width || '?'}×${st.height || '?'}${st.frameRate ? ' @' + Math.round(st.frameRate) : ''}`, SC.fixed ? T('plancher 24 i/s') : T('i/s libre'), T('redémarrages {n}', { n: SC.restarts }), T('dernière lecture {n} ms', { n: SC.ms ? Math.round(SC.ms) : '–' }), T('tâches longues {n}/10 s', { n: SC.lt.length }), camSlow() ? T('mode lent (toucher ici : retour au mode normal)') : '', tr && tr.label ? tr.label : ''].filter(Boolean).join(' · ');
+    box.textContent = [T('aperçu {n} i/s', { n: SC.fps ? num(SC.fps, 0) : '–' }), `${st.width || '?'}×${st.height || '?'}${st.frameRate ? ' @' + Math.round(st.frameRate) : ''}`, SC.fixed ? T('plancher 24 i/s') : T('i/s libre'), T('redémarrages {n}', { n: SC.restarts }), T('dernière lecture {n} ms', { n: SC.ms ? Math.round(SC.ms) : '–' }), T('tâches longues {n}/10 s', { n: SC.lt.length }), camSlow() ? T('mode lent (toucher ici : retour au mode normal)') : '', tr && tr.label ? tr.label : ''].filter(Boolean).join(' · ');
     const u = typeof AU !== 'undefined' && AU.tmLast, ms = v => (v ? Math.round(v) : '–'); if (u) box.textContent += '\n' + T('auto : image {a} ms · nom {b} ms · bas et illustration {c} ms · total {d} ms', { a: ms(u.cap), b: ms(u.read), c: ms(u.more), d: ms(u.all) });      // dernière lecture du scan automatique : où passe le temps
     const a = SC.art; if (a) box.textContent += '\n' + T('illustration · {name} : {res}', { name: a.name, res: a.res });      // dernière comparaison d'illustration (scanart.js)
     const y = SC.sym; if (y) box.textContent += '\n' + T('symbole · {name} : {res}', { name: y.name, res: y.res });      // dernière comparaison de symbole d'extension (scansym.js)
@@ -27111,7 +27139,7 @@ function srFacts(e) {
   const r = e.read, h = r.hit, f = r.foot, row = (k, v) => (v ? `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>` : '');
   const fr = f && f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang ? langCode(f.ft.lang) : '', f.ft.foil ? '★' : ''].filter(Boolean).join(' ') : '';
   return row(T('Texte lu'), r.raw || r.first ? '« ' + (r.raw || r.first) + ' »' : '—')
-    + row(T('Carte retenue'), h ? [h.name, langCode(h.card), Math.round(h.score * 100) + ' %'].join(' · ') : T('aucune'))
+    + row(T('Carte retenue'), h ? [h.name, langCode(h.card), pct(Math.round(h.score * 100))].join(' · ') : T('aucune'))
     + row(T('Ligne du bas'), f ? '« ' + (f.raw || '—') + ' »' + (fr ? ' → ' + fr : '') : '')
     + row(T('Lecture'), [r.ocr === 'mlkit' ? 'ML Kit' : 'Tesseract', r.langs.join('+'), r.frame === 'card' ? T('Carte entière') : r.frame === 'name' ? T('Nom seulement') : T('Photo de la carte'), r.ms != null ? r.ms + ' ms' : ''].filter(Boolean).join(' · '))
     + row(T('Version de l\'appli'), [typeof DD_BUILD !== 'undefined' ? DD_BUILD : '', typeof isNativeApp === 'function' && isNativeApp() ? T('appli Android') : T('navigateur'), String(I18N.lang).toUpperCase()].filter(Boolean).join(' · '));
@@ -28036,7 +28064,7 @@ function bdSumHtml() {
   const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
   return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${valT}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
-    ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
+    ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : TN(ck.issues.length - 3, 'Voir l\'autre alerte', 'Voir les {n} autres alertes')}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
 /** Deck Commander : carte pas légale en Commander (interdite…) : cardLegal (fiche Scryfall, possédée ou non, sinon base du coach) ; inconnue : non. */
@@ -28044,17 +28072,19 @@ const bdIllegal = k => BD.fmt === 'commander' && !BASIC_NAMES.has(k) && cardLega
 /** Vérification du deck (core.js › dkCheck) : légalité (cardLegal) et, Commander, règles du bracket visé dans les réglages du coach (pas le bracket « estimé » de l'analyse),
  *  avec les cartes et combos que voit le coach (deckwiz.js › dwBrFacts) : le même verdict que son audit. */
 const bdCheck = () => dkCheck(BD.fmt, bdData(), bdMeta, BD.fmt === 'commander' ? { legal: k => cardLegal(k, 'commander'), br: BD.wiz && !BD.wiz.ba ? BD.wiz.br : 0, facts: BD.wiz && !BD.wiz.ba && typeof dwBrFacts === 'function' ? dwBrFacts(dwProfile()) : null } : undefined);
+/** « 1 engagée dans « A » » / « 2 engagées ailleurs » : exemplaires possédés mais réservés par d'autres decks montés (o : ownFor). */
+const bdHeldTxt = o => o.decks.length === 1 && o.decks[0].n ? TN(o.held, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: o.held, deck: o.decks[0].n }) : TN(o.held, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: o.held });
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
-  const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
+  const o = ownFor(k, BD.id), own = o.own, free = o.free, out = [];      // règle unique (extras.js › ownFor) : possédée = libre pour ce deck ; à acheter = q − free, comme le coach et le viewer
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
   if (bdIllegal(k)) out.push(`<span class="tag bad">${T('Pas légale en Commander')}</span>`);      // Scryfall (legalities), comme l'alerte du résumé (core.js › dkCheck)
   if (isGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (base du coach, sinon Scryfall, sinon EDHREC : même sans EDHREC)
-  const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
-  if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
+  const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - free), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu ; exemplaires engagés ailleurs : à acheter
+  if (ctx === 'deck') out.push(free >= q ? `<span class="tag good">${T('Possédée')}</span>` : free > 0 ? `<span class="tag warn">${TN(free, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: free, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
-  if (own && eg) { const ds = engDecksOf(XS.eng, k).filter(d => d.id !== BD.id); out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${ds.length === 1 && ds[0].n ? esc(TN(eg, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: eg, deck: ds[0].n })) : TN(eg, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: eg })}</span>`); }
+  if (o.held) out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${esc(bdHeldTxt(o))}</span>`);      // possédée mais engagée : toujours dit
   return out.join('');
 }
 function bdRow(k, name, q, tgt, ctx, label) {
@@ -28076,8 +28106,8 @@ function bdToolsHtml() {
 }
 /** Cartes de l'éditeur au format du deck viewer (prix de ce qui manque, possession), pour ses vues. */
 function bdViewItems() {
-  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = BASIC_NAMES.has(k) ? 0 : dkPx(k);
-    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
+  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, o = BASIC_NAMES.has(k) ? null : ownFor(k, BD.id), ow = o ? o.free : 0, eu = BASIC_NAMES.has(k) ? 0 : dkPx(k);
+    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, own: o ? o.own : 0, held: o && o.held ? bdHeldTxt(o) : '', mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
   return [...[...BD.main.values()].map(c => one(c, 'main')), ...[...BD.side.values()].map(c => one(c, 'side'))];
 }
 function bdVisualHtml() {
@@ -28104,7 +28134,7 @@ function bdCompHtml() {
 /** Carte touchée dans une vue en images : en grand, avec « Retirer du deck » (et les autres cartes du deck en glissant). */
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
-    extra: it.ow ? TN(it.ow, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.ow }) : T('Pas dans ta collection'),
+    extra: (it.own ? TN(it.own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.own }) : T('Pas dans ta collection')) + (it.held ? ' · ' + it.held : ''),      // possédés, et ceux engagés dans un autre deck monté
     act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } } }));
   if (list[i]) openCardViewer(list, i);
 }
@@ -28143,7 +28173,7 @@ function bdCollHtml() {
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
   if (!items.length) h += `<p class="hint">${words.length ? T('Aucune carte de ta collection ne correspond.') : BD.tgt === 'cmdr' ? T('Aucun commandant possible dans ta collection (ou cartes pas encore lues).') : ''}</p>`;
-  if (items.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, items.length - shown.length), rest: nf0(items.length - shown.length) })}</button>`;
+  h += moreBtn(shown.length, items.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
   return h;
 }
 /** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
@@ -28155,7 +28185,7 @@ function bdAddHtml() {
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées »
   if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + (own.length > 1 && !BD.sel && BD.tgt !== 'cmdr' && !bdLpKnown() ? `<p class="hint bd-lp-hint">${T('Appui long sur une carte : en choisir plusieurs.')}</p>` : '') + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');      // astuce : jusqu'au premier appui long (bdadd.js)
-  if (own.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, own.length - shown.length), rest: nf0(own.length - shown.length) })}</button>`;
+  h += moreBtn(shown.length, own.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
   if (q.length >= 2 && !flt) {      // toutes les cartes Magic : sans filtre seulement (rangement, couleur… ne valent que pour la collection)
     if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
     else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
@@ -28234,8 +28264,8 @@ function bdClick(e) {
     if (bdChange(tgt, k, row.dataset.n, d)) {
       haptic('tap');
       if (d > 0 && BD.tab === 'coll' && tgt !== 'cmdr' && !BASIC_NAMES.has(k)) {      // carte possédée, mais tous ses exemplaires sont réservés par un autre deck monté : le dire tout de suite
-        const own = collQty(k), q = ((BD[tgt] && BD[tgt].get(k)) || {}).qty || 0, free = engFree(own, XS.eng, k, BD.id), ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id);
-        if (own > 0 && q > free && ds.length) toast(T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: bdLabel(k, row.dataset.n), deck: ds[0].n || T('un autre deck') }));
+        const o = ownFor(k, BD.id), q = ((BD[tgt] && BD[tgt].get(k)) || {}).qty || 0, ds = o.decks;
+        if (o.own > 0 && q > o.free && ds.length) toast(T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: bdLabel(k, row.dataset.n), deck: ds[0].n || T('un autre deck') }));
       }
     }
     return;
@@ -28408,8 +28438,8 @@ function bdBulkPlan(list, qOf) {
     room -= q;
     const nm = bdLabel(k, name);
     if (bdIllegal(k)) P.ill.push(nm);
-    const own = BASIC_NAMES.has(k) ? 0 : collQty(k);
-    if (own > 0) { const ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id); if (ds.length && bdTot(k) + q > engFree(own, XS.eng, k, BD.id)) P.res.push({ name: nm, deck: ds[0].n || T('un autre deck') }); }
+    const o = BASIC_NAMES.has(k) ? null : ownFor(k, BD.id);      // règle unique (extras.js › ownFor) : au-delà des exemplaires libres, à acheter (pastille de l'éditeur, coach)
+    if (o && o.decks.length && bdTot(k) + q > o.free) P.res.push({ name: nm, deck: o.decks[0].n || T('un autre deck') });
     P.add.push({ k, name, q }); P.n += q;
   }
   return P;
@@ -28722,10 +28752,10 @@ function dwPips(mc) {
 function dwProfile(X = BD) {
   const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
-  let mvSum = 0; const all = [...X.main.values()];
+  let mvSum = 0; const all = [...X.main.values()], did = X.id != null ? X.id : null;      // deck de Mes decks (BD.id, DA.X.id) : ses propres exemplaires lui restent
   for (const c of all) {
     const k = c.key, q = c.qty, x = dwCard(k); p.n += q; p.cards++;
-    if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur)
+    if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const free = ownFree(k, did); if (free < q) p.buy += e * (q - free); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur) ; à acheter = q − exemplaires libres (extras.js › ownFor : ceux d'un autre deck monté sont à acheter, comme l'éditeur et le viewer)
     if (dwGC(k, x)) p.gc.push(x ? x.name : c.name);
     if (!x) { p.unk += q; continue; }
     const tl = (dmOf(k) || {}).tl, lk = tl ? landKind(tl) : '', land = BASIC_NAMES.has(k) || (tl ? !!lk : !!(x.roles & DW_RB.land));      // règle unique des terrains (core.js › landKind : doubles faces « Sort // Terrain » comprises) ; fiche pas encore lue : la base
@@ -28972,7 +29002,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 2 && xtLeft <= 0) return;
     const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && (noCombo || (dwCombo3(cw.c) ? R.c3 === 'avoid' : R.c2 === 'no'))) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
-    const price = dwPrice(k, x), own = collQty(k) > 0;
+    const price = dwPrice(k, x), own = ownFree(k, X.id != null ? X.id : null) > 0;      // « dans ta collection » : un exemplaire libre (pas réservé par un autre deck monté), règle de ownFor
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
     if (X.pace && set.bud > 0) {      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places ; plus le budget par place est petit, plus l'écart permis est faible
       const per = budLeft / slots, kk = per < 50 ? 2 : per < 150 ? 4 : 8, floor = Math.min(10, per * 0.5);
@@ -29297,7 +29327,7 @@ function dwGaugesHtml(prof, tgt, cmd, pack, ro) {
 }
 function dwLandHelp(prof, tgt, cmd) {
   const basics = [...BD.main.values()].filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0);
-  const txt = prof.nonland >= 25 ? T('Coût moyen {mv}, {c} sorts de rampe ou de pioche à 2 mana ou moins : {n} terrains conseillés.', { mv: prof.mv.toFixed(2), c: prof.cheap, n: tgt.land[1] }) : T('Ajoute d\'abord tes sorts : la cible des terrains suivra le coût moyen du deck.');
+  const txt = prof.nonland >= 25 ? T('Coût moyen {mv}, {c} sorts de rampe ou de pioche à 2 mana ou moins : {n} terrains conseillés.', { mv: num(prof.mv, 2), c: prof.cheap, n: tgt.land[1] }) : T('Ajoute d\'abord tes sorts : la cible des terrains suivra le coût moyen du deck.');
   return `<p class="hint">${esc(txt)}</p>${cmd && cmd.ci ? `<button class="btn ghost small" type="button" data-act="dw-basics">${T('Compléter avec des terrains de base')}</button>` : ''}${basics ? `<p class="hint">${TN(basics, '{n} terrain de base dans le deck.', '{n} terrains de base dans le deck.')}</p>` : ''}`;
 }
 function dwSugHtml(role, cmd, pack, prof, tgt) {
@@ -29318,8 +29348,8 @@ function dwSugRow(s, cmd) {
 }
 function dwManaHtml(prof, tgt, cmd) {
   const cols = [...(cmd ? cmd.ci : '')]; let h = `<div class="sec-title">${T('Mana')}</div><div class="dw-mana">`;
-  const avg = prof.nonland ? prof.mv.toFixed(2) : '—';
-  h += `<p class="dw-line"><span>${T('Coût moyen (hors terrains)')}</span><b>${avg}</b><small>${T('repère {v}', { v: Number(tgt.mv[1]).toFixed(1) })}</small></p>`;
+  const avg = prof.nonland ? num(prof.mv, 2) : '—';
+  h += `<p class="dw-line"><span>${T('Coût moyen (hors terrains)')}</span><b>${avg}</b><small>${T('repère {v}', { v: num(tgt.mv[1], 1) })}</small></p>`;
   const mx = Math.max(1, ...prof.curve);
   h += `<div class="dw-curve" role="img" aria-label="${esc(T('Courbe de mana'))}">${prof.curve.map((n, i) => `<span><i style="height:${Math.round(n / mx * 100)}%"></i><b>${n}</b><small>${i === 7 ? '7+' : i}</small></span>`).join('')}</div>`;
   if (cols.length) {
@@ -29344,7 +29374,7 @@ function dwBudgetHtml(prof, s = BD.wiz) {
   const cc = prof.cmdCents || 0, dear = s.bud > 0 && cc >= s.bud * 0.6 ? `<p class="hint warn">${esc(T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(s.bud, cur) }))}</p>` : '';
   const small = !dear && s.bud > 0 && s.bud < 7500 ? `<p class="hint">${esc(T('Petit budget : le coach garde l\'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu\'avec des terrains plus chers.'))}</p>` : '';
   return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}">${dear}${small}<p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>
-    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas).', { p: fmt(prof.buy, cur) }))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
+    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas, ou réservées par un autre deck monté).', { p: fmt(prof.buy, cur) }))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
 }
 function dwPlanHtml(cmd, pack, prof, tgt) {
   const open = DW.open === 'plan';
@@ -29578,14 +29608,14 @@ function dwzCmds(E) {
   if (words.length) l = l.filter(c => { const s = normPart(c.names.join(' ')); return words.every(w => s.includes(w)); });
   if (th.length) l = l.filter(c => th.every(i => (c.th || []).some(t => t[0] === i)));
   if (cols.length) l = l.filter(c => cols.every(x => c.ci.includes(x)) && c.ci.length <= Math.max(cols.length, 1) + (words.length ? 5 : 0));
-  const own = c => c.keys.some(k => collQty(k) > 0) ? 1 : 0;
+  const own = c => c.keys.some(k => ownFree(k, null) > 0) ? 1 : 0;      // nouveau deck : un commandant réservé par un deck monté est à acheter (ownFor)
   const fit = c => th.reduce((a, i) => { const t = (c.th || []).find(x => x[0] === i); return a + (t ? t[1] / Math.max(1, c.decks) : 0); }, 0);
   return l.map(c => ({ c, s: own(c) * 2 + fit(c) * 3 + Math.log10(1 + c.decks) / 5 })).sort((a, b) => b.s - a.s).slice(0, 30).map(x => x.c);
 }
 function dwzCmdRow(c) {
-  const own = c.keys.some(k => collQty(k) > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
+  const os = c.keys.map(k => ownFor(k, null)), own = os.some(o => o.free > 0), held = !own && os.find(o => o.held > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
   return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.keys[0], c.names[0], img)}>` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : held ? `<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${esc(bdHeldTxt(held))}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
 }
 function openDeckWiz2() {
   const E = EDH.data, cm = DWZ.cmd; if (!cm) return;
@@ -30056,7 +30086,7 @@ function daOwn(id) {
   const saved = daSaved(id), w = id ? dwSettingsFor(id) : dwDefaults();
   if (!saved) { w.ba = 1; w.bv = 1; }      // jamais réglé : bracket estimé (ba) et budget = valeur actuelle (bv), suivis tant qu'on n'en choisit pas
   if (DA.X.wiz) { for (const k of Object.keys(DA.X.wiz)) delete DA.X.wiz[k]; Object.assign(DA.X.wiz, w); } else DA.X.wiz = w;      // même objet : le formulaire reste branché dessus
-  Object.assign(DA, { id, mine: !!id, brAuto: !!w.ba, budAuto: !!w.bv });
+  Object.assign(DA, { id, mine: !!id, brAuto: !!w.ba, budAuto: !!w.bv }); DA.X.id = id;      // coach (dwProfile, dwSuggest) : les exemplaires de ce deck lui restent (ownFor)
 }
 const daOpen = () => DA.api && sheets.includes(DA.api);
 /** Images et coûts des cartes du deck et des échanges : relus jusqu'à 5 fois si Scryfall demande une pause (la vignette a sinon l'image Scryfall par le nom). */
@@ -30088,7 +30118,7 @@ function daActions(prof, tgt, cmd, set, swaps, pack) {
     out.push({ k: r, sg: '+', t: TN(n, DA_ROLE[r][0], DA_ROLE[r][1]), s: T('{n} dans le deck, {m} conseillées', { n: v, m: mid }), gain, issue });
   }
   const dl = prof.land - tgt.land[1];
-  if (dl) out.push({ k: 'land', sg: dl > 0 ? '−' : '+', t: dl > 0 ? TN(dl, 'Retirer {n} terrain', 'Retirer {n} terrains') : TN(-dl, 'Ajouter {n} terrain', 'Ajouter {n} terrains'), s: T('{n} terrains, {m} conseillés', { n: prof.land, m: tgt.land[1] }), gain: Math.min(1, Math.abs(dl) * 0.12) * 10, issue: dl > 0 ? T('un peu trop de terrains') : T('un peu juste en terrains') });
+  if (dl) out.push({ k: 'land', sg: dl > 0 ? '−' : '+', t: dl > 0 ? TN(dl, 'Retirer {n} terrain', 'Retirer {n} terrains') : TN(-dl, 'Ajouter {n} terrain', 'Ajouter {n} terrains'), s: TN(prof.land, '{n} terrain, {m} conseillés', '{n} terrains, {m} conseillés', { m: tgt.land[1] }), gain: Math.min(1, Math.abs(dl) * 0.12) * 10, issue: dl > 0 ? T('un peu trop de terrains') : T('un peu juste en terrains') });
   const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], bad = new Set(DWB.bracketBreaks(b[0], dwBrFacts(prof)).filter(x => x.lv === 'bad').map(x => x.k)), R = DWB.brRule(b[0]);      // règles du bracket (brackets.js)
   if (bad.has('gc')) out.push({ k: 'gc', sg: '−', t: TN(prof.gc.length - R.gc, 'Retirer {n} Game Changer', 'Retirer {n} Game Changers'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: R.gc }), gain: 5, issue: T('trop fort pour le bracket visé') });
   if (bad.has('mld')) out.push({ k: 'mld', sg: '−', t: T('Retirer la destruction de terrains'), s: T('Interdite en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
@@ -30238,7 +30268,7 @@ function daThumb(k, nm) {
 }
 /** Les deux cartes d'un échange (retirée → ajoutée), vignettes agrandies au toucher : analyse et Coach (deckux.js). */
 function daSwapPair(s) {
-  const own = collQty(s.in.k) > 0;
+  const own = !!s.in.own;      // « dans ta collection » : posé par dwSuggest (exemplaire libre pour ce deck, extras.js › ownFor)
   return `<span class="da-pair"><span class="da-c out">${daThumb(s.out.k, s.out.name)}<span><small>${T('Retirer')}</small><b>${esc(bdLabel(s.out.k, s.out.name))}</b></span></span>
     <span class="da-arrow" aria-hidden="true">→</span>
     <span class="da-c in">${daThumb(s.in.k, s.in.name)}<span><small>${own ? T('Ajouter · dans ta collection') : T('Ajouter')}</small><b>${esc(bdLabel(s.in.k, s.in.name))}</b></span></span></span>`;
@@ -30248,7 +30278,7 @@ function daSwapRow(s, i, cmd) {
   return `<div class="da-sw${DA.off.has(i) ? ' off' : ''}"><input type="checkbox" data-da-sw="${i}" ${DA.off.has(i) ? '' : 'checked'} aria-label="${esc(T('Remplacer {a} par {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }))}">
     ${daSwapPair(s)}
     <span class="da-why">${(() => { const [hd, ...more] = daWhyParts(s, cmd); return `<b class="da-wh">${esc(hd)}</b>${d ? ` <i class="da-px ${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</i>` : ''}${more.length ? `<small>${esc(more.slice(0, 2).join(' · '))}</small>` : ''}`; })()} <button class="link-btn link-inline" type="button" data-da-why="${i}" aria-expanded="${!!open}">${T('Pourquoi ?')}</button></span>
-    ${open && typeof dwSwapWhyHtml === 'function' && DA.ctx ? `<span class="da-wd">${dwSwapWhyHtml(s, DA.ctx.prof, DA.ctx.tgt, cmd)}</span>` : ''}</div>`;
+    ${open && typeof dwSwapWhyHtml === 'function' && DA.ctx ? `<span class="da-wd">${dwSwapWhyHtml(s, DA.ctx.prof, DA.ctx.tgt, cmd, DA.id)}</span>` : ''}</div>`;
 }
 /** Carte en grand depuis l'analyse : toutes les vignettes des échanges, dans l'ordre affiché (retirée, ajoutée, retirée…). */
 if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
@@ -30412,7 +30442,7 @@ function drReportHtml(X) {
   if (key.length) h += `<p class="dr-h">${T('Pièces maîtresses')}</p><ul class="dr-ul">${key.map(c => `<li>${drCard(c.k, c.name)}${c.o.syn >= 10 ? ` <small>${esc(T('synergie +{p} %', { p: c.o.syn }))}</small>` : c.o.incl ? ` <small>${esc(T('{p} % des decks', { p: c.o.incl }))}</small>` : ''}</li>`).join('')}</ul>`;
   // Comment le jouer
   h += `<div class="sec-title">${T('Comment le jouer')}</div>`;
-  const avg7 = (prof.land * 7 / 99).toFixed(1).replace('.', I18N.lang === 'en' ? '.' : ',');
+  const avg7 = num(prof.land * 7 / 99, 1);
   h += `<p class="dr-p"><b>${T('Main de départ')} :</b> ${esc(T('{l} terrains : {a} en moyenne sur 7 cartes. Garde une main avec 3 ou 4 terrains, ou 2 terrains et une rampe à 2 mana ou moins ; sinon, mulligan.', { l: prof.land, a: avg7 }))}</p>`;
   const early = spells.filter(c => c.cmc <= 2 && (has('ramp')(c) || has('draw')(c))).sort((a, b) => b.v - a.v).slice(0, 6);
   if (early.length) h += `<p class="dr-p"><b>${T('Tours 1 à 3')} :</b> ${esc(T('pose tes terrains et accélère avec'))} ${drList(early)}.</p>`;
@@ -30432,7 +30462,7 @@ function drReportHtml(X) {
   const weak = [];
   for (const [r, label] of DW_GAUGES) { if (r === 'counter' && !cmd.ci.includes('U')) continue; const [lo, mid] = tgt[r]; if (prof[r] < lo) weak.push(T('{r} : {n} pour un repère de {m}', { r: T(label), n: prof[r], m: mid })); }
   for (const c of cmd.ci) { const need = prof.need && prof.need[c]; if (need && (prof.src[c] || 0) < need - 2) weak.push(T('Sources de {c} : {n} pour {m} conseillées', { c, n: Math.round(prof.src[c] || 0), m: need })); }
-  if (prof.mv > 3.5) weak.push(T('Courbe haute (coût moyen {v}) : départs lents', { v: prof.mv.toFixed(2) }));
+  if (prof.mv > 3.5) weak.push(T('Courbe haute (coût moyen {v}) : départs lents', { v: num(prof.mv, 2) }));
   h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="bd-issues">${weak.map(w => `<li class="warn">${esc(w)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien d\'alarmant : le deck est dans la norme de chaque catégorie.')}</p>`}`;
   // Simulation de 10 000 parties face à 3 adversaires (decksim.js) : résultat gardé pour ce deck, sinon barre de progression pendant le calcul
   if (typeof dsimHtml === 'function') h += `<div id="drSim">${DSIM.sig === dsimSig(X) && DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res, 0, { open: true })) : dsimHtml(null, DSIM.prog)}</div>`;
@@ -30452,7 +30482,7 @@ function drReportHtml(X) {
   for (const [r, label] of DW_GAUGES) { if (r === 'land') continue; const l = spells.filter(has(r)); if (l.length) h += `<p class="dr-p"><b>${esc(T(label))} (${l.length}) :</b> ${drList(l)}</p>`; }
   const other = spells.filter(c => !DW_GAUGES.some(([r]) => r !== 'land' && c.roles & DW_RB[r]));
   if (other.length) h += `<p class="dr-p"><b>${esc(T('Plan de jeu'))} (${other.length}) :</b> ${drList(other)}</p>`;
-  const lands = cards.filter(c => c.land); h += `<p class="dr-p"><b>${esc(T('Terrains'))} (${prof.land}) :</b> ${drList(lands)}${prof.land > lands.length ? esc(' + ' + T('{n} terrains de base', { n: prof.land - lands.length })) : ''}</p></details>`;
+  const lands = cards.filter(c => c.land); h += `<p class="dr-p"><b>${esc(T('Terrains'))} (${prof.land}) :</b> ${drList(lands)}${prof.land > lands.length ? esc(' + ' + TN(prof.land - lands.length, '{n} terrain de base', '{n} terrains de base')) : ''}</p></details>`;
   return h;
 }
 /** Ouvre le rapport du deck X (éditeur : BD ; analyse : DA.X). */
@@ -30511,7 +30541,7 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
     if (dwGC(c.key, x) && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }      // règles du bracket : brackets.js
     else if (x.fl & 4 && !R.mld) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
     else if (x.fl & 2 && xtOver) { s -= 0.6; why = T('Tour supplémentaire en trop pour le bracket {b}', { b: b[0] }); }
-    else if (over && price > 500 && collQty(c.key) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }
+    else if (over && price > 500 && ownFree(c.key, X.id != null ? X.id : null) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }
     else if ((hard = false) || sur) why = T('{r} en surplus ({n} pour {m} conseillées)', { r: T(sur[1]), n: prof[sur[0]], m: tgt[sur[0]][1] });
     else if (o.incl || o.syn) why = T('Peu jouée avec {name} ({p} % des decks)', { name: nm, p: o.incl || 0 });
     else why = T('Absente des decks de {name} étudiés', { name: nm });
@@ -30559,7 +30589,7 @@ function dwCutsHtml(prof, tgt, cmd, pack) {
   }).join('')}</div>`;
 }
 /** Explication d'un échange (sw : dwSwaps) : les deux cartes, l'effet sur les jauges et la valeur. */
-function dwSwapWhyHtml(sw, prof, tgt, cmd) {
+function dwSwapWhyHtml(sw, prof, tgt, cmd, did = BD.id) {      // did : le deck (éditeur, ou Mes decks pour l'analyse) dont les exemplaires réservés restent à lui
   const cur = mkCur(), nm = cmd ? cmd.names[0].split(',')[0] : '', card = (c, o, x, price, own) => {
     const r = dwRoleNames((x && x.roles) || 0), bits = [];
     bits.push(r.length ? T('rôle : {r}', { r: r.join(', ') }) : T('rôle : plan de jeu'));
@@ -30576,7 +30606,7 @@ function dwSwapWhyHtml(sw, prof, tgt, cmd) {
   }
   const d = sw.in.price - sw.out.price;
   if (d) eff.push(T('Valeur du deck : {a} → {b}', { a: fmt(prof.cents, cur), b: fmt(prof.cents + d, cur) }));
-  return `<dl class="dx-why"><div><dt>${T('Retirer')} ${esc(bdLabel(sw.out.k, sw.out.name))}</dt><dd>${esc(card(sw.out, sw.out.o, sw.out.x, sw.out.price, collQty(sw.out.k) > 0))}</dd></div>
+  return `<dl class="dx-why"><div><dt>${T('Retirer')} ${esc(bdLabel(sw.out.k, sw.out.name))}</dt><dd>${esc(card(sw.out, sw.out.o, sw.out.x, sw.out.price, ownFree(sw.out.k, did) > 0))}</dd></div>
     <div><dt>${T('Ajouter')} ${esc(bdLabel(sw.in.k, sw.in.name))}</dt><dd>${esc(card(sw.in, sw.in.o, sw.in.x, sw.in.price, sw.in.own))}</dd></div>
     ${eff.length ? `<div><dt>${T('Effet')}</dt><dd>${eff.map(esc).join('<br>')}</dd></div>` : ''}</dl>`;
 }
@@ -30632,7 +30662,7 @@ function dwBannerHtml() {
    construction (deckwiz.js › dwAutoBuild) suivie d'une amélioration : la carte ajoutée la plus faible est échangée contre la meilleure candidate tant que
    la note monte, puis des terrains de base contre des terrains qui comblent les couleurs en manque. Barre de progression ; le joueur choisit sa version. */
 const DS = { api: null, last: null };
-const dsNum = (v, d = 2) => Number(v).toLocaleString(LOC(), { minimumFractionDigits: d, maximumFractionDigits: d });
+const dsNum = (v, d = 2) => num(v, d);
 const DS_PARTS = [['roles', 'Rôles', 30], ['mana', 'Mana', 25], ['curve', 'Courbe', 10], ['syn', 'Synergie', 25], ['rules', 'Règles et budget', 10]];
 const dsRoleLabel = r => T((DW_GAUGES.find(g => g[0] === r) || [r, r === 'wincon' ? 'Conditions de victoire' : r])[1]);
 
@@ -31002,7 +31032,7 @@ async function dsBuild(undoTo, seed) {
     if (!alive()) return quit(); set('px', 'done', t ? T('{n} prix', { n: nf0(t.map.size) }) : T('prix de la base'), 0.08);
     set('pk', 'run', '', 0.1, T('Lecture des cartes conseillées…'));
     await Promise.all([dwPack('c', cmd.slug), ...wiz0.th.map(x => dwPack('t', x))]).catch(() => null);
-    if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack && (pack.n || pack.nd) ? T('{n} decks étudiés', { n: nf0(pack.n || pack.nd || 0) }) : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
+    if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack && (pack.n || pack.nd) ? TN(pack.n || pack.nd || 0, '{n} deck étudié', '{n} decks étudiés') : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
     const span = 0.76 / list.length, idx = new Map(list.map((v, i) => [v.id, i]));
     BD.wiz = { ...wiz0, seed: seed || dsSeed() };
     const res = await dsMake({ empty, list, seed: BD.wiz.seed, alive, step: (v, ph, part, n, e) => {
@@ -31012,7 +31042,7 @@ async function dsBuild(undoTo, seed) {
       if (ph === 'skip') return set(v.id, 'skip', T('déjà petit budget'), f);
       if (ph === 'build') return set(v.id, 'run', T('construction') + draw, f, T('Construction : {v}', { v: v.name }));
       if (ph === 'opt') return set(v.id, 'run', T('amélioration') + draw, f, n ? T('Amélioration : {v} · passe {n}', { v: v.name, n }) : T('Amélioration : {v} (échanges carte à carte tant que la note monte)', { v: v.name }));
-      if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? T('Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name, n }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)', { v: v.name }));
+      if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? TN(n, 'Essais en partie : {v} · {n} série de 1 500 parties', 'Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)', { v: v.name }));
     } });
     if (!res || !alive()) return quit();
     for (const r of res) set(r.v.id, 'done', T('note {n} · {p}', { n: r.sc.total, p: fmt(r.prof.cents, cur) }) + (r.sim ? ' · ' + T('{p} % de mains gardées', { p: r.sim.keep7 }) : '') + (r.kept + r.fixed ? ' · ' + TN(r.kept + r.fixed, '{n} échange', '{n} échanges') : '') + (r.draws > 1 ? ' · ' + TN(r.draws, '{n} tirage', '{n} tirages') : ''));
@@ -31314,7 +31344,7 @@ async function dsimRun(X, n = 1000, step) {
 }
 const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort(), ...((X.wiz && X.wiz.th) || []), ...((X.wiz && X.wiz.mech) || [])].join('|');      // thèmes et mécaniques choisis : le plan (moteur, plan non joué) en dépend
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
-const dsimPct = v => T('{n} %', { n: Number(v).toLocaleString(LOC()) });      // « 74 % » en français, « 74% » en anglais (dictionnaires)
+const dsimPct = v => pct(v);      // « 74 % » en français, « 74% » en anglais (dictionnaires)
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
 function dsimHtml(r, prog, o = {}) {
   // lu d'un coup d'œil : une phrase, 4 chiffres clés (mains, commandant, adversaire éliminé, moteur qui tient), les conseils ; tous les chiffres et la méthode repliés
@@ -31332,7 +31362,7 @@ function dsimHtml(r, prog, o = {}) {
     ${r.cmv ? row(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps (tour {t} ou avant)', { t: r.cmv }), T('tour {t} en moyenne', { t: dsimNum(r.cmdT) }) + (r.cmdNever ? ' · ' + T('jamais avant le tour 9 : {p}', { p: dsimPct(r.cmdNever) }) : '')) : ''}
     ${row(r.miss3 <= 20, dsimPct(r.miss3), T('des parties sans terrain à poser avant le tour 4'), T('{p} avant le tour 5', { p: dsimPct(r.miss4) }))}
     ${row(r.screw4 <= 10, dsimPct(r.screw4), T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
-    ${row(r.eff >= 70, dsimPct(r.eff), T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}
+    ${row(r.eff >= 70, dsimPct(r.eff), T('du mana disponible utilisé (tours 1 à 6)'), TN(Math.round(r.cast6 * 10) / 10, '{n} sort lancé en moyenne', '{n} sorts lancés en moyenne'))}
     ${r.kill10 != null && !r.blind ? row(r.kill10 >= 20, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
     ${r.eng != null ? row(r.eng >= 50, dsimPct(r.eng), T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
     ${r.engKeep != null && r.eng ? row(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage'), r.wipeSurv != null ? T('moteur encore là au tour qui suit le balayage : {p}', { p: dsimPct(r.wipeSurv) }) : '') : ''}
@@ -31773,7 +31803,7 @@ function trPanelHtml() {
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
-    ${!bv && list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="trmore">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TR_PAGE, list.length - shown.length)), left: nf0(list.length - shown.length) })}</button>` : ''}
+    ${bv ? '' : moreBtn(shown.length, list.length, TR_PAGE, 'data-act="trmore"')}
     ${!want && held.length ? `<details class="tr-held"><summary>${T('Gardées à la main ({n})', { n: nf0(held.length) })}</summary><div class="coll-list">${held.map(x => `<div class="crow tr-row" data-k="${esc(x.k)}"><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta"><span class="tag">${T('{n} en trop', { n: x.q })}</span></span></span><span class="tr-q"><button class="link-btn" type="button" data-act="tunkeep">${T('Remettre')}</button></span></div>`).join('')}</div></details>` : ''}`;
 }
 /** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier) ; sur la ligne des sous-onglets (.tr-top). */
@@ -31968,7 +31998,7 @@ function openPublicTrade(sh, preview, id, fr) {
       const all = pubAll(), list = filterItems(all, P.f), shown = list.slice(0, P.shown);
       if (typeof srchxNeed === 'function') srchxNeed(P.f, all, () => { if (P.el === wrap) { pubFb.paint(); paint(true); } });      // rareté : lue au premier filtre dessus (search.js)
       if (!bndPub(P, wrap, all, list)) imgKeep($('.pub-main', wrap), `${shown.length ? `<div class="coll-list">${shown.map(pubRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : P.sub === 'want' ? 'Aucune carte recherchée pour l\'instant.' : 'Aucune carte à échanger pour l\'instant.')}</p>`}
-        ${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TR_PAGE, list.length - shown.length)), left: nf0(list.length - shown.length) })}</button>` : ''}
+        ${moreBtn(shown.length, list.length, TR_PAGE, 'data-act="more"')}
         ${shown.some(it => trPrice(it.k)) ? pubNote() : ''}`);
     }
     if (sc) sc.scrollTop = pos;
@@ -32659,7 +32689,7 @@ function homePaint() {
   } else { HM.v = null; val.textContent = T('Commencer'); cnt.textContent = T('Ajoute tes cartes'); dl.hidden = true; }
   const start = !n && !sv;                                                               // collection vide : « Pour commencer » à la place de la ligne sous l'orbe (et de la courbe sur ordinateur)
   $('#hmStart').hidden = !start; $('#collSub').hidden = start; $('.hm-dk-val', home).hidden = start;
-  orb.setAttribute('aria-label', n ? T('Ma collection : {v}, {n} cartes', { v: val.textContent, n: nf0(n) }) : T('Ma collection : ajoute tes cartes'));
+  orb.setAttribute('aria-label', n ? TN(n, 'Ma collection : {v}, {n} carte', 'Ma collection : {v}, {n} cartes', { v: val.textContent }) : T('Ma collection : ajoute tes cartes'));
   widgetSoon();                                                                          // widget Android : mêmes chiffres (widget.js)
   homeLands();
   // Échange
@@ -33287,7 +33317,7 @@ async function amCollSheet(f) {
       if (typeof srchxNeed === 'function') srchxNeed(flt, all, again);
       box.innerHTML = `${filterActive(flt) ? `<p class="hint coll-count">${TN(list.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}</p>` : ''}
         ${sh.length ? `<div class="coll-list">${sh.map(amCollRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : 'Collection vide pour l\'instant.')}</p>`}
-        ${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-am="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(AM_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`;
+        ${moreBtn(sh.length, list.length, AM_PAGE, 'data-am="more"')}`;
       const need = sh.filter(x => !x.im).map(x => ({ key: x.k, name: x.n }));      // images des cartes affichées seulement
       if (need.length && dmRun < 3 && dmMissing(need).length) { dmRun++; dmFetch(need).then(got => { if (got && api.wrap.isConnected) paint(); }, () => {}); }
     };
@@ -34514,7 +34544,7 @@ function setvPaint() {
     + (list.length ? '' : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`);
   body.innerHTML = shown.map(setvTile).join('');
   const left = list.length - shown.length;
-  more.hidden = left <= 0; if (left > 0) more.textContent = T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(SETV_PAGE, left)), b: nf0(left) });
+  more.hidden = left <= 0; if (left > 0) more.textContent = moreLabel(left, SETV_PAGE);
 }
 /** Liste de souhaits ou collection changée ailleurs (carte en grand…) : étoiles et pastilles repeintes. */
 function setvSoon() { if (SETV.el && SETV.st === 'done') { clearTimeout(SETV.t); SETV.t = setTimeout(setvPaint, 60); } }
@@ -34795,7 +34825,7 @@ function msGrid(code, list, base, tot) {
 function msProgHtml(p, big) {
   const pc = msPct(p.own, p.n);
   return `<span class="ms-prog${big ? ' big' : ''}"><span class="track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.n}" aria-valuenow="${p.own}" aria-label="${esc(T('Progression'))}"><span class="fill${p.own && p.own === p.n ? ' full' : ''}" style="width:${p.n ? (100 * p.own) / p.n : 0}%"></span></span>
-    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pc} %</span></span>`;
+    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pct(pc)}</span></span>`;
 }
 /** Options qui changent ce qui compte (sous la progression ; touché : la feuille des options). */
 function msOptSum() {
@@ -34977,7 +35007,7 @@ function msSetRow(r) {
   const pc = msPct(r.own, r.tot), y = setDate(r.code).slice(0, 4);
   return `<button type="button" class="ms-srow" data-set="${esc(r.code)}" aria-pressed="${r.code === msCur()}">${setIcHtml(r.code) || '<i class="set-ic" aria-hidden="true"></i>'}
     <span class="ms-sn"><b>${esc(msSetName(r.code))}</b><small>${esc(r.code.toUpperCase())}${y ? ' · ' + y : ''}</small></span>
-    <span class="ms-sp"><span class="track"><span class="fill${r.tot && r.own >= r.tot ? ' full' : ''}" style="width:${r.tot ? Math.min(100, (100 * r.own) / r.tot) : 0}%"></span></span><small>${r.tot ? `${nf0(r.own)}/${nf0(r.tot)} · ${pc} %` : nf0(r.own)}</small></span></button>`;
+    <span class="ms-sp"><span class="track"><span class="fill${r.tot && r.own >= r.tot ? ' full' : ''}" style="width:${r.tot ? Math.min(100, (100 * r.own) / r.tot) : 0}%"></span></span><small>${r.tot ? `${nf0(r.own)}/${nf0(r.tot)} · ${pct(pc)}` : nf0(r.own)}</small></span></button>`;
 }
 /** Feuille « Choisir une édition » : extensions de la collection (de la plus complète à la moins complète), recherche ; les autres extensions apparaissent dans la recherche. */
 function msPickSheet() {
@@ -35704,7 +35734,7 @@ async function mobTake(d) {
   await flush();
   MOB.got = Math.max(0, MOB.got + ok.reduce((a, x) => a + x.q, 0)); if (add.length) MOB.last = add[add.length - 1].n;      // corrections du téléphone comprises
   const fix = new Set(sub.map(x => x.k)), news = add.filter(x => !fix.has(x.k));      // une correction (édition, langue) n'est pas une carte reçue
-  mobPaint(); if (news.length) toast(news.length > 1 ? T('{n} cartes reçues du téléphone', { n: news.reduce((a, x) => a + x.q, 0) }) : T('{name} reçue du téléphone', { name: news[0].n }));
+  mobPaint(); if (news.length) toast(news.length > 1 ? TN(news.reduce((a, x) => a + x.q, 0), '{n} carte reçue du téléphone', '{n} cartes reçues du téléphone') : T('{name} reçue du téléphone', { name: news[0].n }));
   if (D.user && D.cloud.scanTake) D.cloud.scanTake(D.user.uid, fresh).catch(() => {});      // les mêmes objets : arrayRemove les retrouve
 }
 /** Correction venue du téléphone (« − », retrait, autre langue, autre édition) : q exemplaires de la carte (langue l, édition e si le téléphone la donne)
@@ -37207,7 +37237,7 @@ const meRow = (me, title, value, warn, id) => `<button type="button" class="me-r
 /** « Badges » : paliers obtenus sur le total, en gros (chaque palier compte pour un badge). */
 function meBadgesRow() {
   let c; try { c = prgCount(); } catch (e) { return ''; }
-  return `<button type="button" class="me-row me-bdg-row" data-me="niveau"><span class="me-t">${T('Badges')}</span><span class="me-v me-bdg" aria-label="${esc(T('{n} badges obtenus sur {t}', { n: nf0(c.got), t: nf0(c.all) }))}"><b>${nf0(c.got)}</b><span aria-hidden="true">/ ${nf0(c.all)}</span></span>${meChev}</button>`;
+  return `<button type="button" class="me-row me-bdg-row" data-me="niveau"><span class="me-t">${T('Badges')}</span><span class="me-v me-bdg" aria-label="${esc(TN(c.got, '{n} badge obtenu sur {t}', '{n} badges obtenus sur {t}', { t: nf0(c.all) }))}"><b>${nf0(c.got)}</b><span aria-hidden="true">/ ${nf0(c.all)}</span></span>${meChev}</button>`;
 }
 /** Ce qui change l'affichage de la fiche : elle n'est repeinte que si ceci change (une synchro ne doit pas fermer la liste des langues qu'on parcourt). */
 function meSigNow() {
@@ -37696,7 +37726,7 @@ function opnStatsHtml(rows) {
   const top = st.top.slice(0, 10).map(i => `<div class="crow ro"><span class="thumb" style="--h:${hash32(i.k) % 360}">${esc((i.dn.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(i.lot, mkCur()))}</b>${i.q > 1 ? `<small>${esc(fmt(i.up, mkCur()))} × ${nf0(i.q)}</small>` : ''}</span></div>`).join('');
   return `<div class="opn-main"><div class="cs-tiles opn-st3"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>
     ${st.unknown ? `<p class="hint">${T('Stats sur {a} cartes lues ; {b} sans infos pour l\'instant.', { a: nf0(st.known), b: nf0(st.unknown) })}</p>` : ''}
-    <h3 class="cs-h">${T('Courbe de mana')} <small>${T('{n} sorts', { n: nf0(st.spells) })}</small></h3>${curveBars(st.curve, false)}
+    <h3 class="cs-h">${T('Courbe de mana')} <small>${TN(st.spells, '{n} sort', '{n} sorts')}</small></h3>${curveBars(st.curve, false)}
     <h3 class="cs-h">${T('Couleurs')} <small>${T('sorts')}</small></h3>${barsHtml(colorRows)}
     <h3 class="cs-h">${T('Familles')} <small>${T('exemplaires')}</small></h3>${barsHtml(TYPE_ORDER.map(t => [esc(T(t)), st.types[t], 'k-t']))}
     ${top ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${top}</div>` : ''}</div>`;
@@ -38197,9 +38227,9 @@ function trocBal(get, give) {
 function trocBalHtml(get, give, any) {
   const b = trocBal(get, give), x = b.base ? 50 + Math.max(-1, Math.min(1, b.d / b.base)) * 46 : 50;
   const txt = !b.base ? (any ? T('Pas encore de prix pour comparer') : T('Ajoutez des cartes de chaque côté')) : b.even ? T('Équilibré') : b.d > 0 ? T('Tu reçois {v} de plus', { v: fmt(b.d, trcCur()) }) : T('Tu donnes {v} de plus', { v: fmt(-b.d, trcCur()) });
-  return `<div class="trc-bal" data-lv="${b.lv}" role="img" aria-label="${esc(txt + (b.base && !b.even ? ' (' + b.pct + ' %)' : ''))}">
+  return `<div class="trc-bal" data-lv="${b.lv}" role="img" aria-label="${esc(txt + (b.base && !b.even ? ' (' + pct(b.pct) + ')' : ''))}">
     <div class="trc-meter" aria-hidden="true"><span>${T('tu donnes plus')}</span><i class="trc-track"><i class="trc-mark" style="--x:${x.toFixed(1)}%"></i></i><span>${T('tu reçois plus')}</span></div>
-    <div class="trc-bt"><b>${esc(txt)}</b>${b.base && !b.even ? `<em>${b.pct} %</em>` : ''}</div></div>`;
+    <div class="trc-bt"><b>${esc(txt)}</b>${b.base && !b.even ? `<em>${pct(b.pct)}</em>` : ''}</div></div>`;
 }
 /** Liste courte (récapitulatif, fin, historique) : une ligne par carte et par ligne (langue|édition|foil), demandée ou non ; sous le nom : drapeau, édition, « ✦ Foil ». */
 function trocMiniList(list) {
@@ -38331,7 +38361,7 @@ function trocPicker({ title, sub, tabs, rows, onTap, kind }) {
       if (!sheets.includes(api)) return;
       const all = rows(tab), nq = trocNorm(q.trim()), list = nq ? all.filter(it => trocNorm(it.n).includes(nq) || trocNorm(it.dn).includes(nq) || (it.fn && trocNorm(it.fn).includes(nq))) : all, sh = list.slice(0, shown);
       const y = api.body.scrollTop;
-      imgKeep(box, sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-pk="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TRC_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`
+      imgKeep(box, sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${moreBtn(sh.length, list.length, TRC_PAGE, 'data-pk="more"')}`
         : `<p class="hint listempty">${all.length ? T('Aucune carte ne correspond.') : tabs.find(t => t.v === tab).empty}</p>`);
       api.body.scrollTop = y;
     };
@@ -39622,7 +39652,7 @@ function puHomePaint() {
   const cur = PU.el ? partieLoad() : puCur(), live = cur && !cur.fin, x = $('.hm-pu-drop', box);
   x.hidden = !live; box.classList.toggle('live', !!live);
   if (live) { const l = cur.debut ? T('Abandonner la partie') : T('Supprimer la partie'); x.setAttribute('aria-label', l); x.title = l; }
-  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? T('En cours · tour {t} · {n} joueurs', { t: cur.tour, n: cur.places.length }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Commander, Standard ou libre');
+  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? TN(cur.places.length, 'En cours · tour {t} · {n} joueur', 'En cours · tour {t} · {n} joueurs', { t: cur.tour }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Commander, Standard ou libre');
   $('.hm-pu-go', box).textContent = live ? T('Reprendre') : T('Nouvelle partie');
 }
 /** Bouton principal : reprend la partie en cours, sinon en prépare une nouvelle (dans le format de la dernière fois, ou jeu : lien ?compteur=<format> d'une annonce du bot Discord). */
@@ -40141,7 +40171,7 @@ function puRename(pos, done, face) {
 function puLastTxt(st, e) {
   if (!e) return ''; const nm = puName(st, e.p), sg = n => (n > 0 ? '+' : '−') + Math.abs(n);
   if (e.a === 'v') return T('{name} : {n} PV', { name: nm, n: sg(e.n) });
-  if (e.a === 'b') return T('{name} : {n} blessures de commandant', { name: nm, n: sg(e.n) });
+  if (e.a === 'b') return TN(Math.abs(e.n), '{name} : {n} blessure de commandant', '{name} : {n} blessures de commandant', { name: nm, n: sg(e.n) });
   if (e.a === 'c') { const c = PU_CNT.find(([k]) => k === e.k); return c ? T('{name} : {what} {n}', { name: nm, what: T(c[1]), n: sg(e.n) }) : ''; }
   if (e.a === 'n') return T('Tour suivant');
   if (e.a === 'm' || e.a === 'i') return (e.a === 'm' ? T('Monarque') : T('Initiative')) + (e.p ? ' : ' + nm : '');
@@ -40840,12 +40870,12 @@ function puStatsJeuHtml(items, jf) {
 /** Statistiques (core : partieStats) : chiffres clés, mes decks, adversaires, commandants vus à ma table. */
 function puStatsHtml(s) {
   if (!s.n) return `<p class="hint">${T('Tes statistiques arrivent avec tes parties : celles où ta place est connue (créées ici, table rejointe, ou « c\'était moi » sur un résultat).')}</p>`;
-  const pc = (a, b) => (b ? Math.round((a / b) * 100) : 0) + ' %', bar = (a, b) => `<span class="pu-sbar" aria-hidden="true"><i style="width:${b ? Math.round((a / b) * 100) : 0}%"></i></span>`;
+  const pc = (a, b) => pct(b ? Math.round((a / b) * 100) : 0), bar = (a, b) => `<span class="pu-sbar" aria-hidden="true"><i style="width:${b ? Math.round((a / b) * 100) : 0}%"></i></span>`;
   const sec = (h, sub, rows) => (rows ? `<p class="pu-h">${h}</p>${sub ? `<p class="hint pu-st-sub">${sub}</p>` : ''}<ul class="pu-st">${rows}</ul>` : '');
   return `<div class="pu-kpis">
       <div><b>${s.n}</b><small>${TN(s.n, 'partie', 'parties')}</small></div>
       <div><b>${pc(s.wins, s.n)}</b><small>${TN(s.wins, '{n} victoire', '{n} victoires')}</small></div>
-      <div><b>${esc(puDur(s.duree))}</b><small>${T('{n} tours en moyenne', { n: String(s.tours).replace('.', I18N.lang === 'en' ? '.' : ',') })}</small></div>
+      <div><b>${esc(puDur(s.duree))}</b><small>${TN(s.tours, '{n} tour en moyenne', '{n} tours en moyenne')}</small></div>
       <div><b>${s.serie}</b><small>${T('d\'affilée (record {n})', { n: s.best })}</small></div></div>
     ${sec(T('Mes decks'), '', s.decks.slice(0, 15).map(d => `<li><span class="pu-who"><b>${esc(d.nom || d.commandant)}</b>${d.nom && d.commandant && d.commandant !== d.nom ? `<small>${esc(d.commandant)}</small>` : ''}</span><span class="pu-sv"><b>${pc(d.wins, d.n)}</b><small>${esc(T('{w} sur {n}', { w: d.wins, n: d.n }))}</small></span>${bar(d.wins, d.n)}</li>`).join(''))}
     ${sec(T('Adversaires'), T('Tes victoires – les siennes'), s.adv.slice(0, 15).map(a => `<li><span class="pu-who"><b>${esc(a.nom)}</b><small>${TN(a.n, '{n} partie ensemble', '{n} parties ensemble')}</small></span><span class="pu-sv"><b>${a.mine} – ${a.theirs}</b></span>${bar(a.mine, a.mine + a.theirs)}</li>`).join(''))}
@@ -41647,7 +41677,7 @@ function dlyTick() {
     const v = DY.v, c = dlyClock(v), ms = v.stepMs || 12000, st = Math.min(v.steps, Math.floor(c / ms) + 1);
     const t = $('.dly-time', el), p = $('.dly-pts', el), bar = $('.dly-bar i', el), nx = $('.dly-in', el);
     if (t) t.textContent = dlyMmss(c);
-    if (p) p.textContent = T('≈ {n} points', { n: nf0(dlyPts(c)) });
+    if (p) p.textContent = TN(dlyPts(c), '≈ {n} point', '≈ {n} points');
     if (bar) bar.style.width = (st >= v.steps ? Math.min(100, (c - (v.steps - 1) * ms) / ms * 100) : (c % ms) / ms * 100).toFixed(1) + '%';
     if (nx) nx.textContent = st < v.steps ? T('dans {n} s', { n: Math.max(1, Math.ceil((st * ms - c) / 1000)) }) : '';
     if (st > v.step && !DY.busy && !DY.refT) DY.refT = setTimeout(dlyRefresh, 80);

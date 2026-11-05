@@ -288,11 +288,11 @@ await p.waitForTimeout(500); await p.evaluate(() => { SC.items = new Map(); SC.r
 const shownIds = () => p.$$eval('.scan .sc-list .sc-item[data-id]', r => r.map(x => x.dataset.id));
 let ids = await shownIds();
 assert.deepEqual(ids, ['c24', 'c23', 'c22', 'c21', 'c20', 'c19', 'c18', 'c17', 'c16', 'c15', 'c3'], 'les 10 dernières, plus la dernière touchée (+1 sur une carte plus ancienne)');
-assert.match(await txt(p, '.scan .sc-more'), /Afficher plus \(14 autres\)/);
+assert.match(await txt(p, '.scan .sc-more'), /Afficher 14 de plus \(14 autres\)/);
 assert.match(await txt(p, '.scan .sc-count'), /25 cartes/, 'le total compte toutes les cartes');
 await p.click('.scan .sc-more'); ids = await shownIds();
 assert.equal(ids.length, 25, 'puis 20 de plus : toutes ici (25)'); assert.equal(await p.$('.scan .sc-more'), null);
-ok('longue session : 10 cartes montrées, « Afficher plus (14 autres) » ajoute la suite, total sur toutes');
+ok('longue session : 10 cartes montrées, « Afficher 14 de plus (14 autres) » ajoute la suite, total sur toutes');
 await scanClose(p);
 
 assert.deepEqual(errs, [], 'erreurs page');

@@ -410,7 +410,7 @@ function bdSumHtml() {
   const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
   return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${valT}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
-    ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
+    ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : TN(ck.issues.length - 3, 'Voir l\'autre alerte', 'Voir les {n} autres alertes')}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
 /** Deck Commander : carte pas légale en Commander (interdite…) : cardLegal (fiche Scryfall, possédée ou non, sinon base du coach) ; inconnue : non. */
@@ -418,17 +418,19 @@ const bdIllegal = k => BD.fmt === 'commander' && !BASIC_NAMES.has(k) && cardLega
 /** Vérification du deck (core.js › dkCheck) : légalité (cardLegal) et, Commander, règles du bracket visé dans les réglages du coach (pas le bracket « estimé » de l'analyse),
  *  avec les cartes et combos que voit le coach (deckwiz.js › dwBrFacts) : le même verdict que son audit. */
 const bdCheck = () => dkCheck(BD.fmt, bdData(), bdMeta, BD.fmt === 'commander' ? { legal: k => cardLegal(k, 'commander'), br: BD.wiz && !BD.wiz.ba ? BD.wiz.br : 0, facts: BD.wiz && !BD.wiz.ba && typeof dwBrFacts === 'function' ? dwBrFacts(dwProfile()) : null } : undefined);
+/** « 1 engagée dans « A » » / « 2 engagées ailleurs » : exemplaires possédés mais réservés par d'autres decks montés (o : ownFor). */
+const bdHeldTxt = o => o.decks.length === 1 && o.decks[0].n ? TN(o.held, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: o.held, deck: o.decks[0].n }) : TN(o.held, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: o.held });
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
-  const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
+  const o = ownFor(k, BD.id), own = o.own, free = o.free, out = [];      // règle unique (extras.js › ownFor) : possédée = libre pour ce deck ; à acheter = q − free, comme le coach et le viewer
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
   if (bdIllegal(k)) out.push(`<span class="tag bad">${T('Pas légale en Commander')}</span>`);      // Scryfall (legalities), comme l'alerte du résumé (core.js › dkCheck)
   if (isGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (base du coach, sinon Scryfall, sinon EDHREC : même sans EDHREC)
-  const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
-  if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
+  const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - free), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu ; exemplaires engagés ailleurs : à acheter
+  if (ctx === 'deck') out.push(free >= q ? `<span class="tag good">${T('Possédée')}</span>` : free > 0 ? `<span class="tag warn">${TN(free, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: free, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
-  if (own && eg) { const ds = engDecksOf(XS.eng, k).filter(d => d.id !== BD.id); out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${ds.length === 1 && ds[0].n ? esc(TN(eg, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: eg, deck: ds[0].n })) : TN(eg, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: eg })}</span>`); }
+  if (o.held) out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${esc(bdHeldTxt(o))}</span>`);      // possédée mais engagée : toujours dit
   return out.join('');
 }
 function bdRow(k, name, q, tgt, ctx, label) {
@@ -450,8 +452,8 @@ function bdToolsHtml() {
 }
 /** Cartes de l'éditeur au format du deck viewer (prix de ce qui manque, possession), pour ses vues. */
 function bdViewItems() {
-  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = BASIC_NAMES.has(k) ? 0 : dkPx(k);
-    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
+  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, o = BASIC_NAMES.has(k) ? null : ownFor(k, BD.id), ow = o ? o.free : 0, eu = BASIC_NAMES.has(k) ? 0 : dkPx(k);
+    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, own: o ? o.own : 0, held: o && o.held ? bdHeldTxt(o) : '', mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
   return [...[...BD.main.values()].map(c => one(c, 'main')), ...[...BD.side.values()].map(c => one(c, 'side'))];
 }
 function bdVisualHtml() {
@@ -478,7 +480,7 @@ function bdCompHtml() {
 /** Carte touchée dans une vue en images : en grand, avec « Retirer du deck » (et les autres cartes du deck en glissant). */
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
-    extra: it.ow ? TN(it.ow, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.ow }) : T('Pas dans ta collection'),
+    extra: (it.own ? TN(it.own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.own }) : T('Pas dans ta collection')) + (it.held ? ' · ' + it.held : ''),      // possédés, et ceux engagés dans un autre deck monté
     act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } } }));
   if (list[i]) openCardViewer(list, i);
 }
@@ -517,7 +519,7 @@ function bdCollHtml() {
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
   if (!items.length) h += `<p class="hint">${words.length ? T('Aucune carte de ta collection ne correspond.') : BD.tgt === 'cmdr' ? T('Aucun commandant possible dans ta collection (ou cartes pas encore lues).') : ''}</p>`;
-  if (items.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, items.length - shown.length), rest: nf0(items.length - shown.length) })}</button>`;
+  h += moreBtn(shown.length, items.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
   return h;
 }
 /** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
@@ -529,7 +531,7 @@ function bdAddHtml() {
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées »
   if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + (own.length > 1 && !BD.sel && BD.tgt !== 'cmdr' && !bdLpKnown() ? `<p class="hint bd-lp-hint">${T('Appui long sur une carte : en choisir plusieurs.')}</p>` : '') + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');      // astuce : jusqu'au premier appui long (bdadd.js)
-  if (own.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, own.length - shown.length), rest: nf0(own.length - shown.length) })}</button>`;
+  h += moreBtn(shown.length, own.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
   if (q.length >= 2 && !flt) {      // toutes les cartes Magic : sans filtre seulement (rangement, couleur… ne valent que pour la collection)
     if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
     else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
@@ -608,8 +610,8 @@ function bdClick(e) {
     if (bdChange(tgt, k, row.dataset.n, d)) {
       haptic('tap');
       if (d > 0 && BD.tab === 'coll' && tgt !== 'cmdr' && !BASIC_NAMES.has(k)) {      // carte possédée, mais tous ses exemplaires sont réservés par un autre deck monté : le dire tout de suite
-        const own = collQty(k), q = ((BD[tgt] && BD[tgt].get(k)) || {}).qty || 0, free = engFree(own, XS.eng, k, BD.id), ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id);
-        if (own > 0 && q > free && ds.length) toast(T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: bdLabel(k, row.dataset.n), deck: ds[0].n || T('un autre deck') }));
+        const o = ownFor(k, BD.id), q = ((BD[tgt] && BD[tgt].get(k)) || {}).qty || 0, ds = o.decks;
+        if (o.own > 0 && q > o.free && ds.length) toast(T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: bdLabel(k, row.dataset.n), deck: ds[0].n || T('un autre deck') }));
       }
     }
     return;
