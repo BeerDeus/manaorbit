@@ -1140,6 +1140,7 @@ function dkCheck(fmt, d, metaOf) {
     const ci = new Set(); let known = cmdr.length > 0;
     for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && typeof m.ci === 'string') for (const x of m.ci) ci.add(x); else known = false; }
     if (known) for (const c of main) { const m = metaOf(c.key); if (m && typeof m.ci === 'string' && [...m.ci].some(x => !ci.has(x))) issues.push({ lv: 'warn', t: T('{name} sort de l\'identité de couleur du commandant.', { name: c.name }) }); }
+    if (metaOf) for (const c of [...cmdr, ...main]) { if (BASIC_NAMES.has(c.key)) continue; const m = metaOf(c.key); if (m && typeof m.lg === 'string' && m.lg && !m.lg.includes('c')) issues.push({ lv: 'bad', t: T('{name} n\'est pas légale en Commander.', { name: c.name }) }); }      // lg : formats où Scryfall la dit jouable (lgOf) ; inconnus : rien
   } else {
     if (n < f.size) issues.push({ lv: 'warn', t: TN(f.size - n, 'Il manque {n} carte ({size} minimum).', 'Il manque {n} cartes ({size} minimum).', { n: f.size - n, size: f.size }) });
     if (ns > f.side) issues.push({ lv: 'bad', t: T('Réserve de {n} cartes ({max} au maximum).', { n: ns, max: f.side }) });

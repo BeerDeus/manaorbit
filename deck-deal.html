@@ -1845,6 +1845,42 @@ body.nav-on.apl-on .upd-pop,body.nav-on.apl-on .mob-bar{bottom:calc(var(--nav-h)
 :root[data-theme="dark"] .bdg-svg.tu{--bq-f:#261b3d;--bq-l:#d9c2ff;--bq-m:#9a66ea;--bq-d:#4f2799;--bq-w:#f4ecff;--bq-i:#f0e6ff;--bq-p:#3a2a5c;--bq-q:#5a4290;--bq-a:#cfa8ff}
 :root[data-theme="dark"] .bdg-svg.t-1{--bq-f:var(--surface,#131a2b);--bq-l:#3a4458;--bq-m:#2c3446;--bq-d:#3d4760;--bq-w:#4a5570;--bq-i:#6b7691;--bq-p:#222a3b;--bq-q:#2e3749;--bq-a:#59647e}
 
+/* ── Éditeur de deck, onglet « Ajouter » : rangement, ajout groupé, sélection par appui long (bdadd.js) ─────────────── */
+.bd-plc{min-height:48px}
+.bd-ctl .fbar{margin-top:0}
+.bd-bulk{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
+.bd-bulk-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.bd-bulk-t b{font-size:14.5px;color:var(--ink)}
+.bd-bulk-t small{font-size:12.5px;line-height:1.35;color:var(--ink-2)}
+.bd-bulk .btn{gap:8px}
+.bd-bulk .btn .i{width:18px;height:18px}
+.bd-lp-hint{margin:-2px 0 2px;font-size:12.5px}
+/* lignes à ajouter : l'appui long ne sélectionne pas de texte et n'ouvre pas le menu de l'image */
+.bd-list .bd-row{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.bd-list .bd-row img{-webkit-user-drag:none}
+/* mode sélection : case à cocher à gauche, toute la ligne se touche */
+.crow.bd-pick{grid-template-columns:26px 40px minmax(0,1fr);cursor:pointer;transition:background .15s,border-color .15s}
+.crow.bd-pick .thumb{cursor:pointer}
+.bd-ck{width:24px;height:24px;border-radius:8px;border:2px solid var(--ink-3);display:grid;place-items:center;color:transparent;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.bd-ck .i{width:16px;height:16px;stroke-width:3}
+.crow.bd-pick.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.crow.bd-pick.on .bd-ck{background:var(--accent);border-color:var(--accent);color:#fff}
+.crow.bd-pick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:360px){.crow.bd-pick{grid-template-columns:24px 36px minmax(0,1fr)}}
+/* barre du bas du mode sélection (dans l'écran, sous la liste qui défile) */
+.bd-selbar{flex:none;display:flex;align-items:center;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--bar-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 -10px 24px -20px rgba(16,21,43,.5)}
+.bd-selbar[hidden]{display:none}
+.bd-sel-n{flex:1;min-width:0;font-size:13.5px;font-weight:650;line-height:1.2;color:var(--ink-2);overflow-wrap:anywhere}      /* texte long (langue, nombre) : sur 2 lignes plutôt que coupé */
+.bd-selbar .btn{flex:none;height:46px;padding:0 15px;font-size:15px}
+@media (prefers-reduced-motion:no-preference){.bd-selbar:not([hidden]){animation:bdSelIn .22s cubic-bezier(.2,.85,.25,1)}}
+@keyframes bdSelIn{from{transform:translateY(100%);opacity:0}to{transform:none;opacity:1}}
+/* feuille de confirmation d'un ajout groupé */
+.bd-bk-note{margin:10px 0 0;padding:10px 12px;border-radius:var(--r-md);background:var(--warn-soft);color:var(--warn);font-size:13px;line-height:1.4}
+.bd-bk-note.bad{background:var(--bad-soft);color:var(--bad)}
+.bd-bk-sheet .hint{margin-top:10px}
+/* pastille « Pas légale en Commander » */
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+
 /* ── binder.css : classeur d'échange visuel (binder.js) ─────────────────────────────────────────────────────────────
    Couverture de la teinte choisie, la même en thème clair et sombre (c'est un objet : seul son contour suit le thème), anneaux, pages sombres
    (« Sable » : page claire), pochettes en plastique avec reflet ; pastilles sombres lisibles sur toutes les cartes. Seuls transform et opacity
@@ -7981,8 +8017,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '63d66d5f';
-const I18N_FILES = {"de":"i18n/de.cfa72a73.js","en":"i18n/en.a1c2bbb8.js","es":"i18n/es.452f29f1.js","it":"i18n/it.ed045cc0.js","pt":"i18n/pt.0965e3b5.js"};
+const DD_BUILD = '77148bd8';
+const I18N_FILES = {"de":"i18n/de.856da484.js","en":"i18n/en.a3d2ec93.js","es":"i18n/es.2aff4691.js","it":"i18n/it.1800cf28.js","pt":"i18n/pt.c10fc899.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9303,6 +9339,7 @@ function dkCheck(fmt, d, metaOf) {
     const ci = new Set(); let known = cmdr.length > 0;
     for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && typeof m.ci === 'string') for (const x of m.ci) ci.add(x); else known = false; }
     if (known) for (const c of main) { const m = metaOf(c.key); if (m && typeof m.ci === 'string' && [...m.ci].some(x => !ci.has(x))) issues.push({ lv: 'warn', t: T('{name} sort de l\'identité de couleur du commandant.', { name: c.name }) }); }
+    if (metaOf) for (const c of [...cmdr, ...main]) { if (BASIC_NAMES.has(c.key)) continue; const m = metaOf(c.key); if (m && typeof m.lg === 'string' && m.lg && !m.lg.includes('c')) issues.push({ lv: 'bad', t: T('{name} n\'est pas légale en Commander.', { name: c.name }) }); }      // lg : formats où Scryfall la dit jouable (lgOf) ; inconnus : rien
   } else {
     if (n < f.size) issues.push({ lv: 'warn', t: TN(f.size - n, 'Il manque {n} carte ({size} minimum).', 'Il manque {n} cartes ({size} minimum).', { n: f.size - n, size: f.size }) });
     if (ns > f.side) issues.push({ lv: 'bad', t: T('Réserve de {n} cartes ({max} au maximum).', { n: ns, max: f.side }) });
@@ -21937,7 +21974,10 @@ async function srchLgLoad() {
 }
 
 /** Barre des filtres repeinte (pastille, groupes, filtres actifs) : la collection ouverte seulement. */
-function srchSync() { if (COLL.el && COLL.fb && COLL.mode === 'coll') COLL.fb.paint(); }
+function srchSync() {
+  if (COLL.el && COLL.fb && COLL.mode === 'coll') COLL.fb.paint();
+  if (typeof BD !== 'undefined' && BD.el && BD.fb && BD.tab === 'coll') { BD.fb.paint(); bdList(); }      // mêmes filtres dans l'onglet « Ajouter » de l'éditeur de deck (bdadd.js)
+}
 
 /* ── Groupes de « Plus de filtres » ────────────────────────────────────────────────────────────── */
 /** Langues présentes dans la collection (ordre de la puce langue ; '' : non précisée, à la fin). */
@@ -27622,7 +27662,7 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
@@ -27653,9 +27693,10 @@ function openBuilder(o) {
       <div class="bd-sum" id="bdSum"></div>
       <div class="seg" id="bdSeg" role="tablist" aria-label="${T('Contenu')}"></div>
       <div class="bd-ctl" id="bdCtl"></div>
-      <div class="bd-list" id="bdList"></div></div>`}</div>`;
+      <div class="bd-list" id="bdList"></div></div>`}</div>
+    <div class="bd-selbar" id="bdSelBar" role="toolbar" aria-label="${T('Sélection')}" hidden></div>`;      // mode sélection de l'onglet « Ajouter » (bdadd.js)
   BD.el = wrap; const prevFocus = document.activeElement;
-  const onKey = e => { if (e.key === 'Escape' && !sheets.length && !imgView) { e.stopPropagation(); bdClose(); } };
+  const onKey = e => { if (e.key === 'Escape' && !sheets.length && !imgView) { e.stopPropagation(); if (BD.sel) bdSelEnd(); else bdClose(); } };      // mode sélection : Échap en sort d'abord
   wrap.__close = () => {
     if (BD.el !== wrap) return; BD.el = null; clearTimeout(BD.metaT); document.removeEventListener('keydown', onKey, true);
     wrap.classList.remove('on'); setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 240); releaseApp();
@@ -27670,9 +27711,10 @@ function openBuilder(o) {
   wrap.addEventListener('click', bdClick);
   wrap.addEventListener('input', e => {
     if (e.target.id === 'bdName') { BD.name = e.target.value; BD.dirty = true; bdHead(); }
-    else if (e.target.id === 'bdQ') { BD.q = e.target.value; BD.shown = BD_PAGE; bdList(); }
+    else if (e.target.id === 'bdQ') { BD.q = BD.f.q = e.target.value; BD.fsig = bdFSig(); BD.shown = BD_PAGE; bdList(); }      // tout de suite (la barre de filtres attend 120 ms : rien à refaire alors)
   });
   wrap.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'bdName') { e.preventDefault(); e.target.blur(); } });
+  bdLpBind(wrap);      // appui long : mode sélection (bdadd.js)
   document.body.appendChild(wrap); holdApp();
   bdTab(tab0); bdPaint(); bdMetaSoon();
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
@@ -27833,11 +27875,14 @@ function bdSumHtml() {
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
+/** Deck Commander : carte que Scryfall dit pas légale en Commander (interdite…) ; formats lus avec les infos de la carte (COLL.meta[k].lg), inconnus : non. */
+const bdIllegal = k => { if (BD.fmt !== 'commander' || BASIC_NAMES.has(k)) return false; const m = bdMeta(k); return !!m && typeof m.lg === 'string' && !!m.lg && !m.lg.includes('c'); };
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
   const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
+  if (bdIllegal(k)) out.push(`<span class="tag bad">${T('Pas légale en Commander')}</span>`);      // Scryfall (legalities), comme l'alerte du résumé (core.js › dkCheck)
   if (typeof dvGC === 'function' && dvGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (brackets Commander)
   const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
   if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
@@ -27848,6 +27893,7 @@ function bdTags(k, q, ctx) {
 function bdRow(k, name, q, tgt, ctx, label) {
   const x = COLL.map[k], m = bdMeta(k), l = x ? x.l : '', nm = label || bdLabel(k, name), hue = hash32(k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase());
   const img = m && m.im ? collImage(k, l, m.im, name).src : '', tags = bdTags(k, q, ctx);
+  if (ctx === 'coll' && BD.sel) return bdPickRow(k, name, nm, img, hue, letter, tags);      // mode sélection (bdadd.js) : case à cocher
   return `<div class="crow bd-row" data-k="${esc(k)}" data-n="${esc(name)}" data-t="${tgt}"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span>${tags ? `<span class="row-meta">${tags}</span>` : ''}</span>
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
@@ -27931,14 +27977,14 @@ function bdCollHtml() {
 /** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
  *  qui correspondent et que tu n'as pas (à acheter). Sans recherche : ta collection. */
 function bdAddHtml() {
-  const q = BD.q.trim(), words = normPart(q).split(' ').filter(Boolean), has = collCount() > 0;
-  let own = has ? bdIndex().filter(it => words.every(w => it.s.includes(w))) : [];
-  if (BD.tgt === 'cmdr') own = own.filter(it => (COLL.meta[it.k] || {}).cd);
+  const q = BD.q.trim(), words = normPart(q).split(' ').filter(Boolean), has = collCount() > 0, flt = filterActive({ ...BD.f, q: '' });      // flt : rangement ou filtre de la collection (bdadd.js)
+  const own = has ? bdOwn(words) : [];
   const shown = own.slice(0, BD.shown), mine = new Set(own.map(it => it.k));
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
-  if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
+  h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées »
+  if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + (own.length > 1 && !BD.sel && BD.tgt !== 'cmdr' && !bdLpKnown() ? `<p class="hint bd-lp-hint">${T('Appui long sur une carte : en choisir plusieurs.')}</p>` : '') + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');      // astuce : jusqu'au premier appui long (bdadd.js)
   if (own.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, own.length - shown.length), rest: nf0(own.length - shown.length) })}</button>`;
-  if (q.length >= 2) {
+  if (q.length >= 2 && !flt) {      // toutes les cartes Magic : sans filtre seulement (rangement, couleur… ne valent que pour la collection)
     if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
     else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
     else {
@@ -27947,7 +27993,7 @@ function bdAddHtml() {
       else if (!own.length) h += `<p class="hint">${T('Aucune carte de ce nom. Vérifie l\'orthographe (nom anglais).')}</p>`;
     }
   } else if (!has) h += `<div class="deck-empty">${T('Tape au moins 2 lettres du nom (anglais) : toutes les cartes Magic sont cherchables ici.')}</div>`;
-  else if (!own.length && words.length) h += `<p class="hint">${T('Aucune carte de ta collection ne correspond.')}</p>`;
+  else if (!own.length && (words.length || flt)) h += `<p class="hint">${T('Aucune carte de ta collection ne correspond.')}</p>`;
   return h;
 }
 function bdFindHtml() {
@@ -27979,7 +28025,7 @@ function bdPaint() {
 /** Changement d'onglet : contrôles (nom · cible + recherche) puis liste. */
 function bdTab(v) {
   const el = BD.el; if (!el) return;
-  BD.tab = v; BD.q = ''; BD.shown = BD_PAGE;
+  BD.tab = v; BD.q = BD.f.q = ''; BD.shown = BD_PAGE; BD.fb = null; if (v !== 'coll') { BD.sel = null; bdSelPaint(); }
   const ctl = $('#bdCtl', el); $('#bdSeg', el).setValue(v);
   const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
   if (v === 'deck') ctl.innerHTML = bdNameCtl();
@@ -27988,8 +28034,9 @@ function bdTab(v) {
     const opts = BD.fmt === 'commander' ? [{ v: 'main', label: T('Deck') }, { v: 'cmdr', label: T('Commandant') }] : [{ v: 'main', label: T('Deck') }, { v: 'side', label: T('Réserve') }];
     if (!opts.some(o => o.v === BD.tgt)) BD.tgt = 'main';
     ctl.innerHTML = `<div class="bd-add"><span>${T('Ajouter au')}</span><div class="seg" id="bdTgt" role="radiogroup" aria-label="${T('Ajouter au')}"></div>${scanB('icon-btn bd-scan-ic', '')}</div>
-      <div class="field-in"><label class="label" for="bdQ">${T('Chercher une carte')}</label><input type="text" id="bdQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${nmT('Nom français ou anglais', 'Nom en {lang} ou en anglais', 'Nom de la carte')}" enterkeyhint="search"></div>`;
-    mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; bdList(); });
+      <div id="bdPlc">${bdPlcHtml()}</div><div id="bdF"></div>`;      // rangement et filtres de la collection (bdadd.js)
+    mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; if (t === 'cmdr') { BD.sel = null; bdSelPaint(); } bdList(); });
+    bdFiltMount($('#bdF', ctl));
     if (!BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'coll' && BD.q.trim().length >= 2) bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'coll') bdList(); });      // catalogue de toutes les cartes : lu une fois, pour la 2e partie des résultats
     if (v === 'coll') { BD.idx = null; if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); }
   }
@@ -28007,6 +28054,7 @@ function bdViewItem(row) {
 
 /* ── Interactions ─────────────────────────────────────────────────────────────────────────────── */
 function bdClick(e) {
+  if (BD.sel) { const r = e.target.closest('#bdList .bd-pick'); if (r) { bdSelToggle(r.dataset.k, r.dataset.n); return; } }      // mode sélection : l'appui coche
   const st = e.target.closest('.qstep button[data-d]');
   if (st) {
     const row = st.closest('.bd-row'); if (!row) return;
@@ -28031,6 +28079,10 @@ function bdClick(e) {
   else if (act === 'issues') { BD.issuesOpen = !BD.issuesOpen; bdPaint(); }
   else if (act === 'more') { BD.shown += BD_PAGE; bdList(); }
   else if (act === 'scan') bdScan(b.dataset.tgt);
+  else if (act === 'bdplc') { haptic('tap'); bdPlcSheet(); }
+  else if (act === 'bulk') bdBulkListed();
+  else if (act === 'sel-add') bdSelAdd();
+  else if (act === 'sel-cancel') { haptic('tap'); bdSelEnd(); }
   else if (act === 'pick-cmdr') { BD.tgt = 'cmdr'; $('#bdSeg', BD.el).setValue('coll'); bdTab('coll'); haptic('tap'); }
 }
 
@@ -28061,6 +28113,247 @@ function bdSave() {
   const msg = (prev ? T('Deck mis à jour') : T('Deck créé') + (reserved && !ranged ? ' · ' + TN(reserved, '{n} carte réservée de ta collection', '{n} cartes réservées de ta collection') : ''))
     + (ranged ? ' · ' + TN(ranged, '{n} carte rangée dans « {place} »', '{n} cartes rangées dans « {place} »', { place }) : '');
   toast(nb && !prev ? msg + ' · ' + T('incomplet') : msg, { label: T('Ouvrir'), fn: () => loadDeck(id) });
+}
+
+
+/* ── bdadd.js : éditeur de deck, onglet « Ajouter » : rangement, filtres de la collection, ajout groupé, sélection par appui long ─────────────────────
+   Onglet « Ajouter » (builder.js › bdTab, bdAddHtml) : « Rangement » (un emplacement de la collection, places.js) et la barre de filtres de la collection
+   (filters.js › mountFilters, « Plus de filtres » et recherches enregistrées de search.js), sur un filtre à part (BD.f) : la collection garde les siens.
+   « Ajouter les N cartes listées » : toutes les cartes de la collection qui passent (pas seulement la page affichée). Appui long (≈ 450 ms) sur une ligne :
+   mode sélection (cases à cocher, l'appui court coche), barre en bas « Ajouter N cartes » / « Annuler ».
+   Règles d'un ajout groupé (bdBulkPlan), les mêmes que l'ajout à l'unité :
+   - Commander : un exemplaire par carte ; terrains de base jamais ajoutés (à doser dans l'onglet Deck) ; cartes déjà dans le deck (ou commandant) ignorées ;
+     hors de l'identité de couleur du commandant écartées (commandant choisi et ses couleurs lues ; carte aux couleurs inconnues : ajoutée) ;
+     pas légales en Commander (Scryfall, COLL.meta[k].lg) ajoutées mais signalées, comme dans l'éditeur (pastille, alerte du résumé).
+   - Standard : les exemplaires possédés (ceux du rangement et des filtres d'exemplaire choisis : langue, finition, extension… ; sélection : tous), 4 au plus
+     (terrains de base : sans limite ; Relentless Rats, Seven Dwarves… : leur limite), moins ceux déjà dans le deck et la réserve ; réserve : 15 au plus.
+   - Exemplaires réservés par un autre deck monté : ajoutés, avec le message de l'ajout à l'unité.
+   Plus de 10 exemplaires d'un coup : feuille de confirmation (pas de confirm() : il ne marche pas dans l'appli), puis message « N cartes ajoutées » avec « Annuler »
+   (deck d'avant remis, comme la construction du coach). */
+const BD_LP_MS = 450, BD_BULK_ASK = 10;
+
+/* ── Rangement et filtres ─────────────────────────────────────────────────────────────────────── */
+/** Ligne « Rangement » (seulement si la collection a des emplacements). */
+function bdPlcHtml() {
+  if (typeof plcAny !== 'function' || !plcAny()) return '';
+  const p = BD.f.place || '', c = !p ? 'var(--accent)' : p === '-' ? PLC_NONE : plcColor(p);
+  return `<button type="button" class="plc-cur bd-plc" data-act="bdplc" aria-haspopup="dialog"><i style="--c:${c}"></i><span><small>${T('Rangement')}</small><b>${esc(!p ? T('Toute la collection') : p === '-' ? T('Non rangées') : plcName(p))}</b></span><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>`;
+}
+function bdPlcPaint() { const b = BD.el && $('#bdPlc', BD.el); if (b) b.innerHTML = bdPlcHtml(); }
+/** Feuille « Rangement » : toute la collection, les cartes non rangées, ou un emplacement (le même filtre que « Plus de filtres › Emplacement »). */
+function bdPlcSheet() {
+  const st = plcStats(), cur = BD.f.place || '';
+  openSheet(T('Rangement'), T('Cartes proposées pour le deck'), api => {
+    const row = (v, n, q, c) => `<button type="button" role="radio" class="plc-opt" data-p="${esc(v)}" aria-checked="${v === cur}"><i style="--c:${c}"></i><span>${esc(n)}</span><small>${q ? nf0(q) : ''}</small></button>`;
+    api.body.innerHTML = `<div class="plc-radio" role="radiogroup" aria-label="${esc(T('Rangement'))}">${row('', T('Toute la collection'), collCopies(), 'var(--accent)')}${row('-', T('Non rangées'), (st.get('') || {}).q || 0, PLC_NONE)}${plcList().map(x => row(x.id, plcName(x.id), (st.get(x.id) || {}).q || 0, plcColor(x.id))).join('')}</div>`;
+    api.body.addEventListener('click', e => {
+      const r = e.target.closest('.plc-opt'); if (!r) return;
+      haptic('tap'); api.close(); BD.f.place = r.dataset.p; if (BD.fb) BD.fb.fire(); else bdFiltChanged();
+    });
+  });
+}
+const bdFSig = () => JSON.stringify(srchSer(BD.f));
+/** Filtre changé (barre, « Plus de filtres », pastilles, rangement) : liste refaite ; la frappe dans la recherche est déjà affichée (builder.js › input). */
+function bdFiltChanged() {
+  const sig = bdFSig(); if (sig === BD.fsig) return; BD.fsig = sig;
+  BD.q = BD.f.q || ''; BD.shown = BD_PAGE; bdPlcPaint(); bdList();
+}
+/** Monte la barre de filtres de la collection dans root (onglet « Ajouter ») ; son champ garde l'identifiant #bdQ. */
+function bdFiltMount(root) {
+  const ext = typeof srchExt === 'function' ? { ...srchExt(), id: 'bdMore' } : null;
+  BD.fb = mountFilters(root, BD.f, bdFiltChanged, { placeholder: nmT('Nom français ou anglais', 'Nom en {lang} ou en anglais', 'Nom de la carte'), commander: BD.fmt === 'commander', sets: bdSetList,
+    setsSub: n => TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection'), ...(ext ? { ext } : {}) });
+  const inp = $('input', root); if (inp) inp.id = 'bdQ';
+  BD.fsig = bdFSig();
+}
+/** Cartes de la collection qui passent les filtres de BD.f (recherche à part : words, sur les noms affichés, comme avant) ; dans l'ordre de l'index de l'éditeur. */
+function bdOwn(words) {
+  if (!collCount()) return [];
+  const f = { ...BD.f, q: '' }; let keys = null;
+  if (filterActive(f)) { const v = collAll(); if (typeof srchPrep === 'function') srchPrep(v, f); keys = new Set(filterItems(v.all, f).map(it => it.k)); }
+  let own = bdIndex().filter(it => (!keys || keys.has(it.k)) && words.every(w => it.s.includes(w)));
+  if (BD.tgt === 'cmdr') own = own.filter(it => (COLL.meta[it.k] || {}).cd);
+  return own;
+}
+/** Extensions des cartes proposées (bouton « Extension » des filtres) : [[code, nom, cartes]], « Sans édition » en tête. */
+function bdSetList() {
+  const v = collAll(), f = { ...BD.f, set: '' }, p = BD.f.place, by = new Map(); let none = 0;
+  if (typeof srchPrep === 'function') srchPrep(v, f);
+  for (const it of filterItems(v.all, f)) {
+    const ls = p ? collLines(COLL.map[it.k]).filter(([g]) => (p === '-' ? !plcOf(g) : plcOf(g) === p)) : null;
+    for (const e of ls ? new Set(ls.map(([g]) => edSet(lineEd(g)))) : it.eds) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
+  }
+  const l = [...by].map(([c, k]) => [c, setName(c), k]).sort((a, b) => setDate(b[0]).localeCompare(setDate(a[0])) || (a[1] || a[0]).localeCompare(b[1] || b[0]));
+  return none ? [['-', '', none], ...l] : l;
+}
+/** Exemplaires de la carte k que les filtres d'exemplaire désignent (rangement, extension, langue, finition, rareté, prix, style) ; sans eux : tous. */
+function bdLineQty(k) {
+  const f = BD.f, x = COLL.map[k]; if (!x) return 0;
+  if (!(fltLineOn(f) || f.place || f.set) || typeof srchLine !== 'function') return x.q;
+  let n = 0; for (const [g, q] of collLines(x)) if (fltLineOk(srchLine(k, g), f)) n += q;
+  return n;
+}
+/** Bloc « N cartes listées · Ajouter les N cartes listées » (filtre ou recherche en cours, cible Deck ou Réserve). */
+function bdBulkHtml(own, any) {
+  if (!any || !own.length || BD.tgt === 'cmdr' || BD.sel) return '';
+  const n = own.length, cmd = BD.fmt === 'commander';
+  const how = cmd ? (BD.cmdr.length ? T('Un exemplaire de chaque ; celles déjà dans le deck ou hors des couleurs du commandant sont écartées.') : T('Choisis d\'abord ton commandant : les cartes hors de ses couleurs seront écartées.'))
+    : BD.tgt === 'side' ? T('Les exemplaires que tu as, 4 au plus, dans la réserve (15 cartes au plus).') : T('Les exemplaires que tu as, 4 au plus (terrains de base : tous).');
+  return `<div class="bd-bulk"><div class="bd-bulk-t"><b>${esc(TN(n, '{n} carte listée', '{n} cartes listées', { n: nf0(n) }))}</b><small>${esc(how)}</small></div>
+    <button class="btn block" type="button" data-act="bulk"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>${esc(TN(n, 'Ajouter la carte listée', 'Ajouter les {n} cartes listées', { n: nf0(n) }))}</span></button></div>`;
+}
+
+/* ── Ajout groupé ─────────────────────────────────────────────────────────────────────────────── */
+/** Identité de couleur du commandant (Set), null sans commandant ou tant que ses couleurs ne sont pas lues. */
+function bdCmdrCi() {
+  if (!BD.cmdr.length) return null;
+  const s = new Set();
+  for (const c of BD.cmdr) { const m = bdMeta(c.key); if (!m || typeof m.ci !== 'string') return null; for (const x of m.ci) s.add(x); }
+  return s;
+}
+/** Ce qu'un ajout groupé ferait : list [{ k, name }], qOf(k) : exemplaires possédés à prendre (Standard).
+ *  → { tgt, add: [{ k, name, q }], n (exemplaires), have, ci, basic, full (refusées : réserve pleine), ill: [noms pas légaux], res: [{ name, deck }], noCmd, ciUnknown } */
+function bdBulkPlan(list, qOf) {
+  const cmd = BD.fmt === 'commander', tgt = !cmd && BD.tgt === 'side' ? 'side' : 'main', ci = bdCmdrCi();
+  const P = { tgt, add: [], n: 0, have: 0, ci: 0, basic: 0, full: 0, ill: [], res: [], noCmd: cmd && !BD.cmdr.length, ciUnknown: cmd && BD.cmdr.length > 0 && !ci };
+  let room = tgt === 'side' ? Math.max(0, DK_FORMATS[BD.fmt].side - bdCount(BD.side)) : Infinity;
+  const seen = new Set();
+  for (const { k, name } of list) {
+    if (seen.has(k)) continue; seen.add(k);
+    if (cmd && BASIC_NAMES.has(k)) { P.basic++; continue; }
+    if (BD.cmdr.some(c => c.key === k)) { P.have++; continue; }
+    let q;
+    if (cmd) {
+      if (bdTot(k) > 0) { P.have++; continue; }
+      const m = bdMeta(k); if (ci && m && typeof m.ci === 'string' && [...m.ci].some(x => !ci.has(x))) { P.ci++; continue; }
+      q = 1;
+    } else {
+      q = Math.min(Math.max(1, qOf(k)), dkMaxCopies(BD.fmt, k)) - bdTot(k);
+      if (q <= 0) { P.have++; continue; }
+    }
+    if (q > room) { P.full += q - room; q = room; }
+    if (q <= 0) continue;
+    room -= q;
+    const nm = bdLabel(k, name);
+    if (bdIllegal(k)) P.ill.push(nm);
+    const own = BASIC_NAMES.has(k) ? 0 : collQty(k);
+    if (own > 0) { const ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id); if (ds.length && bdTot(k) + q > engFree(own, XS.eng, k, BD.id)) P.res.push({ name: nm, deck: ds[0].n || T('un autre deck') }); }
+    P.add.push({ k, name, q }); P.n += q;
+  }
+  return P;
+}
+/** Cartes laissées de côté, en morceaux de message. */
+function bdBulkParts(P) {
+  return [P.have ? TN(P.have, '{n} déjà dans le deck', '{n} déjà dans le deck') : '', P.ci ? TN(P.ci, '{n} hors de l\'identité de couleur', '{n} hors de l\'identité de couleur') : '',
+    P.basic ? TN(P.basic, '{n} terrain de base laissé', '{n} terrains de base laissés') : '', P.full ? TN(P.full, '{n} refusée (réserve pleine)', '{n} refusées (réserve pleine)') : '',
+    P.ill.length ? TN(P.ill.length, '{n} pas légale en Commander', '{n} pas légales en Commander') : ''].filter(Boolean);
+}
+/** Exemplaires réservés par un autre deck monté : le message de l'ajout à l'unité (une carte), sinon leur nombre (list : leurs noms et decks). */
+function bdResMsg(res, list) {
+  if (res.length === 1) return T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: res[0].name, deck: res[0].deck });
+  return list ? TN(res.length, '{n} carte est dans un autre deck monté ({list}) : à y reprendre quand tu joueras ce deck, ou à acheter.', '{n} cartes sont dans d\'autres decks montés ({list}) : à y reprendre quand tu joueras ces decks, ou à acheter.', { list: res.map(r => `${r.name} (« ${r.deck} »)`).join(', ') })
+    : TN(res.length, '{n} carte est dans un autre deck monté : à y reprendre quand tu joueras ce deck, ou à acheter.', '{n} cartes sont dans d\'autres decks montés : à y reprendre quand tu joueras ces decks, ou à acheter.');
+}
+/** Lance un ajout groupé : rien à ajouter → message ; plus de 10 exemplaires → feuille de confirmation ; sinon tout de suite. */
+function bdBulkGo(P) {
+  if (!P.n) { toast([T('Aucune carte à ajouter'), ...bdBulkParts(P)].join(' · ')); haptic('warn'); return; }
+  if (P.n > BD_BULK_ASK) bdBulkSheet(P, () => bdBulkRun(P, true)); else bdBulkRun(P);
+}
+function bdBulkSheet(P, done) {
+  openSheet(TN(P.n, 'Ajouter {n} carte au deck', 'Ajouter {n} cartes au deck'), BD.name.trim() || T('Nouveau deck'), api => {
+    api.wrap.classList.add('bd-bk-sheet');
+    const row = (dt, dd) => `<div><dt>${esc(dt)}</dt><dd>${esc(dd)}</dd></div>`, ck = dkCheck(BD.fmt, bdData(), bdMeta), over = P.tgt === 'main' ? ck.n + P.n - ck.size : 0;
+    api.body.innerHTML = `<dl class="rc-facts">${row(T('Zone'), P.tgt === 'side' ? T('Réserve') : T('Deck'))}${row(T('Cartes différentes'), nf0(P.add.length))}${BD.fmt !== 'commander' ? row(T('Exemplaires'), nf0(P.n)) : ''}
+        ${P.have ? row(T('Déjà dans le deck : ignorées'), nf0(P.have)) : ''}${P.ci ? row(T('Hors de l\'identité de couleur : écartées'), nf0(P.ci)) : ''}${P.basic ? row(T('Terrains de base : laissés'), nf0(P.basic)) : ''}${P.full ? row(T('Réserve pleine : refusées'), nf0(P.full)) : ''}</dl>
+      ${P.ill.length ? `<p class="bd-bk-note bad">${esc(TN(P.ill.length, 'Pas légale en Commander, ajoutée quand même : {list}', 'Pas légales en Commander, ajoutées quand même : {list}', { list: P.ill.join(', ') }))}</p>` : ''}
+      ${P.res.length ? `<p class="bd-bk-note">${esc(bdResMsg(P.res, true))}</p>` : ''}
+      ${P.noCmd ? `<p class="hint">${T('Pas encore de commandant : l\'identité de couleur n\'est pas vérifiée.')}</p>` : P.ciUnknown ? `<p class="hint">${T('Couleurs du commandant pas encore lues : identité de couleur non vérifiée.')}</p>` : ''}
+      ${BD.fmt === 'commander' && over > 0 ? `<p class="hint">${esc(TN(over, 'Le deck dépassera {size} cartes : {n} en trop.', 'Le deck dépassera {size} cartes : {n} en trop.', { size: ck.size }))}</p>` : ''}
+      <p class="hint">${T('« Annuler » dans le message qui suit remet le deck d\'avant.')}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Retour')}</button><button class="btn" type="button" data-ok>${esc(TN(P.n, 'Ajouter {n} carte au deck', 'Ajouter {n} cartes au deck'))}</button>`);
+    api.foot.addEventListener('click', e => { if (!e.target.closest('[data-ok]')) return; api.close(); done(); });
+  });
+}
+/** Ajout (asked : après la feuille, qui a tout détaillé : le message reste court). */
+function bdBulkRun(P, asked) {
+  const el = BD.el; if (!el) return;
+  const before = { main: new Map([...BD.main].map(([k, c]) => [k, { ...c }])), side: new Map([...BD.side].map(([k, c]) => [k, { ...c }])), cmdr: BD.cmdr.map(c => ({ ...c })), dirty: BD.dirty };
+  let ok = 0, no = 0;
+  for (const x of P.add) for (let i = 0; i < x.q; i++) { if (bdChange(P.tgt, x.k, x.name, 1, true) === true) ok++; else no++; }
+  BD.sel = null; bdSelPaint();
+  bdPaint(); bdMetaSoon(); haptic('ok');
+  const left = P.have + P.ci + P.basic + P.full + no;
+  const msg = (asked ? [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), left ? TN(left, '{n} laissée de côté', '{n} laissées de côté') : '']
+    : [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), ...bdBulkParts(P), no ? TN(no, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : '', P.res.length ? bdResMsg(P.res) : '']).filter(Boolean).join(' · ');
+  toast(msg, { label: T('Annuler'), fn: () => { if (BD.el !== el) return; Object.assign(BD, before); bdPaint(); haptic('tap'); } });      // éditeur fermé (ou un autre deck ouvert) entre-temps : rien
+}
+/** « Ajouter les N cartes listées » : toutes les cartes de la collection qui passent les filtres (exemplaires : ceux des filtres d'exemplaire). */
+function bdBulkListed() {
+  const own = bdOwn(normPart(BD.q.trim()).split(' ').filter(Boolean));
+  bdBulkGo(bdBulkPlan(own.map(it => ({ k: it.k, name: it.n })), bdLineQty));
+}
+
+/* ── Sélection par appui long ─────────────────────────────────────────────────────────────────── */
+const BD_LP_KEY = 'deckdeal:bd-lp';
+/** Appui long déjà utilisé sur cet appareil : l'astuce « Appui long sur une carte… » n'est plus montrée. */
+const bdLpKnown = () => { try { return localStorage.getItem(BD_LP_KEY) === '1'; } catch (e) { return false; } };
+function bdSelStart(k, n) {
+  if (!BD.el) return; BD.sel = new Map([[k, n]]); haptic('ok');
+  try { localStorage.setItem(BD_LP_KEY, '1'); } catch (e) { /* stockage refusé : l'astuce reste */ }
+  bdList(); bdSelPaint();
+}
+function bdSelToggle(k, n) {
+  if (!BD.sel) return;
+  if (BD.sel.has(k)) BD.sel.delete(k); else BD.sel.set(k, n);
+  haptic('tap'); if (!BD.sel.size) { bdSelEnd(); return; }
+  bdList(); bdSelPaint();
+}
+function bdSelEnd() { if (!BD.sel) return; BD.sel = null; if (BD.el) { bdList(); bdSelPaint(); } }
+/** Barre du bas du mode sélection (« N sélectionnées », Annuler, Ajouter N cartes). */
+function bdSelPaint() {
+  const el = BD.el; if (!el) return;
+  const bar = $('#bdSelBar', el), n = BD.sel ? BD.sel.size : 0;
+  el.classList.toggle('selecting', !!BD.sel); if (!bar) return;
+  if (!BD.sel) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  bar.innerHTML = `<span class="bd-sel-n" role="status">${esc(TN(n, '{n} sélectionnée', '{n} sélectionnées', { n: nf0(n) }))}</span><button class="btn ghost" type="button" data-act="sel-cancel">${T('Annuler')}</button><button class="btn" type="button" data-act="sel-add">${esc(TN(n, 'Ajouter {n} carte', 'Ajouter {n} cartes', { n: nf0(n) }))}</button>`;
+}
+function bdSelAdd() { if (BD.sel && BD.sel.size) bdBulkGo(bdBulkPlan([...BD.sel].map(([k, name]) => ({ k, name })), collQty)); }
+/** Ligne de l'onglet « Ajouter » en mode sélection : case à cocher, l'appui la coche (vignette comprise : pas d'agrandissement dans ce mode). */
+function bdPickRow(k, name, nm, img, hue, letter, tags) {
+  const on = BD.sel.has(k), inDeck = bdTot(k) > 0 || BD.cmdr.some(c => c.key === k);
+  return `<div class="crow bd-row bd-pick${on ? ' on' : ''}" data-k="${esc(k)}" data-n="${esc(name)}" data-t="${BD.tgt}" role="checkbox" aria-checked="${on}" tabindex="0"><span class="bd-ck" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="thumb" style="--h:${hue}">${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span><span class="row-meta">${inDeck ? `<span class="tag accent">${T('Dans le deck')}</span>` : ''}${tags}</span></span></div>`;
+}
+/** Le clic qui suit un appui long (souris, certains navigateurs) ne doit ni cocher ni agrandir la vignette : avalé (en capture sur window, avant zoom.js) ; oublié au prochain appui. */
+function bdEatClick() {
+  const eat = e => { e.stopPropagation(); e.preventDefault(); off(); };
+  const off = () => { window.removeEventListener('click', eat, true); window.removeEventListener('pointerdown', off, true); };
+  window.addEventListener('click', eat, true);
+  setTimeout(() => window.addEventListener('pointerdown', off, true), 0);
+}
+/** Appui long sur une ligne de l'onglet « Ajouter » (cible Deck ou Réserve) : mode sélection. Un glissement de plus de 10 px (défilement), un appui sur − / + ou
+ *  un défilement annulent ; clic droit (ordinateur) : même chose. Le menu du navigateur (image) ne s'ouvre pas sur ces lignes. */
+function bdLpBind(wrap) {
+  let t = 0, sx = 0, sy = 0;
+  const stop = () => { clearTimeout(t); t = 0; };
+  const can = e => BD.el === wrap && BD.tab === 'coll' && BD.tgt !== 'cmdr' && e.target.closest && e.target.closest('#bdList .bd-row') && !e.target.closest('.qstep');
+  wrap.addEventListener('pointerdown', e => {
+    stop(); if (BD.sel || (e.pointerType === 'mouse' && e.button !== 0) || !can(e)) return;
+    const row = e.target.closest('.bd-row'); sx = e.clientX; sy = e.clientY;
+    t = setTimeout(() => { t = 0; if (!row.isConnected || BD.sel) return; bdEatClick(); bdSelStart(row.dataset.k, row.dataset.n); }, BD_LP_MS);
+  });
+  wrap.addEventListener('pointermove', e => { if (t && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) stop(); });
+  for (const ev of ['pointerup', 'pointercancel']) wrap.addEventListener(ev, stop);
+  wrap.addEventListener('scroll', stop, true);
+  wrap.addEventListener('contextmenu', e => {
+    if (!can(e)) return; e.preventDefault(); stop();
+    if (!BD.sel) { const row = e.target.closest('.bd-row'); bdSelStart(row.dataset.k, row.dataset.n); }
+  });
+  wrap.addEventListener('keydown', e => {
+    if (!BD.sel || (e.key !== 'Enter' && e.key !== ' ') || !e.target.matches || !e.target.matches('.bd-pick')) return;
+    e.preventDefault(); bdSelToggle(e.target.dataset.k, e.target.dataset.n);
+  });
 }
 
 
@@ -44474,7 +44767,7 @@ function backClose() {
   if (typeof OB !== 'undefined' && OB.el && !sheets.length) { obBack(); return true; }
   if (sheets.length) { sheets[sheets.length - 1].close(); return true; }
   const dvs = $$('body > .dv.on'), top = dvs[dvs.length - 1];
-  if (top && top.__close) { if (top.classList.contains('bd')) bdClose(); else top.__close(); return true; }
+  if (top && top.__close) { if (top.classList.contains('bd')) { if (BD.sel) bdSelEnd(); else bdClose(); } else top.__close(); return true; }      // éditeur en mode sélection (bdadd.js) : Retour en sort d'abord
   if (S.view === 'results') { $('#btnBack').click(); return true; }
   if (S.view === 'input') { showView('home'); return true; }
   return false;
