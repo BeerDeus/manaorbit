@@ -102,7 +102,7 @@ ok('import : langue des cartes (français par défaut), 9 noms français reconnu
 await p.click('#ciGo'); await p.waitForSelector('.sheet-wrap.open .gl-tiles', { timeout: 5000 });
 assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Ta collection en un coup d'œil.*12 cartes importées/);
 await p.waitForFunction(() => /Béhémoth/.test((document.querySelector('.gl-top') || {}).textContent || '') && document.querySelector('.gl-edh'), null, { timeout: 10000 });
-assert.equal(await p.$$eval('.gl-tiles > div b', b => b.map(x => x.textContent.replace(/\s+/g, ' ')).join('|')), '12|13|22,10 €', '2 × 1,50 + 1,90 + 0,40 + 1,50 + 9,00 + 0,25 + 0,20 + 0,05 + 5,00 + 0,80 (10 cartes chiffrées)');
+assert.equal(await p.$$eval('.gl-tiles > div b', b => b.map(x => x.textContent.replace(/\s+/g, ' ')).join('|')), '12|13|20,80 €', 'prix de référence (relevé du jour, sinon la fiche) : 2 × 1,20 + 1,80 + 0,40 + 1,50 + 9,00 + 0,25 + 0,20 + 0,05 + 4,50 + 0,70 (10 cartes chiffrées)');
 assert.match(await txt(p, '.gl-top'), /Béhémoth caveur de cratères 9,00 €/, 'la plus chère, sous son nom français');
 assert.match(await txt(p, '.gl-edh'), /1 deck EDHREC à moins de 60 € de finir Voir ces decks/);
 await p.waitForTimeout(400); await p.screenshot({ path: SHOTS + '/fr-4-coup-d-oeil.png' });

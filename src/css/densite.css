@@ -6,7 +6,7 @@
 .coll .coll-body>.coll-controls{order:-1;margin-top:0;padding-top:10px}      /* toujours en tête : les bandeaux d'état (lecture, alerte, synchro) passent dessous */
 .coll .coll-controls:has(.fpanel:not([hidden])){position:relative}      /* panneau des filtres ouvert (long avec « Plus de filtres ») : la barre ne reste plus collée, sinon elle couvre la liste et le bandeau de l'emplacement */
 .coll.scrolled .coll-controls{box-shadow:0 1px 0 var(--line),0 10px 18px -16px rgba(16,21,43,.45)}
-.coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior:contain}      /* filtres ouverts dans la barre collée : ils défilent seuls */
+.coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior-y:auto}      /* filtres ouverts : ils défilent seuls, puis, arrivé en bas (ou en haut), le geste continue sur la page (plus de blocage en bas des filtres) */
 .coll .dv-head{transition:padding .2s,min-height .2s}
 .coll .dv-title b{transition:font-size .2s}
 html:not(.ad-on) .coll.scrolled .dv-head{min-height:calc(var(--top-in) + 50px);padding-top:calc(var(--top-in) + 4px);padding-bottom:4px}      /* bandeau de pub affiché (ads.css) : l'en-tête garde sa hauteur, sinon le bandeau natif (posé une fois sous lui) se retrouve collé aux onglets */
@@ -154,3 +154,4 @@ button.tr-bar-main:focus-visible{outline:2px solid var(--accent);outline-offset:
 .trs-plc .hint{margin:0}
 
 @media (prefers-reduced-motion:reduce){.coll .dv-head,.coll .dv-title b,.coll .coll-controls,.tr-setb{transition:none}}
+.ex-seg{margin-bottom:2px}      /* Exporter ma collection : avec les filtres en cours ou toute la collection */

@@ -2888,6 +2888,7 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .ds-key li.warn b{color:var(--warn)}
 .ds-key li span{font-size:13px;font-weight:650;color:var(--ink);line-height:1.25}
 .ds-key li small{font-size:11.5px;color:var(--ink-3)}
+.ds-key li.na{background:var(--surface-2)}.ds-key li.na b{font-size:17px;color:var(--ink-2);padding:3px 0 2px}
 .ds-adv-h{margin:12px 0 4px}
 .ds-adv{margin-top:0}
 .hint.good{color:var(--good);margin-top:10px}
@@ -2906,7 +2907,7 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .coll .coll-body>.coll-controls{order:-1;margin-top:0;padding-top:10px}      /* toujours en tête : les bandeaux d'état (lecture, alerte, synchro) passent dessous */
 .coll .coll-controls:has(.fpanel:not([hidden])){position:relative}      /* panneau des filtres ouvert (long avec « Plus de filtres ») : la barre ne reste plus collée, sinon elle couvre la liste et le bandeau de l'emplacement */
 .coll.scrolled .coll-controls{box-shadow:0 1px 0 var(--line),0 10px 18px -16px rgba(16,21,43,.45)}
-.coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior:contain}      /* filtres ouverts dans la barre collée : ils défilent seuls */
+.coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior-y:auto}      /* filtres ouverts : ils défilent seuls, puis, arrivé en bas (ou en haut), le geste continue sur la page (plus de blocage en bas des filtres) */
 .coll .dv-head{transition:padding .2s,min-height .2s}
 .coll .dv-title b{transition:font-size .2s}
 html:not(.ad-on) .coll.scrolled .dv-head{min-height:calc(var(--top-in) + 50px);padding-top:calc(var(--top-in) + 4px);padding-bottom:4px}      /* bandeau de pub affiché (ads.css) : l'en-tête garde sa hauteur, sinon le bandeau natif (posé une fois sous lui) se retrouve collé aux onglets */
@@ -3054,6 +3055,7 @@ button.tr-bar-main:focus-visible{outline:2px solid var(--accent);outline-offset:
 .trs-plc .hint{margin:0}
 
 @media (prefers-reduced-motion:reduce){.coll .dv-head,.coll .dv-title b,.coll .coll-controls,.tr-setb{transition:none}}
+.ex-seg{margin-bottom:2px}      /* Exporter ma collection : avec les filtres en cours ou toute la collection */
 
 /* ── dkfilt.css : onglet Decks (edh.js) : aide une info par ligne, « Classer » + « Filtres (N) », pastilles des filtres actifs, feuille « Filtres » ── */
 .dk-hl{list-style:none;margin:2px 0 6px;padding:0;display:flex;flex-direction:column;gap:7px}
@@ -7978,8 +7980,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'd4b8fad5';
-const I18N_FILES = {"de":"i18n/de.30ab8901.js","en":"i18n/en.97a9f564.js","es":"i18n/es.093fd6ab.js","it":"i18n/it.d77cf968.js","pt":"i18n/pt.9bbc1d0b.js"};
+const DD_BUILD = '9f4308ce';
+const I18N_FILES = {"de":"i18n/de.e2e36c67.js","en":"i18n/en.3f03ebaa.js","es":"i18n/es.380a687e.js","it":"i18n/it.fc110940.js","pt":"i18n/pt.63e307e8.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9787,10 +9789,13 @@ const filterActive = f => !!f && !!((f.q || '').trim() || (f.colors && f.colors.
 /* ── Valeur de la collection dans le temps : relevés quotidiens, variations de prix carte par carte ─────────────── */
 const VAL_MAX = 400;
 const dayOf = t => Math.floor((t - new Date(t).getTimezoneOffset() * 60000) / 86400000);     // jour calendaire local
-/** Ajoute un relevé { t, v (centimes), n (cartes), q (exemplaires) } : un seul par jour (le dernier remplace), trié, VAL_MAX au plus (les plus anciens partent). */
+/** Règle du relevé gardée avec lui : r = 1 (prix de référence de l'appli : édition possédée, sinon relevé du jour, impression la moins chère ; absent : relevé d'avant,
+ *  tendance de l'impression par défaut), vo (jour du changement de règle : la même collection à l'ancienne règle, pour raccorder la courbe : value.js › valHist). */
+const histRule = h => ({ ...(h.r === 1 ? { r: 1 } : {}), ...(Number.isFinite(h.vo) && h.vo > 0 ? { vo: Math.round(h.vo) } : {}) });
+/** Ajoute un relevé { t, v (centimes), n (cartes), q (exemplaires), r?, vo? } : un seul par jour (le dernier remplace), trié, VAL_MAX au plus (les plus anciens partent). */
 function histPush(hist, snap, max = VAL_MAX) {
   const out = (Array.isArray(hist) ? hist : []).filter(h => h && Number.isFinite(h.t) && Number.isFinite(h.v) && dayOf(h.t) !== dayOf(snap.t));
-  out.push({ t: snap.t, v: Math.round(snap.v), n: snap.n | 0, q: snap.q | 0 });
+  out.push({ t: snap.t, v: Math.round(snap.v), n: snap.n | 0, q: snap.q | 0, ...histRule(snap) });
   out.sort((a, b) => a.t - b.t);
   return out.length > max ? out.slice(out.length - max) : out;
 }
@@ -9905,12 +9910,12 @@ function histMerge(a, b, max = VAL_MAX) {
   const by = new Map();
   for (const h of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
     if (!h || !Number.isFinite(h.t) || !Number.isFinite(h.v)) continue;
-    const d = dayOf(h.t), cur = by.get(d); if (!cur || h.t > cur.t) by.set(d, { t: h.t, v: Math.round(h.v), n: h.n | 0, q: h.q | 0 });
+    const d = dayOf(h.t), cur = by.get(d); if (!cur || h.t > cur.t) by.set(d, { t: h.t, v: Math.round(h.v), n: h.n | 0, q: h.q | 0, ...histRule(h) });
   }
   const out = [...by.values()].sort((x, y) => x.t - y.t);
   return out.length > max ? out.slice(out.length - max) : out;
 }
-const histSame = (a, b) => { const x = histMerge(a, []), y = histMerge(b, []); return x.length === y.length && x.every((h, i) => h.t === y[i].t && h.v === y[i].v); };
+const histSame = (a, b) => { const x = histMerge(a, []), y = histMerge(b, []); return x.length === y.length && x.every((h, i) => h.t === y[i].t && h.v === y[i].v && (h.r || 0) === (y[i].r || 0) && (h.vo || 0) === (y[i].vo || 0)); };
 
 /* ── Commander : éligibilité d'une carte, données EDHREC (edh.tsv), decks à compléter ─────────────────────────── */
 /** Carte Scryfall → 1 si elle peut être commandant, sinon 0 : légendaire créature (face avant ; les deux faces d'une double face modale), Véhicule ou Vaisseau légendaire avec force/endurance, texte « can be your commander » ; légale en Commander. */
@@ -10813,7 +10818,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
@@ -19716,11 +19721,15 @@ if (typeof document !== 'undefined') { document.addEventListener('visibilitychan
 const ED_TTL = 2 * DAY;
 /** Prix Cardmarket d'un exemplaire de l'édition e (centimes) : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil, à défaut le non foil ; null si inconnu. */
 const edEu = (e, f) => { const x = e && COLL.ed[e]; if (!x) return null; const a = f ? x.ef : x.eu, b = f ? x.eu : x.ef; return a > 0 ? a : b > 0 ? b : null; };
-/** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu (foil : prix foil), sinon le prix de référence de la carte (foil : son prix foil Cardmarket, à défaut le prix normal ; null sans prix). */
-const collLineEu = (k, g) => { const f = lineFoil(g), u = edEu(lineEd(g), f); if (u != null) return u; const m = COLL.meta[k]; if (!m) return null; return f && m.ef > 0 ? m.ef : Number.isFinite(m.eu) ? m.eu : null; };
+/** Prix de référence d'une carte sans édition connue (centimes, null sans prix) : builder.js › refPx (dkPx : relevé du jour, impression la moins chère du marché
+ *  choisi, sinon tendance de la fiche ; foil : prix foil de la fiche, à défaut dkPx). Le même chiffre que les decks, le coach, les échanges. */
+const collRefEu = (k, f) => { const u = refPx(k, f); return u > 0 ? u : null; };
+/** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu (foil : prix foil), sinon le prix de référence de la carte (collRefEu ; null sans prix).
+ *  Règle de la valeur de la collection (liste, Stats, accueil, widget, courbe, Rangement, lot) : prix de l'édition possédée quand il est connu, sinon le prix de référence. */
+const collLineEu = (k, g) => { const f = lineFoil(g), u = edEu(lineEd(g), f); if (u != null) return u; return collRefEu(k, f); };
 /** Prix moyen d'un exemplaire de la carte (centimes), éditions comprises : valeur de la collection, tri par prix. null sans prix. */
 function collCardEu(k) {
-  const x = COLL.map[k], m = COLL.meta[k], ref = m && Number.isFinite(m.eu) ? m.eu : null; if (!x || !x.x) return ref;      // sans édition : le prix de référence
+  const x = COLL.map[k], ref = collRefEu(k, false); if (!x || !x.x) return ref;      // sans édition : le prix de référence
   let v = 0, n = 0;
   for (const [g, q] of collLines(x)) { const u = collLineEu(k, g); if (u > 0) { v += u * q; n += q; } }
   return n ? Math.round(v / n) : ref;
@@ -19728,7 +19737,7 @@ function collCardEu(k) {
 /** Valeur d'une carte (centimes) : prix de chaque ligne (édition, sinon référence) × exemplaires ; 0 sans prix. */
 function collCardVal(k) {
   const x = COLL.map[k]; if (!x) return 0;
-  if (!x.x) { const m = COLL.meta[k]; return m && m.eu > 0 ? m.eu * x.q : 0; }
+  if (!x.x) { const u = collRefEu(k, false); return u > 0 ? u * x.q : 0; }
   let v = 0; for (const [g, q] of collLines(x)) { const u = collLineEu(k, g); if (u > 0) v += u * q; }
   return v;
 }
@@ -19943,7 +19952,7 @@ function edSplit(k, g) {
   openSheet(T('Répartir par édition'), TN(total, '{name} · {n} exemplaire', '{name} · {n} exemplaires', { name }) + (l ? ' ' + langCode(l) : '') + (f ? ' · ' + T('Foil') : ''), api => {
     api.wrap.classList.add('esp-sheet');
     const paint = () => {
-      const r0 = rest(), m = COLL.meta[k], ref = m ? (f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0) : 0;
+      const r0 = rest(), ref = collRefEu(k, f) || 0;      // « Sans édition » : le prix de référence, comme la valeur de la collection
       let val = r0 * ref; for (const r of rows) val += r.q * (pxOf(r) || ref);
       api.body.innerHTML = rows.map((r, i) => {
         const set = edSet(r.e), sn = setName(set) || (r.info && r.info.sn) || (COLL.ed[r.e] || {}).sn || set.toUpperCase(), px = pxOf(r);
@@ -20568,8 +20577,9 @@ function collWhenPaint(el, none) {
 /** Cartes de l'écran, gardées tant que rien ne change (5 000 cartes : liste, filtre et tri coûtent ~0,3 s sur un téléphone moyen). Clé : COLL.seq, monté à chaque changement des cartes, des infos ou des prix (collChanged, collPaint, collPaintSoon), et les objets remplacés ailleurs (compte, noms français, EDHREC). */
 function collAll() {
   const v = COLL.view, frc = typeof FRC !== 'undefined' ? FRC.cat : null;
-  if (v && v.seq === COLL.seq && v.map === COLL.map && v.meta === COLL.meta && v.px === COLL.px && v.edh === EDH.data && v.frn === FRN.map && v.frc === frc) return v;
-  return (COLL.view = { seq: COLL.seq, map: COLL.map, meta: COLL.meta, px: COLL.px, edh: EDH.data, frn: FRN.map, frc, all: collItems(), sk: null, filtered: null, sorted: null });
+  const pxt = typeof PXT !== 'undefined' ? PXT : null;      // relevé du jour (prix de référence) arrivé : prix relus
+  if (v && v.seq === COLL.seq && v.map === COLL.map && v.meta === COLL.meta && v.px === COLL.px && v.edh === EDH.data && v.frn === FRN.map && v.frc === frc && v.pxt === pxt) return v;
+  return (COLL.view = { seq: COLL.seq, map: COLL.map, meta: COLL.meta, px: COLL.px, edh: EDH.data, frn: FRN.map, frc, pxt, all: collItems(), sk: null, filtered: null, sorted: null });
 }
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
@@ -20580,7 +20590,7 @@ function collListOf(v) {
 function collItems() {
   return Object.entries(COLL.map).map(([k, x]) => {
     const px = COLL.px[k], dn = frName(k, x.l), fn = frOf(k), it = { k, n: x.n, ...(dn ? { dn } : {}), ...(fn && fn !== dn ? { fn } : {}), q: x.q, l: x.l || '', d: x.d || 0, ...(COLL.meta[k] || {}), ...(px ? { rp: px.p, rt: px.t, rc: px.c || 'EUR' } : {}), eds: collSetsOf(x) };
-    if (x.x) { const eu = collCardEu(k); if (eu != null) it.eu = eu; }      // éditions : prix moyen d'un exemplaire (valeur, tri par prix)
+    const eu = collCardEu(k); if (eu != null) it.eu = eu; else delete it.eu;      // prix de référence (refPx), éditions : prix moyen d'un exemplaire (valeur, tri par prix) ; jamais la tendance de l'impression par défaut
     return Object.assign(it, cmdrClass(it, EDH.data));      // cx : 0 · 1 peut être commandant · 2 joué comme commandant (EDHREC), ed : nombre de decks
   });
 }
@@ -20688,7 +20698,7 @@ function crowHtml(it) {
   if (!it.l) tags.push(langChip(it.k, '', it.n, '', g));
   const plc = plcRowTag(g); if (plc) tags.push(plc);      // emplacement et détails (places.js) : seulement si la ligne est rangée ou détaillée
   const px = [];      // prix : CM (tendance Cardmarket, estimation) au-dessus, CT (offre CardTrader la plus basse, lue à la demande) en dessous
-  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
+  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${it.e ? T('Cardmarket : prix de cette édition') : it.f ? T('Exemplaires foil : prix foil Cardmarket') : T('Cardmarket : valeur estimée (impression la moins chère)')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
   return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
@@ -20710,26 +20720,45 @@ function collSyncInfo() {
   if (!D.authReady) return null;
   return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
 }
-/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte. */
-function collDownload(body, ext, type) {
+/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
+ *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
+function collDownload(body, ext, type, n = collCount(), part = false) {
   try {
     const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = 'ma-collection-' + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast(T('Collection exportée ({n} cartes)', { n: nf0(collCount()) }));
+    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(T('Collection exportée ({n} cartes)', { n: nf0(n) }));
   } catch (e) { toast(T('Export impossible sur ce navigateur')); }
+}
+/** La collection telle qu'affichée : recherche, filtres (couleur, type, rareté, prix, langue, finition…), emplacement ouvert (Rangement, deck), extension ;
+ *  pour chaque carte, seulement ses lignes affichées (mêmes règles que collRowItems). → { map, n (cartes), c (exemplaires) }, ou null si tout est affiché. */
+function collShownMap() {
+  const v = collListOf(collAll()), map = {}; let n = 0, c = 0;
+  for (const it of v.filtered || []) {
+    const x = COLL.map[it.k]; if (!x) continue;
+    const ls = collLines(x).filter(([g]) => plcIn(g) && collSetIn(g) && (typeof srchLineIn !== 'function' || srchLineIn(it.k, g)));
+    if (!ls.length) continue;
+    map[it.k] = collFromLines({ ...x }, ls.map(e => e.slice())); n++; c += ls.reduce((a, [, q]) => a + q, 0);
+  }
+  return n === collCount() && c === collCopies() ? null : { map, n, c };
 }
 function collExport() {
   if (!collCount()) { toast(T('Ta collection est vide')); return; }
-  openSheet(T('Exporter ma collection'), T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) }), api => {
-    api.body.innerHTML = `<div class="ex-list">
+  const shown = collShownMap(); let scope = shown ? 'shown' : 'all';      // filtres en cours : on demande quoi exporter (les cartes affichées d'abord, c'est ce qu'on regarde)
+  const subOf = () => scope === 'shown' ? T('{n} cartes · {c} exemplaires', { n: nf0(shown.n), c: nf0(shown.c) }) : T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) });
+  openSheet(T('Exporter ma collection'), subOf(), api => {
+    api.body.innerHTML = `${shown ? `<p class="label">${T('Que veux-tu exporter ?')}</p><div class="seg ex-seg" id="exScope" role="radiogroup" aria-label="${T('Que veux-tu exporter ?')}"></div>` : ''}<div class="ex-list">
       <button class="ex-opt" type="button" data-x="csv"><b>${T('Fichier CSV')}</b><span>${T('Pour Moxfield, ManaBox, Archidekt, Deckbox… Une ligne par carte et par langue.')}</span></button>
       <button class="ex-opt" type="button" data-x="txt"><b>${T('Fichier texte')}</b><span>${T('« 3 Sol Ring *FR* », une carte par ligne. Réimportable ici et dans la plupart des applis.')}</span></button>
       <button class="ex-opt" type="button" data-x="copy"><b>${T('Copier le texte')}</b><span>${T('Pour le coller dans un message ou une autre appli.')}</span></button></div>`;
+    if (shown) mountSeg($('#exScope', api.body), [{ v: 'shown', label: T('Avec les filtres'), sub: TN(shown.n, '{n} carte', '{n} cartes') }, { v: 'all', label: T('Toute la collection'), sub: TN(collCount(), '{n} carte', '{n} cartes') }], scope, v => {
+      scope = v; const p = api.wrap && api.wrap.querySelector('.sheet-head p'); if (p) p.textContent = subOf();
+    });
     api.body.onclick = e => {
       const x = (e.target.closest('[data-x]') || {}).dataset; if (!x || !x.x) return;
-      if (x.x === 'csv') collDownload(collToCsv(COLL.map, trSpare(COLL.map)), 'csv', 'text/csv');
-      else if (x.x === 'txt') collDownload(collToText(COLL.map) + '\n', 'txt', 'text/plain');
-      else { copyText(collToText(COLL.map)); }
+      const part = scope === 'shown' && !!shown, map = part ? shown.map : COLL.map, n = part ? shown.n : collCount();
+      if (x.x === 'csv') collDownload(collToCsv(map, trSpare(COLL.map)), 'csv', 'text/csv', n, part);
+      else if (x.x === 'txt') collDownload(collToText(map) + '\n', 'txt', 'text/plain', n, part);
+      else { copyText(collToText(map)); }
       api.close();
     };
   });
@@ -20743,7 +20772,7 @@ function collHeadText() {
 function collValPaint() {
   const box = COLL.el && $('.coll-val', COLL.el); if (!box) return;
   const n = collCount(); if (!n || typeof homeValue !== 'function' || COLL.tab !== 'stats') { box.hidden = true; return; }
-  const v = homeValue(), h = histDelta(VAL.hist, 7), pts = VAL.hist.slice(-30).map(x => x.v);
+  const v = homeValue(), h = histDelta(valHist(), 7), pts = valHist().slice(-30).map(x => x.v);
   let spark = '';
   if (pts.length >= 2) {
     const lo = Math.min(...pts), hi = Math.max(...pts), W = 120, H = 38, dx = W / (pts.length - 1), y = p => (hi === lo ? H / 2 : H - 3 - (p - lo) / (hi - lo) * (H - 6));
@@ -21091,7 +21120,8 @@ function collViewItem(k, ln) {
   const ls = collLines(x), line = ls.find(e => e[0] === (ln || '')) || ls[0] || [x.l || '', x.q], g = line[0], l = lineLang(g), e = lineEd(g), n = line[1];
   const im = collLineImage(k, g, m.im), fr = l && l !== 'en' && im.lang === 'en' && !e ? ' · ' + T('image anglaise (pas d\'image {lang} sur Scryfall)', { lang: LANGS[l] ? T(LANGS[l]) : l }) : '';
   const own = ls.length > 1 ? TN(n, '{n} exemplaire {lang} · {total} au total', '{n} exemplaires {lang} · {total} au total', { n, lang: lineTag(g), total: x.q }) : TN(x.q, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: x.q });
-  const f = lineFoil(g), eu = e ? edEu(e, f) : f && m.ef > 0 ? m.ef : null, px = eu != null ? ' · ' + T(f ? 'prix foil Cardmarket {v}' : 'prix Cardmarket {v}', { v: fmt(eu, mkCur()) }) : Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {v}', { v: fmt(m.eu, mkCur()) }) : '';
+  const f = lineFoil(g), eu = e ? edEu(e, f) : null, ref = eu == null ? collRefEu(k, f) : null;      // édition connue : son prix, dit comme tel ; sinon le prix de référence (le même que la liste et les decks)
+  const px = eu != null ? ' · ' + T(f ? 'prix foil de cette édition {v}' : 'prix de cette édition {v}', { v: fmt(eu, mkCur()) }) : ref != null ? ' · ' + (f && m.ef > 0 ? T('prix foil Cardmarket {v}', { v: fmt(ref, mkCur()) }) : T('valeur estimée {p}', { p: fmt(ref, mkCur()) })) : '';
   const sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '';
   return { key: k, lid: k + '|' + g, name: frName(k, l) || x.n, ln: x.n, wl: l && l !== 'en' && !e ? l : '', small: im.src, lang: im.lang, plain: true, coll: { k, g }, ...(f ? { foil: true } : {}),
     ...(e ? { set: edSet(e), num: edNum(e), setName: sn } : {}),
@@ -22328,11 +22358,12 @@ function edhUsd(d) {
   for (let i = 0; i < d.names.length; i++) { const p = m && m.get(ownKey(d.names[i])); if (p && p.e > 0) { pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
   d.pr = pr; return d;
 }
-/** Cardmarket : une carte sans prix dans le fichier EDHREC (impression par défaut de Scryfall pas encore cotée, ex. Command Tower d'un précon récent)
- *  prend celui du relevé du jour (impression la moins chère, data.js › pxTable) ; rien à faire tant que le relevé n'est pas lu (relancé par edhLoad). */
+/** Cardmarket : le prix de chaque carte du fichier EDHREC (tendance de l'impression par défaut de Scryfall) remplacé par celui du relevé du jour (impression la moins chère,
+ *  data.js › pxTable) quand il le connaît : le prix de référence de l'appli (builder.js › dkPx), le même que Mes decks, la collection et les échanges (« à acheter »
+ *  compris) ; carte absente du relevé : celui du fichier. Rien à faire tant que le relevé n'est pas lu (relancé par edhLoad). */
 function edhEur(d) {
   const m = typeof PXT !== 'undefined' && PXT && PXT.map; if (!m || !d.pr || !d.names) return d;
-  for (let i = 0; i < d.names.length; i++) if (!(d.pr[i] > 0)) { const p = m.get(ownKey(d.names[i])); if (p && p.e > 0) { d.pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
+  for (let i = 0; i < d.names.length; i++) { const p = m.get(ownKey(d.names[i])); if (p && p.e > 0 && p.e !== d.pr[i]) { d.pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
   return d;
 }
 /** Charge les données : copie locale de moins de 1 jour (affichée tout de suite, puis contrôlée en arrière-plan : une version plus récente du site la remplace), sinon le fichier binaire du site, sinon l'ancien fichier texte ; une copie plus ancienne sert si le site ne répond pas. */
@@ -23223,8 +23254,8 @@ function dfRows(e, c, inc) {
 }
 /** Nom affiché d'une carte possédée : français si l'exemplaire l'est (comme la collection), sinon anglais. */
 const dfName = k => { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || (x && x.n) || k; };
-/** Prix d'une carte possédée (centimes) : celui de la collection, sinon celui du fichier EDHREC ; 0 si inconnu. */
-const dfPrice = (e, x) => { const m = COLL.meta[x.k]; const u = m ? unitPrice(m) : null; return u || e.pr[x.id] || 0; };
+/** Prix d'une carte possédée (centimes) : le prix de référence (celui des decks et de la carte dans la collection), sinon celui du fichier EDHREC ; 0 si inconnu. */
+const dfPrice = (e, x) => dkPx(x.k) || e.pr[x.id] || 0;      // builder.js › dkPx : relevé du jour (impression la moins chère), sinon la fiche
 /** Emplacements de la carte (places.js) : « Classeur rouge », « Non rangé »… */
 function dfPlaces(k) {
   const ps = [...new Set(collLines(COLL.map[k]).map(([g]) => (typeof plcOf === 'function' ? plcOf(g) : '')))];
@@ -23389,7 +23420,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.dfc = th => {
 const VAL_MK = mkSfx(), VAL_HIST_KEY = 'deckdeal:coll:hist' + VAL_MK, VAL_RESET_KEY = 'deckdeal:coll:histreset' + VAL_MK, VAL_AT_KEY = 'deckdeal:coll:pxat' + VAL_MK,      // marché TCGplayer : sa propre courbe (dollars)
   VAL_THR_KEY = 'deckdeal:coll:alert', VAL_SEEN_KEY = 'deckdeal:coll:alertseen', VAL_BASE_KEY = 'coll:base';
 const VAL_EVERY = 20 * 3600e3, VAL_THRS = [10, 25, 50];
-const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8, ro: null };      // ro : suit la largeur de la courbe des Stats (valFit)
+const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8, ro: null, hv: null };      // ro : suit la largeur de la courbe des Stats (valFit)
 
 function valRead() {
   try {
@@ -23443,16 +23474,45 @@ function prcOver(k, ed) {
 }
 const valSetSeen = d => { VAL.seen = d; try { localStorage.setItem(VAL_SEEN_KEY, String(d)); } catch (e) { /* stockage indisponible */ } };
 
-/** Enregistre le relevé du jour et les prix de référence, d'après les prix Cardmarket (eu) déjà lus dans COLL.meta. */
+/** Valeur de la collection à l'ancienne règle (édition possédée, sinon tendance de l'impression par défaut de Scryfall) : seulement le jour du changement de règle,
+ *  pour raccorder la courbe (vo du relevé, valHist). */
+function valOldRule() {
+  let v = 0;
+  for (const k in COLL.map) {
+    const m = COLL.meta[k] || {};
+    for (const [g, q] of collLines(COLL.map[k])) { const f = lineFoil(g), u = edEu(lineEd(g), f) ?? (f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : null); if (u > 0) v += u * q; }
+  }
+  return v;
+}
+/** Enregistre le relevé du jour et les prix de référence. Valeur : la même règle que la liste, les Stats, l'accueil et le widget (collection.js › collLineEu : prix de l'édition
+ *  possédée quand il est connu, sinon le prix de référence, builder.js › refPx) ; variations : le prix de référence de la carte (dkPx : changer d'édition n'est pas une
+ *  variation du marché). Relevé du jour lu d'abord (sinon la valeur suivrait l'ancienne règle) ; lu, le relevé porte r = 1 (core.js › histRule). */
 async function valCommit() {
   await valLoad();
-  const items = collItems(), now = Date.now(), p = {}; let v = 0, n = 0, q = 0;
-  for (const i of items) if (i.eu > 0) { v += collCardVal(i.k) || i.eu * i.q; n++; q += i.q; const r = (COLL.meta[i.k] || {}).eu; p[i.k] = r > 0 ? r : i.eu; }      // valeur : éditions comprises ; variations : prix de référence de la carte (changer d'édition n'est pas une variation du marché)
+  if (typeof pxTable === 'function' && !PXT) await Promise.race([pxTable().catch(() => null), new Promise(r => setTimeout(r, 4000))]);      // serveur muet : pas plus de 4 s d'attente (relevé à l'ancienne règle, sans r)
+  const items = collItems(), now = Date.now(), p = {}, px = !!PXT; let v = 0, n = 0, q = 0;
+  for (const i of items) if (i.eu > 0) { v += collCardVal(i.k) || i.eu * i.q; n++; q += i.q; const r = dkPx(i.k); p[i.k] = r > 0 ? r : i.eu; }
   if (!n) return false;
-  VAL.hist = histPush(VAL.hist, { t: now, v, n, q });
-  const nb = baseRoll(VAL.base, p, now), chg = nb !== VAL.base; VAL.base = nb;
-  VAL.at = now; VAL.memo = null; VAL.err = '';
+  const day = dayOf(now), snap = { t: now, v, n, q };
+  if (px) {
+    snap.r = 1;
+    const before = VAL.hist.filter(h => dayOf(h.t) !== day);
+    if (before.some(h => !h.r) && !before.some(h => h.vo > 0)) snap.vo = valOldRule();      // premier relevé à la nouvelle règle : la même collection à l'ancienne, pour raccorder la courbe
+  }
+  VAL.hist = histPush(VAL.hist, snap);
+  const base = px && VAL.base && VAL.base.r !== 1 ? null : VAL.base;      // références d'avant (tendance de l'impression par défaut) : oubliées, sinon chaque carte passerait pour une baisse
+  let nb = baseRoll(base, p, now); if (px && nb.r !== 1) nb = { ...nb, r: 1 };
+  const chg = nb !== VAL.base; VAL.base = nb;
+  VAL.at = now; VAL.memo = null; VAL.hv = null; VAL.err = '';
   valSave(chg); xsPushSoon('history'); return true;
+}
+/** Relevés à afficher (courbe, variations, accueil, widget) : ceux d'avant le changement de règle (sans r) ramenés à la règle d'aujourd'hui par le rapport mesuré
+ *  le jour du changement (v / vo) : ni chute ni saut dans la courbe et les variations à 7 et 30 jours. Les relevés gardés ne changent pas. */
+function valHist() {
+  const h = VAL.hist; if (VAL.hv && VAL.hv.src === h) return VAL.hv.out;
+  const b = h.find(x => x.r === 1 && x.vo > 0), f = b ? b.v / b.vo : 1;
+  const out = !b || f === 1 ? h : h.map(x => (!x.r && x.t < b.t ? { ...x, v: Math.round(x.v * f) } : x));
+  VAL.hv = { src: h, out }; return out;
 }
 /** « Recommencer la courbe » (Stats) : les relevés d'avant disparaissent, ici et dans le compte. reset (date) part avec l'historique (meta/history) :
  *  un autre appareil ou une copie plus ancienne ne fait jamais revenir un relevé d'avant (extras.js › xsRemote). Le relevé du jour est refait aussitôt. */
@@ -23500,7 +23560,7 @@ function valMovers() {
   const ref = baseRef(VAL.base); if (!ref) return null;
   const sig = [VAL.at, VAL.thr, collCount(), COLL.u, ref.t].join('|');
   if (VAL.memo && VAL.memo.sig === sig) return VAL.memo.mv;
-  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: x.n, q: x.q, eu: (COLL.meta[k] || {}).eu })), ref, VAL.thr);
+  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: x.n, q: x.q, eu: dkPx(k) })), ref, VAL.thr);      // prix de référence (dkPx), comme les références de valCommit
   mv.since = ref.t; mv.by = new Map(mv.list.map(x => [x.k, x])); mv.ready = VAL.at - ref.t >= VAL_EVERY;      // moins de 20 h d'écart : rien n'a pu bouger, on n'affiche pas de variation
   VAL.memo = { sig, mv }; return mv;
 }
@@ -23542,7 +23602,7 @@ function valFit(host) {
     if (!cw) return;      // collection cachée
     const W = desk ? cw : 320, H = desk ? Math.max(150, Math.min(230, Math.round(W * 0.36))) : 132, vb = (s.getAttribute('viewBox') || '').split(' ');
     if (Math.abs(Number(vb[2]) - W) < 2 && Number(vb[3]) === H) return;
-    s.outerHTML = valChartHtml(VAL.hist, W, H);
+    s.outerHTML = valChartHtml(valHist(), W, H);
   };
   draw();      // tout de suite : jamais une image de la courbe étirée
   let raf = 0;
@@ -23560,7 +23620,7 @@ function valMoveRow(m) {
 }
 /** Sections « Valeur dans le temps » et « Variations des prix » de l'onglet Stats. */
 function valStatsHtml() {
-  const h = VAL.hist, run = VAL.run;
+  const h = valHist(), run = VAL.run;
   const ago = VAL.at ? pxAgo(VAL.at) : '', status = run ? T('Lecture des prix · {a} / {b}', { a: nf0(run.done), b: nf0(run.total) }) : VAL.err ? esc(VAL.err) : VAL.at ? T('Dernier relevé : {ago}', { ago }) : T('Aucun relevé pour l\'instant');
   const act = run ? '' : `<button class="link-btn" type="button" data-act="valnow">${T('Actualiser')}</button>`;
   let chart;
@@ -23814,7 +23874,7 @@ function xsRemote(id, uid, data, pending, fromCache) {
     // reset du document : celui de Cardmarket (les appareils d'avant le connaissent) ; TCGplayer garde le sien sur l'appareil (value.js › VAL.reset).
     const us = mkUs(), rr = Number(data && data.reset) || 0, newer = !us && rr > VAL.reset;
     if (newer) { VAL.reset = rr; VAL.hist = VAL.hist.filter(h => h.t >= rr); }
-    const pts = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q, ...(p.m === 'us' ? { m: 'us' } : {}) } : null)).filter(Boolean) : [];
+    const pts = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q, ...histRule(p), ...(p.m === 'us' ? { m: 'us' } : {}) } : null)).filter(Boolean) : [];      // r, vo : règle du relevé (core.js › histRule)
     const all = pts.filter(h => (h.m === 'us') === us).map(({ m, ...h }) => h);
     XS.hOther = pts.filter(h => (h.m === 'us') !== us); XS.hReset = rr;
     const remote = all.filter(h => !(h.t < VAL.reset)), merged = histMerge(VAL.hist, remote);
@@ -23838,7 +23898,7 @@ async function xsPush(id) {
 /** Document meta/history : relevés de ce marché (m: 'us' pour TCGplayer) + ceux de l'autre, tels que lus (les plus anciens de l'autre retirés au-delà de 420, la borne
  *  des règles Firestore) ; reset : celui de Cardmarket. */
 function histDoc() {
-  const us = mkUs(), mine = VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0, ...(us ? { m: 'us' } : {}) })), other = (XS.hOther || []).slice(-Math.max(0, 420 - mine.length));
+  const us = mkUs(), mine = VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0, ...histRule(h), ...(us ? { m: 'us' } : {}) })), other = (XS.hOther || []).slice(-Math.max(0, 420 - mine.length));
   const reset = us ? XS.hReset : VAL.reset;
   return { pts: [...other, ...mine].sort((a, b) => a.t - b.t), ...(reset ? { reset } : {}), updatedAt: Date.now() };
 }
@@ -24282,11 +24342,11 @@ function csLinesHtml(k, x) {
   return `<section class="cs-sec"><h3 class="cs-h">${T('Mes exemplaires')}</h3>${rows || `<p class="hint">${esc(T('Aucun exemplaire dans ta collection.'))}</p>`}
     ${CS.o.from === 'scan' ? '' : `<button type="button" class="btn ghost block cs-add" data-cs="add"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>${T('Ajouter un exemplaire')}</button>`}</section>`;      // depuis le scan : les cartes lues arrivent par « Ajouter » du scan (édition, « Ranger dans », deck, lot), pas d'ici
 }
-/** Variation connue du prix de référence Cardmarket : celui de la période précédente (value.js, 7 à 14 jours) face à celui d'aujourd'hui ; null sans point de comparaison. */
+/** Variation connue du prix de référence (builder.js › dkPx, comme value.js › valCommit) : celui de la période précédente (value.js, 7 à 14 jours) face à celui d'aujourd'hui ; null sans point de comparaison. */
 function csMove(k) {
   if (typeof VAL === 'undefined') return null;
   const ref = baseRef(VAL.base), m = COLL.meta[k]; if (!ref || !ref.p || !m || VAL.at - ref.t < VAL_EVERY) return null;
-  const u0 = ref.p[k], u1 = m.eu; return u0 > 0 && u1 > 0 ? { u0, u1, t: ref.t, d: u1 - u0, pct: (u1 - u0) / u0 * 100 } : null;
+  const u0 = ref.p[k], u1 = dkPx(k); return u0 > 0 && u1 > 0 ? { u0, u1, t: ref.t, d: u1 - u0, pct: (u1 - u0) / u0 * 100 } : null;
 }
 /* ── Historique des prix « à partir de » (30 jours) ────────────────────────────────────────────── */
 const CS_H_TTL = 6 * 3600e3;      // le serveur relit l'historique toutes les 6 h (un relevé par jour)
@@ -24347,8 +24407,9 @@ function csPxHtml(k, x, m) {
   const eds = x ? [...new Set(collLines(x).map(([g]) => lineEd(g)))] : [''], cell = (v, wait, cls) => `<span class="px cm${cls ? ' ' + cls : ''}${wait || !(v > 0) ? ' none' : ''}"><b>${wait ? '…' : v > 0 ? esc(fmt(v, mkCur())) : '—'}</b></span>`;
   const rows = eds.map(e => {
     const d = e ? COLL.ed[e] : m, wait = e ? !d : !m, set = edSet(e), sn = e ? setName(set) || (d || {}).sn || '' : '';
-    const lab = e ? `${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}<span>${esc(sn || edLabel(e))}${sn ? `<small>${esc(edLabel(e))}</small>` : ''}</span>` : `<span>${esc(eds.length > 1 ? T('Sans édition') : T('Carte'))}<small>${esc(T('impression la moins chère'))}</small></span>`;
-    return `<div class="cs-pr" role="row"><span class="cs-pn" role="cell">${lab}</span>${cell(d && d.eu, wait)}${cell(d && d.ef, wait, 'foil')}</div>`;
+    const lab = e ? `${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}<span>${esc(sn || edLabel(e))}<small>${esc([sn ? edLabel(e) : '', T('prix de cette édition')].filter(Boolean).join(' · '))}</small></span>` : `<span>${esc(eds.length > 1 ? T('Sans édition') : T('Carte'))}<small>${esc(T('impression la moins chère'))}</small></span>`;
+    const nv = e ? d && d.eu : m ? refPx(k, false, m) : 0;      // sans édition : le prix de référence (dkPx), le même que la liste, les decks et les échanges ; édition : le prix de cette édition
+    return `<div class="cs-pr" role="row"><span class="cs-pn" role="cell">${lab}</span>${cell(nv, wait)}${cell(d && d.ef, wait, 'foil')}</div>`;
   }).join('');
   const px = COLL.px[k], canCt = !!x && !mkUs() && !BASIC_NAMES.has(k) && !S.demo && (CTX.proxy || !!S.token) && !collOffline();      // hors ligne : seulement l'offre déjà lue
   const ctv = CS.ct === 'run' ? `<span class="cs-ctv"><span class="cs-spin" aria-hidden="true"></span>${esc(T('Lecture…'))}</span>`
@@ -25014,7 +25075,7 @@ async function scanPriceKeep(e) {
 async function scanPriceFetch(e) {
   if (e.cm === undefined) {
     e.cm = 'wait';
-    try { const r = await scryCollection([e.name]), g = r.get(e.key); e.cm = g && g.eu > 0 ? g.eu : null; if (g && g.im) e.im = g.im; }
+    try { const [r] = await Promise.all([scryCollection([e.name]), typeof pxTable === 'function' && !PXT ? pxTable().catch(() => null) : null]), g = r.get(e.key); e.cm = g ? refPx(e.key, false, g) || null : null; if (g && g.im) e.im = g.im; }      // prix de référence (builder.js › refPx : relevé du jour, impression la moins chère), comme la collection
     catch (x) { e.cm = 'err'; }
     scanPaintList();
   }
@@ -26496,8 +26557,7 @@ const pkEu = (p, f) => { if (!p) return null; const a = f ? p.ef : p.eu, b = f ?
  *  (comme collection.js › collLineEu) ; 0 sans prix. m : infos de la carte (COLL.meta par défaut). */
 const scanEu = (k, p, f, m = COLL.meta[k]) => {
   const u = pkEu(p, f); if (u > 0) return u;
-  const v = !m ? 0 : f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0; if (v > 0) return v;
-  const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return (t && t.e) || 0;      // carte encore jamais lue : prix « à partir de » du fichier du jour (data.js › pxTable)
+  return refPx(k, f, m) || 0;      // sans édition : le prix de référence (builder.js › refPx : relevé du jour, impression la moins chère, sinon la fiche ; foil : prix foil de la fiche), comme la collection
 };
 /** Exemplaires du scan (sûrs) par extension posée. */
 function scanSetCounts() {
@@ -27467,6 +27527,13 @@ function dkPx(k) {
   const e = pxRef(k); if (e) return e;
   pxRefEnsure(); const m = COLL.meta[k] || DM[k]; return m && m.eu > 0 ? m.eu : 0;
 }
+/** Prix de référence d'un exemplaire dont l'édition n'est pas connue (centimes, 0 si inconnu) : dkPx, la même règle partout (collection, Stats, accueil, widget,
+ *  courbe de valeur, scan, lot, échanges, « De ta collection pour ce deck ») ; foil : le prix foil de la fiche (Scryfall), à défaut dkPx. m : fiche d'une carte pas encore
+ *  dans COLL.meta ni DM (lue par le scan), dont le prix sert en dernier recours. Exemplaire d'une édition connue : le prix de cette édition (collection.js › collLineEu). */
+function refPx(k, f, m) {
+  const x = m || COLL.meta[k] || DM[k]; if (f && x && x.ef > 0) return x.ef;
+  return dkPx(k) || (x && x.eu > 0 ? x.eu : 0);
+}
 /** Valeur estimée d'un texte de deck avec cette règle (core.js › dkValue : commandant compris, terrains de base et réserve exclus, cartes possédées comprises).
  *  ready : faux tant que le relevé du jour n'a pas été essayé (le chiffre changerait à son arrivée : l'en-tête de l'éditeur et Mes decks l'attendent). */
 const dkEst = text => ({ ...dkValue(text, dmOf, dkPx), ready: pxSettled() });
@@ -27479,6 +27546,15 @@ function pxRepaint() {
   try { if (BD.el) bdPaint(); } catch (e) { /* éditeur fermé */ }
   try { if (typeof dksPaint === 'function') dksPaint(); } catch (e) { /* écran « Mes decks » pas prêt */ }
   try { if (typeof DK_VALP === 'function') DK_VALP(); } catch (e) { /* feuille d'un deck fermée */ }
+  try { pxRepaintColl(); } catch (e) { /* collection pas encore lue */ }
+}
+/** Valeur de la collection, accueil, Stats, scan, fiche d'une carte : au prix de référence (refPx), redessinés quand le relevé du jour arrive. */
+function pxRepaintColl() {
+  if (typeof COLL === 'undefined' || !collCount()) return;
+  COLL.seq++; if (typeof VAL !== 'undefined') VAL.memo = null;
+  paintCollSection(); if (COLL.el) collPaintBody(true);
+  if (typeof SC !== 'undefined' && SC.el) scanPaintList();
+  if (typeof csSoon === 'function') csSoon();
 }
 /** Relevé du jour pas encore lu : lu une fois, puis les écrans ouverts qui affichent des prix de référence sont redessinés. */
 function pxRefEnsure() {
@@ -28415,6 +28491,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
     if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
     if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
+    if (o.trap && dwTrapOk(k, o, inDeck, set)) s += w.trap;      // piège avec le commandant, mais combo ou moteur avec une carte déjà là : plus de malus
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
     if (isLand && cols.length > 1) {      // terrains d'un deck multicolore : ceux qui produisent les couleurs en manque d'abord, puis ceux qui en produisent plusieurs
@@ -28470,6 +28547,15 @@ function dwCombo3Idx() {
 function dwComboWith(k, inDeck) {
   for (const e of dwComboIdx().get(k) || []) if (inDeck(e.p)) return { c: e.c, o: [ownKey(e.c[0]) === k ? e.c[1] : e.c[0]] };
   for (const e of dwCombo3Idx().get(k) || []) if (inDeck(e.p) && inDeck(e.q)) return { c: e.c, o: e.o };
+  return null;
+}
+/** Piège de la fiche qui sert quand même dans CE deck : une autre carte du deck forme avec lui un combo connu (2 ou 3 cartes, Commander Spellbook ; pas en
+ *  bracket 1-2 ni quand les combos sont évités), ou un moteur de la fiche dont une autre pièce est là (Aminatou : Restoration Angel ne fait pas clignoter le
+ *  commandant, mais fait un combo infini avec Felidar Guardian). o : infos de la carte (dwInfo : trap, eng) ; inDeck(clé). → { kind: 'combo' | 'eng', with: [noms] } ou null. */
+function dwTrapOk(k, o, inDeck, set = {}) {
+  if (!o || !o.trap) return null;
+  if (!(set.br <= 2 || (set.avoid || []).includes('combo')) && DW.core && (DW.core.combos || DW.core.combos3)) { const cw = dwComboWith(k, inDeck); if (cw) return { kind: 'combo', with: cw.o }; }
+  for (const cs of o.eng || []) { const p = cs.filter(x => x !== k && inDeck(x)); if (p.length) return { kind: 'eng', with: p.map(x => (dwCard(x) || {}).name || x) }; }
   return null;
 }
 const dwCombo3 = c => c.length >= 5;      // combo à 3 cartes : [A, B, C, résultat, étiquette] (à 2 cartes : [A, B, résultat, étiquette])
@@ -28577,6 +28663,7 @@ function dwAuditParts(X) {
   const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // nom du moteur de la fiche : écrit en français ; ailleurs, ses cartes déjà là
   for (const e of au.engines) { rows.push(li('warn', e.ai && !fr ? T('Moteur incomplet ({c}) : il manque', { c: e.have.slice(0, 2).join(' + ') }) : T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3))); warn++; }
   if (au.traps.length) { rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5))); warn++; }
+  if (au.trapOk && au.trapOk.length) { rows.push(li('good', T('Gardées : elles marchent mal avec le commandant, mais servent avec une autre carte'), au.trapOk.slice(0, 4).map(t => t.kind === 'combo' ? T('{card} (combo avec {c})', { card: t.name, c: t.with.join(' + ') }) : T('{card} (moteur avec {c})', { card: t.name, c: t.with.slice(0, 2).join(', ') })))); good++; }
   if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
   return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };
 }
@@ -29297,21 +29384,27 @@ function dwDeckStory(X = BD) {
 /** Nom d'un moteur de la fiche du commandant : écrit en français par l'IA ; dans une autre langue, un libellé traduit. */
 const dmxEngName = l => typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr' ? l : T('moteur du plan');
 /** Lecture d'un deck par sa fiche et ses mécaniques (analyse, rapport) : { story, engines: [{ label, have, miss }] (moteurs de la fiche : pièces présentes, pièces qui manquent),
- *  traps: [noms] (pièges de la fiche présents dans le deck), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
+ *  traps: [noms] (pièges de la fiche présents dans le deck, sauf ceux qui y font un combo ou un moteur : trapOk [{ name, kind, with }]), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
  *  ni un rôle, et peu forts), core: [noms] (cœur du plan présent, note 3 de la fiche) } ; null sans classement. */
 function dwDeckAudit(X = BD) {
   if (!dmxOn()) return null;
   const story = dwDeckStory(X); if (!story) return null;
   const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
   const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
-  const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
+  const set = X.wiz || dwDefaults(), trapOk = [], traps = [];      // piège de la fiche présent : vrai piège, ou gardé parce qu'il fait un combo ou un moteur avec une autre carte du deck (dwTrapOk)
+  for (const n of ai ? (ai.trap || []).filter(has) : []) {
+    const k = ownKey(n), eng = (ai.eng || []).filter(([, cs]) => cs.some(c => ownKey(c) === k)).map(([, cs]) => cs.map(c => ownKey(c)));
+    const ok = typeof dwTrapOk === 'function' ? dwTrapOk(k, { trap: 1, eng }, c => has(c) || X.main.has(c) || X.cmdr.some(x => x.key === c), set) : null;
+    if (ok) trapOk.push({ name: n, ...ok }); else traps.push(n);
+  }
+  const wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
   const deck = dmxDeck(X), loose = [];
   for (const c of X.main.values()) {
     if (BASIC_NAMES.has(c.key)) continue; const x = dwCard(c.key), m = dmx(c.key); if (!x || !m || x.roles & DW_RB.land) continue;
     const sy = ai && (ai.syn || []).find(([n]) => ownKey(n) === c.key);
     if (!x.roles && dmxFit(m, plan, deck) < 0.2 && m.pw <= 2 && !(sy && sy[1] >= 1)) loose.push(c.name);
   }
-  return { story, engines, traps, wins, core, loose: loose.slice(0, 8) };
+  return { story, engines, traps, trapOk, wins, core, loose: loose.slice(0, 8) };
 }
 /** Mécaniques détectées pour un commandant (assistant : proposées en premier). → [étiquette] */
 function dmxCmdTags(cmd) {
@@ -29359,7 +29452,9 @@ function daDeckOf(text) {
 const daRoleLow = (roles, prof, tgt) => DW_GAUGES.some(([r]) => r !== 'land' && roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]);
 /** Échanges conseillés : [{ out: { k, name, v, price, roles }, in: suggestion (dwSuggest), why: 'budget' | rôle | 'mieux' | 'plan' }]. */
 function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
-  const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), val = k => { const o = info.get(k); return o ? dwVal(o) : 0; };
+  const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), has = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
+  const trapOk = k => { const o = info.get(k); return !!(o && o.trap && dwTrapOk(k, o, has, set)); };      // piège avec le commandant, mais combo ou moteur avec une autre carte du deck : ni faible ni à retirer
+  const val = k => { const o = info.get(k); return o ? dwVal(o) + (trapOk(k) ? dwW().trap : 0) : 0; };
   const known = !!pack && info.size >= 40;      // commandant connu de la base : sinon aucun avis sur les cartes « faibles »
   const out = [], used = new Set(), skip = new Set(), Xs = { ...X, skip, info, wiz: { ...set, bud: 0 } };      // budget compté ici, échange par échange
   const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
@@ -29380,7 +29475,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
     // seuils relatifs au deck (la valeur d'une carte compte maintenant les mécaniques et la fiche du commandant : l'échelle n'est plus celle de la seule popularité) ;
     // un piège de la fiche (carte qui marche mal avec ce commandant) est toujours parmi les plus faibles
     const vs = weakest.map(c => c.v), qAt = f => vs.length ? vs[Math.min(vs.length - 1, Math.floor(vs.length * f))] : 0;
-    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap);
+    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap) && !trapOk(c.k);
     // 2) rôles sous la plage normale : à la place des cartes les plus faibles qui ne remplissent aucun rôle qui manque
     const deficit = gaugeRoles.filter(r => tgt[r] && prof[r] < tgt[r][0]).map(r => [r, tgt[r][1] - prof[r]]).sort((a, b) => b[1] - a[1]);
     for (const [r, need] of deficit) for (let i = 0; i < Math.min(need, 3) && out.length < max; i++) {
@@ -29617,7 +29712,7 @@ function daSimCard() {
   const r = DSIM.sig === dsimSig(DA.X) ? DSIM.res : null; if (r && r.none) return '';
   const tile = (ok, v, t) => `<span class="cb-st ${ok ? 'ok' : 'warn'}"><b>${esc(v)}</b><small>${esc(t)}</small></span>`;
   const body = !r ? `<span class="ds-big"><i style="width:${Math.round((DSIM.prog || 0) * 100)}%"></i></span><small class="cb-sim-w">${T('Parties en cours…')}</small>`
-    : `<div class="cb-sts">${tile(r.keep7 >= 74, dsimPct(r.keep7), T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps')) : tile(r.miss3 <= 20, dsimPct(r.miss3), T('parties sans terrain avant le tour 4'))}${r.screw4 > 10 || r.elim10 == null ? tile(r.screw4 <= 10, dsimPct(r.screw4), T('parties bloquées par les couleurs')) : tile(r.kill10 >= 20, dsimPct(r.kill10), T('parties où un adversaire tombe avant le tour 11'))}</div>`;      // 3e case : les couleurs quand elles bloquent, sinon la table
+    : `<div class="cb-sts">${tile(r.keep7 >= 74, dsimPct(r.keep7), T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps')) : tile(r.miss3 <= 20, dsimPct(r.miss3), T('parties sans terrain avant le tour 4'))}${r.screw4 > 10 || r.elim10 == null || r.blind ? tile(r.screw4 <= 10, dsimPct(r.screw4), T('parties bloquées par les couleurs')) : tile(r.kill10 >= 20, dsimPct(r.kill10), T('parties où un adversaire tombe avant le tour 11'))}</div>`;      // 3e case : les couleurs quand elles bloquent ou quand la simulation ne joue pas le plan du deck (voltron, ninjutsu…), sinon la table
   return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('10 premiers tours joués par le coach, face à 3 adversaires')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
 }
 /** Réglage changé (formulaire partagé) : bracket ou budget choisis ne suivent plus la liste ; gardés pour un deck de Mes decks ; le bilan suit. */
@@ -30119,7 +30214,7 @@ async function dsOptimize(mine, ms, step) {
   const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), ctx = { cmd, pack, info };
   const score = () => dsScore(BD, ctx).raw, t0 = Date.now(), tried = new Set();
   let cur = score(), kept = 0, it = 0;
-  const worth = (k, prof, tgt) => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : x.rank > 0 ? Math.max(0, 1 - x.rank / 4000) * 0.5 : 0; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
+  const worth = (k, prof, tgt) => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : x.rank > 0 ? Math.max(0, 1 - x.rank / 4000) * 0.5 : 0; if (o && o.trap && dwTrapOk(k, o, kk => BD.main.has(kk) || BD.cmdr.some(c => c.key === kk), set)) v += dwW().trap; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
   const card = x => ({ key: x.k, name: x.name, qty: 1 });
   BD.gen = true;      // candidates tirées comme à la construction (graine, style de la version, cartes des autres versions en recul)
   try {
@@ -30163,7 +30258,7 @@ async function dsOptimize(mine, ms, step) {
    table qui tient (presque jamais un adversaire éliminé) : deux sorts faibles contre des retraits (leurs bloqueurs). Chaque correction est rejouée et gardée seulement si la partie s'améliore
    nettement (dsSimVal : démarrage, adversaires éliminés, moteur qui tient, retraits adverses évités ; protection, récursion et retraits : une fois
    chacune, gardées si la partie ne se dégrade pas) et que la note du coach ne baisse pas (plus de 1,5 point). 6 essais au plus. */
-const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff + 0.3 * (r.kill10 || 0) + 0.3 * (r.engKeep == null ? 0 : r.engKeep) + 3 * (r.saved || 0) : -1e9;      // saved : retraits et balayages adverses évités par ta protection (par partie)
+const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff + 0.3 * (r.blind ? 0 : r.kill10 || 0) + 0.3 * (r.engKeep == null ? 0 : r.engKeep) + 3 * (r.saved || 0) : -1e9;      // saved : retraits et balayages adverses évités par ta protection (par partie)
 async function dsSimTune(mine, step) {
   const cmd = dwCmdOf(); if (!cmd) return { fixed: 0, r: null };
   const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), N = 1500;
@@ -30213,7 +30308,7 @@ async function dsSimTune(mine, step) {
     if (r.screw4 > 8) want.push('fix');
     if (r.cmv && r.cmdOn < 55) want.push('ramp');
     if ((r.engKeep != null && r.eng >= 40 && r.engKeep < 0.8 * r.eng) || r.lost >= 3.5) want.push('protect', 'recursion');      // moteur souvent perdu, ou beaucoup de cartes perdues face à la table
-    if (r.kill10 != null && r.elim10 != null && r.kill10 < 20) want.push('removal');      // la table tient : de quoi enlever leurs bloqueurs
+    if (r.kill10 != null && r.elim10 != null && !r.blind && r.kill10 < 20) want.push('removal');      // la table tient : de quoi enlever leurs bloqueurs
     if (!want.some(k => !done.has(k))) break;
     let better = false;
     for (const kind of [...new Set(want)].filter(k => !done.has(k))) {
@@ -30242,7 +30337,7 @@ const dsOverlap = (a, b) => { const A = new Set(dsSpells(a)), B = dsSpells(b); r
 const DS_DRAWS = 3, DS_BUDGET = 20000;
 /** Jugement d'un tirage : la note du coach, puis la partie jouée face à 3 adversaires (un adversaire éliminé avant le tour 11, moteur en place et moteur
  *  encore là au tour 10 malgré leurs retraits et le balayage : protection, retraits et récursion y comptent ; commandant à temps, mains, couleurs). */
-const dsJudge = (raw, r) => { if (!r) return raw; const e = r.eng == null ? 50 : r.eng; return raw + 0.06 * (r.kill10 || 0) + 0.02 * e + 0.04 * (r.engKeep == null ? e : r.engKeep) + 2 * (r.saved || 0) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4; };
+const dsJudge = (raw, r) => { if (!r) return raw; const e = r.eng == null ? 50 : r.eng; return raw + 0.06 * (r.blind ? 0 : r.kill10 || 0) + 0.02 * e + 0.04 * (r.engKeep == null ? e : r.engKeep) + 2 * (r.saved || 0) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4; };
 /** Nouvelle graine de tirage. */
 const dsSeed = () => 1 + Math.floor(Math.random() * 2e9);
 /** Construit les versions du deck de l'éditeur (BD), sans affichage : [{ v, main, wiz, sc, prof, kept, sim, fixed, story }].
@@ -30380,7 +30475,7 @@ function dsChoose(api, res, before, empty) {
       <span class="ds-vh"><b>${esc(r.v.name)}</b>${r.sc.total === best ? `<em>${T('Meilleure note')}</em>` : ''}<span class="ds-vn ds-${dsLevel(r.sc.total)}">${r.sc.total}<small>/100</small></span></span>
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}
       <span class="ds-vk">${esc([fmt(r.prof.cents, cur), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
-      ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }) + (r.sim.elim10 != null ? ' · ' + T('un adversaire éliminé avant le tour 11 : {p}', { p: dsimPct(r.sim.kill10) }) : ''))}</span>` : ''}
+      ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }) + (r.sim.elim10 != null && !r.sim.blind ? ' · ' + T('un adversaire éliminé avant le tour 11 : {p}', { p: dsimPct(r.sim.kill10) }) : ''))}</span>` : ''}
       <span class="ds-vr">${esc(roles.map(x => dsRoleLabel(x) + ' ' + r.prof[x]).join(' · '))}</span>
       ${dsStoryLine(r.story) ? `<span class="ds-vd">${esc(dsStoryLine(r.story))}</span>` : ''}${r.common != null ? `<span class="ds-vd">${esc(T('{p} % des sorts en commun avec la version équilibrée', { p: Math.round(r.common * 100) }))}</span>` : ''}</button>`).join('')}</div>`;
   api.setFoot(`<button class="btn ghost" type="button" data-ds-again>${T('Autre proposition')}</button>`);
@@ -30427,6 +30522,11 @@ if (typeof document !== 'undefined') document.addEventListener('toggle', e => { 
    les plateaux à zéro quand tu es en retard, ta protection (permanent : ta meilleure créature ne peut plus être ciblée ; éphémère gardé avec le mana
    pour le payer, contresorts compris : un retrait ou un balayage évité), ta récursion ramène la meilleure carte morte (sur le champ de bataille pour la
    réanimation). Un commandant mort revient dans la zone de commandement (+2 à son coût).
+   Voltron (5 novembre) : chaque équipement ou aura qui renforce (classement « voltron » : +2 à +5 selon son coût ; +1 pour un équipement ou une aura
+   sans autre effet connu) va sur un seul porteur, le commandant d'abord, sinon ta plus grosse créature ; les auras tout de suite, les équipements avec
+   le mana qui reste après les sorts (coût d'équipement estimé : 1 à 3), à rattacher quand le porteur change ; le porteur mort, ses auras partent au
+   cimetière. Ses blessures de commandant comptent (21 éliminent). Plans que la simulation ne joue pas (ninjutsu, group hug, politique, capacité du
+   commandant déclenchée par les sorts, drain des aristocrates : dsimBlind) : « adversaire éliminé » non mesuré.
    Résultats : mains gardées, commandant à temps, terrains manqués, couleurs bloquées, mana utilisé ; un adversaire éliminé avant le tour 11, adversaires
    éliminés, table battue, moteur en place, moteur encore là au tour 10 et après le balayage, cartes vues au tour 6. Graine fixe (même deck, mêmes
    résultats). Aucune IA : du hasard et des règles simples, les mêmes pour tous les decks : elles comparent, elles ne prédisent pas. */
@@ -30434,6 +30534,24 @@ const DSIM = { sig: '', res: null, run: null }, DSIM_N = 10000;      // 10 000 p
 /** Table : 3 adversaires (vie, blessures de commandant), leur plateau (bloqueurs) et leur interaction ; les mêmes pour tous les decks. turns : tours joués. */
 const DSIM_OPP = { turns: 10, n: 3, life: 40, cmd: 21, grow: 0.45, from: 2, max: 4, sz0: 1, sz: 0.4, fly: 0.25, rm: 0.3, rmFrom: 2, wipe: 0.7, wipeT: [5, 6, 7], wipeLast: 8, wipeMin: 3, danger: 15 };
 const dsimSize = t => Math.round(DSIM_OPP.sz0 + t * DSIM_OPP.sz);      // force et endurance d'un bloqueur posé au tour t
+/** Plans que la simulation ne sait pas jouer (5 novembre) : le deck gagne autrement que par ce qu'elle mesure, « adversaire éliminé » n'y dit rien
+ *  (affiché « non mesuré », sans poids dans la construction). Le voltron (équipements, auras) est joué depuis le même jour : il n'en fait plus partie.
+ *  Mécaniques (DSIM_BLIND, dans l'ordre : la 1re trouvée nomme le plan) repérées dans les 3 premières étiquettes de la fiche du commandant (ai.tags),
+ *  les 3 mécaniques principales du plan (dmxPlan › main) ou ce que fournit ou veut le commandant lui-même (classement [10]) ; capacité du commandant
+ *  déclenchée par les sorts lancés (il veut « spells » ou « cast-trigger » : Talrand) ; aristocrates (le plan réunit drain, morts de créatures et
+ *  sacrifices : Teysa, Ghave). → { t: 'ninjutsu' | 'group-hug' | 'politics' | 'cmd' | 'aristocrats', c: nom du commandant } ou null. */
+const DSIM_BLIND = ['ninjutsu', 'group-hug', 'politics'];
+function dsimBlind(X, cmd, plan) {
+  if (!cmd || !plan || typeof dmx !== 'function') return null;
+  const tg = i => DMX.tags[i], own = (cmd.keys || []).map(k => dmx(k)).filter(Boolean), names = X.cmdr || [];
+  const ai = ((plan.ai && plan.ai.tags) || []).slice(0, 3), main = plan.main.map(tg), mine = new Set(own.flatMap(m => [...m.p, ...m.w].map(tg)));
+  for (const t of DSIM_BLIND) if (ai.includes(t) || main.slice(0, 3).includes(t) || mine.has(t)) return { t, c: '' };
+  for (let i = 0; i < own.length; i++) if (own[i].w.some(j => tg(j) === 'spells' || tg(j) === 'cast-trigger')) return { t: 'cmd', c: (names[i] && names[i].name) || '' };
+  if (main.includes('drain') && main.includes('dies-trigger') && (main.includes('sacrifice-outlet') || main.includes('sacrifice'))) return { t: 'aristocrats', c: '' };
+  return null;
+}
+/** Nom du plan que la simulation ne joue pas (phrase du rapport). */
+const dsimBlindName = r => r.blind === 'cmd' ? (r.blindCmd ? T('capacité de {c}', { c: r.blindCmd }) : T('capacité du commandant')) : r.blind === 'aristocrats' ? T('drain des aristocrates') : dmxLabel(r.blind);
 /** Cartes du deck X pour la simulation : bibliothèque (99 cartes ou moins) et commandant(s). */
 function dsimDeck(X) {
   const cmd = dwCmdOf(X), ci = cmd ? [...cmd.ci] : [], lib = [];
@@ -30454,13 +30572,15 @@ function dsimDeck(X) {
     const dr = R & DW_RB.draw ? (perm ? 0.5 : 2) : 0, tok = has('tokens-creature') ? (perm ? 1 : 2) : 0, dA = has('drain') ? (perm ? 1 : 2) : 0, dO = !dA && has('burn') ? (perm ? 1 : 3) : 0;
     const win = !!(R & DW_RB.wincon), ep = !!mm && main.some(i => mm.p.includes(i)), ew = !!mm && main.some(i => mm.w.includes(i));
     const ev = !!(kw & 1), ds = !!(kw & 8), cm = cix != null;
+    const sub = ' ' + ((mm && mm.sub) || '') + ' ', au = / Aura /.test(sub), eqp = / Equipment /.test(sub);
+    const vo = perm && !cre && mm ? (has('voltron') ? Math.min(5, Math.max(2, Math.round(cmc * 0.8) + 1)) : (au || eqp) && !R && !mm.p.length ? 1 : 0) : 0;      // voltron : équipement ou aura qui renforce (+2 à +5 selon le coût ; +1 sans autre effet connu, Bonesplitter), sur une seule créature
     const thr = (cre ? pow * (ds ? 2 : 1) * (ev ? 1.5 : 1) : 0) + (cm ? 2 : 0) + (ep || ew ? 3 : 0) + (win && perm ? 4 : 0) + (tok && perm ? 2 : 0) + (dr && perm ? 1.5 : 0) + ((dA || dO) && perm ? 2 : 0);      // menace aux yeux des adversaires (cible de leurs retraits)
     return { k, n: name, land, cmc, pips, gen: Math.round(gen), prod: [...prod], ramp, perm, cre, pow, tou, ev, tr: !!(kw & 2), hs: !!(kw & 4), ds, dt: !!(kw & 16), hx: !!(kw & 32), ind: !!(kw & 64),
-      gEv: has('evasion'), gHs: has('haste'), gDs: has('double-strike'), rean: has('reanimation'), dr, tok, dA, dO, win, ep, ew, thr, cm, ci: cix || 0,
+      vo, au: au && vo > 0, eqc: vo && !au ? Math.min(3, Math.max(1, Math.round(cmc * 0.6))) : 0, gEv: has('evasion'), gHs: has('haste'), gDs: has('double-strike'), rean: has('reanimation'), dr, tok, dA, dO, win, ep, ew, thr, cm, ci: cix || 0,
       rm: !!(R & DW_RB.removal), wp: !!(R & DW_RB.wipe), pr: perm && !!(R & DW_RB.protect), rc: !!(R & DW_RB.recursion), guard: !perm && !land && !!(R & (DW_RB.protect | DW_RB.counter)), ct: !!(R & DW_RB.counter) };
   };
   for (const c of X.main.values()) { const s = spec(c.key, c.name); for (let i = 0; i < c.qty; i++) lib.push(s); }
-  return { lib, cmdr: X.cmdr.map((c, i) => spec(c.key, c.name, i)), main: main.length };
+  return { lib, cmdr: X.cmdr.map((c, i) => spec(c.key, c.name, i)), main: main.length, blind: dsimBlind(X, cmd, plan) };
 }
 /** Paie un sort avec les sources disponibles (tableau de listes de couleurs) : sources restantes, ou null si impossible. */
 function dsimPay(avail, s) {
@@ -30504,7 +30624,10 @@ function dsimGame(D, rnd, onPlay, stuck) {
   const target = () => { let b = -1; for (let o = 0; o < O.n; o++) if (!dead[o] && (b < 0 || life[o] < life[b] || (life[o] === life[b] && blk[o].length < blk[b].length))) b = o; return b; };      // l'adversaire le plus bas en vie
   const nBlk = () => blk.reduce((a, b) => a + b.length, 0), nCre = () => board.reduce((a, e) => a + (e.s.cre ? 1 : 0), 0) + tk + tkNew;
   const engOn = () => !!D.main && board.some(e => e.s.ep) && board.some(e => e.s.ew);
-  const died = e => { const i = board.indexOf(e); if (i >= 0) board.splice(i, 1); if (e.s.cm) { tax[e.s.ci] += 2; cmdLeft.push(e.s); } else gy.push(e.s); };      // commandant : zone de commandement, 2 de plus à payer
+  let wear = null;      // voltron : la créature qui porte les équipements et auras (le commandant d'abord)
+  const vNow = () => board.reduce((a, e) => a + (e.s.vo && (e.s.au || e.on) ? e.s.vo : 0), 0);      // ce que lui donnent les auras et les équipements attachés
+  const unwear = () => { wear = null; for (const e of board.slice()) if (e.s.au && e.s.vo) { board.splice(board.indexOf(e), 1); gy.push(e.s); } else if (e.on) e.on = false; };      // le porteur s'en va : ses auras au cimetière, les équipements à rattacher
+  const died = e => { if (e === wear) unwear(); const i = board.indexOf(e); if (i >= 0) board.splice(i, 1); if (e.s.cm) { tax[e.s.ci] += 2; cmdLeft.push(e.s); } else gy.push(e.s); };      // commandant : zone de commandement, 2 de plus à payer
   const shielded = () => { if (!board.some(e => e.s.pr)) return null; let b = null; for (const e of board) if (e.s.cre && (!b || e.s.thr > b.s.thr)) b = e; return b; };      // protection permanente (bottes, équipement, Mère des runes) : ta meilleure créature
   const killBlk = () => { let bo = -1, bi = -1; const o0 = target(); for (let o = 0; o < O.n; o++) if (!dead[o]) for (let i = 0; i < blk[o].length; i++) if (bi < 0 || (o === o0) > (bo === o0) || ((o === o0) === (bo === o0) && blk[o][i] > blk[bo][bi])) { bo = o; bi = i; } if (bi >= 0) blk[bo].splice(bi, 1); };      // ton retrait : le plus gros bloqueur, chez l'adversaire visé d'abord
   const wipeAll = mine => { for (const b of blk) b.length = 0; if (!mine) return; for (const e of board.slice()) if (e.s.cre && !e.s.ind) died(e); tk = tkNew = 0; };
@@ -30538,16 +30661,24 @@ function dsimGame(D, rnd, onPlay, stuck) {
     for (const c of cmdLeft.slice()) { const cs = tax[c.ci] ? { ...c, cmc: c.cmc + tax[c.ci] } : c; if (cast(cs, true)) { cmdLeft.splice(cmdLeft.indexOf(c), 1); if (!cmdTurn && t <= 8) cmdTurn = t; play(c, t); } }      // tours 9 et 10 : le plan seulement (mesures de mana sur les 8 premiers)
     for (const s of hand.filter(c => !c.land && c.ramp && useful(c)).sort((a, b) => a.cmc - b.cmc)) if (cast(s, true)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; play(s, t); }      // la rampe passe avant le mana gardé
     for (const s of hand.filter(c => !c.land).sort((a, b) => b.cmc - a.cmc)) if (s.cmc <= avail.length && hand.includes(s) && useful(s) && cast(s)) { hand.splice(hand.indexOf(s), 1); if (t <= 6) cast6++; play(s, t); }
-    const armed = g && hand.includes(g) && dsimPay(avail, g) ? g : null; if (armed) spent += armed.cmc;      // mana gardé pour la protection : compté comme utilisé
+    const armed = g && hand.includes(g) && dsimPay(avail, g) ? g : null;
+    if (board.some(e => e.s.vo)) {      // voltron : le porteur (le commandant d'abord, sinon ta plus grosse créature), puis les équipements attachés avec le mana qui reste (coût d'équipement estimé : 1 à 3)
+      let w = null; for (const e of board) if (e.s.cre && (!w || (e.s.cm && !w.s.cm) || (e.s.cm === w.s.cm && e.s.pow > w.s.pow))) w = e;
+      if (w !== wear && (!wear || (w && w.s.cm && !wear.s.cm))) { if (wear) for (const e of board) e.on = false; wear = w; }
+      if (wear) for (const e of board) if (e.s.eqc && !e.on) { const r = dsimPay(avail, { pips: {}, cmc: e.s.eqc }); if (!r || (armed && !dsimPay(r, armed))) break; spent += avail.length - r.length; avail = r; e.on = true; }
+    }
+    if (armed) spent += armed.cmc;      // mana gardé pour la protection : compté comme utilisé
     if (engOn()) { if (!engT) engT = t; }
     if (alive) {      // combat : l'adversaire le plus bas en vie
       const o = target(), B = blk[o].slice().sort((a, b) => b - a), hasteAll = board.some(e => e.s.gHs), sMax = B.length ? B[0] >> 1 : 0, att = [];
-      for (const e of board) if (e.s.cre && e.s.pow > 0 && (e.t < t || e.s.hs || hasteAll)) att.push(e);
-      att.sort((a, b) => b.s.pow - a.s.pow);
+      const V = wear ? vNow() : 0;      // voltron : auras et équipements attachés, sur leur porteur
+      for (const e of board) if (e.s.cre && (e.s.pow > 0 || (V && e === wear)) && (e.t < t || e.s.hs || hasteAll)) att.push(e);      // un porteur 0/2 (Sram) attaque quand il porte quelque chose
+      const pw = e => e.s.pow + (V && e === wear ? V : 0);
+      att.sort((a, b) => pw(b) - pw(a));
       let nEv = 0, nDs = 0; for (const e of board) { if (e.s.gEv) nEv++; if (e.s.gDs) nDs++; }      // cartes qui donnent évasion ou double initiative : à tes plus grosses créatures
       const A = [];
       for (const e of att) {
-        const s = e.s, ev = s.ev || (nEv > 0 && nEv-- > 0), ds = s.ds || (nDs > 0 && nDs-- > 0), d = s.pow * (ds ? 2 : 1);
+        const s = V && e === wear ? { ...e.s, pow: e.s.pow + V, tou: e.s.tou + V } : e.s, ev = s.ev || (nEv > 0 && nEv-- > 0), ds = s.ds || (nDs > 0 && nDs-- > 0), d = s.pow * (ds ? 2 : 1);
         if (ev || s.tr || s.dt || s.ind || s.tou > sMax || s.pow >= sMax) A.push({ e, s, ev, ds, d });      // n'attaque pas pour mourir sans rien tuer
       }
       const used = new Array(B.length).fill(false), inc = A.reduce((a, x) => a + x.d, 0) + Math.max(0, tk - B.length), danger = life[o] - inc <= O.danger;
@@ -30576,7 +30707,7 @@ function dsimGame(D, rnd, onPlay, stuck) {
     const stop = () => { if (!guard) return false; hand.splice(hand.indexOf(guard), 1); guard = null; saved++; return true; };
     for (let o = 0; o < O.n; o++) if (!dead[o] && t >= O.from && blk[o].length < O.max && rnd() < O.grow) blk[o].push(dsimSize(t) * 2 + (rnd() < O.fly ? 1 : 0));
     if (t >= O.rmFrom && rnd() < O.rm) {      // retrait ciblé sur ta meilleure menace (ni défense talismanique, ni protégée)
-      const sh = shielded(); let b = null; for (const e of board) if (e.s.thr >= 2 && !e.s.hx && e !== sh && (!b || e.s.thr > b.s.thr)) b = e;
+      const sh = shielded(); let b = null; const vw = wear ? vNow() : 0, th = e => e.s.thr + (e === wear ? vw : 0); for (const e of board) if (th(e) >= 2 && !e.s.hx && e !== sh && (!b || th(e) > th(b))) b = e;
       if (b && !stop()) { died(b); lost++; }
     }
     if (wipeAt && !wipeT && t >= wipeAt && t <= O.wipeLast && nCre() >= O.wipeMin) {      // balayage : toutes les créatures (les leurs aussi)
@@ -30610,9 +30741,10 @@ async function dsimRun(X, n = 1000, step) {
     kill10: pct(acc.kill), killT: acc.killT / n, elim10: acc.elim / n, table: pct(acc.table), tableT: acc.tableT / n, cmdKill: pct(acc.cmdKill),
     eng: D.main ? pct(acc.eng) : null, engT: acc.engT / n, engKeep: D.main ? pct(acc.engEnd) : null, wipeSurv: D.main && acc.wsHas >= n * 0.05 ? Math.round(acc.wsOK / acc.wsHas * 100) : null,
     wiped: pct(acc.wiped), saved: acc.saved / n, lost: acc.lost / n, win8: pct(acc.win8), dmg8: acc.dmg8 / n, seen6: acc.seen6 / n,
+    blind: D.blind ? D.blind.t : null, blindCmd: D.blind ? D.blind.c : '',      // plan que la simulation ne joue pas : « adversaire éliminé » non affiché, sans poids dans la construction
     stuck: [...stuck].filter(([, v]) => v / n >= 0.04).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, v]) => [name, pct(v)]) };
 }
-const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort()].join('|');
+const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort(), ...((X.wiz && X.wiz.th) || []), ...((X.wiz && X.wiz.mech) || [])].join('|');      // thèmes et mécaniques choisis : le plan (moteur, plan non joué) en dépend
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 const dsimPct = v => T('{n} %', { n: Number(v).toLocaleString(LOC()) });      // « 74 % » en français, « 74% » en anglais (dictionnaires)
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
@@ -30623,8 +30755,9 @@ function dsimHtml(r, prog, o = {}) {
   const key = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b><span>${esc(t)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}</li>`;
   h += `<ul class="ds-key">${key(r.keep7 >= 74, dsimPct(r.keep7), T('Mains gardées'), T('main de 7 cartes'))}
     ${r.cmv ? key(r.cmdOn >= 55, dsimPct(r.cmdOn), T('Commandant à temps'), T('tour {t} ou avant', { t: r.cmv })) : key(r.miss3 <= 20, dsimPct(r.miss3), T('Terrains manqués'), T('avant le tour 4'))}
-    ${r.kill10 != null ? key(r.kill10 >= 20, dsimPct(r.kill10), T('Adversaire éliminé'), T('avant le tour 11')) : key(r.screw4 <= 10, dsimPct(r.screw4), T('Couleurs bloquées'), T('au tour 4'))}
+    ${r.blind ? `<li class="na"><b>${esc(T('non mesuré'))}</b><span>${esc(T('Adversaire éliminé'))}</span><small>${esc(T('pour ce plan'))}</small></li>` : r.kill10 != null ? key(r.kill10 >= 20, dsimPct(r.kill10), T('Adversaire éliminé'), T('avant le tour 11')) : key(r.screw4 <= 10, dsimPct(r.screw4), T('Couleurs bloquées'), T('au tour 4'))}
     ${r.engKeep != null && r.eng ? key(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('Moteur qui tient'), T('encore là au tour 10')) : r.eng != null ? key(r.eng >= 50, dsimPct(r.eng), T('Moteur en place'), T('avant le tour 11')) : key(r.eff >= 70, dsimPct(r.eff), T('Mana utilisé'), T('tours 1 à 6'))}</ul>`;
+  if (r.blind) h += `<p class="hint ds-blind">${esc(T('Plan « {p} » : la simulation ne sait pas encore le jouer, les adversaires éliminés ne sont donc pas mesurés pour ce deck ; les autres chiffres le sont.', { p: dsimBlindName(r) }))}</p>`;
   const row = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b> ${esc(t)}${sub ? ` <small>${esc(sub)}</small>` : ''}</li>`;
   let more = `<ul class="bd-issues ds-sim">
     ${row(r.keep7 >= 74, dsimPct(r.keep7), T('des mains de 7 cartes gardées'), T('{l} terrains en moyenne dans la main gardée', { l: dsimNum(r.lands0) }))}
@@ -30632,7 +30765,7 @@ function dsimHtml(r, prog, o = {}) {
     ${row(r.miss3 <= 20, dsimPct(r.miss3), T('des parties sans terrain à poser avant le tour 4'), T('{p} avant le tour 5', { p: dsimPct(r.miss4) }))}
     ${row(r.screw4 <= 10, dsimPct(r.screw4), T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
     ${row(r.eff >= 70, dsimPct(r.eff), T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}
-    ${r.kill10 != null ? row(r.kill10 >= 20, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
+    ${r.kill10 != null && !r.blind ? row(r.kill10 >= 20, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
     ${r.eng != null ? row(r.eng >= 50, dsimPct(r.eng), T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
     ${r.engKeep != null && r.eng ? row(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage'), r.wipeSurv != null ? T('moteur encore là au tour qui suit le balayage : {p}', { p: dsimPct(r.wipeSurv) }) : '') : ''}
     ${r.seen6 != null ? row(r.seen6 >= 14, dsimNum(r.seen6), T('cartes vues au tour 6 (main, pioche, moteurs)'), '') : ''}</ul>`;
@@ -30644,7 +30777,7 @@ function dsimHtml(r, prog, o = {}) {
   if (r.screw4 > 10) adv.push(T('Couleurs mal servies : remplace des terrains de base par des terrains qui produisent plusieurs couleurs.'));
   if (r.cmv && r.cmdOn < 55) adv.push(T('Commandant souvent en retard : plus de rampe à 2 mana ou moins.'));
   if (r.eff < 70) adv.push(T('Mana souvent inutilisé : plus de sorts à 2 et 3 mana.'));
-  if (r.kill10 != null && r.elim10 != null && r.kill10 < 10) adv.push(T('La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.'));
+  if (r.kill10 != null && r.elim10 != null && !r.blind && r.kill10 < 10) adv.push(T('La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.'));
   if (r.eng != null && r.eng < 50) adv.push(T('Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.'));
   if (r.engKeep != null && r.eng >= 50 && r.engKeep < 0.6 * r.eng) adv.push(T('Moteur souvent détruit par les adversaires : de la protection (équipements, contresorts, sorts qui protègent) ou de la récursion pour le remonter.'));
   if (r.seen6 != null && r.seen6 < 13) adv.push(T('Peu de cartes vues : un ou deux moteurs de pioche de plus.'));
@@ -30800,8 +30933,9 @@ function trCounts() {
 }
 /** Doublons à échanger d'une collection (decks et réglages de cet appareil) : colonne « Tradelist Count » de l'export CSV (collToCsv, core.js ; déclaration hoistée, jamais en zone morte). */
 function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept, COLL.places).have; }
-/** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : tendance Cardmarket du fichier de prix (impression la moins chère), sinon le prix Scryfall déjà connu de l'appareil. */
-const trPrice = k => { const t = PXT && PXT.map && PXT.map.get(k); return (t && t.e) || (dmOf(k) || {}).eu || null; };
+/** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : le prix de référence de l'appli (builder.js › dkPx : relevé du jour,
+ *  impression la moins chère, sinon la fiche), le même que la collection et les decks. */
+const trPrice = k => dkPx(k) || (dmOf(k) || {}).eu || null;
 /** Prix d'un exemplaire d'une ligne de MA collection (clé 'fr|cmm|400*') : celui de son impression (COLL.ed, comme la valeur de la collection : collection.js › edEu), sinon trPrice ;
  *  foil : le prix foil de son impression, sinon le prix foil Cardmarket de la carte ; null si aucun prix foil n'est connu (jamais le prix non foil présenté comme prix foil). */
 function trLinePx(k, g) {
@@ -31926,7 +32060,7 @@ function homeSoon(ms = 120) { if (typeof document === 'undefined') return; clear
 /** Valeur de la collection : somme des prix tendance (centimes) ; à défaut le dernier relevé de l'historique. */
 function homeValue() {
   let v = collValue();      // prix de l'édition de chaque ligne s'il est connu, sinon celui de la carte
-  if (!v && VAL.hist.length) v = VAL.hist[VAL.hist.length - 1].v;
+  if (!v && VAL.hist.length) v = valHist()[VAL.hist.length - 1].v;
   return v;
 }
 /** Le chiffre défile jusqu'à sa valeur (euros entiers). */
@@ -31952,7 +32086,7 @@ function homePaint() {
     const v = sv ? sv.v : homeValue();
     if (v > 0) homeCount(val, v); else { HM.v = null; val.textContent = nf0(n); }
     cnt.textContent = v > 0 ? TN(n, '{n} carte', '{n} cartes') : TN(n, 'carte', 'cartes');
-    const h = sv ? null : histDelta(VAL.hist, 7);
+    const h = sv ? null : histDelta(valHist(), 7);
     if (h && Math.abs(h.d) >= 100) { dl.hidden = false; dl.className = h.d < 0 ? 'down' : ''; dl.textContent = T('{d} · 7 j', { d: (h.d < 0 ? '▼ −' : '▲ +') + hmEur(Math.abs(h.d)) }); } else dl.hidden = true;
   } else { HM.v = null; val.textContent = T('Commencer'); cnt.textContent = T('Ajoute tes cartes'); dl.hidden = true; }
   const start = !n && !sv;                                                               // collection vide : « Pour commencer » à la place de la ligne sous l'orbe (et de la courbe sur ordinateur)
@@ -32049,7 +32183,7 @@ function homeDeskPaint() {
   const d = now.toLocaleDateString(LOC(), { weekday: 'long', day: 'numeric', month: 'long' });
   $('#hmDkDate').textContent = d.charAt(0).toUpperCase() + d.slice(1);
   $('#hmDkHi').textContent = nm ? T(eve ? 'Bonsoir {name}' : 'Bonjour {name}', { name: nm }) : T(eve ? 'Bonsoir' : 'Bonjour');
-  const n = collCount(), dl = days => { const h = histDelta(VAL.hist, days); return h && Math.abs(h.d) >= 100 ? `<b class="${valCls(h.d)}">${(h.d < 0 ? '−' : '+') + esc(hmEur(Math.abs(h.d)))}</b>` : '<b>—</b>'; };      // euros entiers, comme l'orbe
+  const n = collCount(), dl = days => { const h = histDelta(valHist(), days); return h && Math.abs(h.d) >= 100 ? `<b class="${valCls(h.d)}">${(h.d < 0 ? '−' : '+') + esc(hmEur(Math.abs(h.d)))}</b>` : '<b>—</b>'; };      // euros entiers, comme l'orbe
   const al = n ? valAlertN() : 0;
   $('#hmDkKpi').innerHTML = `<div><b>${nf0(n)}</b><span>${TN(n, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${T('exemplaires')}</span></div>`
     + `<div>${dl(7)}<span>${T('sur 7 jours')}</span></div><div>${dl(30)}<span>${T('sur 30 jours')}</span></div>`
@@ -32059,7 +32193,7 @@ function homeDeskPaint() {
 /** Courbe de valeur à la taille de sa case (redessinée quand sa case change de taille, accueil caché puis rouvert compris). */
 function homeDeskChart() {
   const el = $('#hmDkChart'); if (!el || !el.isConnected || !homeDeskOn()) return;
-  const h = VAL.hist.slice(-120), W = Math.round(el.clientWidth), H = Math.round(el.clientHeight);
+  const h = valHist().slice(-120), W = Math.round(el.clientWidth), H = Math.round(el.clientHeight);
   if (!W) return;      // accueil caché (autre vue) : redessinée à son retour
   if (h.length < 2 || W < 120 || H < 60) { el.innerHTML = `<p class="hint">${collCount() ? T('La courbe se dessine jour après jour : un relevé des prix par jour.') : T('Ajoute tes cartes : leur valeur sera suivie chaque jour.')}</p>`; return; }
   el.innerHTML = valChartHtml(h, W, H);
@@ -33078,7 +33212,7 @@ function widgetBtn() {
  *  Sinon les relevés comptent aussi les cartes ajoutées (un achat passerait pour une hausse) : variation du marché seul (valMovers, prix carte par carte
  *  depuis la référence, cartes ajoutées exclues), avec sa vraie durée ; à défaut celle des relevés. */
 function widgetDelta() {
-  const h = histDelta(VAL.hist, 7);
+  const h = histDelta(valHist(), 7);
   if (h && h.from.n === h.to.n && h.from.q === h.to.q) return { d: Math.round(h.d), dd: 7 };
   const mv = valMovers();
   if (mv && mv.ready) return { d: Math.round(mv.total), dd: Math.max(1, Math.round((VAL.at - mv.since) / DAY)) };
@@ -33086,7 +33220,7 @@ function widgetDelta() {
 }
 /** Relevés des 30 derniers jours (un par jour) pour la courbe du grand widget : [[t, centimes], …]. */
 function widgetPoints() {
-  const h = VAL.hist, end = h.length ? h[h.length - 1].t : 0;
+  const h = valHist(), end = h.length ? h[h.length - 1].t : 0;
   return h.filter(x => x.t >= end - WGT_DAYS * DAY).slice(-(WGT_DAYS + 1)).map(x => [x.t, Math.round(x.v)]);
 }
 /** Chiffres du widget, calculés comme ceux de l'orbe (homeValue) ; null tant que la valeur n'est pas connue
@@ -34637,7 +34771,7 @@ function lotInSet(prints, set, l) {
 const lotEu = c => {
   const a = c.f ? 'ef' : 'eu', b = c.f ? 'eu' : 'ef';      // exemplaires foil : le prix foil, à défaut le normal
   if (c.pick) return c.pick[a] > 0 ? c.pick[a] : c.pick[b] > 0 ? c.pick[b] : null;
-  const m = COLL.meta[c.k]; return m && m[a] > 0 ? m[a] : m && m.eu > 0 ? m.eu : null;
+  return refPx(c.k, !!c.f) || null;      // sans édition : le prix de référence (builder.js › refPx), comme la collection
 };
 /** Grande image de la carte : l'édition choisie, sinon la dernière impression dans sa langue, sinon l'image anglaise de Scryfall. */
 function lotImg(c) {
@@ -36675,7 +36809,7 @@ function opnTake(items, o = {}) {
     if (!it || !it.k || !it.n) continue;
     const g = it.l || '', l = lineLang(g), e = lineEd(g), q = Math.max(1, Math.min(999, Math.round(it.q) || 1)), p = e ? it.p : null;
     if (p) edRemember(it.k, l, e, edInfoOf(p, l));      // prix, extension et image de l'édition : gardés comme pour un ajout à la collection
-    const m = COLL.meta[it.k], f = lineFoil(g), eu = (p && pkEu(p, f)) || (it.eu > 0 ? Math.round(it.eu) : null) || (m && (f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : null)), im = (p && p.th) || it.im || '';      // prix du moment gardé avec la ligne (hors ligne, rechargement) ; foil : au prix foil
+    const m = COLL.meta[it.k], f = lineFoil(g), eu = (p && pkEu(p, f)) || (it.eu > 0 ? Math.round(it.eu) : null) || refPx(it.k, f, m) || null, im = (p && p.th) || it.im || '';      // prix du moment gardé avec la ligne (hors ligne, rechargement) ; foil : au prix foil
     let r = c.rows.find(x => x.k === it.k && x.g === g);
     if (r) { r.q = Math.min(9999, r.q + q); r.t = now; if (im) r.im = im; if (eu) r.eu = eu; c.rows = [r, ...c.rows.filter(x => x !== r)]; }      // même carte, même ligne : un exemplaire de plus, remontée en haut
     else { r = { id: 'r' + now.toString(36) + (++OPN.seq), k: it.k, n: it.n, g, q, t: now, eu, im }; c.rows.unshift(r); }
@@ -36697,7 +36831,7 @@ function opnMeta() {
   OPN.meta = scryCollection(need.map(r => r.n), undefined, null, true)
     .then(got => {
       for (const r of need) { const g = got.get(r.k); if (g) COLL.meta[r.k] = g; else if (!(r.k in COLL.meta)) COLL.meta[r.k] = null; }
-      for (const r of c.rows) { const g = COLL.meta[r.k], u = g && (lineFoil(r.g) && g.ef > 0 ? g.ef : g.eu); if (!(r.eu > 0) && u > 0) r.eu = u; }      // prix lu (foil : le prix foil) : gardé avec la ligne
+      for (const r of c.rows) { const g = COLL.meta[r.k], u = g ? refPx(r.k, lineFoil(r.g), g) : 0; if (!(r.eu > 0) && u > 0) r.eu = u; }      // prix lu (prix de référence, foil : le prix foil) : gardé avec la ligne
       collMetaSave(); if (OPN.cur === c) opnSave(); return true;
     })
     .catch(() => { OPN.metaFail = Date.now(); return false; })
@@ -41508,7 +41642,7 @@ function prgScan(items) {
     if (x.es === 'art' || x.es === 'sym') c.sa = (c.sa || 0) + q;
     if (x.ambBy === 'foot' || x.ambBy === 'art' || x.ambBy === 'man') c.sh = (c.sh || 0) + 1;
     if (pk && Number(pk.y) > 1990 && Number(pk.y) < 2003) c.so = (c.so || 0) + q;
-    const eu = (typeof pkEu === 'function' && pkEu(pk)) || ((COLL.meta[x.key] || {}).eu > 0 ? COLL.meta[x.key].eu : 0); if (eu > best) best = eu;
+    const eu = (typeof pkEu === 'function' && pkEu(pk)) || (typeof refPx === 'function' ? refPx(x.key, false) : 0); if (eu > best) best = eu;      // édition lue : son prix, sinon le prix de référence (builder.js › refPx)
     if (pk && fresh.has(pk.set)) { const k = 'nw_' + pk.set, was = c[k] || 0; c[k] = was + q; if (was < 30 && c[k] >= 30) c.sn = (c.sn || 0) + 1; }
   }
   for (const k of Object.keys(c)) if (k.startsWith('nw_') && !fresh.has(k.slice(3))) delete c[k];      // extensions sorties depuis plus de 7 jours : le décompte s'arrête
@@ -43229,7 +43363,7 @@ function skyYearData(y) {
   } catch (e) { /* collection pas encore lue */ }
   out.copies = copies; out.cards = Object.keys(COLL.map || {}).length;
   try { out.value = collValue(); } catch (e) { out.value = 0; }
-  const pts = typeof VAL !== 'undefined' && Array.isArray(VAL.hist) ? VAL.hist : [], first = pts.find(h => inY(h.t)), before = pts.filter(h => h.t && new Date(h.t).getFullYear() < y).pop();
+  const pts = typeof VAL !== 'undefined' && Array.isArray(VAL.hist) ? valHist() : [], first = pts.find(h => inY(h.t)), before = pts.filter(h => h.t && new Date(h.t).getFullYear() < y).pop();
   out.dv = first ? out.value - (before ? before.v : first.v) : null;      // depuis la fin de l'année d'avant, sinon depuis le premier relevé de l'année
   const top = Object.entries(col).sort((a, b) => b[1] - a[1])[0]; out.color = top && top[1] > 0 ? top[0] : '';
   out.best = best ? { k: best.k, name: typeof advName === 'function' ? advName(COLL.map[best.k].n || best.k) : best.k, eur: best.eu / 100, img: best.im } : null;

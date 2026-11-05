@@ -31,7 +31,7 @@ function homeSoon(ms = 120) { if (typeof document === 'undefined') return; clear
 /** Valeur de la collection : somme des prix tendance (centimes) ; à défaut le dernier relevé de l'historique. */
 function homeValue() {
   let v = collValue();      // prix de l'édition de chaque ligne s'il est connu, sinon celui de la carte
-  if (!v && VAL.hist.length) v = VAL.hist[VAL.hist.length - 1].v;
+  if (!v && VAL.hist.length) v = valHist()[VAL.hist.length - 1].v;
   return v;
 }
 /** Le chiffre défile jusqu'à sa valeur (euros entiers). */
@@ -57,7 +57,7 @@ function homePaint() {
     const v = sv ? sv.v : homeValue();
     if (v > 0) homeCount(val, v); else { HM.v = null; val.textContent = nf0(n); }
     cnt.textContent = v > 0 ? TN(n, '{n} carte', '{n} cartes') : TN(n, 'carte', 'cartes');
-    const h = sv ? null : histDelta(VAL.hist, 7);
+    const h = sv ? null : histDelta(valHist(), 7);
     if (h && Math.abs(h.d) >= 100) { dl.hidden = false; dl.className = h.d < 0 ? 'down' : ''; dl.textContent = T('{d} · 7 j', { d: (h.d < 0 ? '▼ −' : '▲ +') + hmEur(Math.abs(h.d)) }); } else dl.hidden = true;
   } else { HM.v = null; val.textContent = T('Commencer'); cnt.textContent = T('Ajoute tes cartes'); dl.hidden = true; }
   const start = !n && !sv;                                                               // collection vide : « Pour commencer » à la place de la ligne sous l'orbe (et de la courbe sur ordinateur)
@@ -154,7 +154,7 @@ function homeDeskPaint() {
   const d = now.toLocaleDateString(LOC(), { weekday: 'long', day: 'numeric', month: 'long' });
   $('#hmDkDate').textContent = d.charAt(0).toUpperCase() + d.slice(1);
   $('#hmDkHi').textContent = nm ? T(eve ? 'Bonsoir {name}' : 'Bonjour {name}', { name: nm }) : T(eve ? 'Bonsoir' : 'Bonjour');
-  const n = collCount(), dl = days => { const h = histDelta(VAL.hist, days); return h && Math.abs(h.d) >= 100 ? `<b class="${valCls(h.d)}">${(h.d < 0 ? '−' : '+') + esc(hmEur(Math.abs(h.d)))}</b>` : '<b>—</b>'; };      // euros entiers, comme l'orbe
+  const n = collCount(), dl = days => { const h = histDelta(valHist(), days); return h && Math.abs(h.d) >= 100 ? `<b class="${valCls(h.d)}">${(h.d < 0 ? '−' : '+') + esc(hmEur(Math.abs(h.d)))}</b>` : '<b>—</b>'; };      // euros entiers, comme l'orbe
   const al = n ? valAlertN() : 0;
   $('#hmDkKpi').innerHTML = `<div><b>${nf0(n)}</b><span>${TN(n, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${T('exemplaires')}</span></div>`
     + `<div>${dl(7)}<span>${T('sur 7 jours')}</span></div><div>${dl(30)}<span>${T('sur 30 jours')}</span></div>`
@@ -164,7 +164,7 @@ function homeDeskPaint() {
 /** Courbe de valeur à la taille de sa case (redessinée quand sa case change de taille, accueil caché puis rouvert compris). */
 function homeDeskChart() {
   const el = $('#hmDkChart'); if (!el || !el.isConnected || !homeDeskOn()) return;
-  const h = VAL.hist.slice(-120), W = Math.round(el.clientWidth), H = Math.round(el.clientHeight);
+  const h = valHist().slice(-120), W = Math.round(el.clientWidth), H = Math.round(el.clientHeight);
   if (!W) return;      // accueil caché (autre vue) : redessinée à son retour
   if (h.length < 2 || W < 120 || H < 60) { el.innerHTML = `<p class="hint">${collCount() ? T('La courbe se dessine jour après jour : un relevé des prix par jour.') : T('Ajoute tes cartes : leur valeur sera suivie chaque jour.')}</p>`; return; }
   el.innerHTML = valChartHtml(h, W, H);

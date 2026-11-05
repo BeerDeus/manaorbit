@@ -263,21 +263,27 @@ function dwDeckStory(X = BD) {
 /** Nom d'un moteur de la fiche du commandant : écrit en français par l'IA ; dans une autre langue, un libellé traduit. */
 const dmxEngName = l => typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr' ? l : T('moteur du plan');
 /** Lecture d'un deck par sa fiche et ses mécaniques (analyse, rapport) : { story, engines: [{ label, have, miss }] (moteurs de la fiche : pièces présentes, pièces qui manquent),
- *  traps: [noms] (pièges de la fiche présents dans le deck), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
+ *  traps: [noms] (pièges de la fiche présents dans le deck, sauf ceux qui y font un combo ou un moteur : trapOk [{ name, kind, with }]), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
  *  ni un rôle, et peu forts), core: [noms] (cœur du plan présent, note 3 de la fiche) } ; null sans classement. */
 function dwDeckAudit(X = BD) {
   if (!dmxOn()) return null;
   const story = dwDeckStory(X); if (!story) return null;
   const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
   const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label: dmxEngName(label), ai: true, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
-  const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
+  const set = X.wiz || dwDefaults(), trapOk = [], traps = [];      // piège de la fiche présent : vrai piège, ou gardé parce qu'il fait un combo ou un moteur avec une autre carte du deck (dwTrapOk)
+  for (const n of ai ? (ai.trap || []).filter(has) : []) {
+    const k = ownKey(n), eng = (ai.eng || []).filter(([, cs]) => cs.some(c => ownKey(c) === k)).map(([, cs]) => cs.map(c => ownKey(c)));
+    const ok = typeof dwTrapOk === 'function' ? dwTrapOk(k, { trap: 1, eng }, c => has(c) || X.main.has(c) || X.cmdr.some(x => x.key === c), set) : null;
+    if (ok) trapOk.push({ name: n, ...ok }); else traps.push(n);
+  }
+  const wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
   const deck = dmxDeck(X), loose = [];
   for (const c of X.main.values()) {
     if (BASIC_NAMES.has(c.key)) continue; const x = dwCard(c.key), m = dmx(c.key); if (!x || !m || x.roles & DW_RB.land) continue;
     const sy = ai && (ai.syn || []).find(([n]) => ownKey(n) === c.key);
     if (!x.roles && dmxFit(m, plan, deck) < 0.2 && m.pw <= 2 && !(sy && sy[1] >= 1)) loose.push(c.name);
   }
-  return { story, engines, traps, wins, core, loose: loose.slice(0, 8) };
+  return { story, engines, traps, trapOk, wins, core, loose: loose.slice(0, 8) };
 }
 /** Mécaniques détectées pour un commandant (assistant : proposées en premier). → [étiquette] */
 function dmxCmdTags(cmd) {

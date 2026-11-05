@@ -8,5 +8,8 @@
  "rien à revoir": "nada a rever",
  "{n} point en place": "{n} ponto no lugar",
  "{n} points en place": "{n} pontos no lugar",
- "Moteur incomplet ({c}) : il manque": "Motor incompleto ({c}): falta"
+ "Moteur incomplet ({c}) : il manque": "Motor incompleto ({c}): falta",
+ "Gardées : elles marchent mal avec le commandant, mais servent avec une autre carte": "Mantidas: funcionam mal com o comandante, mas servem com outra carta",
+ "{card} (combo avec {c})": "{card} (combo com {c})",
+ "{card} (moteur avec {c})": "{card} (motor com {c})"
 }

@@ -236,6 +236,7 @@
 .ds-key li.warn b{color:var(--warn)}
 .ds-key li span{font-size:13px;font-weight:650;color:var(--ink);line-height:1.25}
 .ds-key li small{font-size:11.5px;color:var(--ink-3)}
+.ds-key li.na{background:var(--surface-2)}.ds-key li.na b{font-size:17px;color:var(--ink-2);padding:3px 0 2px}
 .ds-adv-h{margin:12px 0 4px}
 .ds-adv{margin-top:0}
 .hint.good{color:var(--good);margin-top:10px}

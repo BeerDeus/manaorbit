@@ -21,8 +21,7 @@ const pkEu = (p, f) => { if (!p) return null; const a = f ? p.ef : p.eu, b = f ?
  *  (comme collection.js › collLineEu) ; 0 sans prix. m : infos de la carte (COLL.meta par défaut). */
 const scanEu = (k, p, f, m = COLL.meta[k]) => {
   const u = pkEu(p, f); if (u > 0) return u;
-  const v = !m ? 0 : f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0; if (v > 0) return v;
-  const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return (t && t.e) || 0;      // carte encore jamais lue : prix « à partir de » du fichier du jour (data.js › pxTable)
+  return refPx(k, f, m) || 0;      // sans édition : le prix de référence (builder.js › refPx : relevé du jour, impression la moins chère, sinon la fiche ; foil : prix foil de la fiche), comme la collection
 };
 /** Exemplaires du scan (sûrs) par extension posée. */
 function scanSetCounts() {

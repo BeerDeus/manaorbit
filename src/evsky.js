@@ -178,7 +178,7 @@ function skyYearData(y) {
   } catch (e) { /* collection pas encore lue */ }
   out.copies = copies; out.cards = Object.keys(COLL.map || {}).length;
   try { out.value = collValue(); } catch (e) { out.value = 0; }
-  const pts = typeof VAL !== 'undefined' && Array.isArray(VAL.hist) ? VAL.hist : [], first = pts.find(h => inY(h.t)), before = pts.filter(h => h.t && new Date(h.t).getFullYear() < y).pop();
+  const pts = typeof VAL !== 'undefined' && Array.isArray(VAL.hist) ? valHist() : [], first = pts.find(h => inY(h.t)), before = pts.filter(h => h.t && new Date(h.t).getFullYear() < y).pop();
   out.dv = first ? out.value - (before ? before.v : first.v) : null;      // depuis la fin de l'année d'avant, sinon depuis le premier relevé de l'année
   const top = Object.entries(col).sort((a, b) => b[1] - a[1])[0]; out.color = top && top[1] > 0 ? top[0] : '';
   out.best = best ? { k: best.k, name: typeof advName === 'function' ? advName(COLL.map[best.k].n || best.k) : best.k, eur: best.eu / 100, img: best.im } : null;

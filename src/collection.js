@@ -83,11 +83,15 @@ if (typeof document !== 'undefined') { document.addEventListener('visibilitychan
 const ED_TTL = 2 * DAY;
 /** Prix Cardmarket d'un exemplaire de l'édition e (centimes) : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil, à défaut le non foil ; null si inconnu. */
 const edEu = (e, f) => { const x = e && COLL.ed[e]; if (!x) return null; const a = f ? x.ef : x.eu, b = f ? x.eu : x.ef; return a > 0 ? a : b > 0 ? b : null; };
-/** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu (foil : prix foil), sinon le prix de référence de la carte (foil : son prix foil Cardmarket, à défaut le prix normal ; null sans prix). */
-const collLineEu = (k, g) => { const f = lineFoil(g), u = edEu(lineEd(g), f); if (u != null) return u; const m = COLL.meta[k]; if (!m) return null; return f && m.ef > 0 ? m.ef : Number.isFinite(m.eu) ? m.eu : null; };
+/** Prix de référence d'une carte sans édition connue (centimes, null sans prix) : builder.js › refPx (dkPx : relevé du jour, impression la moins chère du marché
+ *  choisi, sinon tendance de la fiche ; foil : prix foil de la fiche, à défaut dkPx). Le même chiffre que les decks, le coach, les échanges. */
+const collRefEu = (k, f) => { const u = refPx(k, f); return u > 0 ? u : null; };
+/** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu (foil : prix foil), sinon le prix de référence de la carte (collRefEu ; null sans prix).
+ *  Règle de la valeur de la collection (liste, Stats, accueil, widget, courbe, Rangement, lot) : prix de l'édition possédée quand il est connu, sinon le prix de référence. */
+const collLineEu = (k, g) => { const f = lineFoil(g), u = edEu(lineEd(g), f); if (u != null) return u; return collRefEu(k, f); };
 /** Prix moyen d'un exemplaire de la carte (centimes), éditions comprises : valeur de la collection, tri par prix. null sans prix. */
 function collCardEu(k) {
-  const x = COLL.map[k], m = COLL.meta[k], ref = m && Number.isFinite(m.eu) ? m.eu : null; if (!x || !x.x) return ref;      // sans édition : le prix de référence
+  const x = COLL.map[k], ref = collRefEu(k, false); if (!x || !x.x) return ref;      // sans édition : le prix de référence
   let v = 0, n = 0;
   for (const [g, q] of collLines(x)) { const u = collLineEu(k, g); if (u > 0) { v += u * q; n += q; } }
   return n ? Math.round(v / n) : ref;
@@ -95,7 +99,7 @@ function collCardEu(k) {
 /** Valeur d'une carte (centimes) : prix de chaque ligne (édition, sinon référence) × exemplaires ; 0 sans prix. */
 function collCardVal(k) {
   const x = COLL.map[k]; if (!x) return 0;
-  if (!x.x) { const m = COLL.meta[k]; return m && m.eu > 0 ? m.eu * x.q : 0; }
+  if (!x.x) { const u = collRefEu(k, false); return u > 0 ? u * x.q : 0; }
   let v = 0; for (const [g, q] of collLines(x)) { const u = collLineEu(k, g); if (u > 0) v += u * q; }
   return v;
 }
@@ -310,7 +314,7 @@ function edSplit(k, g) {
   openSheet(T('Répartir par édition'), TN(total, '{name} · {n} exemplaire', '{name} · {n} exemplaires', { name }) + (l ? ' ' + langCode(l) : '') + (f ? ' · ' + T('Foil') : ''), api => {
     api.wrap.classList.add('esp-sheet');
     const paint = () => {
-      const r0 = rest(), m = COLL.meta[k], ref = m ? (f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0) : 0;
+      const r0 = rest(), ref = collRefEu(k, f) || 0;      // « Sans édition » : le prix de référence, comme la valeur de la collection
       let val = r0 * ref; for (const r of rows) val += r.q * (pxOf(r) || ref);
       api.body.innerHTML = rows.map((r, i) => {
         const set = edSet(r.e), sn = setName(set) || (r.info && r.info.sn) || (COLL.ed[r.e] || {}).sn || set.toUpperCase(), px = pxOf(r);
@@ -935,8 +939,9 @@ function collWhenPaint(el, none) {
 /** Cartes de l'écran, gardées tant que rien ne change (5 000 cartes : liste, filtre et tri coûtent ~0,3 s sur un téléphone moyen). Clé : COLL.seq, monté à chaque changement des cartes, des infos ou des prix (collChanged, collPaint, collPaintSoon), et les objets remplacés ailleurs (compte, noms français, EDHREC). */
 function collAll() {
   const v = COLL.view, frc = typeof FRC !== 'undefined' ? FRC.cat : null;
-  if (v && v.seq === COLL.seq && v.map === COLL.map && v.meta === COLL.meta && v.px === COLL.px && v.edh === EDH.data && v.frn === FRN.map && v.frc === frc) return v;
-  return (COLL.view = { seq: COLL.seq, map: COLL.map, meta: COLL.meta, px: COLL.px, edh: EDH.data, frn: FRN.map, frc, all: collItems(), sk: null, filtered: null, sorted: null });
+  const pxt = typeof PXT !== 'undefined' ? PXT : null;      // relevé du jour (prix de référence) arrivé : prix relus
+  if (v && v.seq === COLL.seq && v.map === COLL.map && v.meta === COLL.meta && v.px === COLL.px && v.edh === EDH.data && v.frn === FRN.map && v.frc === frc && v.pxt === pxt) return v;
+  return (COLL.view = { seq: COLL.seq, map: COLL.map, meta: COLL.meta, px: COLL.px, edh: EDH.data, frn: FRN.map, frc, pxt, all: collItems(), sk: null, filtered: null, sorted: null });
 }
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
@@ -947,7 +952,7 @@ function collListOf(v) {
 function collItems() {
   return Object.entries(COLL.map).map(([k, x]) => {
     const px = COLL.px[k], dn = frName(k, x.l), fn = frOf(k), it = { k, n: x.n, ...(dn ? { dn } : {}), ...(fn && fn !== dn ? { fn } : {}), q: x.q, l: x.l || '', d: x.d || 0, ...(COLL.meta[k] || {}), ...(px ? { rp: px.p, rt: px.t, rc: px.c || 'EUR' } : {}), eds: collSetsOf(x) };
-    if (x.x) { const eu = collCardEu(k); if (eu != null) it.eu = eu; }      // éditions : prix moyen d'un exemplaire (valeur, tri par prix)
+    const eu = collCardEu(k); if (eu != null) it.eu = eu; else delete it.eu;      // prix de référence (refPx), éditions : prix moyen d'un exemplaire (valeur, tri par prix) ; jamais la tendance de l'impression par défaut
     return Object.assign(it, cmdrClass(it, EDH.data));      // cx : 0 · 1 peut être commandant · 2 joué comme commandant (EDHREC), ed : nombre de decks
   });
 }
@@ -1055,7 +1060,7 @@ function crowHtml(it) {
   if (!it.l) tags.push(langChip(it.k, '', it.n, '', g));
   const plc = plcRowTag(g); if (plc) tags.push(plc);      // emplacement et détails (places.js) : seulement si la ligne est rangée ou détaillée
   const px = [];      // prix : CM (tendance Cardmarket, estimation) au-dessus, CT (offre CardTrader la plus basse, lue à la demande) en dessous
-  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
+  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${it.e ? T('Cardmarket : prix de cette édition') : it.f ? T('Exemplaires foil : prix foil Cardmarket') : T('Cardmarket : valeur estimée (impression la moins chère)')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
   return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
@@ -1077,26 +1082,45 @@ function collSyncInfo() {
   if (!D.authReady) return null;
   return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
 }
-/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte. */
-function collDownload(body, ext, type) {
+/** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
+ *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
+function collDownload(body, ext, type, n = collCount(), part = false) {
   try {
     const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = 'ma-collection-' + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast(T('Collection exportée ({n} cartes)', { n: nf0(collCount()) }));
+    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(T('Collection exportée ({n} cartes)', { n: nf0(n) }));
   } catch (e) { toast(T('Export impossible sur ce navigateur')); }
+}
+/** La collection telle qu'affichée : recherche, filtres (couleur, type, rareté, prix, langue, finition…), emplacement ouvert (Rangement, deck), extension ;
+ *  pour chaque carte, seulement ses lignes affichées (mêmes règles que collRowItems). → { map, n (cartes), c (exemplaires) }, ou null si tout est affiché. */
+function collShownMap() {
+  const v = collListOf(collAll()), map = {}; let n = 0, c = 0;
+  for (const it of v.filtered || []) {
+    const x = COLL.map[it.k]; if (!x) continue;
+    const ls = collLines(x).filter(([g]) => plcIn(g) && collSetIn(g) && (typeof srchLineIn !== 'function' || srchLineIn(it.k, g)));
+    if (!ls.length) continue;
+    map[it.k] = collFromLines({ ...x }, ls.map(e => e.slice())); n++; c += ls.reduce((a, [, q]) => a + q, 0);
+  }
+  return n === collCount() && c === collCopies() ? null : { map, n, c };
 }
 function collExport() {
   if (!collCount()) { toast(T('Ta collection est vide')); return; }
-  openSheet(T('Exporter ma collection'), T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) }), api => {
-    api.body.innerHTML = `<div class="ex-list">
+  const shown = collShownMap(); let scope = shown ? 'shown' : 'all';      // filtres en cours : on demande quoi exporter (les cartes affichées d'abord, c'est ce qu'on regarde)
+  const subOf = () => scope === 'shown' ? T('{n} cartes · {c} exemplaires', { n: nf0(shown.n), c: nf0(shown.c) }) : T('{n} cartes · {c} exemplaires', { n: nf0(collCount()), c: nf0(collCopies()) });
+  openSheet(T('Exporter ma collection'), subOf(), api => {
+    api.body.innerHTML = `${shown ? `<p class="label">${T('Que veux-tu exporter ?')}</p><div class="seg ex-seg" id="exScope" role="radiogroup" aria-label="${T('Que veux-tu exporter ?')}"></div>` : ''}<div class="ex-list">
       <button class="ex-opt" type="button" data-x="csv"><b>${T('Fichier CSV')}</b><span>${T('Pour Moxfield, ManaBox, Archidekt, Deckbox… Une ligne par carte et par langue.')}</span></button>
       <button class="ex-opt" type="button" data-x="txt"><b>${T('Fichier texte')}</b><span>${T('« 3 Sol Ring *FR* », une carte par ligne. Réimportable ici et dans la plupart des applis.')}</span></button>
       <button class="ex-opt" type="button" data-x="copy"><b>${T('Copier le texte')}</b><span>${T('Pour le coller dans un message ou une autre appli.')}</span></button></div>`;
+    if (shown) mountSeg($('#exScope', api.body), [{ v: 'shown', label: T('Avec les filtres'), sub: TN(shown.n, '{n} carte', '{n} cartes') }, { v: 'all', label: T('Toute la collection'), sub: TN(collCount(), '{n} carte', '{n} cartes') }], scope, v => {
+      scope = v; const p = api.wrap && api.wrap.querySelector('.sheet-head p'); if (p) p.textContent = subOf();
+    });
     api.body.onclick = e => {
       const x = (e.target.closest('[data-x]') || {}).dataset; if (!x || !x.x) return;
-      if (x.x === 'csv') collDownload(collToCsv(COLL.map, trSpare(COLL.map)), 'csv', 'text/csv');
-      else if (x.x === 'txt') collDownload(collToText(COLL.map) + '\n', 'txt', 'text/plain');
-      else { copyText(collToText(COLL.map)); }
+      const part = scope === 'shown' && !!shown, map = part ? shown.map : COLL.map, n = part ? shown.n : collCount();
+      if (x.x === 'csv') collDownload(collToCsv(map, trSpare(COLL.map)), 'csv', 'text/csv', n, part);
+      else if (x.x === 'txt') collDownload(collToText(map) + '\n', 'txt', 'text/plain', n, part);
+      else { copyText(collToText(map)); }
       api.close();
     };
   });
@@ -1110,7 +1134,7 @@ function collHeadText() {
 function collValPaint() {
   const box = COLL.el && $('.coll-val', COLL.el); if (!box) return;
   const n = collCount(); if (!n || typeof homeValue !== 'function' || COLL.tab !== 'stats') { box.hidden = true; return; }
-  const v = homeValue(), h = histDelta(VAL.hist, 7), pts = VAL.hist.slice(-30).map(x => x.v);
+  const v = homeValue(), h = histDelta(valHist(), 7), pts = valHist().slice(-30).map(x => x.v);
   let spark = '';
   if (pts.length >= 2) {
     const lo = Math.min(...pts), hi = Math.max(...pts), W = 120, H = 38, dx = W / (pts.length - 1), y = p => (hi === lo ? H / 2 : H - 3 - (p - lo) / (hi - lo) * (H - 6));
@@ -1458,7 +1482,8 @@ function collViewItem(k, ln) {
   const ls = collLines(x), line = ls.find(e => e[0] === (ln || '')) || ls[0] || [x.l || '', x.q], g = line[0], l = lineLang(g), e = lineEd(g), n = line[1];
   const im = collLineImage(k, g, m.im), fr = l && l !== 'en' && im.lang === 'en' && !e ? ' · ' + T('image anglaise (pas d\'image {lang} sur Scryfall)', { lang: LANGS[l] ? T(LANGS[l]) : l }) : '';
   const own = ls.length > 1 ? TN(n, '{n} exemplaire {lang} · {total} au total', '{n} exemplaires {lang} · {total} au total', { n, lang: lineTag(g), total: x.q }) : TN(x.q, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: x.q });
-  const f = lineFoil(g), eu = e ? edEu(e, f) : f && m.ef > 0 ? m.ef : null, px = eu != null ? ' · ' + T(f ? 'prix foil Cardmarket {v}' : 'prix Cardmarket {v}', { v: fmt(eu, mkCur()) }) : Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {v}', { v: fmt(m.eu, mkCur()) }) : '';
+  const f = lineFoil(g), eu = e ? edEu(e, f) : null, ref = eu == null ? collRefEu(k, f) : null;      // édition connue : son prix, dit comme tel ; sinon le prix de référence (le même que la liste et les decks)
+  const px = eu != null ? ' · ' + T(f ? 'prix foil de cette édition {v}' : 'prix de cette édition {v}', { v: fmt(eu, mkCur()) }) : ref != null ? ' · ' + (f && m.ef > 0 ? T('prix foil Cardmarket {v}', { v: fmt(ref, mkCur()) }) : T('valeur estimée {p}', { p: fmt(ref, mkCur()) })) : '';
   const sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '';
   return { key: k, lid: k + '|' + g, name: frName(k, l) || x.n, ln: x.n, wl: l && l !== 'en' && !e ? l : '', small: im.src, lang: im.lang, plain: true, coll: { k, g }, ...(f ? { foil: true } : {}),
     ...(e ? { set: edSet(e), num: edNum(e), setName: sn } : {}),

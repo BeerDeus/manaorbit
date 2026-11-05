@@ -18,6 +18,11 @@
    les plateaux à zéro quand tu es en retard, ta protection (permanent : ta meilleure créature ne peut plus être ciblée ; éphémère gardé avec le mana
    pour le payer, contresorts compris : un retrait ou un balayage évité), ta récursion ramène la meilleure carte morte (sur le champ de bataille pour la
    réanimation). Un commandant mort revient dans la zone de commandement (+2 à son coût).
+   Voltron (5 novembre) : chaque équipement ou aura qui renforce (classement « voltron » : +2 à +5 selon son coût ; +1 pour un équipement ou une aura
+   sans autre effet connu) va sur un seul porteur, le commandant d'abord, sinon ta plus grosse créature ; les auras tout de suite, les équipements avec
+   le mana qui reste après les sorts (coût d'équipement estimé : 1 à 3), à rattacher quand le porteur change ; le porteur mort, ses auras partent au
+   cimetière. Ses blessures de commandant comptent (21 éliminent). Plans que la simulation ne joue pas (ninjutsu, group hug, politique, capacité du
+   commandant déclenchée par les sorts, drain des aristocrates : dsimBlind) : « adversaire éliminé » non mesuré.
    Résultats : mains gardées, commandant à temps, terrains manqués, couleurs bloquées, mana utilisé ; un adversaire éliminé avant le tour 11, adversaires
    éliminés, table battue, moteur en place, moteur encore là au tour 10 et après le balayage, cartes vues au tour 6. Graine fixe (même deck, mêmes
    résultats). Aucune IA : du hasard et des règles simples, les mêmes pour tous les decks : elles comparent, elles ne prédisent pas. */
@@ -25,6 +30,24 @@ const DSIM = { sig: '', res: null, run: null }, DSIM_N = 10000;      // 10 000 p
 /** Table : 3 adversaires (vie, blessures de commandant), leur plateau (bloqueurs) et leur interaction ; les mêmes pour tous les decks. turns : tours joués. */
 const DSIM_OPP = { turns: 10, n: 3, life: 40, cmd: 21, grow: 0.45, from: 2, max: 4, sz0: 1, sz: 0.4, fly: 0.25, rm: 0.3, rmFrom: 2, wipe: 0.7, wipeT: [5, 6, 7], wipeLast: 8, wipeMin: 3, danger: 15 };
 const dsimSize = t => Math.round(DSIM_OPP.sz0 + t * DSIM_OPP.sz);      // force et endurance d'un bloqueur posé au tour t
+/** Plans que la simulation ne sait pas jouer (5 novembre) : le deck gagne autrement que par ce qu'elle mesure, « adversaire éliminé » n'y dit rien
+ *  (affiché « non mesuré », sans poids dans la construction). Le voltron (équipements, auras) est joué depuis le même jour : il n'en fait plus partie.
+ *  Mécaniques (DSIM_BLIND, dans l'ordre : la 1re trouvée nomme le plan) repérées dans les 3 premières étiquettes de la fiche du commandant (ai.tags),
+ *  les 3 mécaniques principales du plan (dmxPlan › main) ou ce que fournit ou veut le commandant lui-même (classement [10]) ; capacité du commandant
+ *  déclenchée par les sorts lancés (il veut « spells » ou « cast-trigger » : Talrand) ; aristocrates (le plan réunit drain, morts de créatures et
+ *  sacrifices : Teysa, Ghave). → { t: 'ninjutsu' | 'group-hug' | 'politics' | 'cmd' | 'aristocrats', c: nom du commandant } ou null. */
+const DSIM_BLIND = ['ninjutsu', 'group-hug', 'politics'];
+function dsimBlind(X, cmd, plan) {
+  if (!cmd || !plan || typeof dmx !== 'function') return null;
+  const tg = i => DMX.tags[i], own = (cmd.keys || []).map(k => dmx(k)).filter(Boolean), names = X.cmdr || [];
+  const ai = ((plan.ai && plan.ai.tags) || []).slice(0, 3), main = plan.main.map(tg), mine = new Set(own.flatMap(m => [...m.p, ...m.w].map(tg)));
+  for (const t of DSIM_BLIND) if (ai.includes(t) || main.slice(0, 3).includes(t) || mine.has(t)) return { t, c: '' };
+  for (let i = 0; i < own.length; i++) if (own[i].w.some(j => tg(j) === 'spells' || tg(j) === 'cast-trigger')) return { t: 'cmd', c: (names[i] && names[i].name) || '' };
+  if (main.includes('drain') && main.includes('dies-trigger') && (main.includes('sacrifice-outlet') || main.includes('sacrifice'))) return { t: 'aristocrats', c: '' };
+  return null;
+}
+/** Nom du plan que la simulation ne joue pas (phrase du rapport). */
+const dsimBlindName = r => r.blind === 'cmd' ? (r.blindCmd ? T('capacité de {c}', { c: r.blindCmd }) : T('capacité du commandant')) : r.blind === 'aristocrats' ? T('drain des aristocrates') : dmxLabel(r.blind);
 /** Cartes du deck X pour la simulation : bibliothèque (99 cartes ou moins) et commandant(s). */
 function dsimDeck(X) {
   const cmd = dwCmdOf(X), ci = cmd ? [...cmd.ci] : [], lib = [];
@@ -45,13 +68,15 @@ function dsimDeck(X) {
     const dr = R & DW_RB.draw ? (perm ? 0.5 : 2) : 0, tok = has('tokens-creature') ? (perm ? 1 : 2) : 0, dA = has('drain') ? (perm ? 1 : 2) : 0, dO = !dA && has('burn') ? (perm ? 1 : 3) : 0;
     const win = !!(R & DW_RB.wincon), ep = !!mm && main.some(i => mm.p.includes(i)), ew = !!mm && main.some(i => mm.w.includes(i));
     const ev = !!(kw & 1), ds = !!(kw & 8), cm = cix != null;
+    const sub = ' ' + ((mm && mm.sub) || '') + ' ', au = / Aura /.test(sub), eqp = / Equipment /.test(sub);
+    const vo = perm && !cre && mm ? (has('voltron') ? Math.min(5, Math.max(2, Math.round(cmc * 0.8) + 1)) : (au || eqp) && !R && !mm.p.length ? 1 : 0) : 0;      // voltron : équipement ou aura qui renforce (+2 à +5 selon le coût ; +1 sans autre effet connu, Bonesplitter), sur une seule créature
     const thr = (cre ? pow * (ds ? 2 : 1) * (ev ? 1.5 : 1) : 0) + (cm ? 2 : 0) + (ep || ew ? 3 : 0) + (win && perm ? 4 : 0) + (tok && perm ? 2 : 0) + (dr && perm ? 1.5 : 0) + ((dA || dO) && perm ? 2 : 0);      // menace aux yeux des adversaires (cible de leurs retraits)
     return { k, n: name, land, cmc, pips, gen: Math.round(gen), prod: [...prod], ramp, perm, cre, pow, tou, ev, tr: !!(kw & 2), hs: !!(kw & 4), ds, dt: !!(kw & 16), hx: !!(kw & 32), ind: !!(kw & 64),
-      gEv: has('evasion'), gHs: has('haste'), gDs: has('double-strike'), rean: has('reanimation'), dr, tok, dA, dO, win, ep, ew, thr, cm, ci: cix || 0,
+      vo, au: au && vo > 0, eqc: vo && !au ? Math.min(3, Math.max(1, Math.round(cmc * 0.6))) : 0, gEv: has('evasion'), gHs: has('haste'), gDs: has('double-strike'), rean: has('reanimation'), dr, tok, dA, dO, win, ep, ew, thr, cm, ci: cix || 0,
       rm: !!(R & DW_RB.removal), wp: !!(R & DW_RB.wipe), pr: perm && !!(R & DW_RB.protect), rc: !!(R & DW_RB.recursion), guard: !perm && !land && !!(R & (DW_RB.protect | DW_RB.counter)), ct: !!(R & DW_RB.counter) };
   };
   for (const c of X.main.values()) { const s = spec(c.key, c.name); for (let i = 0; i < c.qty; i++) lib.push(s); }
-  return { lib, cmdr: X.cmdr.map((c, i) => spec(c.key, c.name, i)), main: main.length };
+  return { lib, cmdr: X.cmdr.map((c, i) => spec(c.key, c.name, i)), main: main.length, blind: dsimBlind(X, cmd, plan) };
 }
 /** Paie un sort avec les sources disponibles (tableau de listes de couleurs) : sources restantes, ou null si impossible. */
 function dsimPay(avail, s) {
@@ -95,7 +120,10 @@ function dsimGame(D, rnd, onPlay, stuck) {
   const target = () => { let b = -1; for (let o = 0; o < O.n; o++) if (!dead[o] && (b < 0 || life[o] < life[b] || (life[o] === life[b] && blk[o].length < blk[b].length))) b = o; return b; };      // l'adversaire le plus bas en vie
   const nBlk = () => blk.reduce((a, b) => a + b.length, 0), nCre = () => board.reduce((a, e) => a + (e.s.cre ? 1 : 0), 0) + tk + tkNew;
   const engOn = () => !!D.main && board.some(e => e.s.ep) && board.some(e => e.s.ew);
-  const died = e => { const i = board.indexOf(e); if (i >= 0) board.splice(i, 1); if (e.s.cm) { tax[e.s.ci] += 2; cmdLeft.push(e.s); } else gy.push(e.s); };      // commandant : zone de commandement, 2 de plus à payer
+  let wear = null;      // voltron : la créature qui porte les équipements et auras (le commandant d'abord)
+  const vNow = () => board.reduce((a, e) => a + (e.s.vo && (e.s.au || e.on) ? e.s.vo : 0), 0);      // ce que lui donnent les auras et les équipements attachés
+  const unwear = () => { wear = null; for (const e of board.slice()) if (e.s.au && e.s.vo) { board.splice(board.indexOf(e), 1); gy.push(e.s); } else if (e.on) e.on = false; };      // le porteur s'en va : ses auras au cimetière, les équipements à rattacher
+  const died = e => { if (e === wear) unwear(); const i = board.indexOf(e); if (i >= 0) board.splice(i, 1); if (e.s.cm) { tax[e.s.ci] += 2; cmdLeft.push(e.s); } else gy.push(e.s); };      // commandant : zone de commandement, 2 de plus à payer
   const shielded = () => { if (!board.some(e => e.s.pr)) return null; let b = null; for (const e of board) if (e.s.cre && (!b || e.s.thr > b.s.thr)) b = e; return b; };      // protection permanente (bottes, équipement, Mère des runes) : ta meilleure créature
   const killBlk = () => { let bo = -1, bi = -1; const o0 = target(); for (let o = 0; o < O.n; o++) if (!dead[o]) for (let i = 0; i < blk[o].length; i++) if (bi < 0 || (o === o0) > (bo === o0) || ((o === o0) === (bo === o0) && blk[o][i] > blk[bo][bi])) { bo = o; bi = i; } if (bi >= 0) blk[bo].splice(bi, 1); };      // ton retrait : le plus gros bloqueur, chez l'adversaire visé d'abord
   const wipeAll = mine => { for (const b of blk) b.length = 0; if (!mine) return; for (const e of board.slice()) if (e.s.cre && !e.s.ind) died(e); tk = tkNew = 0; };
@@ -129,16 +157,24 @@ function dsimGame(D, rnd, onPlay, stuck) {
     for (const c of cmdLeft.slice()) { const cs = tax[c.ci] ? { ...c, cmc: c.cmc + tax[c.ci] } : c; if (cast(cs, true)) { cmdLeft.splice(cmdLeft.indexOf(c), 1); if (!cmdTurn && t <= 8) cmdTurn = t; play(c, t); } }      // tours 9 et 10 : le plan seulement (mesures de mana sur les 8 premiers)
     for (const s of hand.filter(c => !c.land && c.ramp && useful(c)).sort((a, b) => a.cmc - b.cmc)) if (cast(s, true)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; play(s, t); }      // la rampe passe avant le mana gardé
     for (const s of hand.filter(c => !c.land).sort((a, b) => b.cmc - a.cmc)) if (s.cmc <= avail.length && hand.includes(s) && useful(s) && cast(s)) { hand.splice(hand.indexOf(s), 1); if (t <= 6) cast6++; play(s, t); }
-    const armed = g && hand.includes(g) && dsimPay(avail, g) ? g : null; if (armed) spent += armed.cmc;      // mana gardé pour la protection : compté comme utilisé
+    const armed = g && hand.includes(g) && dsimPay(avail, g) ? g : null;
+    if (board.some(e => e.s.vo)) {      // voltron : le porteur (le commandant d'abord, sinon ta plus grosse créature), puis les équipements attachés avec le mana qui reste (coût d'équipement estimé : 1 à 3)
+      let w = null; for (const e of board) if (e.s.cre && (!w || (e.s.cm && !w.s.cm) || (e.s.cm === w.s.cm && e.s.pow > w.s.pow))) w = e;
+      if (w !== wear && (!wear || (w && w.s.cm && !wear.s.cm))) { if (wear) for (const e of board) e.on = false; wear = w; }
+      if (wear) for (const e of board) if (e.s.eqc && !e.on) { const r = dsimPay(avail, { pips: {}, cmc: e.s.eqc }); if (!r || (armed && !dsimPay(r, armed))) break; spent += avail.length - r.length; avail = r; e.on = true; }
+    }
+    if (armed) spent += armed.cmc;      // mana gardé pour la protection : compté comme utilisé
     if (engOn()) { if (!engT) engT = t; }
     if (alive) {      // combat : l'adversaire le plus bas en vie
       const o = target(), B = blk[o].slice().sort((a, b) => b - a), hasteAll = board.some(e => e.s.gHs), sMax = B.length ? B[0] >> 1 : 0, att = [];
-      for (const e of board) if (e.s.cre && e.s.pow > 0 && (e.t < t || e.s.hs || hasteAll)) att.push(e);
-      att.sort((a, b) => b.s.pow - a.s.pow);
+      const V = wear ? vNow() : 0;      // voltron : auras et équipements attachés, sur leur porteur
+      for (const e of board) if (e.s.cre && (e.s.pow > 0 || (V && e === wear)) && (e.t < t || e.s.hs || hasteAll)) att.push(e);      // un porteur 0/2 (Sram) attaque quand il porte quelque chose
+      const pw = e => e.s.pow + (V && e === wear ? V : 0);
+      att.sort((a, b) => pw(b) - pw(a));
       let nEv = 0, nDs = 0; for (const e of board) { if (e.s.gEv) nEv++; if (e.s.gDs) nDs++; }      // cartes qui donnent évasion ou double initiative : à tes plus grosses créatures
       const A = [];
       for (const e of att) {
-        const s = e.s, ev = s.ev || (nEv > 0 && nEv-- > 0), ds = s.ds || (nDs > 0 && nDs-- > 0), d = s.pow * (ds ? 2 : 1);
+        const s = V && e === wear ? { ...e.s, pow: e.s.pow + V, tou: e.s.tou + V } : e.s, ev = s.ev || (nEv > 0 && nEv-- > 0), ds = s.ds || (nDs > 0 && nDs-- > 0), d = s.pow * (ds ? 2 : 1);
         if (ev || s.tr || s.dt || s.ind || s.tou > sMax || s.pow >= sMax) A.push({ e, s, ev, ds, d });      // n'attaque pas pour mourir sans rien tuer
       }
       const used = new Array(B.length).fill(false), inc = A.reduce((a, x) => a + x.d, 0) + Math.max(0, tk - B.length), danger = life[o] - inc <= O.danger;
@@ -167,7 +203,7 @@ function dsimGame(D, rnd, onPlay, stuck) {
     const stop = () => { if (!guard) return false; hand.splice(hand.indexOf(guard), 1); guard = null; saved++; return true; };
     for (let o = 0; o < O.n; o++) if (!dead[o] && t >= O.from && blk[o].length < O.max && rnd() < O.grow) blk[o].push(dsimSize(t) * 2 + (rnd() < O.fly ? 1 : 0));
     if (t >= O.rmFrom && rnd() < O.rm) {      // retrait ciblé sur ta meilleure menace (ni défense talismanique, ni protégée)
-      const sh = shielded(); let b = null; for (const e of board) if (e.s.thr >= 2 && !e.s.hx && e !== sh && (!b || e.s.thr > b.s.thr)) b = e;
+      const sh = shielded(); let b = null; const vw = wear ? vNow() : 0, th = e => e.s.thr + (e === wear ? vw : 0); for (const e of board) if (th(e) >= 2 && !e.s.hx && e !== sh && (!b || th(e) > th(b))) b = e;
       if (b && !stop()) { died(b); lost++; }
     }
     if (wipeAt && !wipeT && t >= wipeAt && t <= O.wipeLast && nCre() >= O.wipeMin) {      // balayage : toutes les créatures (les leurs aussi)
@@ -201,9 +237,10 @@ async function dsimRun(X, n = 1000, step) {
     kill10: pct(acc.kill), killT: acc.killT / n, elim10: acc.elim / n, table: pct(acc.table), tableT: acc.tableT / n, cmdKill: pct(acc.cmdKill),
     eng: D.main ? pct(acc.eng) : null, engT: acc.engT / n, engKeep: D.main ? pct(acc.engEnd) : null, wipeSurv: D.main && acc.wsHas >= n * 0.05 ? Math.round(acc.wsOK / acc.wsHas * 100) : null,
     wiped: pct(acc.wiped), saved: acc.saved / n, lost: acc.lost / n, win8: pct(acc.win8), dmg8: acc.dmg8 / n, seen6: acc.seen6 / n,
+    blind: D.blind ? D.blind.t : null, blindCmd: D.blind ? D.blind.c : '',      // plan que la simulation ne joue pas : « adversaire éliminé » non affiché, sans poids dans la construction
     stuck: [...stuck].filter(([, v]) => v / n >= 0.04).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, v]) => [name, pct(v)]) };
 }
-const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort()].join('|');
+const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort(), ...((X.wiz && X.wiz.th) || []), ...((X.wiz && X.wiz.mech) || [])].join('|');      // thèmes et mécaniques choisis : le plan (moteur, plan non joué) en dépend
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 const dsimPct = v => T('{n} %', { n: Number(v).toLocaleString(LOC()) });      // « 74 % » en français, « 74% » en anglais (dictionnaires)
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
@@ -214,8 +251,9 @@ function dsimHtml(r, prog, o = {}) {
   const key = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b><span>${esc(t)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}</li>`;
   h += `<ul class="ds-key">${key(r.keep7 >= 74, dsimPct(r.keep7), T('Mains gardées'), T('main de 7 cartes'))}
     ${r.cmv ? key(r.cmdOn >= 55, dsimPct(r.cmdOn), T('Commandant à temps'), T('tour {t} ou avant', { t: r.cmv })) : key(r.miss3 <= 20, dsimPct(r.miss3), T('Terrains manqués'), T('avant le tour 4'))}
-    ${r.kill10 != null ? key(r.kill10 >= 20, dsimPct(r.kill10), T('Adversaire éliminé'), T('avant le tour 11')) : key(r.screw4 <= 10, dsimPct(r.screw4), T('Couleurs bloquées'), T('au tour 4'))}
+    ${r.blind ? `<li class="na"><b>${esc(T('non mesuré'))}</b><span>${esc(T('Adversaire éliminé'))}</span><small>${esc(T('pour ce plan'))}</small></li>` : r.kill10 != null ? key(r.kill10 >= 20, dsimPct(r.kill10), T('Adversaire éliminé'), T('avant le tour 11')) : key(r.screw4 <= 10, dsimPct(r.screw4), T('Couleurs bloquées'), T('au tour 4'))}
     ${r.engKeep != null && r.eng ? key(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('Moteur qui tient'), T('encore là au tour 10')) : r.eng != null ? key(r.eng >= 50, dsimPct(r.eng), T('Moteur en place'), T('avant le tour 11')) : key(r.eff >= 70, dsimPct(r.eff), T('Mana utilisé'), T('tours 1 à 6'))}</ul>`;
+  if (r.blind) h += `<p class="hint ds-blind">${esc(T('Plan « {p} » : la simulation ne sait pas encore le jouer, les adversaires éliminés ne sont donc pas mesurés pour ce deck ; les autres chiffres le sont.', { p: dsimBlindName(r) }))}</p>`;
   const row = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b> ${esc(t)}${sub ? ` <small>${esc(sub)}</small>` : ''}</li>`;
   let more = `<ul class="bd-issues ds-sim">
     ${row(r.keep7 >= 74, dsimPct(r.keep7), T('des mains de 7 cartes gardées'), T('{l} terrains en moyenne dans la main gardée', { l: dsimNum(r.lands0) }))}
@@ -223,7 +261,7 @@ function dsimHtml(r, prog, o = {}) {
     ${row(r.miss3 <= 20, dsimPct(r.miss3), T('des parties sans terrain à poser avant le tour 4'), T('{p} avant le tour 5', { p: dsimPct(r.miss4) }))}
     ${row(r.screw4 <= 10, dsimPct(r.screw4), T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
     ${row(r.eff >= 70, dsimPct(r.eff), T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}
-    ${r.kill10 != null ? row(r.kill10 >= 20, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
+    ${r.kill10 != null && !r.blind ? row(r.kill10 >= 20, dsimPct(r.kill10), T('des parties où au moins un adversaire tombe avant le tour 11'), r.elim10 != null ? T('{e} adversaires éliminés sur 3 en moyenne', { e: dsimNum(r.elim10) }) + (r.table ? ' · ' + T('table battue : {p}', { p: dsimPct(r.table) }) : '') : '') : ''}
     ${r.eng != null ? row(r.eng >= 50, dsimPct(r.eng), T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
     ${r.engKeep != null && r.eng ? row(r.engKeep >= 0.6 * r.eng, dsimPct(r.engKeep), T('des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage'), r.wipeSurv != null ? T('moteur encore là au tour qui suit le balayage : {p}', { p: dsimPct(r.wipeSurv) }) : '') : ''}
     ${r.seen6 != null ? row(r.seen6 >= 14, dsimNum(r.seen6), T('cartes vues au tour 6 (main, pioche, moteurs)'), '') : ''}</ul>`;
@@ -235,7 +273,7 @@ function dsimHtml(r, prog, o = {}) {
   if (r.screw4 > 10) adv.push(T('Couleurs mal servies : remplace des terrains de base par des terrains qui produisent plusieurs couleurs.'));
   if (r.cmv && r.cmdOn < 55) adv.push(T('Commandant souvent en retard : plus de rampe à 2 mana ou moins.'));
   if (r.eff < 70) adv.push(T('Mana souvent inutilisé : plus de sorts à 2 et 3 mana.'));
-  if (r.kill10 != null && r.elim10 != null && r.kill10 < 10) adv.push(T('La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.'));
+  if (r.kill10 != null && r.elim10 != null && !r.blind && r.kill10 < 10) adv.push(T('La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.'));
   if (r.eng != null && r.eng < 50) adv.push(T('Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.'));
   if (r.engKeep != null && r.eng >= 50 && r.engKeep < 0.6 * r.eng) adv.push(T('Moteur souvent détruit par les adversaires : de la protection (équipements, contresorts, sorts qui protègent) ou de la récursion pour le remonter.'));
   if (r.seen6 != null && r.seen6 < 13) adv.push(T('Peu de cartes vues : un ou deux moteurs de pioche de plus.'));

@@ -24,7 +24,7 @@ function widgetBtn() {
  *  Sinon les relevés comptent aussi les cartes ajoutées (un achat passerait pour une hausse) : variation du marché seul (valMovers, prix carte par carte
  *  depuis la référence, cartes ajoutées exclues), avec sa vraie durée ; à défaut celle des relevés. */
 function widgetDelta() {
-  const h = histDelta(VAL.hist, 7);
+  const h = histDelta(valHist(), 7);
   if (h && h.from.n === h.to.n && h.from.q === h.to.q) return { d: Math.round(h.d), dd: 7 };
   const mv = valMovers();
   if (mv && mv.ready) return { d: Math.round(mv.total), dd: Math.max(1, Math.round((VAL.at - mv.since) / DAY)) };
@@ -32,7 +32,7 @@ function widgetDelta() {
 }
 /** Relevés des 30 derniers jours (un par jour) pour la courbe du grand widget : [[t, centimes], …]. */
 function widgetPoints() {
-  const h = VAL.hist, end = h.length ? h[h.length - 1].t : 0;
+  const h = valHist(), end = h.length ? h[h.length - 1].t : 0;
   return h.filter(x => x.t >= end - WGT_DAYS * DAY).slice(-(WGT_DAYS + 1)).map(x => [x.t, Math.round(x.v)]);
 }
 /** Chiffres du widget, calculés comme ceux de l'orbe (homeValue) ; null tant que la valeur n'est pas connue

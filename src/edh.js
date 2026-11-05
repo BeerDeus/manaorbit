@@ -138,11 +138,12 @@ function edhUsd(d) {
   for (let i = 0; i < d.names.length; i++) { const p = m && m.get(ownKey(d.names[i])); if (p && p.e > 0) { pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
   d.pr = pr; return d;
 }
-/** Cardmarket : une carte sans prix dans le fichier EDHREC (impression par défaut de Scryfall pas encore cotée, ex. Command Tower d'un précon récent)
- *  prend celui du relevé du jour (impression la moins chère, data.js › pxTable) ; rien à faire tant que le relevé n'est pas lu (relancé par edhLoad). */
+/** Cardmarket : le prix de chaque carte du fichier EDHREC (tendance de l'impression par défaut de Scryfall) remplacé par celui du relevé du jour (impression la moins chère,
+ *  data.js › pxTable) quand il le connaît : le prix de référence de l'appli (builder.js › dkPx), le même que Mes decks, la collection et les échanges (« à acheter »
+ *  compris) ; carte absente du relevé : celui du fichier. Rien à faire tant que le relevé n'est pas lu (relancé par edhLoad). */
 function edhEur(d) {
   const m = typeof PXT !== 'undefined' && PXT && PXT.map; if (!m || !d.pr || !d.names) return d;
-  for (let i = 0; i < d.names.length; i++) if (!(d.pr[i] > 0)) { const p = m.get(ownKey(d.names[i])); if (p && p.e > 0) { d.pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
+  for (let i = 0; i < d.names.length; i++) { const p = m.get(ownKey(d.names[i])); if (p && p.e > 0 && p.e !== d.pr[i]) { d.pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
   return d;
 }
 /** Charge les données : copie locale de moins de 1 jour (affichée tout de suite, puis contrôlée en arrière-plan : une version plus récente du site la remplace), sinon le fichier binaire du site, sinon l'ancien fichier texte ; une copie plus ancienne sert si le site ne répond pas. */

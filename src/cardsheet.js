@@ -127,11 +127,11 @@ function csLinesHtml(k, x) {
   return `<section class="cs-sec"><h3 class="cs-h">${T('Mes exemplaires')}</h3>${rows || `<p class="hint">${esc(T('Aucun exemplaire dans ta collection.'))}</p>`}
     ${CS.o.from === 'scan' ? '' : `<button type="button" class="btn ghost block cs-add" data-cs="add"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>${T('Ajouter un exemplaire')}</button>`}</section>`;      // depuis le scan : les cartes lues arrivent par « Ajouter » du scan (édition, « Ranger dans », deck, lot), pas d'ici
 }
-/** Variation connue du prix de référence Cardmarket : celui de la période précédente (value.js, 7 à 14 jours) face à celui d'aujourd'hui ; null sans point de comparaison. */
+/** Variation connue du prix de référence (builder.js › dkPx, comme value.js › valCommit) : celui de la période précédente (value.js, 7 à 14 jours) face à celui d'aujourd'hui ; null sans point de comparaison. */
 function csMove(k) {
   if (typeof VAL === 'undefined') return null;
   const ref = baseRef(VAL.base), m = COLL.meta[k]; if (!ref || !ref.p || !m || VAL.at - ref.t < VAL_EVERY) return null;
-  const u0 = ref.p[k], u1 = m.eu; return u0 > 0 && u1 > 0 ? { u0, u1, t: ref.t, d: u1 - u0, pct: (u1 - u0) / u0 * 100 } : null;
+  const u0 = ref.p[k], u1 = dkPx(k); return u0 > 0 && u1 > 0 ? { u0, u1, t: ref.t, d: u1 - u0, pct: (u1 - u0) / u0 * 100 } : null;
 }
 /* ── Historique des prix « à partir de » (30 jours) ────────────────────────────────────────────── */
 const CS_H_TTL = 6 * 3600e3;      // le serveur relit l'historique toutes les 6 h (un relevé par jour)
@@ -192,8 +192,9 @@ function csPxHtml(k, x, m) {
   const eds = x ? [...new Set(collLines(x).map(([g]) => lineEd(g)))] : [''], cell = (v, wait, cls) => `<span class="px cm${cls ? ' ' + cls : ''}${wait || !(v > 0) ? ' none' : ''}"><b>${wait ? '…' : v > 0 ? esc(fmt(v, mkCur())) : '—'}</b></span>`;
   const rows = eds.map(e => {
     const d = e ? COLL.ed[e] : m, wait = e ? !d : !m, set = edSet(e), sn = e ? setName(set) || (d || {}).sn || '' : '';
-    const lab = e ? `${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}<span>${esc(sn || edLabel(e))}${sn ? `<small>${esc(edLabel(e))}</small>` : ''}</span>` : `<span>${esc(eds.length > 1 ? T('Sans édition') : T('Carte'))}<small>${esc(T('impression la moins chère'))}</small></span>`;
-    return `<div class="cs-pr" role="row"><span class="cs-pn" role="cell">${lab}</span>${cell(d && d.eu, wait)}${cell(d && d.ef, wait, 'foil')}</div>`;
+    const lab = e ? `${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}<span>${esc(sn || edLabel(e))}<small>${esc([sn ? edLabel(e) : '', T('prix de cette édition')].filter(Boolean).join(' · '))}</small></span>` : `<span>${esc(eds.length > 1 ? T('Sans édition') : T('Carte'))}<small>${esc(T('impression la moins chère'))}</small></span>`;
+    const nv = e ? d && d.eu : m ? refPx(k, false, m) : 0;      // sans édition : le prix de référence (dkPx), le même que la liste, les decks et les échanges ; édition : le prix de cette édition
+    return `<div class="cs-pr" role="row"><span class="cs-pn" role="cell">${lab}</span>${cell(nv, wait)}${cell(d && d.ef, wait, 'foil')}</div>`;
   }).join('');
   const px = COLL.px[k], canCt = !!x && !mkUs() && !BASIC_NAMES.has(k) && !S.demo && (CTX.proxy || !!S.token) && !collOffline();      // hors ligne : seulement l'offre déjà lue
   const ctv = CS.ct === 'run' ? `<span class="cs-ctv"><span class="cs-spin" aria-hidden="true"></span>${esc(T('Lecture…'))}</span>`
