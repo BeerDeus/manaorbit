@@ -21,7 +21,7 @@
    Résultats : mains gardées, commandant à temps, terrains manqués, couleurs bloquées, mana utilisé ; un adversaire éliminé avant le tour 11, adversaires
    éliminés, table battue, moteur en place, moteur encore là au tour 10 et après le balayage, cartes vues au tour 6. Graine fixe (même deck, mêmes
    résultats). Aucune IA : du hasard et des règles simples, les mêmes pour tous les decks : elles comparent, elles ne prédisent pas. */
-const DSIM = { sig: '', res: null, run: null }, DSIM_N = 10000;      // 10 000 parties : ≈ 2 s sur un téléphone moyen, pourcentages stables à ±1 point
+const DSIM = { sig: '', res: null, run: null }, DSIM_N = 10000;      // 10 000 parties face à la table : ≈ 1,4 s en Node, 4 à 6 s estimées sur un téléphone moyen, pourcentages stables à ±1 point
 /** Table : 3 adversaires (vie, blessures de commandant), leur plateau (bloqueurs) et leur interaction ; les mêmes pour tous les decks. turns : tours joués. */
 const DSIM_OPP = { turns: 10, n: 3, life: 40, cmd: 21, grow: 0.45, from: 2, max: 4, sz0: 1, sz: 0.4, fly: 0.25, rm: 0.3, rmFrom: 2, wipe: 0.7, wipeT: [5, 6, 7], wipeLast: 8, wipeMin: 3, danger: 15 };
 const dsimSize = t => Math.round(DSIM_OPP.sz0 + t * DSIM_OPP.sz);      // force et endurance d'un bloqueur posé au tour t

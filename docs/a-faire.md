@@ -12,6 +12,21 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 5 novembre (après-midi) : vérification du coach, lots A, B, C, E, affichage
+
+**Fait (Claude, branche `claude/bold-ramanujan-mb1nql`, PAS encore sur `main` : attend l'accord du propriétaire)** — `docs/deckbuilder/README.md` › « Vérification et lots A, B, C, E, affichage » :
+- Vérification : base `deck-corpus` et serveur OK, tests OK, mesure conforme à la doc, appli réelle FR/EN, 15 fiches relues, 50 decks variés (règles tenues), temps mesurés.
+- Lot A (corrections), lot B (même prix partout), lot C (combos à 3 cartes), lot E (partie jouée face à 3 adversaires, vraies forces), affichage lisible d'un coup d'œil (bilan, plan du deck, échanges, simulation).
+- `sharedeck-e2e` réparé (rouge depuis la marque d'origine « from : edh » du 4 novembre).
+- Après le passage sur `main` : la colonne [12] (forces) et `combos3` n'arrivent qu'au prochain passage de « Base du coach » (gen-deckdb lit le code de `main`) ; d'ici là l'appli estime la force d'après le coût et ne connaît que les combos à 2 cartes.
+- [ ] Décision : faire relire par un arbitre IA les 725 notes 0 et pièges suspects (`node tools/cmd-brief-suspects.mjs --dkw … --out suspects.json`, ≈ 5 à 10 % du coût de l'écriture des fiches).
+- [ ] Décision : valeur de la collection (Stats, liste « Cartes », fiche du scan, widget) et « Où trouver mes cartes » encore à la tendance de l'impression par défaut ; les decks sont au prix du jour de l'impression la moins chère.
+- [ ] Téléphone : la limite de 20 s (`DS_BUDGET`) coupe environ la moitié des 3 tirages par version sur un téléphone moyen (idée : nombre de tirages adapté à l'appareil, annoncé).
+- [ ] Simulation : ne joue pas encore voltron (équipements, auras), ninjutsu, group hug, la capacité propre du commandant (Kaalia, Yuriko), le drain répété des aristocrates ; « table battue » ≈ 0 % en 10 tours ; effet sur la construction faible (+0,2 carte de protection ou récursion par deck).
+- [ ] 50 decks : un deck sur 196 sous le repère de Karsten d'une source et demie (Gimli, bracket 5, version contrôle : rouge 21/23) : à regarder.
+- [ ] Piste 6 chiffrée (associations fournit/veut et saturation apprises du corpus, +6 Ko, ≈ 9 h) : prête à faire ; combos à 3 cartes « à une carte près » dans le rapport ; commandants Rulebreaker (7, tous non légaux aujourd'hui).
+- `bench-coach.mjs` en local : `node --max-old-space-size=8000 bench-coach.mjs <dossier>` (2 Go ne suffisent plus).
+
 ## Point du 4 novembre : coach qui s'adapte au deck, « Modifier le deck », suivi des cartes manquantes, couleur des emplacements, filtres d'un ami
 
 **Fait (Claude, 4 novembre)** — README › « Assistant de deck Commander, coach et analyse », « Mes decks », « Rangement », « Amis » :
