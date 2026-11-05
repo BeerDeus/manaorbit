@@ -102,7 +102,8 @@ assert.equal(await p.$$eval('.crow.dk .dk-bar i.eng, .crow.dk .dk-eng', n => n.l
 await p.evaluate(() => { XS.eng = { zz: { n: 'Mon deck', at: Date.now(), q: { 'sol ring': 2, 'arcane signet': 1 } } }; engApplied(); });      // Sol Ring ×2 et Arcane Signet réservés : tout ce qu'on en possède
 await p.waitForFunction(() => document.querySelector('.crow.dk .dk-eng'), null, { timeout: 3000 });
 d = await dks();
-assert.deepEqual(d.map(x => x.name), ['Craterhoof Behemoth', 'Edgar Markov', 'Edgar Markov', 'Tymna the Weaver + Thrasios, Triton Hero'], 'l\'ordre ne change pas : « possédées » compte toujours les engagées');
+assert.deepEqual(d.map(x => x.name), ['Craterhoof Behemoth', 'Edgar Markov', 'Edgar Markov', 'Tymna the Weaver + Thrasios, Triton Hero'], 'tri : possédées libres (les engagées sont à acheter), puis le moins à acheter');
+assert.deepEqual(await p.evaluate(() => edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k) }).map(r => [r.have, r.eng, r.miss])), [[3, 1, 23], [3, 2, 25], [3, 2, 26], [2, 1, 28]], 'à acheter = manquantes + engagées dans un deck monté (règle ownFor)');
 assert.match(d[0].have, /^3 \/ 25 possédées · dont 1 engagée$/, 'Craterhoof : Sol Ring engagé'); assert.match(d[1].have, /^3 \/ 26 possédées · dont 2 engagées$/, 'Edgar : Sol Ring + Arcane Signet'); assert.match(d[2].have, /^3 \/ 27 possédées · dont 2 engagées$/); assert.match(d[3].have, /^2 \/ 29 possédées · dont 1 engagée$/, 'Tymna : Sol Ring');
 const bar = await p.$$eval('.crow.dk:nth-child(2) .dk-bar i', n => n.map(x => [x.className, x.style.width]));
 assert.deepEqual(bar, [['', '4%'], ['eng', '8%']], 'barre : 1 libre (Edgar) en bleu, 2 engagées en orange, sur 26');

@@ -8020,7 +8020,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'ac36bf7d';
+const DD_BUILD = 'a3af4312';
 const I18N_FILES = {"de":"i18n/de.092f456b.js","en":"i18n/en.4628ed82.js","es":"i18n/es.98e4a3a1.js","it":"i18n/it.f9311d82.js","pt":"i18n/pt.074344ff.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -10272,7 +10272,7 @@ const edhCmdHas = (c, toks, alt) => edhWords(c.keys.join(' '), toks) || !!(alt &
 /** Une ligne du classement. Les listes `missing`, `owned` et `gc` (longues, utiles seulement à la feuille d'un deck) ne sont calculées qu'au premier accès. */
 class EdhRow {
   constructor(deck, cmd, total, have, cost, unpriced, mine, br, hit, e, own, eng, held) {
-    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have; this.cost = cost; this.unpriced = unpriced; this.mine = mine;
+    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng;      // à acheter : manquantes, plus les possédées engagées dans un deck monté (règle ownFor) this.cost = cost; this.unpriced = unpriced; this.mine = mine;
     this.tier = cmd.tier; this.rank = cmd.rank; this.br = br; this.hit = hit; this._e = e; this._o = own; this._h = held || null;
   }
   get missing() { edhDetail(this); return this.missing; }
@@ -10287,8 +10287,9 @@ function edhDetail(r) {
     if (e.bs[id]) return;
     if (e.pr[id] > 0) full += e.pr[id] * q; else fullNo += q;
     const h = Math.min(q, own[id]), m = q - h, g = e.gcA[id] === 1; if (g) gcs.push(e.names[id]);
-    if (m) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m, u: u > 0 ? u : null, gc: g }); }
-    if (h) owned.push({ k: e.keys[id], n: e.names[id], q: h, gc: g, eg: h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0))) });      // eg : parmi ces exemplaires, ceux déjà réservés par un deck monté
+    const eg = h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0)));      // eg : exemplaires possédés déjà réservés par un deck monté : à acheter pour ce deck (règle ownFor)
+    if (m + eg) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m + eg, u: u > 0 ? u : null, gc: g, ...(eg ? { eg } : {}) }); }
+    if (h - eg) owned.push({ k: e.keys[id], n: e.names[id], q: h - eg, gc: g });
   };
   for (const id of c.ids) one(id, 1);
   for (let j = e.off[d.i], z = e.off[d.i + 1]; j < z; j++) one(e.ids[j], e.qty[j]);
@@ -10324,12 +10325,12 @@ function edhRank(edh, qty, o = {}) {
       if (!hit.length) continue;
     } else if (cmdOk) { if (!cmdOk[c.i]) cmdOk[c.i] = edhCmdHas(c, toks, alt) ? 1 : -1; if (cmdOk[c.i] < 0) continue; }
     let total = 0, have = 0, cost = 0, unpriced = 0, gcN = 0, eng = 0;
-    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; if (own[id] > 0) { have++; if (hold && own[id] <= hold[id]) eng++; } else { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }
+    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; const engd = own[id] > 0 && hold && own[id] <= hold[id]; if (own[id] > 0) { have++; if (engd) eng++; } if (!(own[id] > 0) || engd) { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }      // engagé dans un deck monté : possédé, mais à acheter (même règle que ownFor)
     for (let j = a; j < z; j++) {
       const id = ids[j]; if (bs[id]) continue;
       const q = qa[j], ow = own[id], h = ow < q ? ow : q; total += q; have += h; if (gcA[id]) gcN++;
-      if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eng += h - (fr < h ? fr : h); }
-      if (h < q) { const m = q - h, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }
+      let eg = 0; if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eg = h - (fr < h ? fr : h); eng += eg; }
+      if (h - eg < q) { const m = q - h + eg, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }      // à acheter : manquantes et engagées ailleurs
     }
     if (total < 20 || total > 105) continue;      // liste tronquée, ou faussée (cartes en trop : un deck de Commander en compte 100)
     if (o.budget > 0 && cost > o.budget) continue;
@@ -10341,7 +10342,7 @@ function edhRank(edh, qty, o = {}) {
 }
 /** Tris des decks EDHREC : have (le plus de cartes possédées), miss, cost (le moins cher à compléter), pop (meilleur rang : celui du mois si le fichier en a un). */
 const EDH_SORT_BY = {
-  have: (a, b) => (b.have - a.have) || (a.miss - b.miss) || (a.cost - b.cost), miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),
+  have: (a, b) => ((b.have - b.eng) - (a.have - a.eng)) || (a.miss - b.miss) || (a.cost - b.cost),      // possédées libres (les engagées dans un deck monté sont à acheter) miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),
   cost: (a, b) => (a.cost - b.cost) || (a.miss - b.miss), pop: (a, b) => (a.cmd.rank - b.cmd.rank) || (a.miss - b.miss),
 };
 /** Paliers d'un tri suivi d'un second (« Meilleur tier, puis moins cher ») : à palier égal, le second départage. Tier (S → D) · part possédée par tranches de 10 % · cartes manquantes par 10 · coût à compléter par tranches (30 / 60 / 100 / 200 / 400 €). */
@@ -22865,8 +22866,8 @@ function openEdhDeck(r) {
   const c = r.cmd, name = c.names.join(' + '), url = r.deck.url || (r.deck.src === 'edhrec' ? 'https://edhrec.com/average-decks/' + encodeURIComponent(c.slug) : '');
   openSheet(name, `${r.tier ? T('Tier {t} · n° {n}', { t: r.tier, n: nf0(r.rank) }) + ' · ' : ''}${T('{have} / {total} possédées', { have: nf0(r.have), total: nf0(r.total) })}${r.eng ? ` (${TN(r.eng, 'dont {n} engagée', 'dont {n} engagées')})` : ''} · ${edhSrcLabel(r.deck)}`, api => {
     const row = (x, own) => {
-      const tg = (c.keys.includes(x.k) ? `<span class="tag accent">${T('Commandant')}</span>` : '') + (own && x.eg ? `<span class="tag warn" title="${T('Déjà réservé par un de tes decks montés')}">${TN(x.eg, 'dont {n} engagée', 'dont {n} engagées')}</span>` : '') + (x.gc ? `<span class="tag warn" title="${T('Liste Game Changers (brackets Commander)')}">${T('Game Changer')}</span>` : '');
-      const ex = own ? T('Dans ta collection') + (x.q > 1 ? ' · × ' + x.q : '') + (x.eg ? ' · ' + TN(x.eg, 'dont {n} engagée', 'dont {n} engagées') : '') : T('À acheter') + (x.q > 1 ? ' × ' + x.q : '') + (x.u ? ' · ≈ ' + fmt(x.u * x.q, mkCur()) : '');
+      const tg = (c.keys.includes(x.k) ? `<span class="tag accent">${T('Commandant')}</span>` : '') + (x.eg ? `<span class="tag warn" title="${T('Déjà réservé par un de tes decks montés')}">${TN(x.eg, 'dont {n} engagée', 'dont {n} engagées')}</span>` : '') + (x.gc ? `<span class="tag warn" title="${T('Liste Game Changers (brackets Commander)')}">${T('Game Changer')}</span>` : '');
+      const ex = own ? T('Dans ta collection') + (x.q > 1 ? ' · × ' + x.q : '') + (x.eg ? ' · ' + TN(x.eg, 'dont {n} engagée', 'dont {n} engagées') : '') : T('À acheter') + (x.q > 1 ? ' × ' + x.q : '') + (x.u ? ' · ≈ ' + fmt(x.u * x.q, mkCur()) : '') + (x.eg ? ' · ' + TN(x.eg, 'dont {n} engagée', 'dont {n} engagées') : '');      // possédée mais réservée par un deck monté : à acheter pour ce deck
       return `<div class="crow ro dk-card" role="button" tabindex="0" data-ik="${esc(x.k)}" data-nm="${esc(x.n)}" data-ex="${esc(ex)}" aria-label="${T('{name} : voir en grand', { name: esc(x.n) })}"><span class="thumb" data-ik="${esc(x.k)}" style="--h:${hash32(x.k) % 360}">${esc((x.n.trim()[0] || '?').toUpperCase())}</span><span class="row-main"><span class="row-name">${esc(x.n)}</span>${tg ? `<span class="row-meta">${tg}</span>` : ''}</span><span class="row-price"><b>${own ? '✓' : x.u ? esc(fmt(x.u * x.q, mkCur())) : '—'}</b>${x.q > 1 ? `<small>× ${x.q}${!own && x.u ? ' · ' + esc(fmt(x.u, mkCur())) : ''}</small>` : ''}</span></div>`;
     };
     const cmdSet = new Set(c.keys), byK = new Map([...r.missing.map(x => [x.k, [x, false]]), ...r.owned.map(x => [x.k, [x, true]])]);

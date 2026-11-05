@@ -2021,7 +2021,7 @@ const edhCmdHas = (c, toks, alt) => edhWords(c.keys.join(' '), toks) || !!(alt &
 /** Une ligne du classement. Les listes `missing`, `owned` et `gc` (longues, utiles seulement à la feuille d'un deck) ne sont calculées qu'au premier accès. */
 class EdhRow {
   constructor(deck, cmd, total, have, cost, unpriced, mine, br, hit, e, own, eng, held) {
-    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have; this.cost = cost; this.unpriced = unpriced; this.mine = mine;
+    this.deck = deck; this.cmd = cmd; this.total = total; this.have = have; this.eng = eng || 0; this.miss = total - have + this.eng;      // à acheter : manquantes, plus les possédées engagées dans un deck monté (règle ownFor) this.cost = cost; this.unpriced = unpriced; this.mine = mine;
     this.tier = cmd.tier; this.rank = cmd.rank; this.br = br; this.hit = hit; this._e = e; this._o = own; this._h = held || null;
   }
   get missing() { edhDetail(this); return this.missing; }
@@ -2036,8 +2036,9 @@ function edhDetail(r) {
     if (e.bs[id]) return;
     if (e.pr[id] > 0) full += e.pr[id] * q; else fullNo += q;
     const h = Math.min(q, own[id]), m = q - h, g = e.gcA[id] === 1; if (g) gcs.push(e.names[id]);
-    if (m) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m, u: u > 0 ? u : null, gc: g }); }
-    if (h) owned.push({ k: e.keys[id], n: e.names[id], q: h, gc: g, eg: h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0))) });      // eg : parmi ces exemplaires, ceux déjà réservés par un deck monté
+    const eg = h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0)));      // eg : exemplaires possédés déjà réservés par un deck monté : à acheter pour ce deck (règle ownFor)
+    if (m + eg) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m + eg, u: u > 0 ? u : null, gc: g, ...(eg ? { eg } : {}) }); }
+    if (h - eg) owned.push({ k: e.keys[id], n: e.names[id], q: h - eg, gc: g });
   };
   for (const id of c.ids) one(id, 1);
   for (let j = e.off[d.i], z = e.off[d.i + 1]; j < z; j++) one(e.ids[j], e.qty[j]);
@@ -2073,12 +2074,12 @@ function edhRank(edh, qty, o = {}) {
       if (!hit.length) continue;
     } else if (cmdOk) { if (!cmdOk[c.i]) cmdOk[c.i] = edhCmdHas(c, toks, alt) ? 1 : -1; if (cmdOk[c.i] < 0) continue; }
     let total = 0, have = 0, cost = 0, unpriced = 0, gcN = 0, eng = 0;
-    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; if (own[id] > 0) { have++; if (hold && own[id] <= hold[id]) eng++; } else { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }
+    for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; const engd = own[id] > 0 && hold && own[id] <= hold[id]; if (own[id] > 0) { have++; if (engd) eng++; } if (!(own[id] > 0) || engd) { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }      // engagé dans un deck monté : possédé, mais à acheter (même règle que ownFor)
     for (let j = a; j < z; j++) {
       const id = ids[j]; if (bs[id]) continue;
       const q = qa[j], ow = own[id], h = ow < q ? ow : q; total += q; have += h; if (gcA[id]) gcN++;
-      if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eng += h - (fr < h ? fr : h); }
-      if (h < q) { const m = q - h, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }
+      let eg = 0; if (hold && h) { const fr = ow > hold[id] ? ow - hold[id] : 0; eg = h - (fr < h ? fr : h); eng += eg; }
+      if (h - eg < q) { const m = q - h + eg, u = pr[id]; if (u > 0) cost += u * m; else unpriced += m; }      // à acheter : manquantes et engagées ailleurs
     }
     if (total < 20 || total > 105) continue;      // liste tronquée, ou faussée (cartes en trop : un deck de Commander en compte 100)
     if (o.budget > 0 && cost > o.budget) continue;
@@ -2090,7 +2091,7 @@ function edhRank(edh, qty, o = {}) {
 }
 /** Tris des decks EDHREC : have (le plus de cartes possédées), miss, cost (le moins cher à compléter), pop (meilleur rang : celui du mois si le fichier en a un). */
 const EDH_SORT_BY = {
-  have: (a, b) => (b.have - a.have) || (a.miss - b.miss) || (a.cost - b.cost), miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),
+  have: (a, b) => ((b.have - b.eng) - (a.have - a.eng)) || (a.miss - b.miss) || (a.cost - b.cost),      // possédées libres (les engagées dans un deck monté sont à acheter) miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),
   cost: (a, b) => (a.cost - b.cost) || (a.miss - b.miss), pop: (a, b) => (a.cmd.rank - b.cmd.rank) || (a.miss - b.miss),
 };
 /** Paliers d'un tri suivi d'un second (« Meilleur tier, puis moins cher ») : à palier égal, le second départage. Tier (S → D) · part possédée par tranches de 10 % · cartes manquantes par 10 · coût à compléter par tranches (30 / 60 / 100 / 200 / 400 €). */
