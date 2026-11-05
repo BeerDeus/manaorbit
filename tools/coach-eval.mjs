@@ -2,8 +2,9 @@
 // sans interface, face à la vraie base (dkw.json.gz de la branche deck-corpus, ou régénérée en local). Pour chaque commandant de test : les versions
 // (équilibrée, agressive, contrôle, moins chère) construites comme dans l'appli (dsBuild : construction, amélioration, essais en partie), deux tirages
 // (graines différentes) ; puis les mesures : recouvrement des sorts entre tirages et entre versions, part des sorts qui servent le thème demandé,
-// popularité des cartes (rang EDHREC), note du coach, simulation (mains gardées, commandant à temps, couleurs), contrôles (100 cartes, couleurs, doublons,
-// interdites, bracket, budget, terrains, condition de victoire, sources de couleur).
+// popularité des cartes (rang EDHREC), note du coach, simulation (mains gardées, commandant à temps, couleurs ; face à la table depuis le 5 novembre :
+// adversaires éliminés, moteur qui tient), part de protection, retraits, balayages et récursion, contrôles (100 cartes, couleurs, doublons, interdites,
+// bracket, budget, terrains, condition de victoire, sources de couleur).
 //   node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src <dossier contenant deckwiz.js…>] [--out mesures.json] [--only <n,n>] [--seeds 2] [--jobs 4]
 // Le thème est mesuré avec le classement data/card-mech.json (indépendant du code mesuré : la même règle avant et après).
 import vm from 'node:vm';
@@ -67,6 +68,10 @@ export function coachCtx(srcDir, D) {
   for (const [s, p] of Object.entries(D.themes || {})) ctx.DW.th.set(s, { slug: s, ...p });
   return ctx;
 }
+/** Résultats de simulation gardés dans la mesure : tous les chiffres (anciens et nouveaux, selon le code mesuré). */
+const simPick = r => r ? Object.fromEntries(Object.entries(r).filter(([k, v]) => k !== 'n' && (typeof v === 'number' || v === null))) : null;
+/** Réglages d'une version (style) pour un cas : ceux de buildCase, plus le style de la version (plan du deck : decksim.js › dsimDeck). */
+const wizOf = (cs, vid) => ({ th: cs.th || [], br: cs.br || 3, bud: cs.bud || 0, own: false, mech: cs.mech || [], tribe: cs.tribe || '', pets: cs.pets || [], ban: cs.ban || [], avoid: cs.avoid || [], ...(vid === 'agg' ? { arch: 'aggro', style: 'aggro' } : vid === 'ctl' ? { arch: 'control', style: 'control' } : vid === 'eco' ? { style: 'eco' } : {}) });
 const slugOf = (D, names) => { for (const l of [names, [...names].reverse()]) { const s = l.map(n => normKey(n).replace(/ /g, '-')).join('-'); if (D.cmd[s]) return s; } return names.map(n => normKey(n).replace(/ /g, '-')).join('-'); };
 
 /** Construit les versions d'un cas avec une graine : [{ id, keys (sorts), main, sc, sim, prof, tgt }]. */
@@ -97,7 +102,7 @@ async function buildCase(ctx, D, cs, seed) {
   for (const r of res) {
     BD.main = r.main; BD.wiz = r.wiz;
     const prof = ctx.dwProfile(), tgt = ctx.dwTargets(prof, cmd, pack, r.wiz), sim = r.sim || await ctx.dsimRun(BD, 1500);
-    out.push({ id: r.v.id, main: [...r.main.values()].map(c => [c.key, c.qty]), sc: r.sc.total, parts: r.sc.parts.map(p => Math.round(p.pts * 10) / 10), sim: sim ? { keep7: sim.keep7, cmdOn: sim.cmdOn, screw4: sim.screw4, miss3: sim.miss3, kill10: sim.kill10, killT: sim.killT, eng: sim.eng, seen6: sim.seen6 } : null,
+    out.push({ id: r.v.id, main: [...r.main.values()].map(c => [c.key, c.qty]), sc: r.sc.total, parts: r.sc.parts.map(p => Math.round(p.pts * 10) / 10), sim: simPick(sim),
       prof: { n: prof.n, land: prof.land, mv: Math.round(prof.mv * 100) / 100, cents: prof.cents, gc: prof.gc.length, mld: prof.mld.length, xt: prof.xt.length, combos: prof.combos.length, wincon: prof.wincon, src: prof.src, need: prof.need }, tgt: { land: tgt.land, wincon: tgt.wincon },
       story: (() => { const st = typeof ctx.dwDeckStory === 'function' ? ctx.dwDeckStory(BD) : null; if (st) delete st.plan; return st && JSON.parse(JSON.stringify(st)); })() });
   }
@@ -140,9 +145,10 @@ const r1 = x => x == null ? null : Math.round(x * 1000) / 10;
 /** Decks d'une mesure précédente rejoués (simulation) avec cette base : même étalon de rôles et de couleurs pour l'avant et l'après. */
 async function resim(ctx, D, prev, i) {
   const g = prev.raw.find(x => x.i === i); if (!g) return null;
-  const cs = CASES[i], BD = ctx.BD, ckeys = cs.cmd.map(normKey);
+  const cs = CASES[i], BD = ctx.BD, ckeys = cs.cmd.map(normKey), slug = slugOf(D, cs.cmd);
+  ctx.DW.cmd.clear(); ctx.DW.cmd.set(slug, D.cmd[slug] ? { slug, ...D.cmd[slug] } : null);      // fiche du commandant : le plan (moteur) comme à la construction
   BD.cmdr = cs.cmd.map((n, j) => ({ key: ckeys[j], name: n }));
-  for (const d of g.draws) for (const v of d.vers || []) { BD.main = new Map(v.main.map(([k, q]) => [k, { key: k, name: k, qty: q }])); const r = await ctx.dsimRun(BD, 1500); v.sim = r ? { keep7: r.keep7, cmdOn: r.cmdOn, screw4: r.screw4, miss3: r.miss3, kill10: r.kill10, killT: r.killT, eng: r.eng, seen6: r.seen6 } : null; }
+  for (const d of g.draws) for (const v of d.vers || []) { BD.main = new Map(v.main.map(([k, q]) => [k, { key: k, name: k, qty: q }])); BD.wiz = wizOf(cs, v.id); const r = await ctx.dsimRun(BD, 1500); v.sim = simPick(r); }
   return g;
 }
 async function worker(args) {
@@ -170,6 +176,8 @@ if (process.env.COACH_EVAL_CHILD) {
   const mech = new Map([...readMech(join(root, 'data', 'card-mech.json')).cards].map(([n, m]) => [normKey(n), m]));
   let scry = new Map(); try { const C = JSON.parse(gunzipSync(readFileSync(join(dirname(dkw), 'corpus.json.gz'))).toString('utf8')); for (const [k, x] of Object.entries(C.scry || {})) scry.set(k, { type: x[3], text: x[4] }); } catch (e) { /* sans corpus : types d'après card-mech seulement */ }
   const rows = [], agg = { draws: [], vers: [], theme: [], score: [], keep7: [], cmdOn: [], screw4: [], kill10: [], killT: [], eng: [], seen6: [], rank: [], staple: [], bad: 0, decks: 0, errs: 0 }, vAgg = {};
+  const SIMX = ['elim10', 'table', 'tableT', 'cmdKill', 'engKeep', 'wipeSurv', 'wiped', 'saved', 'lost'], simX = Object.fromEntries(SIMX.map(k => [k, []]));      // chiffres de la simulation avec adversaires (absents du code d'avant)
+  const RL = ['protect', 'removal', 'wipe', 'recursion'], rlBit = Object.fromEntries(RL.map(r => [r, 1 << (D.roles || []).indexOf(r)])), rlAll = Object.fromEntries(RL.map(r => [r, []]));      // part de protection, retraits, balayages, récursion dans les decks (rôles de la base)
   for (const g of got) {
     const cs = CASES[g.i], ok = g.draws.filter(d => d && d.vers);
     if (ok.length < g.draws.length) agg.errs += g.draws.length - ok.length;
@@ -185,6 +193,8 @@ if (process.env.COACH_EVAL_CHILD) {
       const x = { id: v.id, sc: v.sc, th: r1(th), rank: med(ranks), staple: r1(ranks.filter(r => r > 0 && r < 300).length / Math.max(1, ranks.length)), sim: v.sim, land: v.prof.land, mv: v.prof.mv, eur: Math.round(v.prof.cents / 100), bad, theme: v.story ? (v.story.tags || []).slice(0, 3).map(t => t.label + ' ' + t.n).join(', ') : '' };
       (vAgg[v.id] = vAgg[v.id] || { sc: [], th: [], keep7: [], cmdOn: [], screw4: [] });
       vAgg[v.id].sc.push(v.sc); vAgg[v.id].th.push(th); if (v.sim) { vAgg[v.id].keep7.push(v.sim.keep7); vAgg[v.id].cmdOn.push(v.sim.cmdOn); vAgg[v.id].screw4.push(v.sim.screw4); }
+      for (const r of RL) rlAll[r].push(v.main.reduce((a, [k, q]) => a + ((((by.get(k) || [])[4] || 0) & rlBit[r]) ? q : 0), 0));
+      if (i === 0 && v.sim) for (const k of SIMX) if (v.sim[k] != null) simX[k].push(v.sim[k]);
       if (i === 0) { if (th != null) agg.theme.push(th); agg.score.push(v.sc); if (v.sim) { agg.keep7.push(v.sim.keep7); agg.cmdOn.push(v.sim.cmdOn); agg.screw4.push(v.sim.screw4); agg.kill10.push(v.sim.kill10); agg.killT.push(v.sim.killT); agg.eng.push(v.sim.eng); agg.seen6.push(v.sim.seen6); } agg.rank.push(x.rank); agg.staple.push(x.staple); }
       return x;
     });
@@ -193,9 +203,10 @@ if (process.env.COACH_EVAL_CHILD) {
   const sum = { at: new Date().toISOString(), src, dkw, cases: got.length, seeds, s: Math.round((Date.now() - t0) / 1000),
     recouvrementTirages: r1(avg(agg.draws) / 100), recouvrementVersions: r1(avg(agg.vers) / 100), partTheme: r1(avg(agg.theme)), noteMed: med(agg.score), noteMoy: avg(agg.score) && Math.round(avg(agg.score) * 10) / 10,
     keep7: avg(agg.keep7) && Math.round(avg(agg.keep7)), cmdOn: avg(agg.cmdOn) && Math.round(avg(agg.cmdOn)), screw4: avg(agg.screw4) && Math.round(avg(agg.screw4)), adversaireMort10: avg(agg.kill10) == null ? null : Math.round(avg(agg.kill10)), tourMort: avg(agg.killT) == null ? null : Math.round(avg(agg.killT) * 10) / 10, moteurEnPlace: avg(agg.eng) == null ? null : Math.round(avg(agg.eng)), cartesVues6: avg(agg.seen6) == null ? null : Math.round(avg(agg.seen6) * 10) / 10, rangMed: med(agg.rank), partStaples: avg(agg.staple) && Math.round(avg(agg.staple) * 10) / 10,
+    adversaires: Object.fromEntries(SIMX.map(k => [k, avg(simX[k]) == null ? null : Math.round(avg(simX[k]) * 10) / 10])), roles: Object.fromEntries(RL.map(r => [r, avg(rlAll[r]) == null ? null : Math.round(avg(rlAll[r]) * 10) / 10])),
     decks: agg.decks, decksEnDefaut: agg.bad, erreurs: agg.errs,
     versions: Object.fromEntries(Object.entries(vAgg).map(([k, v]) => [k, { note: Math.round(avg(v.sc) * 10) / 10, theme: r1(avg(v.th)), keep7: Math.round(avg(v.keep7)), cmdOn: Math.round(avg(v.cmdOn)), screw4: Math.round(avg(v.screw4)) }])) };
   console.log(JSON.stringify(sum, null, 1));
-  for (const r of rows) console.log(r.err ? `${r.id} ERREUR ${r.err}` : `${r.id.padEnd(15)} ${r.pack ? 'P' : '-'} tirages ${r.draw ?? '-'} % · versions ${r.vers ?? '-'} % (max ${r.versMax ?? '-'}) · ` + r.v.map(v => `${v.id} ${v.sc} th${v.th ?? '-'} rg${v.rank} st${v.staple} k${v.sim ? v.sim.keep7 : '-'}/c${v.sim ? v.sim.cmdOn : '-'}/s${v.sim ? v.sim.screw4 : '-'} L${v.land} ${v.eur}€${v.bad.length ? ' !' + v.bad.join(';') : ''}${v.theme ? ' [' + v.theme + ']' : ''}`).join(' | '));
+  for (const r of rows) console.log(r.err ? `${r.id} ERREUR ${r.err}` : `${r.id.padEnd(15)} ${r.pack ? 'P' : '-'} tirages ${r.draw ?? '-'} % · versions ${r.vers ?? '-'} % (max ${r.versMax ?? '-'}) · ` + r.v.map(v => `${v.id} ${v.sc} th${v.th ?? '-'} rg${v.rank} st${v.staple} k${v.sim ? v.sim.keep7 : '-'}/c${v.sim ? v.sim.cmdOn : '-'}/s${v.sim ? v.sim.screw4 : '-'}${v.sim && v.sim.elim10 != null ? `/a${v.sim.kill10}/m${v.sim.engKeep ?? '-'}` : ''} L${v.land} ${v.eur}€${v.bad.length ? ' !' + v.bad.join(';') : ''}${v.theme ? ' [' + v.theme + ']' : ''}`).join(' | '));
   if (outF) writeFileSync(outF, JSON.stringify({ sum, rows, raw: got }, null, 0));
 }
