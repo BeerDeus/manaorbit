@@ -22,3 +22,11 @@ test('nom court du commandant, mots courants : pas une autre carte', () => {
   const self = new Set(['the howling abomination']);
   assert.equal(cleanPlan('Abomination attaque chaque tour. Ghostly Prison protège.', { cards, ci: new Set(['G', 'W']), self }).dropped.length, 0);
 });
+import { applyReview } from '../tools/cmd-brief-review.mjs';
+test('relecture ciblée : note 0 relevée, piège retiré, verdict « garder » sans effet', () => {
+  const cmds = new Map([['squee', { syn: [['Goblin Chirurgeon', 0], ['Sol Ring', 1]], trap: ['Cursed Totem', 'Ashnod\'s Altar'] }]]);
+  const st = applyReview(cmds, [{ slug: 'squee', card: 'Goblin Chirurgeon', kind: 'note 0', verdict: 'changer', note: 3 }, { slug: 'squee', card: 'Cursed Totem', kind: 'piège', verdict: 'changer', trap: false, note: 1 },
+    { slug: 'squee', card: "Ashnod's Altar", kind: 'piège', verdict: 'garder' }, { slug: 'absent', card: 'X', kind: 'note 0', verdict: 'changer', note: 2 }]);
+  const b = cmds.get('squee'); assert.deepEqual(b.syn, [['Goblin Chirurgeon', 3], ['Sol Ring', 1], ['Cursed Totem', 1]]); assert.deepEqual(b.trap, ["Ashnod's Altar"]);
+  assert.deepEqual([st.kept, st.notes, st.traps, st.missing], [1, 2, 1, ['absent']]);
+});
