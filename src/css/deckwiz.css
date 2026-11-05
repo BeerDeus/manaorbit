@@ -200,3 +200,7 @@
 .dw-simbox .ds-sim li small{font-size:11.5px}
 .dw-simbox .dr-p{margin-top:12px}
 .dw-simbox .dr-ul{margin-top:10px;padding:10px 12px 10px 28px;border-radius:12px;background:var(--surface-2)}
+/* Analyse : ce que fait le deck (fiche du commandant, mécaniques) */
+.dw-audit li.good::before{content:"✓";color:var(--good)}
+.dw-audit li.warn::before{content:"!";color:var(--warn)}
+.dw-audit li small{display:block;margin-top:2px;color:var(--ink-2)}

@@ -308,5 +308,12 @@
  "Personnaliser (facultatif)": "Personalizza (facoltativo)",
  "mécaniques, type de créature, cartes fétiches, exclusions, originalité": "meccaniche, tipo di creatura, carte preferite, esclusioni, originalità",
  "{n} exclusion": "{n} esclusione",
- "{n} exclusions": "{n} esclusioni"
+ "{n} exclusions": "{n} esclusioni",
+ "Ce que fait ton deck": "Cosa fa il tuo mazzo",
+ "Cœur du plan présent": "Cuore del piano presente",
+ "Conditions de victoire du plan": "Condizioni di vittoria del piano",
+ "Moteur « {e} » incomplet : il manque": "Motore « {e} » incompleto, manca",
+ "Marchent mal avec ce commandant": "Funzionano male con questo comandante",
+ "Ne servent ni le plan ni un rôle": "Non servono né il piano né un ruolo",
+ "{card} marche mal avec {name}": "{card} funziona male con {name}"
 }

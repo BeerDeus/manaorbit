@@ -52,15 +52,19 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   }
   if (known) {
     const weakest = nonland.filter(c => !used.has(c.k)).sort((a, b) => a.v - b.v || b.price - a.price);
+    // seuils relatifs au deck (la valeur d'une carte compte maintenant les mécaniques et la fiche du commandant : l'échelle n'est plus celle de la seule popularité) ;
+    // un piège de la fiche (carte qui marche mal avec ce commandant) est toujours parmi les plus faibles
+    const vs = weakest.map(c => c.v), qAt = f => vs.length ? vs[Math.min(vs.length - 1, Math.floor(vs.length * f))] : 0;
+    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap);
     // 2) rôles sous la plage normale : à la place des cartes les plus faibles qui ne remplissent aucun rôle qui manque
     const deficit = gaugeRoles.filter(r => tgt[r] && prof[r] < tgt[r][0]).map(r => [r, tgt[r][1] - prof[r]]).sort((a, b) => b[1] - a[1]);
     for (const [r, need] of deficit) for (let i = 0; i < Math.min(need, 3) && out.length < max; i++) {
-      const W = weakest.find(c => !used.has(c.k) && c.v < 0.2 && !deficit.some(([d]) => c.roles & DW_RB[d]) && !daRoleLow(c.roles, prof, tgt)); if (!W) break;
+      const W = weakest.find(c => !used.has(c.k) && (c.v < vWeak || isTrap(c)) && !deficit.some(([d]) => c.roles & DW_RB[d]) && !daRoleLow(c.roles, prof, tgt)); if (!W) break;
       const C = best(r, W, () => true); if (C) take(W, C, r); else break;
     }
     // 3) cartes faibles pour ce commandant : une carte nettement mieux jouée, du même rôle (ou du plan de jeu)
     for (const W of weakest) {
-      if (out.length >= max) break; if (used.has(W.k) || W.v >= 0.12) continue;
+      if (out.length >= max) break; if (used.has(W.k) || (W.v >= vVeryWeak && !isTrap(W))) continue;
       if (daRoleLow(W.roles, prof, tgt) && !mainRole(W.roles)) continue;
       const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.2); if (C) take(W, C, r ? 'mieux' : 'plan');
     }
@@ -73,17 +77,19 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   // un échange conseillé ne fait jamais baisser la note du coach (deckopt.js) : chacun est essayé seul sur une copie du deck
   if (typeof dsScore !== 'function' || !out.length) return out;
   const base = dsScore(X, { cmd, pack, info }); if (!base) return out;
-  return out.filter(s => {
+  return out.map(s => {      // chaque échange essayé seul ; les plus rentables d'abord (gain de note), jamais un échange qui fait baisser la note
     const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])), o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 });
-    const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack, info }); return !sc || sc.raw >= base.raw - 0.05;
-  });
+    const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack, info }); s.gain = sc ? sc.raw - base.raw : 0; return s;
+  }).filter(s => s.gain >= -0.05).sort((a, b) => (b.why === 'budget') - (a.why === 'budget') || b.gain - a.gain);
 }
 /** Raison d'un échange, en clair. */
 function daWhy(sw, cmd) {
   const nm = cmd ? cmd.names[0].split(',')[0] : '', g = DW_GAUGES.find(x => x[0] === sw.why);
   const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) }) : sw.why === 'mieux' ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Bien plus jouée avec {name}', { name: nm });
   const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0;
-  return head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : '');
+  const C = DW.infoC && DW.infoC.C, plan = C && C.plan, mech = plan && DA.X && typeof dmxReasons === 'function' ? dmxReasons(sw.in.k, DA.X, cmd, plan).slice(0, 2) : [];      // ce que la carte proposée fait pour ce deck (fiche du commandant, mécaniques)
+  const trap = sw.out.o && sw.out.o.trap ? [T('{card} marche mal avec {name}', { card: sw.out.name, name: nm })] : [];
+  return [head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : ''), ...trap, ...mech].join(' · ');
 }
 
 /* ── Écran : le coach s'adapte à l'état du deck ──────────────────────────────────────────────────────────────────────────────────────
@@ -225,6 +231,7 @@ function daPaint() {
   DA.swaps = mode === 'bilan' && DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
   const acts = DA.acts = sc ? daActions(prof, tgt, cmd, set, DA.swaps, pack).slice(0, 3) : [];
   if (sc) h += daHeadHtml(sc, acts, prof, set, est, pack, mode === 'bilan');
+  if (typeof dwAuditHtml === 'function') h += dwAuditHtml(X);      // ce que fait le deck (fiche du commandant, mécaniques : deckwiz.js › dwAuditHtml)
   if (mode === 'peek') {      // aperçu d'un deck qui n'est pas à moi
     const strong = sc ? daStrong(sc, prof, tgt, cmd) : [], weak = acts.filter(a => a.k !== 'swap');
     h += `<div class="sec-title">${T('Points forts')}</div>${strong.length ? `<ul class="cb-pts good">${strong.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien qui ressorte nettement.')}</p>`}`;

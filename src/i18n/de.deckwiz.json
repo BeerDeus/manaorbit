@@ -308,5 +308,12 @@
  "Personnaliser (facultatif)": "Anpassen (optional)",
  "mécaniques, type de créature, cartes fétiches, exclusions, originalité": "Mechaniken, Kreaturentyp, Lieblingskarten, Ausschlüsse, Originalität",
  "{n} exclusion": "{n} Ausschluss",
- "{n} exclusions": "{n} Ausschlüsse"
+ "{n} exclusions": "{n} Ausschlüsse",
+ "Ce que fait ton deck": "Was dein Deck macht",
+ "Cœur du plan présent": "Kern des Plans vorhanden",
+ "Conditions de victoire du plan": "Siegbedingungen des Plans",
+ "Moteur « {e} » incomplet : il manque": "Motor „{e}“ unvollständig, es fehlt",
+ "Marchent mal avec ce commandant": "Funktionieren schlecht mit diesem Commander",
+ "Ne servent ni le plan ni un rôle": "Dienen weder dem Plan noch einer Rolle",
+ "{card} marche mal avec {name}": "{card} funktioniert schlecht mit {name}"
 }

@@ -200,6 +200,8 @@ function dwProfile(X = BD) {
     if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }
   }
   for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
+  if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
   if (DW.core && Array.isArray(DW.core.combos)) {      // combos à 2 cartes (Commander Spellbook) dont les deux cartes sont dans le deck
     const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k), idx = dwComboIdx();
@@ -208,6 +210,23 @@ function dwProfile(X = BD) {
   p.need = {};      // sources voulues par couleur : le commandant, et le quart le plus exigeant des sorts (recherche § 8.2 : les cartes importantes)
   for (const col of 'WUBRG') { const l = (p.needs[col] || []).sort((a, b) => b - a), q = l.length ? l[Math.floor(l.length / 4)] : 0; p.need[col] = Math.max(q, p.cmdNeed[col] || 0); }
   return p;
+}
+/** Conditions de victoire du plan pour le deck X : { cards: Set(clés de la fiche du commandant), cmdr: vrai si le commandant compte (classé condition de victoire,
+ *  cité par sa fiche, ou créature dont le plan passe par le combat ou le drain) } ; null sans fiche ni classement. Gardé par paquet (le profil est relu souvent). */
+const DW_WIN_TAGS = ['attack', 'combat-damage', 'voltron', 'extra-combat', 'double-strike', 'evasion', 'drain', 'burn', 'commander-matters'];
+function dwWinKeys(X) {
+  if (!X.cmdr.length || !DW.byKey) return null;
+  const cmd = dwCmdOf(X), pack = cmd && DW.cmd && DW.cmd.get(cmd.slug), ai = pack && pack.ai; if (!ai && typeof dmxOn === 'function' && !dmxOn()) return null;
+  if (pack && pack._win2 && pack._win2.k === cmd.keys.join('+')) return pack._win2.v;
+  const cards = new Set((ai ? ai.win || [] : []).map(n => ownKey(n)));
+  let cm = false;
+  for (const k of cmd.keys) {
+    const x = dwCard(k) || {}, m = typeof dmx === 'function' ? dmx(k) : null;
+    if (x.roles & DW_RB.wincon || cards.has(k) || (m && dmxRole(m, 'wincon'))) cm = true;
+    else if (x.ty & 2 && ai && (ai.tags || []).slice(0, 3).some(t => DW_WIN_TAGS.includes(t))) cm = true;      // créature dont le plan principal est le combat ou le drain : elle finit la partie elle-même (blessures de commandant)
+  }
+  const v = { cards, cmdr: cm }; if (pack) pack._win2 = { k: cmd.keys.join('+'), v };
+  return v;
 }
 /** Prix d'une carte : celui de l'appli (marché choisi) s'il est connu, sinon celui de la base (euros, marché européen seulement). */
 function dwPrice(k, x) {
@@ -524,6 +543,17 @@ function dwStoryHtml(st) {
   const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // texte de la fiche IA : écrit en français
   return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<blockquote class="dw-brief"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><p>${esc(st.brief)}</p></blockquote>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
     <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
+}
+/** Analyse d'un deck (deckana.js) : ce que fait le deck d'après la fiche du commandant et les mécaniques (plan, moteurs à compléter, pièges, cartes isolées). */
+function dwAuditHtml(X) {
+  const au = typeof dwDeckAudit === 'function' ? dwDeckAudit(X) : null; if (!au) return '';
+  const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = [];
+  if (au.core.length) rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6)));
+  if (au.wins.length) rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4)));
+  for (const e of au.engines) rows.push(li('warn', T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3)));
+  if (au.traps.length) rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5)));
+  if (au.loose.length) rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose));
+  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${dwStoryHtml(au.story).replace('<p class="label">' + T('Plan du deck') + '</p>', '')}${rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : ''}`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
 const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;

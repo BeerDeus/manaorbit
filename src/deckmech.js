@@ -259,6 +259,23 @@ function dwDeckStory(X = BD) {
   const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
   return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
+/** Lecture d'un deck par sa fiche et ses mécaniques (analyse, rapport) : { story, engines: [{ label, have, miss }] (moteurs de la fiche : pièces présentes, pièces qui manquent),
+ *  traps: [noms] (pièges de la fiche présents dans le deck), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
+ *  ni un rôle, et peu forts), core: [noms] (cœur du plan présent, note 3 de la fiche) } ; null sans classement. */
+function dwDeckAudit(X = BD) {
+  if (!dmxOn()) return null;
+  const story = dwDeckStory(X); if (!story) return null;
+  const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
+  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
+  const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
+  const deck = dmxDeck(X), loose = [];
+  for (const c of X.main.values()) {
+    if (BASIC_NAMES.has(c.key)) continue; const x = dwCard(c.key), m = dmx(c.key); if (!x || !m || x.roles & DW_RB.land) continue;
+    const sy = ai && (ai.syn || []).find(([n]) => ownKey(n) === c.key);
+    if (!x.roles && dmxFit(m, plan, deck) < 0.2 && m.pw <= 2 && !(sy && sy[1] >= 1)) loose.push(c.name);
+  }
+  return { story, engines, traps, wins, core, loose: loose.slice(0, 8) };
+}
 /** Mécaniques détectées pour un commandant (assistant : proposées en premier). → [étiquette] */
 function dmxCmdTags(cmd) {
   const plan = dmxPlan(cmd, {}); if (!plan) return [];

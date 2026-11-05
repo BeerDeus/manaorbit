@@ -308,5 +308,12 @@
  "Personnaliser (facultatif)": "Customize (optional)",
  "mécaniques, type de créature, cartes fétiches, exclusions, originalité": "mechanics, creature type, pet cards, exclusions, originality",
  "{n} exclusion": "{n} exclusion",
- "{n} exclusions": "{n} exclusions"
+ "{n} exclusions": "{n} exclusions",
+ "Ce que fait ton deck": "What your deck does",
+ "Cœur du plan présent": "Core of the plan in the deck",
+ "Conditions de victoire du plan": "The plan's win conditions",
+ "Moteur « {e} » incomplet : il manque": "Engine “{e}” incomplete, missing",
+ "Marchent mal avec ce commandant": "Work poorly with this commander",
+ "Ne servent ni le plan ni un rôle": "Serve neither the plan nor a role",
+ "{card} marche mal avec {name}": "{card} works poorly with {name}"
 }

@@ -2852,6 +2852,10 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dw-simbox .ds-sim li small{font-size:11.5px}
 .dw-simbox .dr-p{margin-top:12px}
 .dw-simbox .dr-ul{margin-top:10px;padding:10px 12px 10px 28px;border-radius:12px;background:var(--surface-2)}
+/* Analyse : ce que fait le deck (fiche du commandant, mécaniques) */
+.dw-audit li.good::before{content:"✓";color:var(--good)}
+.dw-audit li.warn::before{content:"!";color:var(--warn)}
+.dw-audit li small{display:block;margin-top:2px;color:var(--ink-2)}
 
 /* ── densite.css : densité sur téléphone (densite.js) — collection (en-tête, outils en icônes, vues compacte / grille) et écran Échange (barre du lien, ligne des sous-onglets) ── */
 
@@ -7933,8 +7937,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '87bedb89';
-const I18N_FILES = {"de":"i18n/de.643156ce.js","en":"i18n/en.bbd9b8c9.js","es":"i18n/es.b6b2f6cc.js","it":"i18n/it.f08240b8.js","pt":"i18n/pt.b013eeca.js"};
+const DD_BUILD = 'bd5ce7d3';
+const I18N_FILES = {"de":"i18n/de.62bc8133.js","en":"i18n/en.32f58519.js","es":"i18n/es.477ffb5e.js","it":"i18n/it.59e12be5.js","pt":"i18n/pt.7a602d56.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -28119,6 +28123,8 @@ function dwProfile(X = BD) {
     if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }
   }
   for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
+  if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
   if (DW.core && Array.isArray(DW.core.combos)) {      // combos à 2 cartes (Commander Spellbook) dont les deux cartes sont dans le deck
     const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k), idx = dwComboIdx();
@@ -28127,6 +28133,23 @@ function dwProfile(X = BD) {
   p.need = {};      // sources voulues par couleur : le commandant, et le quart le plus exigeant des sorts (recherche § 8.2 : les cartes importantes)
   for (const col of 'WUBRG') { const l = (p.needs[col] || []).sort((a, b) => b - a), q = l.length ? l[Math.floor(l.length / 4)] : 0; p.need[col] = Math.max(q, p.cmdNeed[col] || 0); }
   return p;
+}
+/** Conditions de victoire du plan pour le deck X : { cards: Set(clés de la fiche du commandant), cmdr: vrai si le commandant compte (classé condition de victoire,
+ *  cité par sa fiche, ou créature dont le plan passe par le combat ou le drain) } ; null sans fiche ni classement. Gardé par paquet (le profil est relu souvent). */
+const DW_WIN_TAGS = ['attack', 'combat-damage', 'voltron', 'extra-combat', 'double-strike', 'evasion', 'drain', 'burn', 'commander-matters'];
+function dwWinKeys(X) {
+  if (!X.cmdr.length || !DW.byKey) return null;
+  const cmd = dwCmdOf(X), pack = cmd && DW.cmd && DW.cmd.get(cmd.slug), ai = pack && pack.ai; if (!ai && typeof dmxOn === 'function' && !dmxOn()) return null;
+  if (pack && pack._win2 && pack._win2.k === cmd.keys.join('+')) return pack._win2.v;
+  const cards = new Set((ai ? ai.win || [] : []).map(n => ownKey(n)));
+  let cm = false;
+  for (const k of cmd.keys) {
+    const x = dwCard(k) || {}, m = typeof dmx === 'function' ? dmx(k) : null;
+    if (x.roles & DW_RB.wincon || cards.has(k) || (m && dmxRole(m, 'wincon'))) cm = true;
+    else if (x.ty & 2 && ai && (ai.tags || []).slice(0, 3).some(t => DW_WIN_TAGS.includes(t))) cm = true;      // créature dont le plan principal est le combat ou le drain : elle finit la partie elle-même (blessures de commandant)
+  }
+  const v = { cards, cmdr: cm }; if (pack) pack._win2 = { k: cmd.keys.join('+'), v };
+  return v;
 }
 /** Prix d'une carte : celui de l'appli (marché choisi) s'il est connu, sinon celui de la base (euros, marché européen seulement). */
 function dwPrice(k, x) {
@@ -28443,6 +28466,17 @@ function dwStoryHtml(st) {
   const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // texte de la fiche IA : écrit en français
   return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<blockquote class="dw-brief"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><p>${esc(st.brief)}</p></blockquote>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
     <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
+}
+/** Analyse d'un deck (deckana.js) : ce que fait le deck d'après la fiche du commandant et les mécaniques (plan, moteurs à compléter, pièges, cartes isolées). */
+function dwAuditHtml(X) {
+  const au = typeof dwDeckAudit === 'function' ? dwDeckAudit(X) : null; if (!au) return '';
+  const li = (cls, t, cards) => `<li class="${cls}"><b>${esc(t)}</b> <small>${esc(cards.join(', '))}</small></li>`, rows = [];
+  if (au.core.length) rows.push(li('good', T('Cœur du plan présent'), au.core.slice(0, 6)));
+  if (au.wins.length) rows.push(li('good', T('Conditions de victoire du plan'), au.wins.slice(0, 4)));
+  for (const e of au.engines) rows.push(li('warn', T('Moteur « {e} » incomplet : il manque', { e: e.label }), e.miss.slice(0, 3)));
+  if (au.traps.length) rows.push(li('warn', T('Marchent mal avec ce commandant'), au.traps.slice(0, 5)));
+  if (au.loose.length) rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose));
+  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${dwStoryHtml(au.story).replace('<p class="label">' + T('Plan du deck') + '</p>', '')}${rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : ''}`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
 const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;
@@ -29148,6 +29182,23 @@ function dwDeckStory(X = BD) {
   const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
   return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
+/** Lecture d'un deck par sa fiche et ses mécaniques (analyse, rapport) : { story, engines: [{ label, have, miss }] (moteurs de la fiche : pièces présentes, pièces qui manquent),
+ *  traps: [noms] (pièges de la fiche présents dans le deck), wins: [noms] (conditions de victoire de la fiche présentes), loose: [noms] (sorts qui ne servent ni le plan
+ *  ni un rôle, et peu forts), core: [noms] (cœur du plan présent, note 3 de la fiche) } ; null sans classement. */
+function dwDeckAudit(X = BD) {
+  if (!dmxOn()) return null;
+  const story = dwDeckStory(X); if (!story) return null;
+  const plan = story.plan, ai = plan && plan.ai, has = n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n));
+  const engines = ai ? (ai.eng || []).map(([label, cs]) => ({ label, have: cs.filter(has), miss: cs.filter(n => !has(n)) })).filter(e => e.have.length && e.miss.length).slice(0, 3) : [];
+  const traps = ai ? (ai.trap || []).filter(has) : [], wins = ai ? (ai.win || []).filter(has) : [], core = ai ? (ai.syn || []).filter(([n, v]) => v === 3 && has(n)).map(([n]) => n) : [];
+  const deck = dmxDeck(X), loose = [];
+  for (const c of X.main.values()) {
+    if (BASIC_NAMES.has(c.key)) continue; const x = dwCard(c.key), m = dmx(c.key); if (!x || !m || x.roles & DW_RB.land) continue;
+    const sy = ai && (ai.syn || []).find(([n]) => ownKey(n) === c.key);
+    if (!x.roles && dmxFit(m, plan, deck) < 0.2 && m.pw <= 2 && !(sy && sy[1] >= 1)) loose.push(c.name);
+  }
+  return { story, engines, traps, wins, core, loose: loose.slice(0, 8) };
+}
 /** Mécaniques détectées pour un commandant (assistant : proposées en premier). → [étiquette] */
 function dmxCmdTags(cmd) {
   const plan = dmxPlan(cmd, {}); if (!plan) return [];
@@ -29212,15 +29263,19 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   }
   if (known) {
     const weakest = nonland.filter(c => !used.has(c.k)).sort((a, b) => a.v - b.v || b.price - a.price);
+    // seuils relatifs au deck (la valeur d'une carte compte maintenant les mécaniques et la fiche du commandant : l'échelle n'est plus celle de la seule popularité) ;
+    // un piège de la fiche (carte qui marche mal avec ce commandant) est toujours parmi les plus faibles
+    const vs = weakest.map(c => c.v), qAt = f => vs.length ? vs[Math.min(vs.length - 1, Math.floor(vs.length * f))] : 0;
+    const vWeak = Math.max(0.2, qAt(0.25)), vVeryWeak = Math.max(0.12, qAt(0.15)), isTrap = c => !!(c.o && c.o.trap);
     // 2) rôles sous la plage normale : à la place des cartes les plus faibles qui ne remplissent aucun rôle qui manque
     const deficit = gaugeRoles.filter(r => tgt[r] && prof[r] < tgt[r][0]).map(r => [r, tgt[r][1] - prof[r]]).sort((a, b) => b[1] - a[1]);
     for (const [r, need] of deficit) for (let i = 0; i < Math.min(need, 3) && out.length < max; i++) {
-      const W = weakest.find(c => !used.has(c.k) && c.v < 0.2 && !deficit.some(([d]) => c.roles & DW_RB[d]) && !daRoleLow(c.roles, prof, tgt)); if (!W) break;
+      const W = weakest.find(c => !used.has(c.k) && (c.v < vWeak || isTrap(c)) && !deficit.some(([d]) => c.roles & DW_RB[d]) && !daRoleLow(c.roles, prof, tgt)); if (!W) break;
       const C = best(r, W, () => true); if (C) take(W, C, r); else break;
     }
     // 3) cartes faibles pour ce commandant : une carte nettement mieux jouée, du même rôle (ou du plan de jeu)
     for (const W of weakest) {
-      if (out.length >= max) break; if (used.has(W.k) || W.v >= 0.12) continue;
+      if (out.length >= max) break; if (used.has(W.k) || (W.v >= vVeryWeak && !isTrap(W))) continue;
       if (daRoleLow(W.roles, prof, tgt) && !mainRole(W.roles)) continue;
       const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.2); if (C) take(W, C, r ? 'mieux' : 'plan');
     }
@@ -29233,17 +29288,19 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   // un échange conseillé ne fait jamais baisser la note du coach (deckopt.js) : chacun est essayé seul sur une copie du deck
   if (typeof dsScore !== 'function' || !out.length) return out;
   const base = dsScore(X, { cmd, pack, info }); if (!base) return out;
-  return out.filter(s => {
+  return out.map(s => {      // chaque échange essayé seul ; les plus rentables d'abord (gain de note), jamais un échange qui fait baisser la note
     const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])), o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 });
-    const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack, info }); return !sc || sc.raw >= base.raw - 0.05;
-  });
+    const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack, info }); s.gain = sc ? sc.raw - base.raw : 0; return s;
+  }).filter(s => s.gain >= -0.05).sort((a, b) => (b.why === 'budget') - (a.why === 'budget') || b.gain - a.gain);
 }
 /** Raison d'un échange, en clair. */
 function daWhy(sw, cmd) {
   const nm = cmd ? cmd.names[0].split(',')[0] : '', g = DW_GAUGES.find(x => x[0] === sw.why);
   const head = sw.why === 'budget' ? T('Même rôle, bien moins chère') : g ? T('Il manque : {r}', { r: T(g[1]) }) : sw.why === 'mieux' ? T('Même rôle, bien plus jouée avec {name}', { name: nm }) : T('Bien plus jouée avec {name}', { name: nm });
   const a = sw.out.o ? sw.out.o.incl || 0 : 0, b = sw.in.o && sw.in.o.incl ? sw.in.o.incl : 0;
-  return head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : '');
+  const C = DW.infoC && DW.infoC.C, plan = C && C.plan, mech = plan && DA.X && typeof dmxReasons === 'function' ? dmxReasons(sw.in.k, DA.X, cmd, plan).slice(0, 2) : [];      // ce que la carte proposée fait pour ce deck (fiche du commandant, mécaniques)
+  const trap = sw.out.o && sw.out.o.trap ? [T('{card} marche mal avec {name}', { card: sw.out.name, name: nm })] : [];
+  return [head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : ''), ...trap, ...mech].join(' · ');
 }
 
 /* ── Écran : le coach s'adapte à l'état du deck ──────────────────────────────────────────────────────────────────────────────────────
@@ -29385,6 +29442,7 @@ function daPaint() {
   DA.swaps = mode === 'bilan' && DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
   const acts = DA.acts = sc ? daActions(prof, tgt, cmd, set, DA.swaps, pack).slice(0, 3) : [];
   if (sc) h += daHeadHtml(sc, acts, prof, set, est, pack, mode === 'bilan');
+  if (typeof dwAuditHtml === 'function') h += dwAuditHtml(X);      // ce que fait le deck (fiche du commandant, mécaniques : deckwiz.js › dwAuditHtml)
   if (mode === 'peek') {      // aperçu d'un deck qui n'est pas à moi
     const strong = sc ? daStrong(sc, prof, tgt, cmd) : [], weak = acts.filter(a => a.k !== 'swap');
     h += `<div class="sec-title">${T('Points forts')}</div>${strong.length ? `<ul class="cb-pts good">${strong.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien qui ressorte nettement.')}</p>`}`;
