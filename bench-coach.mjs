@@ -19,7 +19,7 @@ const BASICS = new Set(['plains', 'island', 'swamp', 'mountain', 'forest', 'wast
 /** Le coach de l'appli dans une vm : seules les fonctions de calcul servent (aucun affichage). */
 export function coachVm(src = ['brackets.js', 'deckwiz.js', 'deckmech.js'].map(f => readFileSync(join(here, 'src', f), 'utf8')).join('\n;\n')) {
   const ctx = { console, Map, Set, Math, Number, String, Object, Array, JSON, Date, Infinity, isFinite, Promise, setTimeout,
-    DAY: 864e5, BASIC_NAMES: BASICS, ownKey: normKey, dmOf: () => null, collQty: () => 0, mkUs: () => false, PXT: null, T: s => s, TN: (n, a) => a,
+    DAY: 864e5, BASIC_NAMES: BASICS, ownKey: normKey, dmOf: () => null, collQty: () => 0, ownFree: () => 0, mkUs: () => false, PXT: null, T: s => s, TN: (n, a) => a,
     BD: { main: new Map(), cmdr: [] }, labOn: () => false, localStorage: null };
   vm.createContext(ctx);
   vm.runInContext(src + '\nthis.DW = DW; this.dwSuggest = dwSuggest; this.dwProfile = dwProfile; this.dwTargets = dwTargets; this.dwIndex = dwIndex; this.dwInfo = dwInfo;', ctx);

@@ -2091,7 +2091,7 @@ function edhRank(edh, qty, o = {}) {
 }
 /** Tris des decks EDHREC : have (le plus de cartes possédées), miss, cost (le moins cher à compléter), pop (meilleur rang : celui du mois si le fichier en a un). */
 const EDH_SORT_BY = {
-  have: (a, b) => ((b.have - b.eng) - (a.have - a.eng)) || (a.miss - b.miss) || (a.cost - b.cost),      // possédées libres (les engagées dans un deck monté sont à acheter) miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),
+  have: (a, b) => ((b.have - b.eng) - (a.have - a.eng)) || (a.miss - b.miss) || (a.cost - b.cost), miss: (a, b) => (a.miss - b.miss) || (a.cost - b.cost),      // have : possédées libres (les engagées dans un deck monté sont à acheter)
   cost: (a, b) => (a.cost - b.cost) || (a.miss - b.miss), pop: (a, b) => (a.cmd.rank - b.cmd.rank) || (a.miss - b.miss),
 };
 /** Paliers d'un tri suivi d'un second (« Meilleur tier, puis moins cher ») : à palier égal, le second départage. Tier (S → D) · part possédée par tranches de 10 % · cartes manquantes par 10 · coût à compléter par tranches (30 / 60 / 100 / 200 / 400 €). */
