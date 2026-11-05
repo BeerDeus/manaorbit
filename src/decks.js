@@ -153,8 +153,9 @@ function deltaChip(h) {
   return `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${fmt(Math.abs(d.diff), modeCur(d.mode))}</span>`;
 }
 const COLOR_NAMES = { W: 'blanc', U: 'bleu', B: 'noir', R: 'rouge', G: 'vert' };
-/** Pastilles de couleur d'un deck (d'après ses terrains de base). */
-function pips(text) { const c = dkColors(text); return c ? `<span class="deck-pips" role="img" aria-label="${T('Couleurs : {list}', { list: [...c].map(x => T(COLOR_NAMES[x])).join(', ') })}" title="${T('Couleurs d\'après les terrains de base')}">${[...c].map(x => `<i class="pip ${x}"></i>`).join('')}</span>` : ''; }
+/** Pastilles de couleur d'un deck (Mes decks, decks d'un ami) : core.js › deckColorInfo (identité du commandant, sinon couleurs des cartes, sinon terrains de base), la source dans la bulle. */
+const pipsBy = by => (by === 'cmdr' ? T('Identité de couleur du commandant') : by === 'cards' ? T('Couleurs des cartes du deck') : T('Couleurs d\'après les terrains de base'));
+function pips(text) { const { c, by } = deckColorInfo(text); return c ? `<span class="deck-pips" role="img" aria-label="${T('Couleurs : {list}', { list: [...c].map(x => T(COLOR_NAMES[x])).join(', ') })}" title="${pipsBy(by)}">${[...c].map(x => `<i class="pip ${x}"></i>`).join('')}</span>` : ''; }
 const deckFmt = d => dkFmtOf(d.text);
 /** Image de la carte de présentation d'un deck (grande taille), '' tant que sa fiche n'est pas lue. */
 const coverImg = c => { if (!c) return ''; const o = ownLangImg(c.key), m = dmOf(c.key); return o ? o.src : (m && m.im) || ''; };      // carte possédée : dans la langue de l'exemplaire

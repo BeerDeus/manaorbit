@@ -1,7 +1,7 @@
 /* ── dklist.js : écran « Mes decks » ──────────────────────────────────────────────────────────────
    Section Decks › Mes decks (bouton « Decks » de la barre du bas, nav.js), à côté de « À monter » et « Prix d'une liste ». Les decks y sont des cartes : image de la carte de présentation
    (choisie dans la feuille d'un deck, sinon commandant, sinon la carte la plus chère), nom, format, couleurs, valeur.
-   Filtres : format (Tous / Commander / Standard) et couleurs (le deck doit avoir toutes les couleurs cochées). */
+   Filtres : format (Tous / Commander / Standard) et couleurs (le deck doit avoir toutes les couleurs cochées : core.js › colorFit 'has' sur deckColors ; dit sous les pastilles). */
 const DKS = { el: null, fmt: '', colors: new Set(), fresh: true };
 const DKS_COLORS = [['W', 'Blanc'], ['U', 'Bleu'], ['B', 'Noir'], ['R', 'Rouge'], ['G', 'Vert']];
 
@@ -18,6 +18,7 @@ function openDecks() {
       <div class="dks-filters" id="dksFilters" hidden>
         <div class="seg" id="dksSeg" role="radiogroup" aria-label="${T('Format')}"></div>
         <div class="dks-colors" role="group" aria-label="${T('Couleurs du deck')}">${DKS_COLORS.map(([c, n]) => `<button class="dks-c" type="button" data-c="${c}" aria-pressed="false" aria-label="${T(n)}" title="${T(n)}"><i class="pip ${c}"></i></button>`).join('')}<button class="link-btn dks-reset" type="button" data-act="reset" hidden>${T('Tout afficher')}</button></div>
+        <p class="hint dks-rule" hidden>${T('Decks qui ont toutes ces couleurs : identité du commandant, sinon couleurs des cartes.')}</p>
       </div>
       <div class="deck-list" id="deckList"></div>
     </div></div>`;
@@ -57,10 +58,10 @@ function dksPaint() {
   const colors = DKS_COLORS.map(([c]) => c).filter(c => DKS.colors.has(c)).join('');
   const shown = all.filter(d => dkMatch(d.text, { fmt: DKS.fmt, colors })), filtered = !!(DKS.fmt || colors);
   // filtres : utiles à partir de deux decks ; une couleur qu'aucun deck n'a est grisée (sauf si elle est cochée)
-  const has = new Set(all.flatMap(d => [...dkColors(d.text)]));
+  const has = new Set(all.flatMap(d => [...deckColors(d.text)]));      // core.js › deckColors : identité du commandant, sinon couleurs des cartes, sinon terrains de base
   $('#dksFilters', el).hidden = all.length < 2 && !filtered;
   $$('.dks-c', el).forEach(b => { const on = DKS.colors.has(b.dataset.c); b.setAttribute('aria-pressed', String(on)); b.disabled = !on && !has.has(b.dataset.c); });
-  $('.dks-reset', el).hidden = !filtered;
+  $('.dks-reset', el).hidden = !filtered; $('.dks-rule', el).hidden = !colors;      // le sens du filtre de couleur (colorFit 'has'), dit dès qu'une couleur est cochée
   $('.dv-title span', el).textContent = loading ? '' : filtered ? TN(all.length, '{shown} sur {n} deck', '{shown} sur {n} decks', { shown: shown.length.toLocaleString(LOC()) }) : TN(all.length, '{n} deck', '{n} decks');
   if (typeof dkTabsCount === 'function') dkTabsCount();      // « Mes decks 4 » dans les onglets de la section
   let html = '';

@@ -1,0 +1,11 @@
+{
+ "Identité de couleur du commandant": "Identità di colore del comandante",
+ "Couleurs des cartes du deck": "Colori delle carte del mazzo",
+ "Decks qui ont toutes ces couleurs : identité du commandant, sinon couleurs des cartes.": "Mazzi con tutti questi colori: identità di colore del comandante, altrimenti colori delle carte.",
+ "Commandants exactement de ces couleurs.": "Comandanti esattamente di questi colori.",
+ "Commandants jouables avec ces couleurs : identité incluse dans la sélection (une ou plusieurs de ces couleurs, ou incolore).": "Comandanti giocabili con questi colori: identità di colore inclusa nella selezione (uno o più di questi colori, o incolore).",
+ "Cartes d'au moins une de ces couleurs.": "Carte di almeno uno di questi colori.",
+ "Exactement": "Esattamente",
+ "Couleurs = {c}": "Colori = {c}",
+ "couleurs = {c}": "colori = {c}"
+}
