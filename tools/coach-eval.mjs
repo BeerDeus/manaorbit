@@ -4,7 +4,8 @@
 // (graines différentes) ; puis les mesures : recouvrement des sorts entre tirages et entre versions, part des sorts qui servent le thème demandé,
 // popularité des cartes (rang EDHREC), note du coach, simulation (mains gardées, commandant à temps, couleurs), contrôles (100 cartes, couleurs, doublons,
 // interdites, bracket, budget, terrains, condition de victoire, sources de couleur).
-//   node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src <dossier contenant deckwiz.js…>] [--out mesures.json] [--only <n,n>] [--seeds 2] [--jobs 4]
+//   node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src <dossier contenant deckwiz.js…>] [--out mesures.json] [--only <n,n>] [--seeds 2] [--jobs 4] [--budget <ms>]
+// Sans --budget : tous les tirages de chaque version (DS_DRAWS), quel que soit le temps : mesure reproductible d'une machine à l'autre ; --budget 20000 : la limite de l'appli.
 // Le thème est mesuré avec le classement data/card-mech.json (indépendant du code mesuré : la même règle avant et après).
 import vm from 'node:vm';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -67,6 +68,7 @@ export function coachCtx(srcDir, D) {
   for (const [s, p] of Object.entries(D.themes || {})) ctx.DW.th.set(s, { slug: s, ...p });
   return ctx;
 }
+let BUDGET = 1e12;
 const slugOf = (D, names) => { for (const l of [names, [...names].reverse()]) { const s = l.map(n => normKey(n).replace(/ /g, '-')).join('-'); if (D.cmd[s]) return s; } return names.map(n => normKey(n).replace(/ /g, '-')).join('-'); };
 
 /** Construit les versions d'un cas avec une graine : [{ id, keys (sorts), main, sc, sim, prof, tgt }]. */
@@ -80,7 +82,7 @@ async function buildCase(ctx, D, cs, seed) {
   BD.wiz = wiz;
   const cmd = ctx.dwCmdOf(BD); if (!cmd) return null;
   let res;
-  if (typeof ctx.dsMake === 'function') res = await ctx.dsMake({ seed, empty: true });
+  if (typeof ctx.dsMake === 'function') res = await ctx.dsMake({ seed, empty: true, budget: BUDGET });      // budget de temps : illimité par défaut (mesure reproductible, indépendante de la vitesse de la machine) ; --budget 20000 : comme l'appli
   else {      // code d'avant (sans dsMake) : la boucle de dsBuild, telle quelle
     res = []; const base = new Map(), mine = new Set(), wiz0 = { ...wiz };
     for (const v of ctx.DS_VARIANTS_ALL || vm.runInContext('DS_VARIANTS', ctx)) {
@@ -146,6 +148,7 @@ async function resim(ctx, D, prev, i) {
   return g;
 }
 async function worker(args) {
+  if (args.budget) BUDGET = args.budget;
   const D = JSON.parse(gunzipSync(readFileSync(args.dkw)).toString('utf8')), ctx = coachCtx(args.src, D);
   const out = [];
   if (args.resim) { const prev = JSON.parse(readFileSync(args.resim, 'utf8')); for (const i of args.idx) { const g = await resim(ctx, D, prev, i); if (g) out.push(g); } return out; }
@@ -160,11 +163,11 @@ if (process.env.COACH_EVAL_CHILD) {
   process.on('message', async a => { try { const r = await worker(a); process.send(JSON.parse(JSON.stringify(r)), () => process.exit(0)); } catch (e) { console.error(e); process.exit(1); } });
 } else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const a = process.argv.slice(2), opt = (k, d) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : d; };
-  const dkw = opt('--dkw'), src = opt('--src', join(root, 'src')), outF = opt('--out', ''), resimF = opt('--resim', ''), seeds = Number(opt('--seeds', 2)), jobs = Number(opt('--jobs', 4));
+  const dkw = opt('--dkw'), src = opt('--src', join(root, 'src')), outF = opt('--out', ''), resimF = opt('--resim', ''), seeds = Number(opt('--seeds', 2)), jobs = Number(opt('--jobs', 4)), budget = Number(opt('--budget', 0)) || 0;
   const only = opt('--only', ''); const idx = only ? only.split(',').map(s => CASES.findIndex(c => c.id === s || String(CASES.indexOf(c)) === s)).filter(i => i >= 0) : CASES.map((c, i) => i);
   if (!dkw) { console.log('Usage : node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src dir] [--out f.json] [--only id,id] [--seeds 2] [--jobs 4]'); process.exit(1); }
   const t0 = Date.now(), parts = Array.from({ length: jobs }, () => []); idx.forEach((i, j) => parts[j % jobs].push(i));
-  const got = (await Promise.all(parts.filter(p => p.length).map(p => new Promise((res, rej) => { const c = fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, COACH_EVAL_CHILD: '1' }, execArgv: ['--max-old-space-size=4000'] }); c.on('message', res); c.on('error', rej); c.send({ dkw, src, seeds, idx: p, resim: resimF }); })))).flat().sort((x, y) => x.i - y.i);
+  const got = (await Promise.all(parts.filter(p => p.length).map(p => new Promise((res, rej) => { const c = fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, COACH_EVAL_CHILD: '1' }, execArgv: ['--max-old-space-size=4000'] }); c.on('message', res); c.on('error', rej); c.send({ dkw, src, seeds, idx: p, resim: resimF, budget }); })))).flat().sort((x, y) => x.i - y.i);
   // mesures
   const D = JSON.parse(gunzipSync(readFileSync(dkw)).toString('utf8')), by = new Map(D.cards.map(r => [normKey(r[0]), r]));
   const mech = new Map([...readMech(join(root, 'data', 'card-mech.json')).cards].map(([n, m]) => [normKey(n), m]));
