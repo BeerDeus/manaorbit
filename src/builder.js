@@ -146,7 +146,7 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
@@ -177,9 +177,10 @@ function openBuilder(o) {
       <div class="bd-sum" id="bdSum"></div>
       <div class="seg" id="bdSeg" role="tablist" aria-label="${T('Contenu')}"></div>
       <div class="bd-ctl" id="bdCtl"></div>
-      <div class="bd-list" id="bdList"></div></div>`}</div>`;
+      <div class="bd-list" id="bdList"></div></div>`}</div>
+    <div class="bd-selbar" id="bdSelBar" role="toolbar" aria-label="${T('Sélection')}" hidden></div>`;      // mode sélection de l'onglet « Ajouter » (bdadd.js)
   BD.el = wrap; const prevFocus = document.activeElement;
-  const onKey = e => { if (e.key === 'Escape' && !sheets.length && !imgView) { e.stopPropagation(); bdClose(); } };
+  const onKey = e => { if (e.key === 'Escape' && !sheets.length && !imgView) { e.stopPropagation(); if (BD.sel) bdSelEnd(); else bdClose(); } };      // mode sélection : Échap en sort d'abord
   wrap.__close = () => {
     if (BD.el !== wrap) return; BD.el = null; clearTimeout(BD.metaT); document.removeEventListener('keydown', onKey, true);
     wrap.classList.remove('on'); setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 240); releaseApp();
@@ -194,9 +195,10 @@ function openBuilder(o) {
   wrap.addEventListener('click', bdClick);
   wrap.addEventListener('input', e => {
     if (e.target.id === 'bdName') { BD.name = e.target.value; BD.dirty = true; bdHead(); }
-    else if (e.target.id === 'bdQ') { BD.q = e.target.value; BD.shown = BD_PAGE; bdList(); }
+    else if (e.target.id === 'bdQ') { BD.q = BD.f.q = e.target.value; BD.fsig = bdFSig(); BD.shown = BD_PAGE; bdList(); }      // tout de suite (la barre de filtres attend 120 ms : rien à refaire alors)
   });
   wrap.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'bdName') { e.preventDefault(); e.target.blur(); } });
+  bdLpBind(wrap);      // appui long : mode sélection (bdadd.js)
   document.body.appendChild(wrap); holdApp();
   bdTab(tab0); bdPaint(); bdMetaSoon();
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
@@ -357,11 +359,14 @@ function bdSumHtml() {
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
+/** Deck Commander : carte que Scryfall dit pas légale en Commander (interdite…) ; formats lus avec les infos de la carte (COLL.meta[k].lg), inconnus : non. */
+const bdIllegal = k => { if (BD.fmt !== 'commander' || BASIC_NAMES.has(k)) return false; const m = bdMeta(k); return !!m && typeof m.lg === 'string' && !!m.lg && !m.lg.includes('c'); };
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
   const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
+  if (bdIllegal(k)) out.push(`<span class="tag bad">${T('Pas légale en Commander')}</span>`);      // Scryfall (legalities), comme l'alerte du résumé (core.js › dkCheck)
   if (typeof dvGC === 'function' && dvGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (brackets Commander)
   const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
   if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
@@ -372,6 +377,7 @@ function bdTags(k, q, ctx) {
 function bdRow(k, name, q, tgt, ctx, label) {
   const x = COLL.map[k], m = bdMeta(k), l = x ? x.l : '', nm = label || bdLabel(k, name), hue = hash32(k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase());
   const img = m && m.im ? collImage(k, l, m.im, name).src : '', tags = bdTags(k, q, ctx);
+  if (ctx === 'coll' && BD.sel) return bdPickRow(k, name, nm, img, hue, letter, tags);      // mode sélection (bdadd.js) : case à cocher
   return `<div class="crow bd-row" data-k="${esc(k)}" data-n="${esc(name)}" data-t="${tgt}"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span>${tags ? `<span class="row-meta">${tags}</span>` : ''}</span>
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
@@ -455,14 +461,14 @@ function bdCollHtml() {
 /** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
  *  qui correspondent et que tu n'as pas (à acheter). Sans recherche : ta collection. */
 function bdAddHtml() {
-  const q = BD.q.trim(), words = normPart(q).split(' ').filter(Boolean), has = collCount() > 0;
-  let own = has ? bdIndex().filter(it => words.every(w => it.s.includes(w))) : [];
-  if (BD.tgt === 'cmdr') own = own.filter(it => (COLL.meta[it.k] || {}).cd);
+  const q = BD.q.trim(), words = normPart(q).split(' ').filter(Boolean), has = collCount() > 0, flt = filterActive({ ...BD.f, q: '' });      // flt : rangement ou filtre de la collection (bdadd.js)
+  const own = has ? bdOwn(words) : [];
   const shown = own.slice(0, BD.shown), mine = new Set(own.map(it => it.k));
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
-  if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
+  h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées »
+  if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + (own.length > 1 && !BD.sel && BD.tgt !== 'cmdr' && !bdLpKnown() ? `<p class="hint bd-lp-hint">${T('Appui long sur une carte : en choisir plusieurs.')}</p>` : '') + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');      // astuce : jusqu'au premier appui long (bdadd.js)
   if (own.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, own.length - shown.length), rest: nf0(own.length - shown.length) })}</button>`;
-  if (q.length >= 2) {
+  if (q.length >= 2 && !flt) {      // toutes les cartes Magic : sans filtre seulement (rangement, couleur… ne valent que pour la collection)
     if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
     else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
     else {
@@ -471,7 +477,7 @@ function bdAddHtml() {
       else if (!own.length) h += `<p class="hint">${T('Aucune carte de ce nom. Vérifie l\'orthographe (nom anglais).')}</p>`;
     }
   } else if (!has) h += `<div class="deck-empty">${T('Tape au moins 2 lettres du nom (anglais) : toutes les cartes Magic sont cherchables ici.')}</div>`;
-  else if (!own.length && words.length) h += `<p class="hint">${T('Aucune carte de ta collection ne correspond.')}</p>`;
+  else if (!own.length && (words.length || flt)) h += `<p class="hint">${T('Aucune carte de ta collection ne correspond.')}</p>`;
   return h;
 }
 function bdFindHtml() {
@@ -503,7 +509,7 @@ function bdPaint() {
 /** Changement d'onglet : contrôles (nom · cible + recherche) puis liste. */
 function bdTab(v) {
   const el = BD.el; if (!el) return;
-  BD.tab = v; BD.q = ''; BD.shown = BD_PAGE;
+  BD.tab = v; BD.q = BD.f.q = ''; BD.shown = BD_PAGE; BD.fb = null; if (v !== 'coll') { BD.sel = null; bdSelPaint(); }
   const ctl = $('#bdCtl', el); $('#bdSeg', el).setValue(v);
   const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
   if (v === 'deck') ctl.innerHTML = bdNameCtl();
@@ -512,8 +518,9 @@ function bdTab(v) {
     const opts = BD.fmt === 'commander' ? [{ v: 'main', label: T('Deck') }, { v: 'cmdr', label: T('Commandant') }] : [{ v: 'main', label: T('Deck') }, { v: 'side', label: T('Réserve') }];
     if (!opts.some(o => o.v === BD.tgt)) BD.tgt = 'main';
     ctl.innerHTML = `<div class="bd-add"><span>${T('Ajouter au')}</span><div class="seg" id="bdTgt" role="radiogroup" aria-label="${T('Ajouter au')}"></div>${scanB('icon-btn bd-scan-ic', '')}</div>
-      <div class="field-in"><label class="label" for="bdQ">${T('Chercher une carte')}</label><input type="text" id="bdQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${nmT('Nom français ou anglais', 'Nom en {lang} ou en anglais', 'Nom de la carte')}" enterkeyhint="search"></div>`;
-    mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; bdList(); });
+      <div id="bdPlc">${bdPlcHtml()}</div><div id="bdF"></div>`;      // rangement et filtres de la collection (bdadd.js)
+    mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; if (t === 'cmdr') { BD.sel = null; bdSelPaint(); } bdList(); });
+    bdFiltMount($('#bdF', ctl));
     if (!BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'coll' && BD.q.trim().length >= 2) bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'coll') bdList(); });      // catalogue de toutes les cartes : lu une fois, pour la 2e partie des résultats
     if (v === 'coll') { BD.idx = null; if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); }
   }
@@ -531,6 +538,7 @@ function bdViewItem(row) {
 
 /* ── Interactions ─────────────────────────────────────────────────────────────────────────────── */
 function bdClick(e) {
+  if (BD.sel) { const r = e.target.closest('#bdList .bd-pick'); if (r) { bdSelToggle(r.dataset.k, r.dataset.n); return; } }      // mode sélection : l'appui coche
   const st = e.target.closest('.qstep button[data-d]');
   if (st) {
     const row = st.closest('.bd-row'); if (!row) return;
@@ -555,6 +563,10 @@ function bdClick(e) {
   else if (act === 'issues') { BD.issuesOpen = !BD.issuesOpen; bdPaint(); }
   else if (act === 'more') { BD.shown += BD_PAGE; bdList(); }
   else if (act === 'scan') bdScan(b.dataset.tgt);
+  else if (act === 'bdplc') { haptic('tap'); bdPlcSheet(); }
+  else if (act === 'bulk') bdBulkListed();
+  else if (act === 'sel-add') bdSelAdd();
+  else if (act === 'sel-cancel') { haptic('tap'); bdSelEnd(); }
   else if (act === 'pick-cmdr') { BD.tgt = 'cmdr'; $('#bdSeg', BD.el).setValue('coll'); bdTab('coll'); haptic('tap'); }
 }
 

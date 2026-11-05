@@ -1,0 +1,35 @@
+/* ── Éditeur de deck, onglet « Ajouter » : rangement, ajout groupé, sélection par appui long (bdadd.js) ─────────────── */
+.bd-plc{min-height:48px}
+.bd-ctl .fbar{margin-top:0}
+.bd-bulk{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
+.bd-bulk-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.bd-bulk-t b{font-size:14.5px;color:var(--ink)}
+.bd-bulk-t small{font-size:12.5px;line-height:1.35;color:var(--ink-2)}
+.bd-bulk .btn{gap:8px}
+.bd-bulk .btn .i{width:18px;height:18px}
+.bd-lp-hint{margin:-2px 0 2px;font-size:12.5px}
+/* lignes à ajouter : l'appui long ne sélectionne pas de texte et n'ouvre pas le menu de l'image */
+.bd-list .bd-row{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.bd-list .bd-row img{-webkit-user-drag:none}
+/* mode sélection : case à cocher à gauche, toute la ligne se touche */
+.crow.bd-pick{grid-template-columns:26px 40px minmax(0,1fr);cursor:pointer;transition:background .15s,border-color .15s}
+.crow.bd-pick .thumb{cursor:pointer}
+.bd-ck{width:24px;height:24px;border-radius:8px;border:2px solid var(--ink-3);display:grid;place-items:center;color:transparent;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.bd-ck .i{width:16px;height:16px;stroke-width:3}
+.crow.bd-pick.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.crow.bd-pick.on .bd-ck{background:var(--accent);border-color:var(--accent);color:#fff}
+.crow.bd-pick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:360px){.crow.bd-pick{grid-template-columns:24px 36px minmax(0,1fr)}}
+/* barre du bas du mode sélection (dans l'écran, sous la liste qui défile) */
+.bd-selbar{flex:none;display:flex;align-items:center;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--bar-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 -10px 24px -20px rgba(16,21,43,.5)}
+.bd-selbar[hidden]{display:none}
+.bd-sel-n{flex:1;min-width:0;font-size:13.5px;font-weight:650;line-height:1.2;color:var(--ink-2);overflow-wrap:anywhere}      /* texte long (langue, nombre) : sur 2 lignes plutôt que coupé */
+.bd-selbar .btn{flex:none;height:46px;padding:0 15px;font-size:15px}
+@media (prefers-reduced-motion:no-preference){.bd-selbar:not([hidden]){animation:bdSelIn .22s cubic-bezier(.2,.85,.25,1)}}
+@keyframes bdSelIn{from{transform:translateY(100%);opacity:0}to{transform:none;opacity:1}}
+/* feuille de confirmation d'un ajout groupé */
+.bd-bk-note{margin:10px 0 0;padding:10px 12px;border-radius:var(--r-md);background:var(--warn-soft);color:var(--warn);font-size:13px;line-height:1.4}
+.bd-bk-note.bad{background:var(--bad-soft);color:var(--bad)}
+.bd-bk-sheet .hint{margin-top:10px}
+/* pastille « Pas légale en Commander » */
+.tag.bad{background:var(--bad-soft);color:var(--bad)}

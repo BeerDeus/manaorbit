@@ -10,7 +10,7 @@ function backClose() {
   if (typeof OB !== 'undefined' && OB.el && !sheets.length) { obBack(); return true; }
   if (sheets.length) { sheets[sheets.length - 1].close(); return true; }
   const dvs = $$('body > .dv.on'), top = dvs[dvs.length - 1];
-  if (top && top.__close) { if (top.classList.contains('bd')) bdClose(); else top.__close(); return true; }
+  if (top && top.__close) { if (top.classList.contains('bd')) { if (BD.sel) bdSelEnd(); else bdClose(); } else top.__close(); return true; }      // éditeur en mode sélection (bdadd.js) : Retour en sort d'abord
   if (S.view === 'results') { $('#btnBack').click(); return true; }
   if (S.view === 'input') { showView('home'); return true; }
   return false;

@@ -113,7 +113,10 @@ async function srchLgLoad() {
 }
 
 /** Barre des filtres repeinte (pastille, groupes, filtres actifs) : la collection ouverte seulement. */
-function srchSync() { if (COLL.el && COLL.fb && COLL.mode === 'coll') COLL.fb.paint(); }
+function srchSync() {
+  if (COLL.el && COLL.fb && COLL.mode === 'coll') COLL.fb.paint();
+  if (typeof BD !== 'undefined' && BD.el && BD.fb && BD.tab === 'coll') { BD.fb.paint(); bdList(); }      // mêmes filtres dans l'onglet « Ajouter » de l'éditeur de deck (bdadd.js)
+}
 
 /* ── Groupes de « Plus de filtres » ────────────────────────────────────────────────────────────── */
 /** Langues présentes dans la collection (ordre de la puce langue ; '' : non précisée, à la fin). */
