@@ -206,13 +206,14 @@ const errsAll = [];
   let zHits = 0; await z.p.route('**/prices.tsv', r => { zHits++; return r.fulfill({ status: 200, contentType: 'text/tab-separated-values', body: PX }); });
   await z.p.addInitScript(seed() + shell(true, recent.replace('widgets: 1', 'widgets: 0'))); await z.p.goto(world.url);
   await z.p.waitForFunction(() => window.__mo.calls.length >= 1, null, { timeout: 6000 }); await z.p.waitForTimeout(1500);
-  assert.equal(zHits, 0, 'aucun widget posé : fichier de prix pas demandé'); assert.ok((await raw(z.p)).every(c => !c.coll));
+  for (let i = 0; i < 50 && !zHits; i++) await z.p.waitForTimeout(100);
+  assert.equal(zHits, 1, 'aucun widget posé : relevé du jour lu une fois quand même (valeur de la collection au prix de référence, comme les decks), sans liste envoyée'); assert.ok((await raw(z.p)).every(c => !c.coll));
   // widget posé pendant que l'appli est en arrière-plan : au retour, la coque le signale et la liste part
   await z.p.evaluate(() => { window.Capacitor.Plugins.ManaOrbit.info = async () => ({ firebase: true, widgets: 1, widgetRefresh: true }); Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); });
   await z.p.waitForFunction(() => window.__mo.calls.some(c => c.coll), null, { timeout: 8000 });
-  assert.equal(zHits, 1);
+  assert.equal(zHits, 1, 'relevé déjà en mémoire : pas relu');
   await z.p.context().close();
-  ok('coque récente sans widget : pas de téléchargement ; widget posé puis retour sur l\'appli : la liste part');
+  ok('coque récente sans widget : relevé lu pour la valeur, aucune liste ; widget posé puis retour sur l\'appli : la liste part, sans nouveau téléchargement');
 }
 
 /* ── 6) variation du marché seul quand la collection a changé ; relevés limités aux 30 derniers jours ─────────────────── */
