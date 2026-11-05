@@ -19,6 +19,7 @@ BROWSER=(
   scanlang-e2e.mjs
   scanall-e2e.mjs
   pubdecks-e2e.mjs
+  fiche-e2e.mjs
   partage-e2e.mjs
   binder-e2e.mjs
   opening-e2e.mjs

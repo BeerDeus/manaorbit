@@ -1607,6 +1607,9 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 .dvc-tl{position:absolute;top:14%;left:7%;z-index:1;display:flex;gap:4px;align-items:center}      /* sous la bande du titre, sur l'illustration : le nom reste lisible */
 .dvc-tl .dvc-l{position:static}
 .dvc-gc{flex:none;height:19px;padding:0 5px;display:inline-grid;place-items:center;border-radius:6px;background:linear-gradient(135deg,#6d3cff,#c43cff);color:#fff;font:700 10px/1 var(--font-mono);letter-spacing:.05em;box-shadow:0 0 0 1.5px rgba(255,255,255,.6),0 2px 6px rgba(80,20,160,.45)}
+.dvc-ill{flex:none;width:19px;height:19px;display:inline-grid;place-items:center;border-radius:50%;background:#c4243a;color:#fff;font:700 13px/1 var(--font-sans,system-ui);box-shadow:0 0 0 1.5px rgba(255,255,255,.7),0 2px 6px rgba(120,10,30,.45)}      /* carte pas légale en Commander (viewer.js › dvIllegal) */
+.dv-ill{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--bad);padding:8px 10px;border-radius:10px;background:var(--bad-soft)}
+.dv-ill>span:last-child{min-width:0}
 .dv .fbtn,.dv .fsearch{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--surface)}      /* viewer et éditeur : fond plein (le flou d'arrière-plan sur des centaines de cartes coûte au défilement, et la WebView Android le dessinait parfois en rectangle vide) */
 /* Piles : colonnes côte à côte, défilement de côté ; chaque carte ne laisse dépasser que son titre (≈ 16 % de sa largeur), la dernière en entier */
 .dv-groups[data-view="piles"]{margin:0 -16px}

@@ -13,7 +13,7 @@ const dwRoleNames = bits => DW_GAUGES.filter(([r]) => r !== 'land' && bits & DW_
  *  → [{ k, name, why, s }] (s : plus bas = à retirer d'abord). Terrains de base proposés quand il y a trop de terrains. */
 function dwCuts(X, cmd, pack, prof, tgt, n) {
   const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], nm = cmd ? cmd.names[0].split(',')[0] : '';
-  const gcOver = prof.gc.length > b[3], over = set.bud > 0 && prof.cents > set.bud, out = [];
+  const R = DWB.brRule(b[0]), gcOver = prof.gc.length > R.gc, xtOver = prof.xt.length > R.xt, over = set.bud > 0 && prof.cents > set.bud, out = [];
   for (const c of X.main.values()) {
     if (BASIC_NAMES.has(c.key)) continue;
     const x = dwCard(c.key); if (!x || x.roles & DW_RB.land) continue;
@@ -22,8 +22,9 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
     const sur = DW_GAUGES.find(([r]) => r !== 'land' && x.roles & DW_RB[r] && prof[r] > tgt[r][1]);
     if (low) s += 0.5; if (sur) s -= 0.15;
     const price = dwPrice(c.key, x, true);      // carte du deck : son prix dans la valeur du deck (dwProfile)
-    if (x.fl & 1 && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }
-    else if (x.fl & 4 && set.br <= 3) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
+    if (dwGC(c.key, x) && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }      // règles du bracket : brackets.js
+    else if (x.fl & 4 && !R.mld) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
+    else if (x.fl & 2 && xtOver) { s -= 0.6; why = T('Tour supplémentaire en trop pour le bracket {b}', { b: b[0] }); }
     else if (over && price > 500 && collQty(c.key) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }
     else if ((hard = false) || sur) why = T('{r} en surplus ({n} pour {m} conseillées)', { r: T(sur[1]), n: prof[sur[0]], m: tgt[sur[0]][1] });
     else if (o.incl || o.syn) why = T('Peu jouée avec {name} ({p} % des decks)', { name: nm, p: o.incl || 0 });
@@ -40,10 +41,10 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
 }
 /** Prochaines étapes (3 au plus) : [{ t: texte, b: bouton, act, v, ok }]. */
 function dwNextSteps(prof, tgt, cmd, set) {
-  const st = [], b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], n = prof.n;
+  const st = [], b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], n = prof.n, R = DWB.brRule(b[0]), bad = DWB.bracketBreaks(b[0], dwBrFacts(prof)).filter(x => x.lv === 'bad');      // règles du bracket : brackets.js
   if (n > 100) st.push({ t: TN(n - 100, '{n} carte de trop', '{n} cartes de trop'), b: T('Que retirer ?'), act: 'dw-goto', v: 'cuts' });
-  if (prof.gc.length > b[3]) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: b[3], b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
-  if ((prof.mld.length && set.br <= 3) || (prof.combos.length && set.br <= 2)) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
+  if (bad.some(x => x.k === 'gc')) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: R.gc, b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
+  if (bad.some(x => x.k !== 'gc')) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
   if (set.bud > 0 && prof.cents > set.bud && n >= 60) st.push({ t: T('Au-dessus du budget : {a} pour {b}', { a: fmt(prof.cents, mkCur()), b: fmt(set.bud, mkCur()) }), b: T('Voir les échanges'), act: 'dw-goto', v: 'swaps' });
   if (n < 100) st.push({ t: TN(100 - n, 'Il manque {n} carte', 'Il manque {n} cartes'), b: n <= BD.cmdr.length ? T('Générer le deck') : T('Compléter'), act: 'dw-auto' });
   const def = DW_GAUGES.filter(([r]) => r !== 'land' && (r !== 'counter' || cmd.ci.includes('U')) && prof[r] < tgt[r][0]).map(([r, l]) => ({ r, l, miss: tgt[r][1] - prof[r], k: (tgt[r][1] - prof[r]) / Math.max(1, tgt[r][1]) })).sort((a, b) => b.k - a.k);

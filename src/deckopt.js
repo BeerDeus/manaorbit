@@ -66,11 +66,12 @@ function dsScore(X = BD, ctx = {}) {
   // Règles et budget
   const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2]; let pr = 10;
   const rule = (bad, pts, t) => { if (bad) { pr -= pts; tips.push({ t, gain: pts }); } };
-  rule(prof.gc.length > b[3], 5, T('Trop de Game Changers pour le bracket {b}', { b: b[0] }));
-  rule(prof.mld.length && set.br <= 3, 5, T('Destruction massive de terrains interdite en bracket {b}', { b: b[0] }));
-  rule(prof.xt.length && set.br === 1, 3, T('Tours supplémentaires interdits en bracket 1'));
-  rule(prof.combos.some(c => !dwCombo3(c)) && set.br <= 2, 5, T('Combo à 2 cartes interdit en bracket {b}', { b: b[0] }));
-  rule(prof.combos.some(dwCombo3) && set.br <= 2, 3, T('Combo à 3 cartes à éviter en bracket {b}', { b: b[0] }));
+  const brBad = new Set(DWB.bracketBreaks(b[0], dwBrFacts(prof)).filter(x => x.lv === 'bad').map(x => x.k));      // règles du bracket : brackets.js (la même table que l'audit et l'éditeur)
+  rule(brBad.has('gc'), 5, T('Trop de Game Changers pour le bracket {b}', { b: b[0] }));
+  rule(brBad.has('mld'), 5, T('Destruction massive de terrains interdite en bracket {b}', { b: b[0] }));
+  rule(brBad.has('xt'), 3, T('Trop de tours supplémentaires pour le bracket {b}', { b: b[0] }));
+  rule(brBad.has('c2'), 5, T('Combo à 2 cartes interdit en bracket {b}', { b: b[0] }));
+  rule(brBad.has('c3'), 3, T('Combo à 3 cartes à éviter en bracket {b}', { b: b[0] }));
   rule(!prof.wincon && prof.n >= 60, 3, T('Aucune condition de victoire : ajoute une carte qui peut finir la partie'));      // obligatoire, thème ou pas
   if (set.bud > 0 && prof.cents > set.bud) rule(true, Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), T('Au-dessus du budget de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }));
   if (prof.n !== 100) rule(true, Math.min(5, Math.abs(100 - prof.n)), prof.n < 100 ? TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes') : TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'));

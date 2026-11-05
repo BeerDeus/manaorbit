@@ -6,7 +6,7 @@
    Règles d'un ajout groupé (bdBulkPlan), les mêmes que l'ajout à l'unité :
    - Commander : un exemplaire par carte ; terrains de base jamais ajoutés (à doser dans l'onglet Deck) ; cartes déjà dans le deck (ou commandant) ignorées ;
      hors de l'identité de couleur du commandant écartées (commandant choisi et ses couleurs lues ; carte aux couleurs inconnues : ajoutée) ;
-     pas légales en Commander (Scryfall, COLL.meta[k].lg) ajoutées mais signalées, comme dans l'éditeur (pastille, alerte du résumé).
+     pas légales en Commander (builder.js › cardLegal : fiche Scryfall, sinon base du coach) ajoutées mais signalées, comme dans l'éditeur (pastille, alerte du résumé).
    - Standard : les exemplaires possédés (ceux du rangement et des filtres d'exemplaire choisis : langue, finition, extension… ; sélection : tous), 4 au plus
      (terrains de base : sans limite ; Relentless Rats, Seven Dwarves… : leur limite), moins ceux déjà dans le deck et la réserve ; réserve : 15 au plus.
    - Exemplaires réservés par un autre deck monté : ajoutés, avec le message de l'ajout à l'unité.
@@ -144,7 +144,7 @@ function bdBulkGo(P) {
 function bdBulkSheet(P, done) {
   openSheet(TN(P.n, 'Ajouter {n} carte au deck', 'Ajouter {n} cartes au deck'), BD.name.trim() || T('Nouveau deck'), api => {
     api.wrap.classList.add('bd-bk-sheet');
-    const row = (dt, dd) => `<div><dt>${esc(dt)}</dt><dd>${esc(dd)}</dd></div>`, ck = dkCheck(BD.fmt, bdData(), bdMeta), over = P.tgt === 'main' ? ck.n + P.n - ck.size : 0;
+    const row = (dt, dd) => `<div><dt>${esc(dt)}</dt><dd>${esc(dd)}</dd></div>`, ck = bdCheck(), over = P.tgt === 'main' ? ck.n + P.n - ck.size : 0;
     api.body.innerHTML = `<dl class="rc-facts">${row(T('Zone'), P.tgt === 'side' ? T('Réserve') : T('Deck'))}${row(T('Cartes différentes'), nf0(P.add.length))}${BD.fmt !== 'commander' ? row(T('Exemplaires'), nf0(P.n)) : ''}
         ${P.have ? row(T('Déjà dans le deck : ignorées'), nf0(P.have)) : ''}${P.ci ? row(T('Hors de l\'identité de couleur : écartées'), nf0(P.ci)) : ''}${P.basic ? row(T('Terrains de base : laissés'), nf0(P.basic)) : ''}${P.full ? row(T('Réserve pleine : refusées'), nf0(P.full)) : ''}</dl>
       ${P.ill.length ? `<p class="bd-bk-note bad">${esc(TN(P.ill.length, 'Pas légale en Commander, ajoutée quand même : {list}', 'Pas légales en Commander, ajoutées quand même : {list}', { list: P.ill.join(', ') }))}</p>` : ''}

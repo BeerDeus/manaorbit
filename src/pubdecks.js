@@ -94,7 +94,7 @@ function pdCiOf(k) {
 async function pdCi(cmd) {
   const need = cmd.filter(c => pdCiOf(c.k) === null);
   if (need.length && scryLeft() <= 0) {
-    try { const got = await scryCollection(need.map(c => c.name)); let n = 0; for (const [k, m] of got) if (m && typeof m.ci === 'string') { DM[k] = { ...(DM[k] || {}), eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } if (n) dmSave(); }
+    try { const got = await scryCollection(need.map(c => c.name)); let n = 0; for (const [k, m] of got) if (m && typeof m.ci === 'string') { metaTake(k, m); n++; } if (n) dmSave(); }      // la fiche entière (légalité, Game Changer compris : builder.js › metaPut)
     catch (e) { /* hors ligne */ }
   }
   const all = cmd.map(c => pdCiOf(c.k)); if (all.some(x => x === null)) return null;

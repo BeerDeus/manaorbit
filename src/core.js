@@ -1121,8 +1121,10 @@ function dkColors(text) {
   return [...'WUBRG'].filter(c => have.has(c)).join('');
 }
 /** Vérifie un deck du créateur. d = { main, side, cmdr } (comme dkParse) ; metaOf(clé) → { ci } ou null (identité de couleur, si connue).
+ *  o (Commander, facultatif) : { legal: clé → true | false | null (builder.js › cardLegal : fiche Scryfall, sinon base du coach ; sans lui : metaOf(clé).lg),
+ *  br: bracket visé (0 : pas de vérification), facts: { gc, mld, xt, c2, c3 } (deckwiz.js › dwBrFacts) } : règles du bracket (brackets.js), comme l'audit du coach.
  *  Retourne { n (cartes du deck, commandant compris), side, size, issues: [{ lv: 'bad'|'warn', t }] } : « bad » = règle enfreinte, « warn » = deck pas fini. */
-function dkCheck(fmt, d, metaOf) {
+function dkCheck(fmt, d, metaOf, o) {
   const f = DK_FORMATS[fmt] || DK_FORMATS.standard, main = d.main || [], side = d.side || [], cmdr = d.cmdr || [], issues = [];
   const sum = a => a.reduce((x, c) => x + c.qty, 0), n = sum(main) + cmdr.length, ns = sum(side);
   if (fmt === 'commander') {
@@ -1140,7 +1142,9 @@ function dkCheck(fmt, d, metaOf) {
     const ci = new Set(); let known = cmdr.length > 0;
     for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && typeof m.ci === 'string') for (const x of m.ci) ci.add(x); else known = false; }
     if (known) for (const c of main) { const m = metaOf(c.key); if (m && typeof m.ci === 'string' && [...m.ci].some(x => !ci.has(x))) issues.push({ lv: 'warn', t: T('{name} sort de l\'identité de couleur du commandant.', { name: c.name }) }); }
-    if (metaOf) for (const c of [...cmdr, ...main]) { if (BASIC_NAMES.has(c.key)) continue; const m = metaOf(c.key); if (m && typeof m.lg === 'string' && m.lg && !m.lg.includes('c')) issues.push({ lv: 'bad', t: T('{name} n\'est pas légale en Commander.', { name: c.name }) }); }      // lg : formats où Scryfall la dit jouable (lgOf) ; inconnus : rien
+    const legal = o && o.legal ? o.legal : k => { const m = metaOf && metaOf(k); return m && typeof m.lg === 'string' && m.lg ? m.lg.includes('c') : null; };      // lg : formats où Scryfall la dit jouable (lgOf) ; inconnus : rien
+    for (const c of [...cmdr, ...main]) { if (!BASIC_NAMES.has(c.key) && legal(c.key) === false) issues.push({ lv: 'bad', t: T('{name} n\'est pas légale en Commander.', { name: c.name }) }); }
+    if (o && o.br && o.facts) for (const b of BRK.bracketBreaks(o.br, o.facts)) if (b.lv === 'bad' || b.lv === 'warn') issues.push({ lv: b.lv, t: b.t });      // même verdict que l'audit du coach (deckwiz.js › dwBracketHtml)
   } else {
     if (n < f.size) issues.push({ lv: 'warn', t: TN(f.size - n, 'Il manque {n} carte ({size} minimum).', 'Il manque {n} cartes ({size} minimum).', { n: f.size - n, size: f.size }) });
     if (ns > f.side) issues.push({ lv: 'bad', t: T('Réserve de {n} cartes ({max} au maximum).', { n: ns, max: f.side }) });
@@ -1945,8 +1949,11 @@ function edhAddComm(raw, list) {
 /** Tier d'un commandant selon son rang de popularité (nombre de decks EDHREC) : S = les 30 premiers, A jusqu'à 150, B 500, C 1 500, D le reste. */
 const EDH_TIERS = [['S', 30], ['A', 150], ['B', 500], ['C', 1500], ['D', Infinity]];
 const edhTier = rank => (EDH_TIERS.find(t => rank <= t[1]) || EDH_TIERS[EDH_TIERS.length - 1])[0];
-/** Bracket estimé d'un deck d'après son nombre de Game Changers : 0 → 2 (Core), 1 à 3 → 3 (Upgraded), 4 et plus → 4 (Optimized). Estimation : les autres critères du bracket (terrains détruits, tours supplémentaires, combos) ne sont pas lus. */
-const edhBracket = n => (n <= 0 ? 2 : n <= 3 ? 3 : 4);
+/** Règles des brackets (brackets.js : LA table) : globales dans l'appli, require dans Node. */
+const BRK = typeof module !== 'undefined' && module.exports ? require('./brackets.js') : { bracketEstimate, bracketBreaks };
+/** Bracket estimé d'un deck d'après son nombre de Game Changers (règles de brackets.js) : 0 → 2 (Core), 1 à 3 → 3 (Upgraded), 4 et plus → 4 (Optimized).
+ *  Decks EDHREC : seuls les Game Changers sont connus (terrains détruits, tours supplémentaires, combos : deckana.js › dwBracketOf, avec la base du coach). */
+const edhBracket = n => BRK.bracketEstimate({ gc: n });
 /** Mots d'une recherche de deck (sans accents ni ponctuation, comme les clés de cartes) ; [] si rien à chercher. */
 const edhTokens = q => normName(q).replace(/ \/\/ /g, ' ').split(' ').filter(Boolean);
 /** Le commandant (ou la paire) contient tous les mots (début de mot) : « tymna » et « thrasios triton » trouvent la paire Tymna + Thrasios. */

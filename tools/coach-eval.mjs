@@ -65,7 +65,7 @@ export function coachCtx(srcDir, D) {
     LOC: () => 'fr-FR', fmt: (c) => (c / 100).toFixed(2) + ' €', mkCur: () => 'EUR', nf0: n => String(Math.round(n)), esc: s => String(s), haptic: () => {}, toast: () => {}, bdPaint: () => {}, bdMetaSoon: () => {}, bdList: () => {},
     BD: { main: new Map(), cmdr: [], el: {} }, labOn: () => false, localStorage: null, sheets: [], EDH: undefined };
   vm.createContext(ctx);
-  const files = ['deckwiz.js', 'deckmech.js', 'deckopt.js', 'decksim.js'].filter(f => existsSync(join(srcDir, f)));
+  const files = ['brackets.js', 'deckwiz.js', 'deckmech.js', 'deckopt.js', 'decksim.js'].filter(f => existsSync(join(srcDir, f)));
   vm.runInContext(files.map(f => readFileSync(join(srcDir, f), 'utf8')).join('\n;\n') + '\n;this.DW = DW; this.BD = BD;', ctx, { filename: 'coach.js' });
   ctx.DW.core = D; ctx.DW.byKey = ctx.dwIndex(D);
   for (const [s, p] of Object.entries(D.themes || {})) ctx.DW.th.set(s, { slug: s, ...p });
