@@ -91,17 +91,17 @@ ok('éditeur de deck : la carte de présentation choisie est conservée');
 await p.click('.deck[data-id="d1"] [data-act="open"]'); await p.waitForSelector('.dv.on[aria-label^="Deck viewer"] .dv-g');
 await p.waitForFunction(() => document.querySelector('.dv-g[data-g="sb"]') && document.querySelectorAll('.dv-g[data-g="land"] .dvc-art img.ok').length === 2, null, { timeout: 8000 });
 const lab = sel => p.$$eval(sel, t => t.map(x => x.getAttribute('aria-label').replace(/\s/g, ' ')));
-assert.deepEqual(await lab('.dv-g[data-g="sb"] .dvc'), ['Swords to Plowshares, ×2, 3,80 €, réserve', 'Wrath of God, 1,50 €, réserve'], 'réserve : tuiles, prix tendance');
-assert.match(await txt(p, '.dv-g[data-g="sb"] h3'), /^Réserve 3 cartes · ≈ 5,30 € · prix tendance$/);
+assert.deepEqual(await lab('.dv-g[data-g="sb"] .dvc'), ['Swords to Plowshares, ×2, 3,80 €, réserve', 'Wrath of God, 1,50 €, réserve'], 'réserve : tuiles, valeur estimée');
+assert.match(await txt(p, '.dv-g[data-g="sb"] h3'), /^Réserve 3 cartes · ≈ 5,30 € · prix du jour$/);
 assert.match(await txt(p, '.dv[aria-label^="Deck viewer"] .dv-title span'), /^27 cartes · .*réserve 3$/, 'viewer : 27 cartes (13 Mountain depuis l\'éditeur), comme Mes decks'); assert.equal((await p.waitForFunction(() => !document.querySelector('.dv-amt[data-tw]')), await txt(p, '.dv-eur')), '≈ 6,00 €', 'total du deck sans la réserve (4 Sol Ring × 1,50 €)');
 assert.equal((await p.$$eval('.dv-g[data-g="land"] .dvc', t => t.length)), 2, 'terrains de base : 2 tuiles avec leur image');
 assert.deepEqual(await p.$$eval('.dv-g .dvc', t => t.map(x => x.closest('.dv-g').dataset.g).filter((g, i, a) => a.indexOf(g) === i)), ['m1', 'land', 'sb'], 'réserve en dernier');
-await p.click('.dv-g[data-g="sb"] .dvc >> nth=1'); await p.waitForSelector('.imgv'); assert.match(await txt(p, '.imgv-extra'), /Réserve · 1,50 € · prix tendance Cardmarket/); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
+await p.click('.dv-g[data-g="sb"] .dvc >> nth=1'); await p.waitForSelector('.imgv'); assert.match(await txt(p, '.imgv-extra'), /Réserve · 1,50 € · prix du jour de l'impression la moins chère/); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
 await p.click('.dv-g[data-g="land"] .dvc >> nth=0'); await p.waitForSelector('.imgv'); assert.match(await txt(p, '.imgv-extra'), /Terrain de base/); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
 // tri par prix : la réserve reste à part
 await p.click('#dvSeg .seg-opt[data-v="price"]'); assert.deepEqual(await p.$$eval('.dv-g', g => g.map(x => x.dataset.g)), ['p', 'b', 'sb']);
 await p.waitForTimeout(600); await p.screenshot({ path: 'shots/dks-2-viewer-reserve.png' });
-ok('viewer : réserve à part (prix tendance, hors total, avec le tri), images des terrains de base, carte en grand');
+ok('viewer : réserve à part (valeur estimée, hors total, avec le tri), images des terrains de base, carte en grand');
 await back(); await p.waitForFunction(() => !document.querySelector('.dv:not(.dks)'), null, { timeout: 3000 }); assert.ok(await p.$('.dks.on'));
 await back(); await p.waitForFunction(() => !document.querySelector('.dks'), null, { timeout: 3000 });
 

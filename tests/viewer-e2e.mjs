@@ -85,21 +85,22 @@ await toInput(p); await p.click('#btnSave'); await p.waitForSelector('#svName');
 await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('#deckList .deck-main'); assert.equal(await p.$$eval('#deckList .deck-main', b => b.length), 1); ok('toucher le deck enregistré (ouvre le viewer)');
 await p.screenshot({ path: 'shots/viewer-0-liste.png' });
 await p.click('#deckList .deck-main'); await p.waitForSelector('.dv.on');
-// aucun relevé gardé : le même viewer, en valeur estimée (prix tendance Cardmarket) au lieu d'une simple liste
+// aucun relevé gardé : le même viewer, en valeur estimée (relevé du jour, sinon tendance de la fiche) au lieu d'une simple liste
 await p.waitForFunction(() => /15,00/.test(document.querySelector('.dv-eur') ? document.querySelector('.dv-eur').textContent : ''), null, { timeout: 15000 });
 assert.equal(await p.$('.dv-empty'), null, 'plus d\'état vide'); assert.equal(await p.$('.dv-plain'), null);
-assert.equal((await p.waitForFunction(() => !document.querySelector('.dv-amt[data-tw]')), await txt(p, '.dv-eur')), '≈ 15,00 €+', 'valeur estimée, « + » : une carte sans prix'); assert.match(await txt(p, '.dv-crit'), /Valeur estimée · prix tendance Cardmarket/); await p.waitForFunction(() => /Prix de référence, pas des offres/.test(document.querySelector('.dv-age').textContent), null, { timeout: 8000 });      // « Lecture des cartes et des prix… » le temps que les images arrivent
+assert.equal((await p.waitForFunction(() => !document.querySelector('.dv-amt[data-tw]')), await txt(p, '.dv-eur')), '≈ 15,00 €+', 'valeur estimée, « + » : une carte sans prix'); assert.match(await txt(p, '.dv-crit'), /Valeur estimée · prix du jour de l'impression la moins chère/); await p.waitForFunction(() => /Prix de référence, pas des offres/.test(document.querySelector('.dv-age').textContent), null, { timeout: 8000 });      // « Lecture des cartes et des prix… » le temps que les images arrivent
 assert.equal(await p.$('.dv-age [data-act="refresh"]'), null, 'pas de « Actualiser » : ce ne sont pas des offres');
 assert.equal(await txt(p, '.dv[aria-label^="Deck viewer"] .dv-title span'), '15 cartes · 10 à trouver · 1 sans prix');
 assert.deepEqual(await groups(p), ['m0', 'm1', 'm2', 'm4', 'm7', 'land'], 'mana, terrains');
 assert.deepEqual(await tileNames(p, 'm1'), ['Llanowar Elves, ×2, 0,40 €', "Ranger's Hawk, 0,05 €", 'Sol Ring, 1,50 €', 'Swords to Plowshares, 1,90 €']);
 assert.deepEqual(await tileNames(p, 'm0'), ['Phantom Card, prix inconnu']); assert.equal(await p.$eval('.dv-g[data-g="m0"] .dvc-p', e => e.className), 'dvc-p warn');
 assert.equal(await p.evaluate(() => { const o = PXT; PXT = { t: Date.now(), at: 'x', map: new Map([['phantom card', { e: 250, u: 0 }]]) }; const it = refSnapOf('1 Phantom Card', null, false).items[0]; PXT = o; return it.s + ':' + it.c; }), 'ok:250', 'sans prix sur l\'impression par défaut : prix du relevé du jour (impression la moins chère)');
+assert.equal(await p.evaluate(() => { const o = PXT; PXT = { t: Date.now(), at: 'x', map: new Map([['sol ring', { e: 95, u: 0 }]]) }; const it = refSnapOf('2 Sol Ring', null, false).items[0], sb = sbItemsOf('1 Forest\nSB: 1 Sol Ring', null, true)[0]; PXT = o; return it.c + ':' + sb.c; }), '190:95', 'relevé du jour prioritaire sur la tendance de la fiche (1,50 €), réserve comprise : la règle de l\'en-tête de l\'éditeur et de Mes decks');
 ok('prix inconnu de Scryfall : complété par le relevé du jour');
 assert.equal(await p.$$eval('.dv-bar', b => b.length), 8, 'courbe de mana'); assert.ok(await p.$('#dvF'), 'filtres');
 await p.waitForFunction(() => document.querySelectorAll('.dvc-art img.ok').length >= 5, null, { timeout: 8000 });
 assert.equal(await p.$eval('.dv-foot [data-act="refresh"]', e => e.hidden), false); assert.equal(await txt(p, '.dv-foot [data-act="refresh"]'), 'Chercher les offres');
-await p.click('.dvc[aria-label^="Sol Ring"]'); await p.waitForSelector('.imgv'); assert.match(await txt(p, '.imgv-extra'), /1,50 € · prix tendance Cardmarket/); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
+await p.click('.dvc[aria-label^="Sol Ring"]'); await p.waitForSelector('.imgv'); assert.match(await txt(p, '.imgv-extra'), /1,50 € · prix du jour de l'impression la moins chère/); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
 assert.equal(await p.$eval('#app', a => a.inert), true, 'fond inerte pendant le viewer'); ok('viewer sans prix gardé : valeur estimée, mana, tuiles, images, « Chercher les offres »');
 await p.click('.dv-foot [data-act="refresh"]'); await p.waitForFunction(() => !document.querySelector('.dv'), null, { timeout: 3000 });
 await done(p); await p.waitForSelector('#toast.on .toast-act', { timeout: 8000 });

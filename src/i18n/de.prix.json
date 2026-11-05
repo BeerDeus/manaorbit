@@ -1,0 +1,9 @@
+{
+  "valeur estimée {p}": "geschätzter Wert {p}",
+  "Valeur estimée : prix du jour de l'impression la moins chère": "Geschätzter Wert: Tagespreis der günstigsten Druckversion",
+  "prix du jour (impression la moins chère) de {n} carte sur {total} (terrains de base exclus, cartes possédées comprises)": "Tagespreis (günstigste Druckversion) für {n} von {total} Karten (ohne Standardländer, inklusive vorhandener Karten)",
+  "prix du jour (impression la moins chère) de {n} cartes sur {total} (terrains de base exclus, cartes possédées comprises)": "Tagespreis (günstigste Druckversion) für {n} von {total} Karten (ohne Standardländer, inklusive vorhandener Karten)",
+  "Valeur estimée · prix du jour de l'impression la moins chère": "Geschätzter Wert · Tagespreis der günstigsten Druckversion",
+  "prix du jour": "Tagespreis",
+  "prix du jour de l'impression la moins chère": "Tagespreis der günstigsten Druckversion"
+}
