@@ -51,13 +51,16 @@ const DW_ARCH = {
 };
 /** Mécaniques choisies (assistant) → archétype de cibles. */
 const DW_ARCH_MECH = { 'group-hug': 'group-hug', politics: 'politics', pillowfort: 'pillow-fort', enchantments: 'enchantress', attack: 'aggro', voltron: 'voltron', spells: 'spellslinger', landfall: 'landfall', 'tokens-creature': 'tokens', sacrifice: 'aristocrats', 'dies-trigger': 'aristocrats' };
-/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis, Game Changers permis. Tuteurs : plus de limite depuis octobre 2025. */
+/** Règles du bracket des réglages (brackets.js) : globales dans l'appli et les vm du banc d'essai, require dans Node. */
+const DWB = typeof module !== 'undefined' && module.exports ? require('./brackets.js') : { brRule, bracketEstimate, bracketBreaks };
+/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis (texte), Game Changers permis (99 : sans limite ; lu dans brackets.js › BRACKET_RULES,
+ *  comme les autres règles : brRule). Tuteurs : plus de limite depuis octobre 2025. */
 const DW_BRACKETS = [
-  [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', 0],
-  [2, 'Core', 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', 0],
-  [3, 'Upgraded', 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', 3],
-  [4, 'Optimized', 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', 99],
-  [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', 99],
+  [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', Math.min(99, DWB.brRule(1).gc)],
+  [2, 'Core', 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(2).gc)],
+  [3, 'Upgraded', 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(3).gc)],
+  [4, 'Optimized', 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', Math.min(99, DWB.brRule(4).gc)],
+  [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', Math.min(99, DWB.brRule(5).gc)],
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = 3 * 3600e3;      // copie de l'appareil gardée 3 h sans redemander (au-delà : ETag, 304 si la base n'a pas changé)
@@ -120,7 +123,7 @@ function dwCard(k) {
   const r = DW.byKey && DW.byKey.get(k);
   if (r) return { name: r[0], ci: r[1], cmc: r[2], ty: r[3], roles: r.length < 10 && r[4] & DW_RB.counter ? r[4] & ~DW_RB.removal : r[4], eur: r[5], fl: r[6], prod: r[7] || '', rank: r[8] || 0, mc: r.length >= 10 ? r[9] || '' : null, pt: Array.isArray(r[12]) ? r[12] : null };      // ancienne base (sans coût de mana) : un contresort n'y est jamais un retrait ciblé ; la nouvelle tranche d'après le texte ; pt : [force, endurance, mots-clés] d'une créature (colonne [12], base du 5 novembre ; sinon null : force estimée par la simulation)
   const m = typeof dmOf === 'function' ? dmOf(k) : null; if (!m && !BASIC_NAMES.has(k)) return null;
-  const tl = m ? String(m.tl || '') : 'Basic Land', land = /\bLand\b/.test(tl.split(' // ')[0]);
+  const tl = m ? String(m.tl || '') : 'Basic Land', land = !!landKind(tl);      // même règle que le viewer et la main de départ
   return { name: k, ci: m ? m.ci || '' : '', cmc: m ? m.cm || 0 : 0, ty: land ? 1 : 0, roles: land ? DW_RB.land : 0, eur: m ? m.eu : 0, fl: 0, prod: '', rank: 0 };
 }
 const DW_BASIC_C = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
@@ -169,6 +172,12 @@ function dwCiOf(keys, base) {
   return [...cs].filter(c => 'WUBRG'.includes(c)).sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
 }
 
+/** Game Changer : la base du coach pour ses cartes (drapeau 1) ; carte hors de la base (ou base absente) : builder.js › isGC (Scryfall, puis EDHREC), le même verdict que l'éditeur et le viewer. */
+const dwGC = (k, x) => (x && DW.byKey && DW.byKey.has(k) ? !!(x.fl & 1) : typeof isGC === 'function' ? isGC(k) : !!(x && x.fl & 1));
+/** Ce que les règles du bracket lisent dans un profil (brackets.js › bracketBreaks) : Game Changers, destruction massive de terrains, tours supplémentaires (noms),
+ *  combos à 2 et à 3 cartes (en texte). */
+const dwBrFacts = prof => ({ gc: prof.gc, mld: prof.mld, xt: prof.xt, c2: prof.combos.filter(c => !dwCombo3(c)).map(dwComboTxt), c3: prof.combos.filter(dwCombo3).map(dwComboTxt) });
+
 /* ── Profil du deck ───────────────────────────────────────────────────────────────────────────────── */
 /** Nombre de symboles de chaque couleur dans un coût (« {2}{G}{G} » → G:2 ; hybride : chaque couleur compte pour moitié ; Phyrexian : compte). */
 function dwPips(mc) {
@@ -180,14 +189,16 @@ function dwPips(mc) {
 }
 /** Profil d'un deck (X : { main: Map, cmdr: [] }, l'éditeur par défaut) : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
 function dwProfile(X = BD) {
-  const p = { combos: [], n: 0, nonland: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
+  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
   let mvSum = 0; const all = [...X.main.values()];
   for (const c of all) {
     const k = c.key, q = c.qty, x = dwCard(k); p.n += q; p.cards++;
     if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur)
+    if (dwGC(k, x)) p.gc.push(x ? x.name : c.name);
     if (!x) { p.unk += q; continue; }
-    const land = !!(x.roles & DW_RB.land) || BASIC_NAMES.has(k);
+    const tl = (dmOf(k) || {}).tl, lk = tl ? landKind(tl) : '', land = BASIC_NAMES.has(k) || (tl ? !!lk : !!(x.roles & DW_RB.land));      // règle unique des terrains (core.js › landKind : doubles faces « Sort // Terrain » comprises) ; fiche pas encore lue : la base
+    if (lk === 'mdfc') p.mdfc += q;
     for (const r of DKW_ROLES) if (r === 'land' ? land : x.roles & DW_RB[r]) p[r] += q;
     if (land) { const bc = dwBasicColor(k), pr = bc ? bc : x.prod; for (const col of new Set([...String(pr)].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q; }
     else {
@@ -197,9 +208,9 @@ function dwProfile(X = BD) {
       for (const [col, n] of Object.entries(pips)) { p.pips[col] = (p.pips[col] || 0) + n * q; p.maxPip[col] = Math.max(p.maxPip[col] || 0, Math.ceil(n)); (p.needs[col] = p.needs[col] || []).push(dwSrcFor(n, x.cmc)); }
       if ((x.roles & DW_RB.ramp) && x.prod) for (const col of new Set([...x.prod].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q * 0.5;      // rampe qui produit la couleur : demi-source (dork, rock ; recherche : Karsten)
     }
-    if (x.fl & 1) p.gc.push(x.name); if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
+    if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
   }
-  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (dwGC(c.key, x)) p.gc.push(x ? x.name : c.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
   const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
   if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
@@ -374,11 +385,11 @@ function dwSugPool(C, ci, set, wide) {
   const k0 = dwPopK(set), key = [[...ci].join(''), set.br, (set.ban || []).join('|'), (set.avoid || []).join('|'), k0].join('#');
   if (!(DW_SUGC.C === C && DW_SUGC.src === DW.byKey && DW_SUGC.key === key)) { DW_SUGC.C = C; DW_SUGC.src = DW.byKey; DW_SUGC.key = key; DW_SUGC.l = null; DW_SUGC.w = null; }
   const f = wide ? 'w' : 'l'; if (DW_SUGC[f]) return DW_SUGC[f];
-  const l = [], ok = (k, o) => {
+  const l = [], R = DWB.brRule(set.br), ok = (k, o) => {
     if (BASIC_NAMES.has(k)) return;
     const x = dwCard(k); if (!x || !DW.byKey.has(k)) return;
     if ([...String(x.ci)].some(c => !ci.has(c))) return;
-    if (x.fl & 16 || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)) return;      // interdite en Commander ; bracket
+    if (x.fl & 16 || (x.fl & 4 && !R.mld) || (x.fl & 2 && !R.xt)) return;      // interdite en Commander ; bracket (brackets.js : destruction massive de terrains, tours supplémentaires ; leur nombre : dwSuggest)
     if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
     l.push([k, o, x, !!(x.roles & DW_RB.land)]);
   };
@@ -413,12 +424,12 @@ function dwExcluded(k, x, set) {
 function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   if (!DW.byKey) return [];
   const set = X.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k) || (X.skip && X.skip.has(k));
-  const brMax = (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[3], gcLeft = brMax - prof.gc.length;
+  const R = DWB.brRule(set.br), gcLeft = R.gc - prof.gc.length, xtLeft = R.xt - prof.xt.length;      // règles du bracket (brackets.js) : Game Changers et tours supplémentaires encore permis
   const must = role === 'wincon' && !prof.wincon;      // la première condition de victoire passe avant tout (rythme et part des terrains)
   const budLeft = set.bud > 0 ? set.bud - prof.cents - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
   const C = X.info || dwInfo(pack, set, cmd), w = dwW();
   const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
-  const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 (ou combos évités) : jamais la carte qui complète un combo à 2 ou 3 cartes
+  const noCombo = (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // combo interdit ou à éviter dans ce bracket (brackets.js : 1-2), ou combos évités : jamais la carte qui le complète
   const cols = cmd ? [...cmd.ci] : [], short = role === 'land' ? cols.filter(c => (prof.src[c] || 0) < (prof.need[c] || 0)) : [];      // terrains : couleurs sous le repère de Karsten
   const curveHi = (X.pace || X.gen) && prof.nonland >= 20 && prof.mv > tgt.mv[2];
   const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
@@ -427,7 +438,8 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (inDeck(k)) return;
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
     if (x.fl & 1 && gcLeft <= 0) return;
-    const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && noCombo) return;
+    if (x.fl & 2 && xtLeft <= 0) return;
+    const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && (noCombo || (dwCombo3(cw.c) ? R.c3 === 'avoid' : R.c2 === 'no'))) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
@@ -439,7 +451,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (m && o.m == null) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); }      // carte de secours (rang) : sa valeur de base pour le plan
     const v = dwVal(o); let s = v, pair = null;
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
-    if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
+    if (combo2 && R.c2 === 'ok') s += 0.4;      // bracket 4-5 (combos permis sans condition) : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
     if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
     if (o.trap && dwTrapOk(k, o, inDeck, set)) s += w.trap;      // piège avec le commandant, mais combo ou moteur avec une carte déjà là : plus de malus
     if (own) s += set.own ? 0.35 : 0.08;
@@ -504,7 +516,7 @@ function dwComboWith(k, inDeck) {
  *  commandant, mais fait un combo infini avec Felidar Guardian). o : infos de la carte (dwInfo : trap, eng) ; inDeck(clé). → { kind: 'combo' | 'eng', with: [noms] } ou null. */
 function dwTrapOk(k, o, inDeck, set = {}) {
   if (!o || !o.trap) return null;
-  if (!(set.br <= 2 || (set.avoid || []).includes('combo')) && DW.core && (DW.core.combos || DW.core.combos3)) { const cw = dwComboWith(k, inDeck); if (cw) return { kind: 'combo', with: cw.o }; }
+  if (!(DWB.brRule(set.br).c2 === 'no' || (set.avoid || []).includes('combo')) && DW.core && (DW.core.combos || DW.core.combos3)) { const cw = dwComboWith(k, inDeck); if (cw) return { kind: 'combo', with: cw.o }; }
   for (const cs of o.eng || []) { const p = cs.filter(x => x !== k && inDeck(x)); if (p.length) return { kind: 'eng', with: p.map(x => (dwCard(x) || {}).name || x) }; }
   return null;
 }
@@ -744,7 +756,7 @@ function dwGaugesHtml(prof, tgt, cmd, pack, ro) {
     const n = prof[r], [lo, mid, hi] = tgt[r], st = n < lo ? (n < lo - 3 ? 'bad' : 'low') : n > hi + (r === 'land' ? 0 : 3) ? 'high' : 'ok';
     const max = Math.max(hi + 2, n, 1), pct = v => Math.max(0, Math.min(100, v / max * 100));
     const open = !ro && DW.open === r, miss = Math.max(0, mid - n), tag = ro ? 'div' : 'button';
-    const lbl = st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}');
+    const lbl = (st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}')) + (r === 'land' && prof.mdfc ? ' · ' + landMdfcText(prof.mdfc) : '');      // doubles faces comptées comme terrains, annoncées
     let h = `<div class="dw-g ${st}${open ? ' open' : ''}"><${tag} ${ro ? '' : `type="button" data-act="dw-g" data-r="${r}" aria-expanded="${open}" `}class="dw-gh" title="${esc(T(help))}">
       <span class="dw-gl"><b>${T(label)}</b><small>${esc(lbl)}</small></span><span class="dw-gn"><b>${nf0(n)}</b> / ${mid}</span>
       <span class="dw-bar" aria-hidden="true"><i class="dw-rng" style="left:${pct(lo)}%;width:${Math.max(2, pct(hi) - pct(lo))}%"></i><i class="dw-val" style="width:${pct(n)}%"></i></span></${tag}>`;
@@ -790,19 +802,10 @@ function dwManaHtml(prof, tgt, cmd) {
   return h + '</div>';
 }
 function dwBracketHtml(prof, s = BD.wiz) {
-  const b = DW_BRACKETS.find(x => x[0] === s.br) || DW_BRACKETS[2], out = [];
-  if (prof.gc.length > b[3]) out.push(['bad', b[3] ? T('{n} Game Changers pour {max} permis en bracket {b} : {list}', { n: prof.gc.length, max: b[3], b: b[0], list: prof.gc.join(', ') }) : T('Game Changers interdits en bracket {b} : {list}', { b: b[0], list: prof.gc.join(', ') })]);
-  if (prof.mld.length && s.br <= 3) out.push(['bad', T('Destruction massive de terrains interdite en bracket {b} : {list}', { b: b[0], list: prof.mld.join(', ') })]);
-  if (prof.xt.length && s.br === 1) out.push(['bad', T('Tours supplémentaires interdits en bracket 1 : {list}', { list: prof.xt.join(', ') })]);
-  else if (prof.xt.length && s.br <= 3) out.push(['warn', T('Tours supplémentaires : à ne pas enchaîner en bracket {b} ({list})', { b: b[0], list: prof.xt.join(', ') })]);
-  const c2 = prof.combos.filter(c => !dwCombo3(c)), c3 = prof.combos.filter(dwCombo3), cl = l => l.slice(0, 4).map(dwComboTxt).join(', '), has3 = !!(DW.core && DW.core.combos3 && DW.core.combos3.length);
-  if (c2.length && s.br <= 2) out.push(['bad', T('Combo à 2 cartes interdit en bracket {b} : {list}', { b: b[0], list: cl(c2) })]);
-  else if (c2.length && s.br === 3) out.push(['warn', T('Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})', { list: cl(c2) })]);
-  else if (!(DW.core && DW.core.combos && DW.core.combos.length) && s.br <= 3) out.push(['info', T('Les combos à 2 cartes ne sont pas vérifiés : à surveiller toi-même.')]);
-  else if (s.br <= 3 && !c3.length) out.push(['ok', has3 ? T('Aucun combo à 2 ou 3 cartes connu (Commander Spellbook)') : T('Aucun combo à 2 cartes connu (Commander Spellbook)')]);
-  if (c3.length && s.br <= 2) out.push(['bad', T('Combo à 3 cartes à éviter en bracket {b} : {list}', { b: b[0], list: cl(c3) })]);      // pas interdit par les règles officielles, mais hors du niveau d'un deck préconstruit : jamais proposé en bracket 1-2
-  else if (c3.length && s.br === 3) out.push(['info', T('Combo à 3 cartes, permis en bracket 3 : {list}', { list: cl(c3) })]);
-  return `<div class="sec-title">${T('Bracket {n} · {name}', { n: b[0], name: b[1] })}</div><ul class="bd-issues dw-br">${out.length ? out.map(([lv, t]) => `<li class="${lv === 'info' ? '' : lv}">${esc(t)}</li>`).join('') : ''}<li class="ok">${esc(b[3] > 10 ? TN(prof.gc.length, '{n} Game Changer, sans limite dans ce bracket', '{n} Game Changers, sans limite dans ce bracket') : TN(prof.gc.length, '{n} Game Changer sur {max} permis', '{n} Game Changers sur {max} permis', { max: b[3] }))}</li></ul>`;
+  const b = DW_BRACKETS.find(x => x[0] === s.br) || DW_BRACKETS[2], R = DWB.brRule(b[0]), out = DWB.bracketBreaks(b[0], dwBrFacts(prof)).map(x => [x.lv, x.t]);      // LA table (brackets.js) : même verdict que l'éditeur (dkCheck), la note et le générateur
+  const c2 = prof.combos.filter(c => !dwCombo3(c)), c3 = prof.combos.filter(dwCombo3), has3 = !!(DW.core && DW.core.combos3 && DW.core.combos3.length);
+  if (!c2.length && R.c2 !== 'ok') out.push(!(DW.core && DW.core.combos && DW.core.combos.length) ? ['info', T('Les combos à 2 cartes ne sont pas vérifiés : à surveiller toi-même.')] : !c3.length ? ['ok', has3 ? T('Aucun combo à 2 ou 3 cartes connu (Commander Spellbook)') : T('Aucun combo à 2 cartes connu (Commander Spellbook)')] : null);
+  return `<div class="sec-title">${T('Bracket {n} · {name}', { n: b[0], name: b[1] })}</div><ul class="bd-issues dw-br">${out.filter(Boolean).map(([lv, t]) => `<li class="${lv === 'info' ? '' : lv}">${esc(t)}</li>`).join('')}<li class="ok">${esc(R.gc > 10 ? TN(prof.gc.length, '{n} Game Changer, sans limite dans ce bracket', '{n} Game Changers, sans limite dans ce bracket') : TN(prof.gc.length, '{n} Game Changer sur {max} permis', '{n} Game Changers sur {max} permis', { max: R.gc }))}</li></ul>`;
 }
 function dwBudgetHtml(prof, s = BD.wiz) {
   const cur = mkCur(); if (!(s.bud > 0) && !prof.cents) return '';
@@ -864,11 +867,11 @@ function dwFillBasics(quiet) {
 /** Cartes fétiches (réglages : pets) mises dans le deck X : celles qui respectent les couleurs, les cartes interdites et les règles du bracket. → { in: [noms], out: [noms] } */
 function dwPetsInto(X, cmd) {
   const set = X.wiz || dwDefaults(), got = { in: [], out: [] }; if (!cmd || !(set.pets || []).length || !DW.byKey) return got;
-  const ci = new Set([...cmd.ci]), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], combo = set.br <= 2, inX = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
+  const ci = new Set([...cmd.ci]), R = DWB.brRule(set.br), inX = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
   for (const nm of set.pets) {
     const k = ownKey(nm), x = dwCard(k); if (!k || X.main.has(k) || X.cmdr.some(c => c.key === k)) continue;
-    const prof = dwProfile(X), bad = !x || !DW.byKey.has(k) || [...String(x.ci)].some(c => !ci.has(c)) || x.fl & 16 || (x.fl & 1 && prof.gc.length >= b[3]) || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)
-      || (combo && dwComboWith(k, inX));      // brackets 1-2 : jamais la pièce qui complète un combo à 2 ou 3 cartes
+    const prof = dwProfile(X), bad = !x || !DW.byKey.has(k) || [...String(x.ci)].some(c => !ci.has(c)) || x.fl & 16 || (x.fl & 1 && prof.gc.length >= R.gc) || (x.fl & 4 && !R.mld) || (x.fl & 2 && prof.xt.length >= R.xt)
+      || (() => { const cw = dwComboWith(k, inX); return !!cw && (dwCombo3(cw.c) ? R.c3 === 'avoid' : R.c2 === 'no'); })();      // règles du bracket (brackets.js) : jamais la pièce qui complète un combo interdit ou à éviter
     if (bad) { got.out.push(nm); continue; }
     X.main.set(k, { key: k, name: x.name, qty: 1 }); got.in.push(x.name);
   }

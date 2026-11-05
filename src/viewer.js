@@ -358,10 +358,10 @@ try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type',
 
 /** Deck Commander (bloc « Commander » ou format noté) : bouton « Analyser » (deckana.js). */
 const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
-/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle est légendaire (export EDHREC). */
+/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {
   const ks = commanderKeys(text).filter(k => cards.some(c => c.key === k));
-  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (m && canLead(m.tl)) ks.push(cards[0].key); }
+  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (canCommand(m) === 1) ks.push(cards[0].key); }
   return new Set(ks);
 }
 
@@ -460,10 +460,11 @@ function dvBasics(snap) {
   if (!snap || !snap.items.some(i => i.s === 'basic' && !i.im && basicIm(i.k))) return snap;
   return { ...snap, items: snap.items.map(i => (i.s === 'basic' && !i.im && basicIm(i.k) ? { ...i, im: basicIm(i.k) } : i)) };
 }
-/** Cartes dont le viewer a besoin ([{ key, name }]) : le deck entier si le relevé est de référence, sinon seulement la réserve ; terrains de base toujours (images). */
+/** Cartes dont le viewer a besoin ([{ key, name }]) : le deck entier si le relevé est de référence ou si le deck est Commander (légalité, Game Changers : builder.js › cardLegal,
+ *  isGC), sinon seulement la réserve ; terrains de base toujours (images). */
 function dvNeeds() {
   const pd = parseDeck(DV.text), ref = DV.snap && DV.snap.ref;
-  return [...(ref ? pd.cards : []), ...dkSideCards(DV.text), ...pd.basics].map(c => ({ key: ownKey(c.key), name: c.name }));
+  return [...(ref || dvCmdr() ? pd.cards : []), ...dkSideCards(DV.text), ...pd.basics].map(c => ({ key: ownKey(c.key), name: c.name }));
 }
 /** Lit sur Scryfall ce qui manque (images, coûts, prix du relevé de référence, de la réserve et des terrains), puis reconstruit l'affichage si le viewer est toujours ouvert. */
 async function dvMetaLoad(wrap) {
@@ -512,9 +513,16 @@ const dvImgTag = (it, u, lazy = true) => { const l = it.ol ? '' : undefined, nm 
 const dvLetter = it => esc((it.n.trim()[0] || '?').toUpperCase());
 /** Écart notable d'une carte (≥ 5 % ou ≥ 0,20 € par exemplaire) : flèche sur la vignette. */
 const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.prev * 0.05);
-/** Carte de la liste officielle des Game Changers (brackets Commander) : données EDHREC de l'appli. */
-const dvGC = k => !!(typeof EDH !== 'undefined' && EDH.data && EDH.data.gc && EDH.data.gc.size && EDH.data.gc.has(ownKey(String(k).replace(/^sb:/, ''))));
+/** Carte de la liste officielle des Game Changers (brackets Commander) : builder.js › isGC (base du coach, sinon Scryfall, sinon EDHREC : même EDHREC coupé), comme l'éditeur. */
+const dvGC = k => (typeof isGC === 'function' ? isGC(k) : false);
 const dvGCBadge = () => `<span class="dvc-gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`;
+/** Deck Commander : carte pas légale en Commander (builder.js › cardLegal : fiche Scryfall, possédée ou non, sinon base du coach), comme la pastille de l'éditeur. */
+const dvIllegal = it => it.s !== 'basic' && !it.sb && dvCmdr() && typeof cardLegal === 'function' && cardLegal(ownKey(String(it.k).replace(/^sb:/, '')), 'commander') === false;
+const dvIllBadge = () => `<span class="dvc-ill" title="${T('Pas légale en Commander')}" aria-hidden="true">⊘</span>`;
+/** dvCommander lu une fois par texte de deck (vignettes : appelé pour chaque carte). */
+const dvCmdr = () => { if (DV.cmOf !== DV.text) { DV.cmOf = DV.text; DV.cmIs = dvCommander(); } return DV.cmIs; };
+/** Cartes du deck pas légales en Commander (noms) : rappel en tête du viewer. */
+const dvIllNames = items => (dvCmdr() ? items.filter(dvIllegal).map(i => i.n) : []);
 /** Morceaux communs aux vues : prix ou état, possession ou langue, quantité, Game Changer, libellé lu par le lecteur d'écran. */
 function dvBits(it, snap, dl) {
   const hue = hash32(it.k) % 360, art = dvImg(it), d = dl && dl.get(it.k), mv = dvMoved(d) ? `<em class="${d.diff < 0 ? 'dn' : 'up'}" aria-hidden="true">${d.diff < 0 ? '▼' : '▲'}</em>` : '';
@@ -526,12 +534,12 @@ function dvBits(it, snap, dl) {
     : it.s === 'ok' && it.l && snap.lang && it.l !== snap.lang ? `<span class="dvc-l">${esc(it.l.toUpperCase())}</span>` : '';
   const q = it.q > 1 ? `<span class="dvc-q">×${it.q}</span>` : '';
   const label = `${it.n}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
-  const gc = dvGC(it.k);
-  return { hue, art, tag, en, q, gc, label: label + (gc ? ', Game Changer' : '') };
+  const gc = dvGC(it.k), ill = dvIllegal(it);
+  return { hue, art, tag, en, q, gc, ill, label: label + (gc ? ', Game Changer' : '') + (ill ? ', ' + T('Pas légale en Commander') : '') };
 }
 function dvTile(it, i, snap, dl, sm) {
-  const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+  const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, ill, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || ill || en ? `<span class="dvc-tl">${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
 /** Petite image Scryfall (146 × 204) d'une adresse /normal/ : cartes recouvertes des piles. Une pile entière en /normal/ décodait ~140 Mo d'images
@@ -546,8 +554,8 @@ function dvImgSizes(root, view) {
   }
 }
 function dvStrip(it, i, snap, dl) {
-  const { hue, tag, en, gc, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  const { hue, tag, en, gc, ill, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -581,6 +589,11 @@ function dvRefLine(items) {
   return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(dvFmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + Math.abs(t.pct) + ' %'}</b></div>`;
 }
 
+/** Rappel des cartes pas légales en Commander (deck Commander), comme l'alerte du résumé de l'éditeur (core.js › dkCheck). */
+function dvIllHtml(items) {
+  const l = dvIllNames(items); if (!l.length) return '';
+  return `<p class="dv-ill" role="note">${dvIllBadge()}<span>${esc(TN(l.length, 'Pas légale en Commander : {list}', 'Pas légales en Commander : {list}', { list: l.slice(0, 6).join(', ') + (l.length > 6 ? '…' : '') }))}</span></p>`;
+}
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
 function dvFrame(snap) {
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
@@ -597,7 +610,7 @@ function dvFrame(snap) {
   $('.dv-body', el).innerHTML = `<div class="dv-side"><section class="dv-sum">
       <div class="dv-total"><span class="dv-eur">${ref ? '≈ ' : ''}<span class="dv-amt">${esc(dvFmt(total))}</span>${ref && none ? '+' : ''}</span><span class="dv-crit">${ref ? '' : T('Articles') + ' · '}${esc(crit)}</span></div>
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
-      ${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
+      ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
       <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
@@ -690,7 +703,7 @@ function dvGroups() {
   $('#dvCmd', el).innerHTML = cmds.length ? `<div class="dv-cmds">${cmds.map(c => dvHero(c, flat(c), snap, dl)).join('')}</div>` : '';
   const groups = DV.sort === 'role' ? dvRoleGroups(rest, !!snap.ref) : groupSnap(rest, DV.sort, !!snap.ref);
   const hidden = (DV.f.colors.size || DV.f.type || DV.f.cmc !== '') ? all.filter(i => !hasMeta(i)).length : 0;
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${esc(landGroupNote(g))}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
   const cols = g => (view === 'stacks' ? Math.min(2, Math.max(1, g.items.length)) : 1);
   const box = (gi, c = 0) => `<div class="${view === 'grid' ? 'dv-grid' : view === 'strips' ? 'dv-strips' : 'dvp'}" data-gi="${gi}" data-c="${c}"></div>`;
   const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
@@ -872,10 +885,10 @@ const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Ma
 function openHand() {
   if (typeof prgAdd === 'function') prgAdd('hd');      // mains de départ tirées (progress.js)
   const snap = DV.snap; if (!snap) return;
-  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);
+  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);      // doubles faces « Sort // Terrain » comprises (landKind), annoncées
   if (lib.length < 7) { toast(T('Il faut au moins 7 cartes dans le deck')); return; }
-  const L = lib.filter(isLand).length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
-  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains'), api => {
+  const L = lib.filter(isLand).length, mdfc = lib.filter(it => it.s !== 'basic' && landKind(it.tl) === 'mdfc').length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
+  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains') + (mdfc ? ' (' + landMdfcText(mdfc) + ')' : ''), api => {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);

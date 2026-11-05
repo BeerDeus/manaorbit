@@ -221,6 +221,43 @@ assert.equal(await qty(p, 'relentless rats', 'main'), 5, 'Commander : Relentless
 await p.click('.bd [data-act="close"]'); await p.waitForSelector('#bdLeave'); await p.click('#bdLeave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
 ok('cartes en nombre quelconque : Relentless Rats au-delà de 4 (Standard) et du singleton (Commander), Seven Dwarves 7 au plus');
 
+/* ── G) Compagnon (section « Companion ») et double face terrain : même compte dans Mes decks, le viewer et l'éditeur ; le compagnon reste après un enregistrement depuis l'éditeur ── */
+{
+  const mk = (n, tl, eur, ci) => [{ id: 's-' + n.toLowerCase().replace(/[^a-z]+/g, '-'), set: 'znr', set_name: 'Zendikar Rising', collector_number: '1', name: n, cmc: 3, type_line: tl, mana_cost: '{2}{R}', colors: ['R'], color_identity: ci, prices: { eur, usd: eur }, legalities: { commander: 'legal' }, image_uris: { small: 'https://cards.scryfall.io/small/front/a/b/' + n.length + '.jpg' } }];
+  world.prints['Jegantha, the Wellspring'] = mk('Jegantha, the Wellspring', 'Legendary Creature — Elemental Elk', '2.00', ['R', 'G']);
+  world.prints['Valakut Awakening // Valakut Stoneforge'] = mk('Valakut Awakening // Valakut Stoneforge', 'Instant // Land', '3.00', ['R']);
+  const T0 = 'Commander\n1 Edgar Markov\n\nCompanion\n1 Jegantha, the Wellspring\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n1 Valakut Awakening // Valakut Stoneforge\n96 Plains';
+  await p.evaluate(t => putDeck('dk-comp', deckDoc({ name: 'Edgar compagnon', text: t, opts: { ...S.opts } })), T0);
+  await toHome(p); await decks(p);
+  const line = () => p.evaluate(() => [...document.querySelectorAll('.deck')].find(d => d.querySelector('.deck-name').textContent === 'Edgar compagnon').querySelector('.deck-line').textContent.replace(/\s+/g, ' '));
+  assert.match(await line(), /^100\/100 cartes/, 'Mes decks : 100/100 (compagnon hors des 100 cartes), pas 101/100');
+  await p.click('.deck:has-text("Edgar compagnon") [data-act="open"]'); await p.waitForSelector('.dvw.on .dv-title span');
+  await p.waitForFunction(() => /dont 1 double face/.test((document.querySelector('.dvw.on .dv-g[data-g="land"] h3') || {}).textContent || ''), null, { timeout: 10000 });
+  assert.match(await tc(p, '.dvw.on .dv-title span'), /^100 cartes · .*réserve 1$/, 'viewer : 100 cartes, le compagnon dans la réserve');
+  assert.match(await tc(p, '.dvw.on .dv-g[data-g="land"] h3'), /Terrains ?97 cartes · dont 1 double face/, 'viewer : la double face avec les terrains, annoncée');
+  assert.match(await tc(p, '.dvw.on .dv-g[data-g="sb"]'), /Jegantha/, 'compagnon : groupe Réserve');
+  await p.click('.dvw.on [data-act="hand"]'); await p.waitForSelector('.sheet .hand-grid');
+  assert.match(await tc(p, '.sheet'), /99 cartes dans la bibliothèque · 97 terrains \(dont 1 double face\)/, 'main de départ : le même compte que le viewer');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet .hand-grid'), null, { timeout: 3000 });
+  await p.click('.dvw.on [data-act="builder"]'); await p.waitForSelector('.bd.on');
+  assert.match(await txt(p, '#bdSub'), /Commander · 100\/100/, 'éditeur : 100/100, comme Mes decks et le viewer');
+  await p.waitForFunction(() => /Deck complet et conforme/.test(document.querySelector('#bdSum').textContent), null, { timeout: 8000 });
+  assert.ok(await p.$('.bd-row[data-k="jegantha the wellspring"][data-t="comp"]'), 'section Compagnon de l\'éditeur'); assert.match(await tc(p, '.bd'), /Compagnon hors des 100 cartes/);
+  assert.deepEqual(await p.evaluate(() => { const r = dwProfile(); return [r.land, r.mdfc]; }), [97, 1], 'coach : 97 terrains dont 1 double face, comme le viewer');
+  await step(p, 'jegantha the wellspring', 'comp', 1); assert.match(await txt(p, '#toast'), /Un seul compagnon/);
+  const val = await p.evaluate(t => ({ without: dkValueText(dkEst(t.replace('Companion\n1 Jegantha, the Wellspring\n\n', ''))), withJ: dkValueText(dkEst(t.replace('Companion\n1 Jegantha, the Wellspring\n\nDeck\n', 'Deck\n1 Jegantha, the Wellspring\n'))) }), T0);
+  assert.notEqual(val.without, val.withJ); assert.equal(norm(await tc(p, '#bdSum .bd-val')), norm(val.without), 'valeur de l\'éditeur : sans le compagnon');
+  await step(p, 'plains', 'main', -1); await step(p, 'plains', 'main', 1);
+  await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
+  const saved = await p.evaluate(() => findDeck('dk-comp').text);
+  assert.match(saved, /\nCommander\n1 Edgar Markov\n\nCompanion\n1 Jegantha, the Wellspring\n\nDeck\n/, 'enregistré depuis l\'éditeur : le compagnon est gardé');
+  if (await p.$('.dvw.on')) { await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.dvw.on'), null, { timeout: 3000 }); }
+  await decks(p);
+  await p.waitForFunction(v => [...document.querySelectorAll('.deck')].some(d => d.querySelector('.deck-name').textContent === 'Edgar compagnon' && d.querySelector('.deck-line').textContent.replace(/\s+/g, ' ').includes(v.replace(/\s+/g, ' '))), val.without, { timeout: 5000 });
+  assert.match(await line(), /^100\/100 cartes/, 'Mes decks après l\'enregistrement : toujours 100/100');
+  ok('compagnon : 100/100 dans Mes decks, le viewer et l\'éditeur, valeur sans lui, gardé à l\'enregistrement depuis l\'éditeur ; double face terrain : comptée et annoncée dans le viewer, la main de départ et le coach');
+}
+
 for (const e of errsOf) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));
 await browser.close(); world.stop();
 console.log('BUILDER E2E OK');

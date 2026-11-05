@@ -1634,6 +1634,9 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 .dvc-tl{position:absolute;top:14%;left:7%;z-index:1;display:flex;gap:4px;align-items:center}      /* sous la bande du titre, sur l'illustration : le nom reste lisible */
 .dvc-tl .dvc-l{position:static}
 .dvc-gc{flex:none;height:19px;padding:0 5px;display:inline-grid;place-items:center;border-radius:6px;background:linear-gradient(135deg,#6d3cff,#c43cff);color:#fff;font:700 10px/1 var(--font-mono);letter-spacing:.05em;box-shadow:0 0 0 1.5px rgba(255,255,255,.6),0 2px 6px rgba(80,20,160,.45)}
+.dvc-ill{flex:none;width:19px;height:19px;display:inline-grid;place-items:center;border-radius:50%;background:#c4243a;color:#fff;font:700 13px/1 var(--font-sans,system-ui);box-shadow:0 0 0 1.5px rgba(255,255,255,.7),0 2px 6px rgba(120,10,30,.45)}      /* carte pas légale en Commander (viewer.js › dvIllegal) */
+.dv-ill{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--bad);padding:8px 10px;border-radius:10px;background:var(--bad-soft)}
+.dv-ill>span:last-child{min-width:0}
 .dv .fbtn,.dv .fsearch{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--surface)}      /* viewer et éditeur : fond plein (le flou d'arrière-plan sur des centaines de cartes coûte au défilement, et la WebView Android le dessinait parfois en rectangle vide) */
 /* Piles : colonnes côte à côte, défilement de côté ; chaque carte ne laisse dépasser que son titre (≈ 16 % de sa largeur), la dernière en entier */
 .dv-groups[data-view="piles"]{margin:0 -16px}
@@ -8017,8 +8020,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'fd4092d8';
-const I18N_FILES = {"de":"i18n/de.856da484.js","en":"i18n/en.a3d2ec93.js","es":"i18n/es.2aff4691.js","it":"i18n/it.1800cf28.js","pt":"i18n/pt.c10fc899.js"};
+const DD_BUILD = '5090d9eb';
+const I18N_FILES = {"de":"i18n/de.20539bce.js","en":"i18n/en.0c59fbfa.js","es":"i18n/es.bc3575fa.js","it":"i18n/it.43d90278.js","pt":"i18n/pt.3b4e0132.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -8195,6 +8198,55 @@ function edhFilter(input, keep) {
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { edhPack, edhUnpack, edhFilter, EDHB_MAX_CARDS };
+
+
+/* ── brackets.js : LA table des règles des brackets Commander (Wizards, mise à jour du 9 février 2026 ; docs/deckbuilder/recherche.md § 4.2) ──────────
+   Une seule table, lue partout : bracket estimé (core.js › edhBracket, deckana.js › dwBracketOf), générateur et suggestions du coach (deckwiz.js),
+   audit du coach (dwBracketHtml), prochaines étapes et cartes à retirer (deckux.js), note (deckopt.js), vérification du deck dans l'éditeur (core.js › dkCheck).
+   Chargé avant core.js (build.mjs › JS_A) ; dans Node : require('./brackets.js') ; dans les vm du banc d'essai : chargé avant deckwiz.js. */
+/** Par bracket : gc = Game Changers permis · mld = destruction massive de terrains permise · xt = tours supplémentaires permis (nombre) ;
+ *  xtw = permis « sans les enchaîner » (rappelé) · c2 = combos à 2 cartes : 'no' interdits, 'late' pas avant le tour 6, 'ok' · c3 = combos à 3 cartes : 'avoid' à éviter
+ *  (pas interdits par les règles officielles, mais hors du niveau d'un deck préconstruit : jamais proposés, signalés), 'ok'.
+ *  Tours supplémentaires : aucun en bracket 1 ; bracket 2 « en petit nombre, jamais enchaînés » (Wizards) : un au plus ; bracket 3 « pas d'enchaînement ». Tuteurs : plus de limite depuis octobre 2025. */
+const BRACKET_RULES = {
+  1: { gc: 0, mld: false, xt: 0, xtw: false, c2: 'no', c3: 'avoid' },
+  2: { gc: 0, mld: false, xt: 1, xtw: true, c2: 'no', c3: 'avoid' },
+  3: { gc: 3, mld: false, xt: Infinity, xtw: true, c2: 'late', c3: 'ok' },
+  4: { gc: Infinity, mld: true, xt: Infinity, xtw: false, c2: 'ok', c3: 'ok' },
+  5: { gc: Infinity, mld: true, xt: Infinity, xtw: false, c2: 'ok', c3: 'ok' },
+};
+/** Règles d'un bracket (inconnu : celles du bracket 3). */
+const brRule = b => BRACKET_RULES[b] || BRACKET_RULES[3];
+const brN = v => (Array.isArray(v) ? v.length : Number(v) || 0);
+const brList = (v, n = 99) => (Array.isArray(v) ? v.slice(0, n).join(', ') : '');
+const brT = (s, o) => (typeof T === 'function' ? T(s, o) : String(s).replace(/\{(\w+)\}/g, (m, k) => (o && o[k] != null ? o[k] : m)));
+/** Le deck respecte-t-il les règles du bracket b ? f = { gc, mld, xt, c2, c3 } : listes (noms) ou nombres de Game Changers, cartes de destruction massive
+ *  de terrains, de tours supplémentaires, combos à 2 et à 3 cartes. Rapide (sans texte) : bracketEstimate l'appelle pour chaque deck EDHREC. */
+function bracketOk(b, f) {
+  const r = brRule(b);
+  return brN(f.gc) <= r.gc && (r.mld || !brN(f.mld)) && brN(f.xt) <= r.xt && (r.c2 !== 'no' || !brN(f.c2)) && (r.c3 !== 'avoid' || !brN(f.c3));
+}
+/** Bracket estimé d'après la liste : le plus bas de 2 à 4 dont les règles sont tenues (1 et 5 ne se devinent pas sur une liste). */
+function bracketEstimate(f) { for (const b of [2, 3]) if (bracketOk(b, f)) return b; return 4; }
+/** Écarts aux règles du bracket b : [{ lv: 'bad' (règle enfreinte) | 'warn' (permis, sous condition) | 'info', k: 'gc' | 'mld' | 'xt' | 'c2' | 'c3', t }].
+ *  Listes de f affichées telles quelles (combos : déjà mis en texte). */
+function bracketBreaks(b, f) {
+  const r = brRule(b), out = [], n = k => brN(f[k]), l = k => brList(f[k], k === 'c2' || k === 'c3' ? 4 : 99);
+  if (n('gc') > r.gc) out.push({ lv: 'bad', k: 'gc', t: r.gc ? brT('{n} Game Changers pour {max} permis en bracket {b} : {list}', { n: n('gc'), max: r.gc, b, list: l('gc') }) : brT('Game Changers interdits en bracket {b} : {list}', { b, list: l('gc') }) });
+  if (n('mld') && !r.mld) out.push({ lv: 'bad', k: 'mld', t: brT('Destruction massive de terrains interdite en bracket {b} : {list}', { b, list: l('mld') }) });
+  if (n('xt')) {
+    if (!r.xt) out.push({ lv: 'bad', k: 'xt', t: brT('Tours supplémentaires interdits en bracket {b} : {list}', { b, list: l('xt') }) });
+    else if (n('xt') > r.xt) out.push({ lv: 'bad', k: 'xt', t: brT('{n} tours supplémentaires pour {max} permis en bracket {b}, jamais enchaînés : {list}', { n: n('xt'), max: r.xt, b, list: l('xt') }) });
+    else if (r.xtw && r.xt < Infinity) out.push({ lv: 'info', k: 'xt', t: brT('Tour supplémentaire permis en bracket {b} ({max} au plus, jamais enchaîné) : {list}', { b, max: r.xt, list: l('xt') }) });
+    else if (r.xtw) out.push({ lv: 'warn', k: 'xt', t: brT('Tours supplémentaires : à ne pas enchaîner en bracket {b} ({list})', { b, list: l('xt') }) });
+  }
+  if (n('c2') && r.c2 === 'no') out.push({ lv: 'bad', k: 'c2', t: brT('Combo à 2 cartes interdit en bracket {b} : {list}', { b, list: l('c2') }) });
+  else if (n('c2') && r.c2 === 'late') out.push({ lv: 'warn', k: 'c2', t: brT('Combo à 2 cartes : pas avant le tour 6 en bracket {b} ({list})', { b, list: l('c2') }) });
+  if (n('c3') && r.c3 === 'avoid') out.push({ lv: 'bad', k: 'c3', t: brT('Combo à 3 cartes à éviter en bracket {b} : {list}', { b, list: l('c3') }) });
+  else if (n('c3') && b <= 3) out.push({ lv: 'info', k: 'c3', t: brT('Combo à 3 cartes, permis en bracket {b} : {list}', { b, list: l('c3') }) });
+  return out;
+}
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { BRACKET_RULES, brRule, bracketOk, bracketEstimate, bracketBreaks });
 
 
 /* ── core.js : logique pure (parse, filtres, optimiseur, démo). Testable sous Node. ───────── */
@@ -8506,31 +8558,56 @@ function deckSecs(text) {
   return out;
 }
 
-/** Lit une decklist (EDHREC, Moxfield, Archidekt, MTGA, MTGO). Terrains de base séparés. Réserve (« SB: », section Sideboard), maybeboard et tokens : ni comptés ni cherchés (voir deckSecs). */
-function parseDeck(text) {
-  const cards = new Map();
-  const basics = new Map();
-  let lines = 0, ignored = 0;
-  for (const [raw, sec] of deckSecs(text)) {
-    const p = parseLine(raw);
-    if (!p) continue;
-    lines++;
-    if (p.ignored) { if (!p.quiet) ignored++; continue; }
-    if (sec === 'side' || sec === 'skip') continue;      // réserve, maybeboard : volontaire, pas signalé
-    const bucket = BASIC_NAMES.has(p.key) ? basics : cards;
-    const cur = bucket.get(p.key);
-    if (cur) cur.qty += p.qty; else bucket.set(p.key, { key: p.key, name: p.name, qty: p.qty, ...(p.dn ? { dn: p.dn } : {}), ...(p.amb ? { amb: p.amb } : {}) });      // dn : nom français à afficher (name reste l'anglais : prix, collection, liens)
-    const x = cur || bucket.get(p.key);      // éditions de la carte (« (CMM) 400 ») : seulement si chacune de ses lignes en donne une (une ligne sans édition : n'importe laquelle)
-    if (!p.ed) x.anyEd = true; else if (!(x.eds || (x.eds = [])).includes(p.ed)) x.eds.push(p.ed);
+/** Analyse unique d'une decklist (sections de deckSecs, une seule lecture de chaque ligne) → { cmdr, main, basics, comp, side, skip, cards, lines, ignored, order } :
+ *  cmdr : cartes sous « Commander » · main : le reste du deck, terrains de base à part (basics) · comp : section « Companion » · side : la réserve (« SB: », « Sideboard ») ·
+ *  skip : Maybeboard, Considering, Tokens (hors du deck) · cards : cmdr + main (les cartes du deck à chercher et chiffrer, dans l'ordre de la liste).
+ *  Chaque carte : { key (normName), name, qty, dn?, amb?, eds?, ln? } (doublons additionnés dans sa section ; eds, ln : voir plus bas).
+ *  Compagnon (règle officielle 702.139a) : il commence la partie hors du jeu, dans la réserve ; en Commander il ne fait pas partie des 100 cartes.
+ *  Il n'est donc compté ni dans le deck ni dans sa valeur ; il reste dans la boîte du deck (réserve : dkSideCards, deck monté). Arena l'écrit aussi dans le Sideboard : compté une fois. */
+function deckModel(text) {
+  const sec = { cmdr: new Map(), main: new Map(), basics: new Map(), comp: new Map(), side: new Map(), skip: new Map(), cards: new Map() };
+  let lines = 0, ignored = 0, i = -1; const order = new Map();      // order : clé → rang de sa première ligne dans le deck (l'éditeur garde l'ordre de la liste, terrains de base compris)
+  const put = (m, p) => {
+    const cur = m.get(p.key), x = cur || { key: p.key, name: p.name, qty: 0, ...(p.dn ? { dn: p.dn } : {}), ...(p.amb ? { amb: p.amb } : {}) };      // dn : nom français à afficher (name reste l'anglais : prix, collection, liens)
+    if (!cur) m.set(p.key, x);
+    x.qty += p.qty;
+    if (!p.ed) x.anyEd = true; else if (!(x.eds || (x.eds = [])).includes(p.ed)) x.eds.push(p.ed);      // éditions de la carte (« (CMM) 400 ») : seulement si chacune de ses lignes en donne une (une ligne sans édition : n'importe laquelle)
     const f = p.foil ? 'yes' : p.nf ? 'no' : '', l = p.lang || '', ls = x.ls || (x.ls = []), g = ls.find(y => y.f === f && y.l === l);      // foil et langue de la ligne (« *F* », « *N* », « *FR* »)
     if (g) g.q += p.qty; else ls.push({ q: p.qty, f, l });
+  };
+  for (const [raw, s] of deckSecs(text)) {
+    i++;
+    const sb = String(raw).trim().match(/^SB:\s*(.+)$/i), p = parseLine(sb ? sb[1] : raw);
+    if (!p) continue;
+    lines++;
+    if (p.ignored) { if (!p.quiet && !sb) ignored++; continue; }      // ligne « SB: » illisible : comme avant, pas signalée
+    const basic = BASIC_NAMES.has(p.key);
+    if (sb || s === 'side') put(sec.side, p);      // réserve, maybeboard : volontaire, pas signalé
+    else if (s === 'skip') put(sec.skip, p);
+    else if (s === 'comp') put(sec.comp, p);
+    else { put(s === 'cmdr' ? sec.cmdr : basic ? sec.basics : sec.main, p); if (!basic) put(sec.cards, p); if (s !== 'cmdr' && !order.has(p.key)) order.set(p.key, i); }
   }
   // ln : les lignes de la carte par foil et langue ({ q, f?: 'yes' | 'no', l? }), seulement si l'une en donne (sinon la recherche garde ses critères, comme avant)
-  for (const m of [cards, basics]) for (const x of m.values()) { if (x.anyEd) delete x.eds; delete x.anyEd; if (x.ls.some(y => y.f || y.l)) x.ln = x.ls.map(y => ({ q: y.q, ...(y.f ? { f: y.f } : {}), ...(y.l ? { l: y.l } : {}) })); delete x.ls; }
-  const c = [...cards.values()], b = [...basics.values()];
-  const copies = c.reduce((a, x) => a + x.qty, 0);
-  const basicCopies = b.reduce((a, x) => a + x.qty, 0);
-  return { cards: c, basics: b, lines, ignored, copies: copies + basicCopies, basicCopies };
+  const out = { lines, ignored, order };
+  for (const [name, m] of Object.entries(sec)) {
+    for (const x of m.values()) { if (x.anyEd) delete x.eds; delete x.anyEd; if (x.ls.some(y => y.f || y.l)) x.ln = x.ls.map(y => ({ q: y.q, ...(y.f ? { f: y.f } : {}), ...(y.l ? { l: y.l } : {}) })); delete x.ls; }
+    out[name] = [...m.values()];
+  }
+  if (out.cmdr.some(c => BASIC_NAMES.has(c.key))) { const b = new Map(out.basics.map(x => [x.key, x])); for (const c of out.cmdr) if (BASIC_NAMES.has(c.key)) { const cur = b.get(c.key); if (cur) cur.qty += c.qty; else out.basics.push({ ...c }); } }      // terrain de base sous « Commander » (liste mal faite) : un terrain du deck
+  return out;
+}
+/** Réserve d'un modèle (deckModel) : side, puis le compagnon s'il n'y est pas déjà (Arena l'écrit dans les deux sections) : [{ key (ownKey), name, qty, comp? }], additionnée par carte. */
+function dkSideOf(md) {
+  const out = new Map();
+  for (const c of md.side) { const k = ownKey(c.name), cur = out.get(k); if (cur) cur.qty += c.qty; else out.set(k, { key: k, name: c.name, qty: c.qty }); }
+  for (const c of md.comp) { const k = ownKey(c.name), cur = out.get(k); if (cur) { cur.qty = Math.max(cur.qty, c.qty); cur.comp = 1; } else out.set(k, { key: k, name: c.name, qty: c.qty, comp: 1 }); }
+  return [...out.values()];
+}
+/** Lit une decklist (EDHREC, Moxfield, Archidekt, MTGA, MTGO) : les cartes du deck (commandant compris, compagnon et réserve exclus), terrains de base séparés. Voir deckModel. */
+function parseDeck(text) {
+  const md = deckModel(text), c = md.cards, b = md.basics;
+  const copies = c.reduce((a, x) => a + x.qty, 0), basicCopies = b.reduce((a, x) => a + x.qty, 0);
+  return { cards: c, basics: b, lines: md.lines, ignored: md.ignored, copies: copies + basicCopies, basicCopies };
 }
 
 /** Retire de la decklist toutes les lignes d'une carte. Retourne le nouveau texte et les lignes retirées (pour annuler). */
@@ -8947,12 +9024,21 @@ function typeBucket(tl) {
   if (b === undefined) { b = typeBucketOf(s); if (TYPE_MEMO.size >= 5000) TYPE_MEMO.clear(); TYPE_MEMO.set(s, b); }
   return b;
 }
+/** Terrain ? Règle unique (viewer, éditeur, main de départ, coach, collection) d'après la ligne de type : 'land' si la face avant est un terrain (Forest, Dryad Arbor
+ *  « Land Creature », Ancient Tomb), 'mdfc' si seule une autre face l'est (double face modale « Instant // Land », Valakut Awakening : jouable comme terrain, compté avec les terrains
+ *  et annoncé « dont N doubles faces »), '' sinon. Une double face qui se transforme en terrain (Search for Azcanta) a la même ligne de type : comptée 'mdfc' aussi. */
+const LAND_MEMO = new Map();      // gardé par ligne de type, comme typeBucket (le coach le relit pour chaque carte à chaque profil)
+function landKind(tl) {
+  const s = String(tl || ''); let k = LAND_MEMO.get(s);
+  if (k === undefined) { const f = s.split('//'); k = /\bland\b/i.test(f[0]) ? 'land' : f.length > 1 && f.slice(1).some(x => /\bland\b/i.test(x)) ? 'mdfc' : ''; if (LAND_MEMO.size >= 5000) LAND_MEMO.clear(); LAND_MEMO.set(s, k); }
+  return k;
+}
 function typeBucketOf(tl) {
   const t = tl.toLowerCase();
+  if (landKind(tl)) return 'Terrains';      // avant « creature » : Dryad Arbor est un terrain ; « Creature // Land » aussi (landKind)
   if (t.includes('creature')) return 'Créatures';
   if (t.includes('planeswalker')) return 'Planeswalkers';
   if (t.includes('battle')) return 'Batailles';
-  if (t.includes('land')) return 'Terrains';
   if (t.includes('artifact')) return 'Artefacts';
   if (t.includes('enchantment')) return 'Enchantements';
   if (t.includes('instant')) return 'Éphémères';
@@ -8962,7 +9048,10 @@ function typeBucketOf(tl) {
 const isLand = i => i.s === 'basic' || (i.tl ? typeBucket(i.tl) === 'Terrains' : false);
 const byName = (a, b) => NAME_CMP(a.dn || a.n, b.dn || b.n);      // dn : nom affiché si différent de n (carte française)
 const byCmcName = (a, b) => ((a.cm ?? 99) - (b.cm ?? 99)) || byName(a, b);
-const sumGroup = items => ({ count: items.reduce((a, i) => a + i.q, 0), cost: items.reduce((a, i) => a + (i.c || 0), 0) });
+const sumGroup = items => ({ count: items.reduce((a, i) => a + i.q, 0), cost: items.reduce((a, i) => a + (i.c || 0), 0), mdfc: items.reduce((a, i) => a + (i.s !== 'basic' && landKind(i.tl) === 'mdfc' ? i.q : 0), 0) });
+/** Groupe des terrains (tri par coût, par type, par rôle) : « dont N doubles faces » quand il en a ; '' sinon (et pour les autres groupes). */
+const landGroupNote = g => (g && g.mdfc > 0 && (g.id === 'land' || g.id === 't-Terrains' || g.id === 'r-land') ? ' · ' + landMdfcText(g.mdfc) : '');
+const landMdfcText = n => TN(n, 'dont {n} double face', 'dont {n} doubles faces');
 /**
  * Regroupe les cartes pour le viewer. sort : 'mana' (colonnes par coût converti, terrains à part) · 'price' (du plus cher au moins cher) · 'type'.
  * ref : relevé de référence (valeur estimée, pas d'offres) : « Sans prix » au lieu de « Sans offre ». sb : carte de la réserve, groupe « Réserve » avant « Introuvables », toujours en fin de liste. Retourne [{ id, label, items, count, cost }] — les groupes vides n'existent pas.
@@ -9176,8 +9265,19 @@ function commanderKeys(text) {
   }
   return out;
 }
-/** Sans en-tête : la première carte de la liste (export EDHREC) est le commandant si elle est légendaire (créature ou planeswalker). */
-const canLead = tl => /legendary/i.test(String(tl || '')) && /(creature|planeswalker)/i.test(String(tl || ''));
+/** Règle unique « peut être commandant » (viewer, coach, éditeur, Mes decks, collection) : règle officielle 903.3 : créature légendaire (ou Véhicule / Vaisseau légendaire
+ *  avec force et endurance), ou carte qui dit « can be your commander » (Teferi, Temporal Archmage…) ; un planeswalker légendaire ordinaire (Jace, the Mind Sculptor) ne l'est pas.
+ *  m = infos de la carte { cd, tl } : cd (canBeCommander, lu sur Scryfall avec le texte Oracle) s'il est connu, sinon la ligne de type (isCmdrType) ;
+ *  x (facultatif) = la carte dans la base du coach (dwCard : ty, bits de la face avant, 256 légendaire, 2 créature), quand la fiche n'est pas encore lue.
+ *  → 1 oui · 0 non · null : pas encore lue. */
+function canCommand(m, x) {
+  if (m && (m.cd === 0 || m.cd === 1)) return m.cd;
+  if (m && m.tl) return isCmdrType(m.tl) ? 1 : 0;
+  if (x && Number.isFinite(x.ty) && x.ty & 256 && x.ty & 2) return 1;      // la base ne connaît pas « can be your commander » : seulement le oui
+  return null;
+}
+/** Sans en-tête : la première carte de la liste (export EDHREC) est le commandant si elle peut l'être (canCommand). metaOf(carte) → infos { cd, tl }. Ancienne signature (ligne de type) acceptée. */
+const canLead = m => canCommand(typeof m === 'string' || m == null ? { tl: m || '' } : m) === 1;
 
 /* ── Créateur de deck (Standard / Commander) ──────────────────────────────────────────────────── */
 const DK_FORMATS = {
@@ -9206,16 +9306,8 @@ function dkMatch(text, f) {
   if (colors) { const have = dkColors(text); for (const c of colors) if (!have.includes(c)) return false; }
   return true;
 }
-/** Réserve d'une liste : lignes « SB: 2 Negate » et section « Sideboard » d'un export (deckSecs) : [{ key, name, qty }] (additionnée par carte). parseDeck ne les voit pas. */
-function dkSideCards(text) {
-  const out = new Map();
-  for (const [raw, sec] of deckSecs(text)) {
-    const m = raw.trim().match(/^SB:\s*(.+)$/i); if (!m && sec !== 'side') continue;
-    const p = parseLine(m ? m[1] : raw); if (!p || p.ignored) continue;
-    const k = ownKey(p.name), cur = out.get(k); if (cur) cur.qty += p.qty; else out.set(k, { key: k, name: p.name, qty: p.qty });
-  }
-  return [...out.values()];
-}
+/** Réserve d'une liste : lignes « SB: 2 Negate », section « Sideboard » d'un export et compagnon (comp : 1, voir deckModel) : [{ key, name, qty, comp? }] (additionnée par carte). parseDeck ne les voit pas. */
+const dkSideCards = text => dkSideOf(deckModel(text));
 /* Carte de présentation d'un deck (liste des decks) : ligne de commentaire « // Deck Deal cover : Sol Ring » dans le texte, donc synchronisée avec lui sans champ de plus. */
 const COVER_LINE = '// Deck Deal cover : ', COVER_RE = /^\s*\/\/\s*Deck Deal cover\s*:\s*(.*?)\s*$/i;
 function dkCover(text) { for (const l of String(text || '').split(/\r?\n/)) { const m = l.match(COVER_RE); if (m && m[1]) return m[1]; } return ''; }
@@ -9266,41 +9358,35 @@ function dkCoverCard(text, metaOf) {
   }
   return pick(best || any || pd.cards[0] || pool[0], true);
 }
-/** Liste du créateur → texte : { fmt, main:[{ name, qty }], side:[{ name, qty }], cmdr:[{ name }], cover (nom de la carte de présentation, facultatif) }.
+/** Liste du créateur → texte : { fmt, main:[{ name, qty }], side:[{ name, qty }], cmdr:[{ name }], comp:[{ name, qty }] (compagnon, section « Companion »), cover (nom de la carte de présentation, facultatif) }.
  *  Même syntaxe que les exports du marché (en-tête « Commander », lignes « SB: ») : le reste de l'app la lit sans rien savoir du créateur. */
-function dkBuildText({ fmt, main, side, cmdr, cover, meta }) {
+function dkBuildText({ fmt, main, side, cmdr, comp, cover, meta }) {
   const out = ['// Deck Deal : ' + (fmt === 'commander' ? 'commander' : 'standard')];
   if (cover) out.push(COVER_LINE + cover);
   for (const l of meta || []) out.push(l);      // autres lignes « // Deck Deal <mot> : … » (tags, origine, suivi) : gardées telles quelles
   if (fmt === 'commander' && cmdr && cmdr.length) { out.push('Commander'); cmdr.forEach(c => out.push('1 ' + c.name)); out.push(''); }
+  if (comp && comp.length) { out.push('Companion'); comp.forEach(c => out.push(c.qty + ' ' + c.name)); out.push(''); }      // compagnon (deckModel) : hors du deck, gardé dans les deux formats
   out.push('Deck');
   (main || []).forEach(c => out.push(c.qty + ' ' + c.name));
   if (fmt !== 'commander' && side && side.length) { out.push(''); side.forEach(c => out.push('SB: ' + c.qty + ' ' + c.name)); }
   return out.join('\n');
 }
-/** Texte → { fmt ('' si inconnu), main, side, cmdr } : cartes dans l'ordre de la liste, doublons additionnés, clé = clé de collection (face avant).
- *  Lit aussi les listes venues d'ailleurs (sections de deckSecs) : « Commander », « Sideboard » et « Companion » (réserve), lignes « SB: », Creatures, Lands… ; Maybeboard, Tokens, About : laissés de côté. */
+/** Texte → { fmt ('' si inconnu), main, side, cmdr, comp } : cartes dans l'ordre de la liste, doublons additionnés, clé = clé de collection (face avant).
+ *  main : le deck, terrains de base compris ; comp : le compagnon (section « Companion », hors du deck : voir deckModel). Lit aussi les listes venues d'ailleurs :
+ *  « Commander », « Sideboard » et lignes « SB: » (réserve), « Companion », Creatures, Lands… ; Maybeboard, Tokens, About : laissés de côté. */
 function dkParse(text) {
-  const main = new Map(), side = new Map(), cmdr = [];
-  const add = (m, p) => { const k = ownKey(p.name), cur = m.get(k); if (cur) cur.qty += p.qty; else m.set(k, { key: k, name: p.name, qty: p.qty }); };
-  for (const [raw, sec] of deckSecs(text)) {
-    const line = raw.trim();
-    if (!line || /^(\/\/|#)/.test(line)) continue;
-    const sb = line.match(/^SB:\s*(.+)$/i);
-    if (sb) { const p = parseLine(sb[1]); if (p && !p.ignored) add(side, p); continue; }
-    const p = parseLine(line); if (!p || p.ignored || sec === 'skip') continue;
-    if (sec === 'cmdr') { const k = ownKey(p.name); if (!cmdr.some(c => c.key === k)) cmdr.push({ key: k, name: p.name }); }
-    else add(sec === 'side' || sec === 'comp' ? side : main, p);
-  }
+  const md = deckModel(text), by = list => { const m = new Map(); for (const c of list) { const k = ownKey(c.name), cur = m.get(k); if (cur) cur.qty += c.qty; else m.set(k, { key: k, name: c.name, qty: c.qty }); } return [...m.values()]; };
+  const cmdr = []; for (const c of md.cmdr) { const k = ownKey(c.name); if (!cmdr.some(x => x.key === k)) cmdr.push({ key: k, name: c.name }); }
+  const o = md.order, main = by([...md.main, ...md.basics.filter(b => o.has(b.key))].sort((a, b) => o.get(a.key) - o.get(b.key)));      // terrains de base à leur place dans la liste
   const meta = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^\/\/\s*Deck Deal \w+\s*:/i.test(l) && !COVER_RE.test(l));      // tags, origine, suivi des cartes manquantes
-  return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text), meta };
+  return { fmt: dkFormat(text), main, side: by(md.side), cmdr, comp: by(md.comp), cover: dkCover(text), meta };
 }
-/** Valeur estimée d'un deck : prix de chaque carte (centimes) × exemplaires, commandant compris, terrains de base et réserve exclus, cartes possédées comprises.
+/** Valeur estimée d'un deck : prix de chaque carte (centimes) × exemplaires, commandant compris, terrains de base, compagnon et réserve exclus (deckModel), cartes possédées comprises.
  *  metaOf(clé) → infos de la carte { eu } ; null/undefined = pas encore lue (à chercher : « missing »). pxOf(clé) → prix estimé (centimes, 0 si inconnu : builder.js › dkPx,
  *  relevé du jour sinon tendance de la fiche), prioritaire sur metaOf(clé).eu ; sans pxOf : la fiche seule.
  *  → { cents, known (cartes chiffrées), total (cartes différentes), missing: [{ key, name }] (fiches à lire), noPrice (lues mais sans prix), wait (ni prix ni fiche : la valeur peut encore monter) } */
 function dkValue(text, metaOf, pxOf) {
-  let cents = 0, known = 0, noPrice = 0, wait = 0; const missing = [], cards = parseDeck(text).cards;
+  let cents = 0, known = 0, noPrice = 0, wait = 0; const missing = [], cards = deckModel(text).cards;
   for (const c of cards) {
     const k = ownKey(c.key), m = metaOf(k), p = pxOf ? pxOf(k) : 0;
     if (!m) missing.push({ key: k, name: c.name });
@@ -9308,9 +9394,9 @@ function dkValue(text, metaOf, pxOf) {
   }
   return { cents: Math.round(cents), known, total: cards.length, missing, noPrice, wait };
 }
-/** Taille d'un deck comptée comme le viewer : tous les exemplaires, commandant et terrains de base compris, réserve « SB: » à part.
+/** Taille d'un deck comptée comme le viewer et l'éditeur (dkCheck) : tous les exemplaires, commandant et terrains de base compris, réserve et compagnon à part (deckModel).
  *  size : 100 si le format Commander est connu (noté par le créateur ou en-tête « Commander »), sinon 0. → { n, size } */
-function dkCount(text) { return { n: parseDeck(text).copies, size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
+function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
 /** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
 function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
 /** Couleurs d'un deck d'après ses terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. */
@@ -9319,10 +9405,15 @@ function dkColors(text) {
   for (const b of parseDeck(text).basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
   return [...'WUBRG'].filter(c => have.has(c)).join('');
 }
-/** Vérifie un deck du créateur. d = { main, side, cmdr } (comme dkParse) ; metaOf(clé) → { ci } ou null (identité de couleur, si connue).
- *  Retourne { n (cartes du deck, commandant compris), side, size, issues: [{ lv: 'bad'|'warn', t }] } : « bad » = règle enfreinte, « warn » = deck pas fini. */
-function dkCheck(fmt, d, metaOf) {
-  const f = DK_FORMATS[fmt] || DK_FORMATS.standard, main = d.main || [], side = d.side || [], cmdr = d.cmdr || [], issues = [];
+/** Vérifie un deck du créateur. d = { main, side, cmdr, comp } (comme dkParse) ; metaOf(clé) → { ci, cd, tl, lg } ou null (si connue).
+ *  o (Commander, facultatif) : { legal: clé → true | false | null (builder.js › cardLegal : fiche Scryfall, sinon base du coach ; sans lui : metaOf(clé).lg),
+ *  br: bracket visé (0 : pas de vérification), facts: { gc, mld, xt, c2, c3 } (deckwiz.js › dwBrFacts) } : règles du bracket (brackets.js), comme l'audit du coach.
+ *  Retourne { n (cartes du deck, commandant compris, compagnon exclu), side (réserve, compagnon compris en Standard), size, issues: [{ lv: 'bad'|'warn', t }] } : « bad » = règle enfreinte, « warn » = deck pas fini.
+ *  Compagnon (deckModel) : jamais dans les 100 cartes d'un Commander ; en Standard, une des 15 cartes de la réserve (compté une fois s'il y est déjà). */
+const dkCompOut = (comp, side) => (comp || []).filter(c => !(side || []).some(x => x.key === c.key));      // compagnon pas déjà écrit dans la réserve
+function dkCheck(fmt, d, metaOf, o) {
+  const f = DK_FORMATS[fmt] || DK_FORMATS.standard, main = d.main || [], cmdr = d.cmdr || [], issues = [];
+  const side = fmt === 'commander' ? d.side || [] : [...(d.side || []), ...dkCompOut(d.comp, d.side)];
   const sum = a => a.reduce((x, c) => x + c.qty, 0), n = sum(main) + cmdr.length, ns = sum(side);
   if (fmt === 'commander') {
     if (!cmdr.length) issues.push({ lv: 'bad', t: T('Aucun commandant : choisis-en un.') });
@@ -9335,11 +9426,13 @@ function dkCheck(fmt, d, metaOf) {
       if (c.qty > max) issues.push({ lv: 'bad', t: max === 1 ? T('{name} : {n} exemplaires (un seul en Commander).', { name: c.name, n: c.qty }) : T('{name} : {n} exemplaires ({max} au maximum).', { name: c.name, n: c.qty, max }) });
       if (cmdr.some(x => x.key === c.key)) issues.push({ lv: 'bad', t: T('{name} est déjà ton commandant.', { name: c.name }) });
     }
-    for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && m.cd === 0) issues.push({ lv: 'warn', t: T('{name} ne peut normalement pas être commandant.', { name: c.name }) }); }      // cd : 0 = carte lue sur Scryfall et non éligible (absent = pas encore lue)
+    for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (canCommand(m) === 0) issues.push({ lv: 'warn', t: T('{name} ne peut normalement pas être commandant.', { name: c.name }) }); }      // cd : 0 = carte lue sur Scryfall et non éligible (absent = pas encore lue)
     const ci = new Set(); let known = cmdr.length > 0;
     for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && typeof m.ci === 'string') for (const x of m.ci) ci.add(x); else known = false; }
     if (known) for (const c of main) { const m = metaOf(c.key); if (m && typeof m.ci === 'string' && [...m.ci].some(x => !ci.has(x))) issues.push({ lv: 'warn', t: T('{name} sort de l\'identité de couleur du commandant.', { name: c.name }) }); }
-    if (metaOf) for (const c of [...cmdr, ...main]) { if (BASIC_NAMES.has(c.key)) continue; const m = metaOf(c.key); if (m && typeof m.lg === 'string' && m.lg && !m.lg.includes('c')) issues.push({ lv: 'bad', t: T('{name} n\'est pas légale en Commander.', { name: c.name }) }); }      // lg : formats où Scryfall la dit jouable (lgOf) ; inconnus : rien
+    const legal = o && o.legal ? o.legal : k => { const m = metaOf && metaOf(k); return m && typeof m.lg === 'string' && m.lg ? m.lg.includes('c') : null; };      // lg : formats où Scryfall la dit jouable (lgOf) ; inconnus : rien
+    for (const c of [...cmdr, ...main]) { if (!BASIC_NAMES.has(c.key) && legal(c.key) === false) issues.push({ lv: 'bad', t: T('{name} n\'est pas légale en Commander.', { name: c.name }) }); }
+    if (o && o.br && o.facts) for (const b of BRK.bracketBreaks(o.br, o.facts)) if (b.lv === 'bad' || b.lv === 'warn') issues.push({ lv: b.lv, t: b.t });      // même verdict que l'audit du coach (deckwiz.js › dwBracketHtml)
   } else {
     if (n < f.size) issues.push({ lv: 'warn', t: TN(f.size - n, 'Il manque {n} carte ({size} minimum).', 'Il manque {n} cartes ({size} minimum).', { n: f.size - n, size: f.size }) });
     if (ns > f.side) issues.push({ lv: 'bad', t: T('Réserve de {n} cartes ({max} au maximum).', { n: ns, max: f.side }) });
@@ -9923,9 +10016,9 @@ const engFree = (owned, eng, k, exceptId) => Math.max(0, (Number(owned) || 0) - 
 function engDecksOf(eng, k) { const out = []; for (const id in eng || {}) { const q = (eng[id].q && eng[id].q[k]) || 0; if (q > 0) out.push({ id, n: eng[id].n, q }); } return out; }
 /** Deck monté : pour chaque carte du texte (hors terrains de base), les exemplaires possédés, au plus la quantité du deck. ownedOf : clé → exemplaires possédés. */
 function engSnapshot(text, ownedOf) {
-  const want = new Map();      // clé → exemplaires voulus : deck + réserve (« SB: »), la réserve est dans la boîte du deck aussi
-  for (const c of parseDeck(text).cards) { const k = ownKey(c.key); if (k && !BASIC_NAMES.has(k)) want.set(k, (want.get(k) || 0) + c.qty); }
-  for (const c of dkSideCards(text)) if (c.key && !BASIC_NAMES.has(c.key)) want.set(c.key, (want.get(c.key) || 0) + c.qty);
+  const want = new Map(), md = deckModel(text);      // clé → exemplaires voulus : deck + réserve (« SB: ») + compagnon, la réserve est dans la boîte du deck aussi
+  for (const c of md.cards) { const k = ownKey(c.key); if (k && !BASIC_NAMES.has(k)) want.set(k, (want.get(k) || 0) + c.qty); }
+  for (const c of dkSideOf(md)) if (c.key && !BASIC_NAMES.has(c.key)) want.set(c.key, (want.get(c.key) || 0) + c.qty);
   const q = {};
   for (const [k, w] of want) {
     const n = Math.min(w, Math.max(0, Math.floor(Number(ownedOf(k)) || 0)));
@@ -9971,13 +10064,13 @@ function canBeCommander(c) {
   }
   return 0;
 }
-/** Sans l'info précise (cartes lues avant l'ajout du champ) : d'après la ligne de type. */
-const isCmdrType = tl => /\blegendary\b/i.test(String(tl || '')) && /\bcreature\b/i.test(String(tl || ''));
+/** Sans l'info précise (cartes lues avant l'ajout du champ) : d'après la ligne de type de la face avant (canBeCommander : créature, ou Véhicule / Vaisseau, légendaire). */
+const isCmdrType = tl => { const f = String(tl || '').split('//')[0]; return /\blegendary\b/i.test(f) && /\b(creature|vehicle|spacecraft)\b/i.test(f); };
 /** Classe « commander » d'une carte de la collection : { cx, ed } — cx 0 pas commandant · 1 peut l'être · 2 joué comme commandant dans des decks EDHREC (ed : nombre de decks). edh : résultat de parseEdh, ou null. */
 function cmdrClass(i, edh) {
   const e = edh && edh.by && edh.by.get(i.k);
   if (e) return { cx: 2, ed: e.decks };
-  return { cx: (i.cd != null ? i.cd : isCmdrType(i.tl)) ? 1 : 0, ed: 0 };
+  return { cx: canCommand(i) === 1 ? 1 : 0, ed: 0 };
 }
 /** Lit le texte d'un edh.tsv en modèle { v, at, cmds:[{ slug, decks, ci, names, img }], decks:[{ slug, src, label, url, cards:[[nom, qté]] }], price:[[nom, centimes]], gc:[nom] } (voir edhPack). */
 function edhModelFromTsv(text) {
@@ -10144,8 +10237,11 @@ function edhAddComm(raw, list) {
 /** Tier d'un commandant selon son rang de popularité (nombre de decks EDHREC) : S = les 30 premiers, A jusqu'à 150, B 500, C 1 500, D le reste. */
 const EDH_TIERS = [['S', 30], ['A', 150], ['B', 500], ['C', 1500], ['D', Infinity]];
 const edhTier = rank => (EDH_TIERS.find(t => rank <= t[1]) || EDH_TIERS[EDH_TIERS.length - 1])[0];
-/** Bracket estimé d'un deck d'après son nombre de Game Changers : 0 → 2 (Core), 1 à 3 → 3 (Upgraded), 4 et plus → 4 (Optimized). Estimation : les autres critères du bracket (terrains détruits, tours supplémentaires, combos) ne sont pas lus. */
-const edhBracket = n => (n <= 0 ? 2 : n <= 3 ? 3 : 4);
+/** Règles des brackets (brackets.js : LA table) : globales dans l'appli, require dans Node. */
+const BRK = typeof module !== 'undefined' && module.exports ? require('./brackets.js') : { bracketEstimate, bracketBreaks };
+/** Bracket estimé d'un deck d'après son nombre de Game Changers (règles de brackets.js) : 0 → 2 (Core), 1 à 3 → 3 (Upgraded), 4 et plus → 4 (Optimized).
+ *  Decks EDHREC : seuls les Game Changers sont connus (terrains détruits, tours supplémentaires, combos : deckana.js › dwBracketOf, avec la base du coach). */
+const edhBracket = n => BRK.bracketEstimate({ gc: n });
 /** Mots d'une recherche de deck (sans accents ni ponctuation, comme les clés de cartes) ; [] si rien à chercher. */
 const edhTokens = q => normName(q).replace(/ \/\/ /g, ' ').split(' ').filter(Boolean);
 /** Le commandant (ou la paire) contient tous les mots (début de mot) : « tymna » et « thrasios triton » trouvent la paire Tymna + Thrasios. */
@@ -10827,8 +10923,8 @@ function readShare(kind, d) {
 }
 
 /* ── Main de départ ────────────────────────────────────────────────────────────────────────────── */
-/** Terrain ? D'après la ligne de type de la face avant (« Land », « Legendary Land »… ; une carte modale « Sort // Terrain » n'en est pas un). */
-const isLandType = tl => /\bland\b/i.test(String(tl || '').split('//')[0]);
+/** Terrain ? Même règle que le viewer et le coach (landKind) : face avant terrain, ou double face modale « Sort // Terrain » (jouable comme terrain). */
+const isLandType = tl => !!landKind(tl);
 /** Bibliothèque d'un deck : un élément par exemplaire (commandants retirés : ils restent dans la zone de commandement). */
 function libraryOf(items) {
   const out = [];
@@ -10854,8 +10950,8 @@ if (typeof module !== 'undefined' && module.exports) {
     parseLine, dropCard, restoreLines, sortCards, ctCardUrl, ctShare, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
-    sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
+    sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
@@ -11791,7 +11887,8 @@ async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0
   return out;
 }
 
-/** Infos Scryfall d'une liste de cartes par leur nom (75 par requête) : Map(clé de collection → { cm, mc, tl, cl, ci, cd, im, eu, ar, rr, lg, la } | null si inconnue). ar : artiste de l'illustration (crédit des orbes de l'accueil) ;
+/** Infos Scryfall d'une liste de cartes par leur nom (75 par requête) : Map(clé de collection → { cm, mc, tl, cl, ci, cd, im, eu, ef, ar, rr, lg, la, gc? } | null si inconnue). ar : artiste de l'illustration (crédit des orbes de l'accueil) ;
+ *  gc : 1 / 0, Game Changer d'après Scryfall (game_changer ; absent si Scryfall ne le dit pas : builder.js › isGC passe alors à EDHREC) ;
  *  rr : rareté de l'impression que Scryfall renvoie pour ce nom (filtre « Rareté » des cartes sans édition, search.js). */
 async function scryCollection(names, signal, onProgress, prio = false) {
   const out = new Map(), uniq = [...new Map(names.map(n => [ownKey(n), n])).entries()];
@@ -11799,7 +11896,7 @@ async function scryCollection(names, signal, onProgress, prio = false) {
     const chunk = uniq.slice(i, i + 75);
     const body = JSON.stringify({ identifiers: chunk.map(([, n]) => ({ name: String(n).split('//')[0].trim() })) });
     const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal, 4, prio);
-    for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', ...mkPx(c.prices), ar: c.artist || '', rr: String(c.rarity || '').slice(0, 12), lg: lgOf(c.legalities), la: Math.floor(Date.now() / 864e5) }); }      // ef : prix foil (exemplaires foil sans édition) ; lg, la : formats où elle est légale, jour de la lecture (filtre « Format »)
+    for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', ...mkPx(c.prices), ar: c.artist || '', rr: String(c.rarity || '').slice(0, 12), lg: lgOf(c.legalities), la: Math.floor(Date.now() / 864e5), ...(typeof c.game_changer === 'boolean' ? { gc: c.game_changer ? 1 : 0 } : {}) }); }      // ef : prix foil (exemplaires foil sans édition) ; lg, la : formats où elle est légale, jour de la lecture (filtre « Format »)
     for (const [k] of chunk) if (!out.has(k)) out.set(k, null);
     if (onProgress) onProgress(Math.min(uniq.length, i + 75), uniq.length);
   }
@@ -19027,10 +19124,10 @@ try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type',
 
 /** Deck Commander (bloc « Commander » ou format noté) : bouton « Analyser » (deckana.js). */
 const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
-/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle est légendaire (export EDHREC). */
+/** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {
   const ks = commanderKeys(text).filter(k => cards.some(c => c.key === k));
-  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (m && canLead(m.tl)) ks.push(cards[0].key); }
+  if (!ks.length && cards[0]) { const m = metaOf(cards[0]); if (canCommand(m) === 1) ks.push(cards[0].key); }
   return new Set(ks);
 }
 
@@ -19129,10 +19226,11 @@ function dvBasics(snap) {
   if (!snap || !snap.items.some(i => i.s === 'basic' && !i.im && basicIm(i.k))) return snap;
   return { ...snap, items: snap.items.map(i => (i.s === 'basic' && !i.im && basicIm(i.k) ? { ...i, im: basicIm(i.k) } : i)) };
 }
-/** Cartes dont le viewer a besoin ([{ key, name }]) : le deck entier si le relevé est de référence, sinon seulement la réserve ; terrains de base toujours (images). */
+/** Cartes dont le viewer a besoin ([{ key, name }]) : le deck entier si le relevé est de référence ou si le deck est Commander (légalité, Game Changers : builder.js › cardLegal,
+ *  isGC), sinon seulement la réserve ; terrains de base toujours (images). */
 function dvNeeds() {
   const pd = parseDeck(DV.text), ref = DV.snap && DV.snap.ref;
-  return [...(ref ? pd.cards : []), ...dkSideCards(DV.text), ...pd.basics].map(c => ({ key: ownKey(c.key), name: c.name }));
+  return [...(ref || dvCmdr() ? pd.cards : []), ...dkSideCards(DV.text), ...pd.basics].map(c => ({ key: ownKey(c.key), name: c.name }));
 }
 /** Lit sur Scryfall ce qui manque (images, coûts, prix du relevé de référence, de la réserve et des terrains), puis reconstruit l'affichage si le viewer est toujours ouvert. */
 async function dvMetaLoad(wrap) {
@@ -19181,9 +19279,16 @@ const dvImgTag = (it, u, lazy = true) => { const l = it.ol ? '' : undefined, nm 
 const dvLetter = it => esc((it.n.trim()[0] || '?').toUpperCase());
 /** Écart notable d'une carte (≥ 5 % ou ≥ 0,20 € par exemplaire) : flèche sur la vignette. */
 const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.prev * 0.05);
-/** Carte de la liste officielle des Game Changers (brackets Commander) : données EDHREC de l'appli. */
-const dvGC = k => !!(typeof EDH !== 'undefined' && EDH.data && EDH.data.gc && EDH.data.gc.size && EDH.data.gc.has(ownKey(String(k).replace(/^sb:/, ''))));
+/** Carte de la liste officielle des Game Changers (brackets Commander) : builder.js › isGC (base du coach, sinon Scryfall, sinon EDHREC : même EDHREC coupé), comme l'éditeur. */
+const dvGC = k => (typeof isGC === 'function' ? isGC(k) : false);
 const dvGCBadge = () => `<span class="dvc-gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`;
+/** Deck Commander : carte pas légale en Commander (builder.js › cardLegal : fiche Scryfall, possédée ou non, sinon base du coach), comme la pastille de l'éditeur. */
+const dvIllegal = it => it.s !== 'basic' && !it.sb && dvCmdr() && typeof cardLegal === 'function' && cardLegal(ownKey(String(it.k).replace(/^sb:/, '')), 'commander') === false;
+const dvIllBadge = () => `<span class="dvc-ill" title="${T('Pas légale en Commander')}" aria-hidden="true">⊘</span>`;
+/** dvCommander lu une fois par texte de deck (vignettes : appelé pour chaque carte). */
+const dvCmdr = () => { if (DV.cmOf !== DV.text) { DV.cmOf = DV.text; DV.cmIs = dvCommander(); } return DV.cmIs; };
+/** Cartes du deck pas légales en Commander (noms) : rappel en tête du viewer. */
+const dvIllNames = items => (dvCmdr() ? items.filter(dvIllegal).map(i => i.n) : []);
 /** Morceaux communs aux vues : prix ou état, possession ou langue, quantité, Game Changer, libellé lu par le lecteur d'écran. */
 function dvBits(it, snap, dl) {
   const hue = hash32(it.k) % 360, art = dvImg(it), d = dl && dl.get(it.k), mv = dvMoved(d) ? `<em class="${d.diff < 0 ? 'dn' : 'up'}" aria-hidden="true">${d.diff < 0 ? '▼' : '▲'}</em>` : '';
@@ -19195,12 +19300,12 @@ function dvBits(it, snap, dl) {
     : it.s === 'ok' && it.l && snap.lang && it.l !== snap.lang ? `<span class="dvc-l">${esc(it.l.toUpperCase())}</span>` : '';
   const q = it.q > 1 ? `<span class="dvc-q">×${it.q}</span>` : '';
   const label = `${it.n}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
-  const gc = dvGC(it.k);
-  return { hue, art, tag, en, q, gc, label: label + (gc ? ', Game Changer' : '') };
+  const gc = dvGC(it.k), ill = dvIllegal(it);
+  return { hue, art, tag, en, q, gc, ill, label: label + (gc ? ', Game Changer' : '') + (ill ? ', ' + T('Pas légale en Commander') : '') };
 }
 function dvTile(it, i, snap, dl, sm) {
-  const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+  const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, ill, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || ill || en ? `<span class="dvc-tl">${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
 /** Petite image Scryfall (146 × 204) d'une adresse /normal/ : cartes recouvertes des piles. Une pile entière en /normal/ décodait ~140 Mo d'images
@@ -19215,8 +19320,8 @@ function dvImgSizes(root, view) {
   }
 }
 function dvStrip(it, i, snap, dl) {
-  const { hue, tag, en, gc, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  const { hue, tag, en, gc, ill, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -19250,6 +19355,11 @@ function dvRefLine(items) {
   return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(dvFmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + Math.abs(t.pct) + ' %'}</b></div>`;
 }
 
+/** Rappel des cartes pas légales en Commander (deck Commander), comme l'alerte du résumé de l'éditeur (core.js › dkCheck). */
+function dvIllHtml(items) {
+  const l = dvIllNames(items); if (!l.length) return '';
+  return `<p class="dv-ill" role="note">${dvIllBadge()}<span>${esc(TN(l.length, 'Pas légale en Commander : {list}', 'Pas légales en Commander : {list}', { list: l.slice(0, 6).join(', ') + (l.length > 6 ? '…' : '') }))}</span></p>`;
+}
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
 function dvFrame(snap) {
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
@@ -19266,7 +19376,7 @@ function dvFrame(snap) {
   $('.dv-body', el).innerHTML = `<div class="dv-side"><section class="dv-sum">
       <div class="dv-total"><span class="dv-eur">${ref ? '≈ ' : ''}<span class="dv-amt">${esc(dvFmt(total))}</span>${ref && none ? '+' : ''}</span><span class="dv-crit">${ref ? '' : T('Articles') + ' · '}${esc(crit)}</span></div>
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
-      ${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
+      ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
       <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
@@ -19359,7 +19469,7 @@ function dvGroups() {
   $('#dvCmd', el).innerHTML = cmds.length ? `<div class="dv-cmds">${cmds.map(c => dvHero(c, flat(c), snap, dl)).join('')}</div>` : '';
   const groups = DV.sort === 'role' ? dvRoleGroups(rest, !!snap.ref) : groupSnap(rest, DV.sort, !!snap.ref);
   const hidden = (DV.f.colors.size || DV.f.type || DV.f.cmc !== '') ? all.filter(i => !hasMeta(i)).length : 0;
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${esc(landGroupNote(g))}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix du jour') : ''}</small></h3>`;
   const cols = g => (view === 'stacks' ? Math.min(2, Math.max(1, g.items.length)) : 1);
   const box = (gi, c = 0) => `<div class="${view === 'grid' ? 'dv-grid' : view === 'strips' ? 'dv-strips' : 'dvp'}" data-gi="${gi}" data-c="${c}"></div>`;
   const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
@@ -19541,10 +19651,10 @@ const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Ma
 function openHand() {
   if (typeof prgAdd === 'function') prgAdd('hd');      // mains de départ tirées (progress.js)
   const snap = DV.snap; if (!snap) return;
-  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);
+  const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);      // doubles faces « Sort // Terrain » comprises (landKind), annoncées
   if (lib.length < 7) { toast(T('Il faut au moins 7 cartes dans le deck')); return; }
-  const L = lib.filter(isLand).length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
-  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains'), api => {
+  const L = lib.filter(isLand).length, mdfc = lib.filter(it => it.s !== 'basic' && landKind(it.tl) === 'mdfc').length, unknown = new Set(lib.filter(it => it.s !== 'basic' && it.tl == null).map(it => it.k)).size, odds = handLandOdds(lib.length, L, 7);
+  openSheet(T('Main de départ'), TN(lib.length, '{n} carte dans la bibliothèque', '{n} cartes dans la bibliothèque') + ' · ' + TN(L, '{n} terrain', '{n} terrains') + (mdfc ? ' (' + landMdfcText(mdfc) + ')' : ''), api => {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
@@ -23023,7 +23133,7 @@ function pdCiOf(k) {
 async function pdCi(cmd) {
   const need = cmd.filter(c => pdCiOf(c.k) === null);
   if (need.length && scryLeft() <= 0) {
-    try { const got = await scryCollection(need.map(c => c.name)); let n = 0; for (const [k, m] of got) if (m && typeof m.ci === 'string') { DM[k] = { ...(DM[k] || {}), eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } if (n) dmSave(); }
+    try { const got = await scryCollection(need.map(c => c.name)); let n = 0; for (const [k, m] of got) if (m && typeof m.ci === 'string') { metaTake(k, m); n++; } if (n) dmSave(); }      // la fiche entière (légalité, Game Changer compris : builder.js › metaPut)
     catch (e) { /* hors ligne */ }
   }
   const all = cmd.map(c => pdCiOf(c.k)); if (all.some(x => x === null)) return null;
@@ -24315,7 +24425,7 @@ function csLoad(k) {
   csSrvLoad(k);
   csHist(k, CS.n).then(h => { if (mine()) { CS.h = h; csPaint(); } }, () => { if (mine()) { CS.h = null; csPaint(); } });
   const g = CS.g, l = g ? lineLang(g) : (CS.o.l && !String(CS.o.l).includes('|') ? CS.o.l : '');
-  csOracle(k, CS.n, l, g ? lineEd(g) : '').then(r => { if (mine()) { CS.or = r; csPaint(); } }, () => { if (mine()) { CS.or = null; csPaint(); } });
+  csOracle(k, CS.n, l, g ? lineEd(g) : '').then(r => { if (r && r.lg && typeof metaPut === 'function') metaPut(k, { lg: lgOf(r.lg), la: Math.floor(Date.now() / 864e5), ...(typeof r.gc === 'number' ? { gc: r.gc } : {}) }); if (mine()) { CS.or = r; csPaint(); } }, () => { if (mine()) { CS.or = null; csPaint(); } });      // légalités lues ici : gardées dans LA fiche de la carte (builder.js › metaPut, cardLegal) : éditeur et viewer disent la même chose que cette fiche
 }
 /** Relevé du serveur des alertes pour une carte suivie (prix du dernier passage, prix habituel = médiane des relevés d'avant). */
 function csSrvLoad(k) {
@@ -24327,7 +24437,7 @@ function csSrvLoad(k) {
 const csFaces = c => (Array.isArray(c.card_faces) && c.card_faces.length > 1 && !c.oracle_text ? c.card_faces : [c]);
 const csPrinted = c => !!c && csFaces(c).some(f => f.printed_text);
 const SCRY_URI_RE = /^https:\/\/scryfall\.com\/card\/[\w./%-]+(\?[\w=&%-]*)?$/;
-/** { en: [{ n, tl, mc, t }] (faces), loc?: { l, f: [{ n, tl, t }] } (texte imprimé dans la langue l), lg (légalités), r (rareté), set, sn, num, uri } ; null hors ligne sans copie. */
+/** { en: [{ n, tl, mc, t }] (faces), loc?: { l, f: [{ n, tl, t }] } (texte imprimé dans la langue l), lg (légalités), gc? (1 / 0 : Game Changer d'après Scryfall), r (rareté), set, sn, num, uri } ; null hors ligne sans copie. */
 async function csOracle(k, name, l, e) {
   const sl = l && l !== 'en' && SCRY_LANG[l] ? SCRY_LANG[l] : '', key = 'or1:' + k + ':' + (sl ? sl + ':' + (e || '') : 'en');
   const hit = await Cache.get(key, CS_OR_TTL); if (hit) return hit;
@@ -24335,7 +24445,7 @@ async function csOracle(k, name, l, e) {
   const nm = String(name || '').split('//')[0].trim(), get = async url => { try { return await httpJson(limScry, url, SCRY_JSON, undefined, 1, true); } catch (x) { if (x.code === '404') return null; throw x; } };
   const j = await get('https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(nm)); if (!j || !j.name) return null;
   const out = { en: csFaces(j).map(f => ({ n: String(f.name || ''), tl: String(f.type_line || ''), mc: String(f.mana_cost || ''), t: String(f.oracle_text || '') })), lg: j.legalities && typeof j.legalities === 'object' ? j.legalities : {},
-    r: String(j.rarity || ''), set: String(j.set || ''), sn: String(j.set_name || ''), num: String(j.collector_number || ''), uri: SCRY_URI_RE.test(j.scryfall_uri || '') ? j.scryfall_uri : '' };
+    ...(typeof j.game_changer === 'boolean' ? { gc: j.game_changer ? 1 : 0 } : {}), r: String(j.rarity || ''), set: String(j.set || ''), sn: String(j.set_name || ''), num: String(j.collector_number || ''), uri: SCRY_URI_RE.test(j.scryfall_uri || '') ? j.scryfall_uri : '' };
   if (sl) {      // texte imprimé : l'impression de la ligne (édition connue), sinon la plus récente dans cette langue
     let c = e ? await get('https://api.scryfall.com/cards/' + encodeURIComponent(edSet(e)) + '/' + encodeURIComponent(edNum(e)) + '/' + sl).catch(() => null) : null;
     if (!csPrinted(c)) { const s = await get('https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + nm + '" lang:' + sl) + '&unique=prints&order=released').catch(() => null); c = ((s && s.data) || []).find(csPrinted) || null; }
@@ -27518,24 +27628,74 @@ if (typeof document !== 'undefined') {
    Écran plein format : onglets Deck · Collection (ajout en priorité) · Chercher (n'importe quelle carte).
    Règles : Standard 60 cartes, 4 exemplaires max (réserve de 15 facultative) ; Commander 100 cartes, une seule de chaque, un commandant.
    Le deck est enregistré comme les autres (texte), puis monté : ses cartes possédées sont réservées. */
-/** Infos Scryfall des cartes de decks qui ne sont pas dans la collection ({ eu, ci, cd, im, cm, mc, tl, cl }) : gardées sur l'appareil (prix du deck, couleurs, images, viewer). */
-const DM = {}; let dmReady = null;
+/** Infos Scryfall des cartes de decks qui ne sont pas dans la collection : la fiche entière de data.js › scryCollection ({ eu, ef, ci, cd, im, cm, mc, tl, cl, ar, rr,
+ *  lg (formats où elle est légale), la (jour de cette lecture), gc (Game Changer d'après Scryfall) }), gardée sur l'appareil (prix du deck, couleurs, images, légalité, viewer).
+ *  Fiches d'avant le 5 novembre (sans lg) : gardées telles quelles, complétées à la prochaine lecture de leur deck (dmMissing). */
+const DM = {}; let dmReady = null, dmT = 0;
 function dmLoad() {
   if (!dmReady) dmReady = Cache.get('dm:meta', 30 * DAY).then(c => { if (c && typeof c === 'object') for (const k in c) if (!DM[k]) DM[k] = c[k]; renderDecks(); }).catch(() => {});
   return dmReady;
 }
-const dmSave = () => { Cache.set('dm:meta', DM); };
+const dmSave = () => { clearTimeout(dmT); dmT = 0; Cache.set('dm:meta', DM); };
+const dmSaveSoon = () => { clearTimeout(dmT); dmT = setTimeout(dmSave, 800); };
+/** LA fiche d'une carte (clé de ownKey) : collection (COLL.meta), sinon cartes des decks (DM) ; null si jamais lue. Une carte possédée lue avant que l'appli garde
+ *  sa légalité : celle de DM (ou de sa fiche ouverte) la complète. Tous les champs de scryCollection sont gardés (cardLegal, isGC, prix, filtres). */
+function cardMeta(k) {
+  const a = COLL.meta[k], b = DM[k];
+  if (!a) return b || null;
+  return b && a.lg === undefined && b.lg !== undefined ? { ...a, lg: b.lg, la: b.la, ...(a.gc === undefined && b.gc !== undefined ? { gc: b.gc } : {}) } : a;
+}
+/** Ajoute des champs à la fiche d'une carte (les autres restent) : collection si elle y est (enregistrée avec elle), sinon cartes des decks.
+ *  Carte encore inconnue : seulement une fiche complète (type lu) ; un bout de fiche (légalité seule) n'en crée pas. → vrai si quelque chose a été gardé. */
+function metaPut(k, m) {
+  if (!k || !m || typeof m !== 'object') return false;
+  if (COLL.meta[k]) { COLL.meta[k] = { ...COLL.meta[k], ...m }; if (typeof collMetaSave === 'function') collMetaSave(); return true; }
+  if (!DM[k] && m.tl === undefined) return false;
+  DM[k] = { ...(DM[k] || {}), ...m }; dmSaveSoon(); return true;
+}
+/** Fiche lue sur Scryfall (scryCollection) pour une carte : gardée entière (cartes des decks) ; carte possédée : seuls les champs qui manquaient à sa fiche de la
+ *  collection, et sa légalité (relue), y sont ajoutés (son prix reste celui de la collection). */
+function metaTake(k, m) {
+  const own = COLL.meta[k]; if (!own) return metaPut(k, m);
+  const add = {}; for (const f in m) if (own[f] === undefined) add[f] = m[f];
+  if (m.lg !== undefined) { add.lg = m.lg; add.la = m.la; if (m.gc !== undefined) add.gc = m.gc; }
+  return metaPut(k, add);
+}
+/** Fiche complète : type lu et légalité connue (fiches d'avant le 5 novembre : relues). */
+const metaFull = m => !!m && m.tl !== undefined && m.lg !== undefined;
+/** Une carte est-elle légale dans ce format (« commander », « standard »… : LG_FMT) ? true / false, ou null si on ne sait pas. D'abord la fiche Scryfall
+ *  (lg : relue avec les cartes du deck, de la collection ou à l'ouverture de sa fiche), sinon la base du coach (Commander : drapeau 16 « interdite »). Terrains de base : oui. */
+function cardLegal(k, fmt = 'commander') {
+  if (BASIC_NAMES.has(k)) return true;
+  const f = LG_FMT.find(x => x[1] === fmt), m = cardMeta(k);
+  if (f && m && typeof m.lg === 'string' && m.lg) return m.lg.includes(f[0]);
+  const r = fmt === 'commander' && typeof DW !== 'undefined' && DW.byKey ? DW.byKey.get(k) : null;
+  return r ? !(r[6] & 16) : null;
+}
+/** Game Changer (liste officielle des brackets Commander) ? La base du coach d'abord (drapeau 1), sinon la fiche Scryfall (game_changer), sinon la liste d'EDHREC. */
+function isGC(k) {
+  k = ownKey(String(k || '').replace(/^sb:/, ''));
+  const r = typeof DW !== 'undefined' && DW.byKey ? DW.byKey.get(k) : null; if (r) return !!(r[6] & 1);
+  const m = cardMeta(k); if (m && m.gc !== undefined) return !!m.gc;
+  return !!(typeof EDH !== 'undefined' && EDH.data && EDH.data.gc && EDH.data.gc.has(k));
+}
 const dmTried = new Set();
-/** Cartes ([{ key, name }], terrains de base compris si basics) dont on ne connaît ni la fiche (collection) ni l'entrée complète du cache (type, coût et couleurs compris), pas encore essayées. */
-const dmMissing = (list, basics) => list.filter(c => (basics || !BASIC_NAMES.has(c.key)) && !COLL.meta[c.key] && !(DM[c.key] && DM[c.key].tl !== undefined) && !dmTried.has(c.key)).slice(0, 150);
-/** Lit sur Scryfall les cartes pas encore connues ([{ key, name }]) ; retourne vrai si quelque chose est arrivé. */
+/** Cartes ([{ key, name }], terrains de base compris si basics) dont on ne connaît pas la fiche complète (metaFull : type, coût, couleurs et légalité), pas encore essayées. */
+const dmMissing = (list, basics) => list.filter(c => (basics || !BASIC_NAMES.has(c.key)) && !metaFull(cardMeta(c.key)) && !dmTried.has(c.key)).slice(0, 150);
+/** Lit sur Scryfall les cartes pas encore connues ([{ key, name }]) ; retourne vrai si quelque chose est arrivé (gardé par metaTake). */
 async function dmFetch(list, basics) {
   const need = dmMissing(list, basics);
   if (!need.length || scryLeft() > 0) return false;
   need.forEach(c => dmTried.add(c.key));
   let n = 0;
   for (let i = 0; i < need.length; i += 75) {      // un lot de 75 par requête : un lot refusé ne fait pas perdre les fiches des lots déjà lus
-    try { const got = await scryCollection(need.slice(i, i + 75).map(c => c.name)); for (const [k, m] of got) if (m) { DM[k] = { eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } }
+    try {
+      const got = await scryCollection(need.slice(i, i + 75).map(c => c.name));
+      for (const [k, m] of got) {
+        if (!m) continue;
+        metaTake(k, m); n++;
+      }
+    }
     catch (e) { need.slice(i).forEach(c => dmTried.delete(c.key)); break; }      // hors ligne ou limite Scryfall : l'estimation reste partielle ; ces cartes seront redemandées (sinon leur image ne venait jamais de la session)
   }
   if (n) dmSave(); return n > 0;
@@ -27557,7 +27717,7 @@ function thumbsReady(root) { if (root) for (const im of root.querySelectorAll('i
  *  Sol Ring, Command Tower, Path to Exile…) : prix de l'impression la moins chère du relevé du jour (data.js › pxTable), comme le coach ; jamais « prix inconnu » si on le connaît. */
 const pxRef = k => { const p = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return p && p.e > 0 ? p.e : 0; };
 const dmOf = k => {
-  const m = COLL.meta[k] || DM[k] || null; if (!m || m.eu > 0) return m;
+  const m = cardMeta(k); if (!m || m.eu > 0) return m;
   const e = pxRef(k); if (e) return { ...m, eu: e };
   pxRefEnsure(); return m;
 };
@@ -27629,13 +27789,16 @@ async function ownLangFetch(list) {
 }
 /** Valeur estimée d'un texte de deck, en chaîne : « ≈ 84 € » (« ≈ 84 €+ » si des cartes n'ont pas de prix), '' tant que rien n'est lu. */
 function dkValueText(v) { return v.known ? `≈ ${fmt(v.cents, mkCur())}${v.known < v.total ? '+' : ''}` : ''; }
-const BD = { el: null, id: null, name: '', fmt: 'standard', cover: '', main: new Map(), side: new Map(), cmdr: [], tab: 'deck', tgt: 'main', q: '', shown: 60, dirty: false, meta: DM, tried: new Set(), cat: null, catErr: '', metaT: 0, issuesOpen: false, idx: null };
+const BD = { el: null, id: null, name: '', fmt: 'standard', cover: '', main: new Map(), side: new Map(), comp: new Map(), cmdr: [], tab: 'deck', tgt: 'main', q: '', shown: 60, dirty: false, meta: DM, tried: new Set(), cat: null, catErr: '', metaT: 0, issuesOpen: false, idx: null };
 const BD_PAGE = 60;
 const BD_BASICS = [['plains', 'Plains', 'Plaine'], ['island', 'Island', 'Île'], ['swamp', 'Swamp', 'Marais'], ['mountain', 'Mountain', 'Montagne'], ['forest', 'Forest', 'Forêt']];
 const bdMeta = dmOf;
 const bdCount = m => { let n = 0; for (const c of m.values()) n += c.qty; return n; };
-const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, cover: BD.cover, meta: BD.dkMeta || [] });
-const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0);
+const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, comp: [...BD.comp.values()], cover: BD.cover, meta: BD.dkMeta || [] });      // comp : compagnon de la liste (core.js › deckModel), gardé à l'enregistrement
+/** Exemplaires de k dans le deck et la réserve ; Standard : le compagnon est une carte de la réserve (compté une fois s'il y est déjà écrit). */
+const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0) + (BD.fmt !== 'commander' && !BD.side.has(k) ? (BD.comp.get(k) || {}).qty || 0 : 0);
+/** Cartes de la réserve (Standard : compagnon compris, comme core.js › dkCheck). */
+const bdSideN = () => bdCount(BD.side) + (BD.fmt !== 'commander' ? dkCompOut([...BD.comp.values()], [...BD.side.values()]).reduce((a, c) => a + c.qty, 0) : 0);
 /** Nom affiché : français si la carte est possédée en français (même règle que la collection), sinon anglais. */
 function bdLabel(k, name) { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || name; }
 const bdCmp = (a, b) => NAME_CMP(bdLabel(a.key, a.name), bdLabel(b.key, b.name));
@@ -27662,13 +27825,13 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), comp: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
     if (!prev) BD.dirty = true;      // liste collée : à enregistrer
-    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover; BD.dkMeta = p.meta;      // la carte de présentation choisie est gardée
-    if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander
+    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); p.comp.forEach(c => BD.comp.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover; BD.dkMeta = p.meta;      // la carte de présentation choisie est gardée
+    if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander ; le compagnon (hors des 100 cartes) reste
   } else BD.fmt = o.fmt === 'commander' ? 'commander' : 'standard';
   if (!prev && Array.isArray(o.cmdr) && BD.fmt === 'commander') { BD.cmdr = o.cmdr.slice(0, 2).map(c => ({ key: c.key, name: c.name })); for (const c of BD.cmdr) BD.main.delete(c.key); BD.dirty = true; }
   if (Array.isArray(o.swaps) && o.swaps.length) {      // échanges conseillés par l'analyse (deckana.js) : appliqués, à enregistrer
@@ -27767,11 +27930,12 @@ function bdChange(tgt, k, name, d, batch) {
   } else {
     const m = BD[tgt], cur = m.get(k), q = cur ? cur.qty : 0;
     if (q + d < 0) return false;
+    if (d > 0 && tgt === 'comp') return no('copies', T('Un seul compagnon'));      // compagnon : seulement celui de la liste, à retirer au besoin
     if (d > 0) {
       if (BD.cmdr.some(c => c.key === k)) return no('copies', T('Cette carte est déjà ton commandant'));
       const max = dkMaxCopies(BD.fmt, k);      // terrains de base, Relentless Rats… : sans limite ; Seven Dwarves 7, Nazgûl 9
       if (bdTot(k) + 1 > max) return no('copies', max === 1 ? T('Commander : un seul exemplaire de chaque carte') : T('{n} exemplaires au maximum (deck et réserve)', { n: max }));
-      if (tgt === 'side' && bdCount(BD.side) + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
+      if (tgt === 'side' && bdSideN() + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
     }
     if (q + d === 0) m.delete(k); else m.set(k, { key: k, name: cur ? cur.name : name, qty: q + d });
   }
@@ -27857,14 +28021,14 @@ function bdScanDone() {
 /* ── Affichage ────────────────────────────────────────────────────────────────────────────────── */
 function bdHead() {
   const el = BD.el; if (!el) return;
-  const ck = dkCheck(BD.fmt, bdData(), bdMeta);
+  const ck = bdCheck();
   $('#bdTitle', el).textContent = BD.name.trim() || T('Nouveau deck');
   $('#bdSub', el).textContent = `${bdFmtName(BD.fmt)} · ${ck.n}/${ck.size}`;
   const sv = $('#bdSave', el), need = !ck.n || (BD.fmt === 'commander' && !BD.cmdr.length);
   sv.disabled = need; sv.title = need ? (BD.fmt === 'commander' && !BD.cmdr.length ? T('Choisis un commandant') : T('Ajoute des cartes')) : '';
 }
 function bdSumHtml() {
-  const ck = dkCheck(BD.fmt, bdData(), bdMeta), pct = Math.max(0, Math.min(100, Math.round(ck.n / ck.size * 100)));
+  const ck = bdCheck(), pct = Math.max(0, Math.min(100, Math.round(ck.n / ck.size * 100)));
   const st = ck.n === ck.size ? 'full' : ck.n > ck.size ? 'over' : '';
   const bad = ck.issues.filter(i => i.lv === 'bad').length;
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
@@ -27875,15 +28039,18 @@ function bdSumHtml() {
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
-/** Deck Commander : carte que Scryfall dit pas légale en Commander (interdite…) ; formats lus avec les infos de la carte (COLL.meta[k].lg), inconnus : non. */
-const bdIllegal = k => { if (BD.fmt !== 'commander' || BASIC_NAMES.has(k)) return false; const m = bdMeta(k); return !!m && typeof m.lg === 'string' && !!m.lg && !m.lg.includes('c'); };
+/** Deck Commander : carte pas légale en Commander (interdite…) : cardLegal (fiche Scryfall, possédée ou non, sinon base du coach) ; inconnue : non. */
+const bdIllegal = k => BD.fmt === 'commander' && !BASIC_NAMES.has(k) && cardLegal(k, 'commander') === false;
+/** Vérification du deck (core.js › dkCheck) : légalité (cardLegal) et, Commander, règles du bracket visé dans les réglages du coach (pas le bracket « estimé » de l'analyse),
+ *  avec les cartes et combos que voit le coach (deckwiz.js › dwBrFacts) : le même verdict que son audit. */
+const bdCheck = () => dkCheck(BD.fmt, bdData(), bdMeta, BD.fmt === 'commander' ? { legal: k => cardLegal(k, 'commander'), br: BD.wiz && !BD.wiz.ba ? BD.wiz.br : 0, facts: BD.wiz && !BD.wiz.ba && typeof dwBrFacts === 'function' ? dwBrFacts(dwProfile()) : null } : undefined);
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
   const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
   if (bdIllegal(k)) out.push(`<span class="tag bad">${T('Pas légale en Commander')}</span>`);      // Scryfall (legalities), comme l'alerte du résumé (core.js › dkCheck)
-  if (typeof dvGC === 'function' && dvGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (brackets Commander)
+  if (isGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (base du coach, sinon Scryfall, sinon EDHREC : même sans EDHREC)
   const buy = () => { const u = dkPx(k); return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (valeur estimée : dkPx), s'il est connu
   if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
@@ -27918,7 +28085,7 @@ function bdVisualHtml() {
   const groups = BD.sort === 'role' && typeof dvRoleGroups === 'function' ? dvRoleGroups(items, true) : groupSnap(items, BD.sort, true);
   BD.vflat = []; let n = 0;
   const tile = (it, sm) => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null, sm); };      // sm : carte recouverte d'une pile, petite image (viewer.js › dvSmall)
-  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}</small></h3>`;
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${esc(landGroupNote(g))}</small></h3>`;
   const box = (cls, list) => `<div class="${cls}">${list.map((it, j) => tile(it, cls === 'dvp' && j < list.length - 1)).join('')}</div>`;
   if (!groups.length) return `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   const body = view === 'piles' ? `<div class="dv-piles">${groups.map(g => `<section class="dv-g dv-pile">${head(g)}${box('dvp', g.items)}</section>`).join('')}</div>`
@@ -27929,6 +28096,11 @@ function bdCmdrHtml() {
   if (BD.fmt !== 'commander') return '';
   return `<div class="sec-title">${T(BD.cmdr.length > 1 ? 'Commandants' : 'Commandant')}</div>` + (BD.cmdr.length ? BD.cmdr.map(c => bdRow(c.key, c.name, 1, 'cmdr', 'deck')).join('') : `<button class="btn ghost small" type="button" data-act="pick-cmdr" style="align-self:flex-start">${T('Choisir un commandant')}</button>`);
 }
+/** Compagnon de la liste (section « Companion » d'un export) : hors des 100 cartes d'un Commander, une carte de la réserve en Standard (core.js › deckModel). */
+function bdCompHtml() {
+  if (!BD.comp.size) return '';
+  return `<div class="sec-title">${T('Compagnon')} <span class="bd-opt">${BD.fmt === 'commander' ? T('hors des 100 cartes') : T('dans la réserve')}</span></div>` + [...BD.comp.values()].map(c => bdRow(c.key, c.name, c.qty, 'comp', 'deck')).join('');
+}
 /** Carte touchée dans une vue en images : en grand, avec « Retirer du deck » (et les autres cartes du deck en glissant). */
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
@@ -27937,11 +28109,11 @@ function bdVisualOpen(i) {
   if (list[i]) openCardViewer(list, i);
 }
 function bdDeckHtml() {
-  if (BD.view && BD.view !== 'list' && !BD.split) return bdToolsHtml() + bdCmdrHtml() + bdVisualHtml();
+  if (BD.view && BD.view !== 'list' && !BD.split) return bdToolsHtml() + bdCmdrHtml() + bdCompHtml() + bdVisualHtml();
   const mainAll = [...BD.main.values()], basicKeys = new Set(BD_BASICS.map(b => b[0]));
   const spells = mainAll.filter(c => !BASIC_NAMES.has(c.key)).sort(bdCmp), others = mainAll.filter(c => BASIC_NAMES.has(c.key) && !basicKeys.has(c.key)).sort(bdCmp);
   let h = BD.split ? '' : bdToolsHtml();
-  h += bdCmdrHtml();
+  h += bdCmdrHtml() + bdCompHtml();
   h += `<div class="sec-title">${T('Deck')} · ${nf0(bdCount(BD.main))}</div>`;
   h += spells.length ? spells.map(c => bdRow(c.key, c.name, c.qty, 'main', 'deck')).join('') : `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   h += `<div class="sec-title">${T('Terrains de base')} · ${nf0(mainAll.filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0))}</div>`;
@@ -27966,7 +28138,7 @@ function bdCollHtml() {
   if (!collCount()) return `<div class="deck-empty">${T('Ta collection est vide. Utilise « Chercher » pour ajouter n\'importe quelle carte au deck.')}</div>`;
   const words = normPart(BD.q).split(' ').filter(Boolean);
   let items = bdIndex().filter(it => words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') items = items.filter(it => (COLL.meta[it.k] || {}).cd);
+  if (BD.tgt === 'cmdr') items = items.filter(it => canCommand(COLL.meta[it.k]) === 1);      // règle unique (core.js › canCommand)
   const shown = items.slice(0, BD.shown);
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
   h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
@@ -28088,7 +28260,7 @@ function bdClick(e) {
 
 /* ── Enregistrement : comme un deck normal, puis monté ────────────────────────────────────────── */
 function bdSave() {
-  const ck = dkCheck(BD.fmt, bdData(), bdMeta);
+  const ck = bdCheck();
   if (!ck.n) { toast(T('Ajoute d\'abord des cartes')); return; }
   if (BD.fmt === 'commander' && !BD.cmdr.length) { toast(T('Choisis d\'abord un commandant')); return; }
   readOpts();
@@ -28124,7 +28296,7 @@ function bdSave() {
    Règles d'un ajout groupé (bdBulkPlan), les mêmes que l'ajout à l'unité :
    - Commander : un exemplaire par carte ; terrains de base jamais ajoutés (à doser dans l'onglet Deck) ; cartes déjà dans le deck (ou commandant) ignorées ;
      hors de l'identité de couleur du commandant écartées (commandant choisi et ses couleurs lues ; carte aux couleurs inconnues : ajoutée) ;
-     pas légales en Commander (Scryfall, COLL.meta[k].lg) ajoutées mais signalées, comme dans l'éditeur (pastille, alerte du résumé).
+     pas légales en Commander (builder.js › cardLegal : fiche Scryfall, sinon base du coach) ajoutées mais signalées, comme dans l'éditeur (pastille, alerte du résumé).
    - Standard : les exemplaires possédés (ceux du rangement et des filtres d'exemplaire choisis : langue, finition, extension… ; sélection : tous), 4 au plus
      (terrains de base : sans limite ; Relentless Rats, Seven Dwarves… : leur limite), moins ceux déjà dans le deck et la réserve ; réserve : 15 au plus.
    - Exemplaires réservés par un autre deck monté : ajoutés, avec le message de l'ajout à l'unité.
@@ -28172,7 +28344,7 @@ function bdOwn(words) {
   const f = { ...BD.f, q: '' }; let keys = null;
   if (filterActive(f)) { const v = collAll(); if (typeof srchPrep === 'function') srchPrep(v, f); keys = new Set(filterItems(v.all, f).map(it => it.k)); }
   let own = bdIndex().filter(it => (!keys || keys.has(it.k)) && words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') own = own.filter(it => (COLL.meta[it.k] || {}).cd);
+  if (BD.tgt === 'cmdr') own = own.filter(it => canCommand(COLL.meta[it.k]) === 1);
   return own;
 }
 /** Extensions des cartes proposées (bouton « Extension » des filtres) : [[code, nom, cartes]], « Sans édition » en tête. */
@@ -28216,7 +28388,7 @@ function bdCmdrCi() {
 function bdBulkPlan(list, qOf) {
   const cmd = BD.fmt === 'commander', tgt = !cmd && BD.tgt === 'side' ? 'side' : 'main', ci = bdCmdrCi();
   const P = { tgt, add: [], n: 0, have: 0, ci: 0, basic: 0, full: 0, ill: [], res: [], noCmd: cmd && !BD.cmdr.length, ciUnknown: cmd && BD.cmdr.length > 0 && !ci };
-  let room = tgt === 'side' ? Math.max(0, DK_FORMATS[BD.fmt].side - bdCount(BD.side)) : Infinity;
+  let room = tgt === 'side' ? Math.max(0, DK_FORMATS[BD.fmt].side - bdSideN()) : Infinity;
   const seen = new Set();
   for (const { k, name } of list) {
     if (seen.has(k)) continue; seen.add(k);
@@ -28262,7 +28434,7 @@ function bdBulkGo(P) {
 function bdBulkSheet(P, done) {
   openSheet(TN(P.n, 'Ajouter {n} carte au deck', 'Ajouter {n} cartes au deck'), BD.name.trim() || T('Nouveau deck'), api => {
     api.wrap.classList.add('bd-bk-sheet');
-    const row = (dt, dd) => `<div><dt>${esc(dt)}</dt><dd>${esc(dd)}</dd></div>`, ck = dkCheck(BD.fmt, bdData(), bdMeta), over = P.tgt === 'main' ? ck.n + P.n - ck.size : 0;
+    const row = (dt, dd) => `<div><dt>${esc(dt)}</dt><dd>${esc(dd)}</dd></div>`, ck = bdCheck(), over = P.tgt === 'main' ? ck.n + P.n - ck.size : 0;
     api.body.innerHTML = `<dl class="rc-facts">${row(T('Zone'), P.tgt === 'side' ? T('Réserve') : T('Deck'))}${row(T('Cartes différentes'), nf0(P.add.length))}${BD.fmt !== 'commander' ? row(T('Exemplaires'), nf0(P.n)) : ''}
         ${P.have ? row(T('Déjà dans le deck : ignorées'), nf0(P.have)) : ''}${P.ci ? row(T('Hors de l\'identité de couleur : écartées'), nf0(P.ci)) : ''}${P.basic ? row(T('Terrains de base : laissés'), nf0(P.basic)) : ''}${P.full ? row(T('Réserve pleine : refusées'), nf0(P.full)) : ''}</dl>
       ${P.ill.length ? `<p class="bd-bk-note bad">${esc(TN(P.ill.length, 'Pas légale en Commander, ajoutée quand même : {list}', 'Pas légales en Commander, ajoutées quand même : {list}', { list: P.ill.join(', ') }))}</p>` : ''}
@@ -28410,13 +28582,16 @@ const DW_ARCH = {
 };
 /** Mécaniques choisies (assistant) → archétype de cibles. */
 const DW_ARCH_MECH = { 'group-hug': 'group-hug', politics: 'politics', pillowfort: 'pillow-fort', enchantments: 'enchantress', attack: 'aggro', voltron: 'voltron', spells: 'spellslinger', landfall: 'landfall', 'tokens-creature': 'tokens', sacrifice: 'aristocrats', 'dies-trigger': 'aristocrats' };
-/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis, Game Changers permis. Tuteurs : plus de limite depuis octobre 2025. */
+/** Règles du bracket des réglages (brackets.js) : globales dans l'appli et les vm du banc d'essai, require dans Node. */
+const DWB = typeof module !== 'undefined' && module.exports ? require('./brackets.js') : { brRule, bracketEstimate, bracketBreaks };
+/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis (texte), Game Changers permis (99 : sans limite ; lu dans brackets.js › BRACKET_RULES,
+ *  comme les autres règles : brRule). Tuteurs : plus de limite depuis octobre 2025. */
 const DW_BRACKETS = [
-  [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', 0],
-  [2, 'Core', 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', 0],
-  [3, 'Upgraded', 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', 3],
-  [4, 'Optimized', 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', 99],
-  [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', 99],
+  [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', Math.min(99, DWB.brRule(1).gc)],
+  [2, 'Core', 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(2).gc)],
+  [3, 'Upgraded', 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(3).gc)],
+  [4, 'Optimized', 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', Math.min(99, DWB.brRule(4).gc)],
+  [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', Math.min(99, DWB.brRule(5).gc)],
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = 3 * 3600e3;      // copie de l'appareil gardée 3 h sans redemander (au-delà : ETag, 304 si la base n'a pas changé)
@@ -28479,7 +28654,7 @@ function dwCard(k) {
   const r = DW.byKey && DW.byKey.get(k);
   if (r) return { name: r[0], ci: r[1], cmc: r[2], ty: r[3], roles: r.length < 10 && r[4] & DW_RB.counter ? r[4] & ~DW_RB.removal : r[4], eur: r[5], fl: r[6], prod: r[7] || '', rank: r[8] || 0, mc: r.length >= 10 ? r[9] || '' : null, pt: Array.isArray(r[12]) ? r[12] : null };      // ancienne base (sans coût de mana) : un contresort n'y est jamais un retrait ciblé ; la nouvelle tranche d'après le texte ; pt : [force, endurance, mots-clés] d'une créature (colonne [12], base du 5 novembre ; sinon null : force estimée par la simulation)
   const m = typeof dmOf === 'function' ? dmOf(k) : null; if (!m && !BASIC_NAMES.has(k)) return null;
-  const tl = m ? String(m.tl || '') : 'Basic Land', land = /\bLand\b/.test(tl.split(' // ')[0]);
+  const tl = m ? String(m.tl || '') : 'Basic Land', land = !!landKind(tl);      // même règle que le viewer et la main de départ
   return { name: k, ci: m ? m.ci || '' : '', cmc: m ? m.cm || 0 : 0, ty: land ? 1 : 0, roles: land ? DW_RB.land : 0, eur: m ? m.eu : 0, fl: 0, prod: '', rank: 0 };
 }
 const DW_BASIC_C = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
@@ -28528,6 +28703,12 @@ function dwCiOf(keys, base) {
   return [...cs].filter(c => 'WUBRG'.includes(c)).sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
 }
 
+/** Game Changer : la base du coach pour ses cartes (drapeau 1) ; carte hors de la base (ou base absente) : builder.js › isGC (Scryfall, puis EDHREC), le même verdict que l'éditeur et le viewer. */
+const dwGC = (k, x) => (x && DW.byKey && DW.byKey.has(k) ? !!(x.fl & 1) : typeof isGC === 'function' ? isGC(k) : !!(x && x.fl & 1));
+/** Ce que les règles du bracket lisent dans un profil (brackets.js › bracketBreaks) : Game Changers, destruction massive de terrains, tours supplémentaires (noms),
+ *  combos à 2 et à 3 cartes (en texte). */
+const dwBrFacts = prof => ({ gc: prof.gc, mld: prof.mld, xt: prof.xt, c2: prof.combos.filter(c => !dwCombo3(c)).map(dwComboTxt), c3: prof.combos.filter(dwCombo3).map(dwComboTxt) });
+
 /* ── Profil du deck ───────────────────────────────────────────────────────────────────────────────── */
 /** Nombre de symboles de chaque couleur dans un coût (« {2}{G}{G} » → G:2 ; hybride : chaque couleur compte pour moitié ; Phyrexian : compte). */
 function dwPips(mc) {
@@ -28539,14 +28720,16 @@ function dwPips(mc) {
 }
 /** Profil d'un deck (X : { main: Map, cmdr: [] }, l'éditeur par défaut) : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
 function dwProfile(X = BD) {
-  const p = { combos: [], n: 0, nonland: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
+  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
   let mvSum = 0; const all = [...X.main.values()];
   for (const c of all) {
     const k = c.key, q = c.qty, x = dwCard(k); p.n += q; p.cards++;
     if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x, true); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }      // valeur : toutes les cartes, même absentes de la base (comme l'en-tête de l'éditeur)
+    if (dwGC(k, x)) p.gc.push(x ? x.name : c.name);
     if (!x) { p.unk += q; continue; }
-    const land = !!(x.roles & DW_RB.land) || BASIC_NAMES.has(k);
+    const tl = (dmOf(k) || {}).tl, lk = tl ? landKind(tl) : '', land = BASIC_NAMES.has(k) || (tl ? !!lk : !!(x.roles & DW_RB.land));      // règle unique des terrains (core.js › landKind : doubles faces « Sort // Terrain » comprises) ; fiche pas encore lue : la base
+    if (lk === 'mdfc') p.mdfc += q;
     for (const r of DKW_ROLES) if (r === 'land' ? land : x.roles & DW_RB[r]) p[r] += q;
     if (land) { const bc = dwBasicColor(k), pr = bc ? bc : x.prod; for (const col of new Set([...String(pr)].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q; }
     else {
@@ -28556,9 +28739,9 @@ function dwProfile(X = BD) {
       for (const [col, n] of Object.entries(pips)) { p.pips[col] = (p.pips[col] || 0) + n * q; p.maxPip[col] = Math.max(p.maxPip[col] || 0, Math.ceil(n)); (p.needs[col] = p.needs[col] || []).push(dwSrcFor(n, x.cmc)); }
       if ((x.roles & DW_RB.ramp) && x.prod) for (const col of new Set([...x.prod].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q * 0.5;      // rampe qui produit la couleur : demi-source (dork, rock ; recherche : Karsten)
     }
-    if (x.fl & 1) p.gc.push(x.name); if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
+    if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
   }
-  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (dwGC(c.key, x)) p.gc.push(x ? x.name : c.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
   const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
   if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
@@ -28733,11 +28916,11 @@ function dwSugPool(C, ci, set, wide) {
   const k0 = dwPopK(set), key = [[...ci].join(''), set.br, (set.ban || []).join('|'), (set.avoid || []).join('|'), k0].join('#');
   if (!(DW_SUGC.C === C && DW_SUGC.src === DW.byKey && DW_SUGC.key === key)) { DW_SUGC.C = C; DW_SUGC.src = DW.byKey; DW_SUGC.key = key; DW_SUGC.l = null; DW_SUGC.w = null; }
   const f = wide ? 'w' : 'l'; if (DW_SUGC[f]) return DW_SUGC[f];
-  const l = [], ok = (k, o) => {
+  const l = [], R = DWB.brRule(set.br), ok = (k, o) => {
     if (BASIC_NAMES.has(k)) return;
     const x = dwCard(k); if (!x || !DW.byKey.has(k)) return;
     if ([...String(x.ci)].some(c => !ci.has(c))) return;
-    if (x.fl & 16 || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)) return;      // interdite en Commander ; bracket
+    if (x.fl & 16 || (x.fl & 4 && !R.mld) || (x.fl & 2 && !R.xt)) return;      // interdite en Commander ; bracket (brackets.js : destruction massive de terrains, tours supplémentaires ; leur nombre : dwSuggest)
     if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
     l.push([k, o, x, !!(x.roles & DW_RB.land)]);
   };
@@ -28772,12 +28955,12 @@ function dwExcluded(k, x, set) {
 function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   if (!DW.byKey) return [];
   const set = X.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k) || (X.skip && X.skip.has(k));
-  const brMax = (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[3], gcLeft = brMax - prof.gc.length;
+  const R = DWB.brRule(set.br), gcLeft = R.gc - prof.gc.length, xtLeft = R.xt - prof.xt.length;      // règles du bracket (brackets.js) : Game Changers et tours supplémentaires encore permis
   const must = role === 'wincon' && !prof.wincon;      // la première condition de victoire passe avant tout (rythme et part des terrains)
   const budLeft = set.bud > 0 ? set.bud - prof.cents - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
   const C = X.info || dwInfo(pack, set, cmd), w = dwW();
   const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
-  const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 (ou combos évités) : jamais la carte qui complète un combo à 2 ou 3 cartes
+  const noCombo = (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // combo interdit ou à éviter dans ce bracket (brackets.js : 1-2), ou combos évités : jamais la carte qui le complète
   const cols = cmd ? [...cmd.ci] : [], short = role === 'land' ? cols.filter(c => (prof.src[c] || 0) < (prof.need[c] || 0)) : [];      // terrains : couleurs sous le repère de Karsten
   const curveHi = (X.pace || X.gen) && prof.nonland >= 20 && prof.mv > tgt.mv[2];
   const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
@@ -28786,7 +28969,8 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (inDeck(k)) return;
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
     if (x.fl & 1 && gcLeft <= 0) return;
-    const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && noCombo) return;
+    if (x.fl & 2 && xtLeft <= 0) return;
+    const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && (noCombo || (dwCombo3(cw.c) ? R.c3 === 'avoid' : R.c2 === 'no'))) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
@@ -28798,7 +28982,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (m && o.m == null) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); }      // carte de secours (rang) : sa valeur de base pour le plan
     const v = dwVal(o); let s = v, pair = null;
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
-    if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
+    if (combo2 && R.c2 === 'ok') s += 0.4;      // bracket 4-5 (combos permis sans condition) : la pièce qui complète un combo du deck (2 ou 3 cartes) ; bracket 3 : permise, sans bonus
     if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
     if (o.trap && dwTrapOk(k, o, inDeck, set)) s += w.trap;      // piège avec le commandant, mais combo ou moteur avec une carte déjà là : plus de malus
     if (own) s += set.own ? 0.35 : 0.08;
@@ -28863,7 +29047,7 @@ function dwComboWith(k, inDeck) {
  *  commandant, mais fait un combo infini avec Felidar Guardian). o : infos de la carte (dwInfo : trap, eng) ; inDeck(clé). → { kind: 'combo' | 'eng', with: [noms] } ou null. */
 function dwTrapOk(k, o, inDeck, set = {}) {
   if (!o || !o.trap) return null;
-  if (!(set.br <= 2 || (set.avoid || []).includes('combo')) && DW.core && (DW.core.combos || DW.core.combos3)) { const cw = dwComboWith(k, inDeck); if (cw) return { kind: 'combo', with: cw.o }; }
+  if (!(DWB.brRule(set.br).c2 === 'no' || (set.avoid || []).includes('combo')) && DW.core && (DW.core.combos || DW.core.combos3)) { const cw = dwComboWith(k, inDeck); if (cw) return { kind: 'combo', with: cw.o }; }
   for (const cs of o.eng || []) { const p = cs.filter(x => x !== k && inDeck(x)); if (p.length) return { kind: 'eng', with: p.map(x => (dwCard(x) || {}).name || x) }; }
   return null;
 }
@@ -29103,7 +29287,7 @@ function dwGaugesHtml(prof, tgt, cmd, pack, ro) {
     const n = prof[r], [lo, mid, hi] = tgt[r], st = n < lo ? (n < lo - 3 ? 'bad' : 'low') : n > hi + (r === 'land' ? 0 : 3) ? 'high' : 'ok';
     const max = Math.max(hi + 2, n, 1), pct = v => Math.max(0, Math.min(100, v / max * 100));
     const open = !ro && DW.open === r, miss = Math.max(0, mid - n), tag = ro ? 'div' : 'button';
-    const lbl = st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}');
+    const lbl = (st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}')) + (r === 'land' && prof.mdfc ? ' · ' + landMdfcText(prof.mdfc) : '');      // doubles faces comptées comme terrains, annoncées
     let h = `<div class="dw-g ${st}${open ? ' open' : ''}"><${tag} ${ro ? '' : `type="button" data-act="dw-g" data-r="${r}" aria-expanded="${open}" `}class="dw-gh" title="${esc(T(help))}">
       <span class="dw-gl"><b>${T(label)}</b><small>${esc(lbl)}</small></span><span class="dw-gn"><b>${nf0(n)}</b> / ${mid}</span>
       <span class="dw-bar" aria-hidden="true"><i class="dw-rng" style="left:${pct(lo)}%;width:${Math.max(2, pct(hi) - pct(lo))}%"></i><i class="dw-val" style="width:${pct(n)}%"></i></span></${tag}>`;
@@ -29149,19 +29333,10 @@ function dwManaHtml(prof, tgt, cmd) {
   return h + '</div>';
 }
 function dwBracketHtml(prof, s = BD.wiz) {
-  const b = DW_BRACKETS.find(x => x[0] === s.br) || DW_BRACKETS[2], out = [];
-  if (prof.gc.length > b[3]) out.push(['bad', b[3] ? T('{n} Game Changers pour {max} permis en bracket {b} : {list}', { n: prof.gc.length, max: b[3], b: b[0], list: prof.gc.join(', ') }) : T('Game Changers interdits en bracket {b} : {list}', { b: b[0], list: prof.gc.join(', ') })]);
-  if (prof.mld.length && s.br <= 3) out.push(['bad', T('Destruction massive de terrains interdite en bracket {b} : {list}', { b: b[0], list: prof.mld.join(', ') })]);
-  if (prof.xt.length && s.br === 1) out.push(['bad', T('Tours supplémentaires interdits en bracket 1 : {list}', { list: prof.xt.join(', ') })]);
-  else if (prof.xt.length && s.br <= 3) out.push(['warn', T('Tours supplémentaires : à ne pas enchaîner en bracket {b} ({list})', { b: b[0], list: prof.xt.join(', ') })]);
-  const c2 = prof.combos.filter(c => !dwCombo3(c)), c3 = prof.combos.filter(dwCombo3), cl = l => l.slice(0, 4).map(dwComboTxt).join(', '), has3 = !!(DW.core && DW.core.combos3 && DW.core.combos3.length);
-  if (c2.length && s.br <= 2) out.push(['bad', T('Combo à 2 cartes interdit en bracket {b} : {list}', { b: b[0], list: cl(c2) })]);
-  else if (c2.length && s.br === 3) out.push(['warn', T('Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})', { list: cl(c2) })]);
-  else if (!(DW.core && DW.core.combos && DW.core.combos.length) && s.br <= 3) out.push(['info', T('Les combos à 2 cartes ne sont pas vérifiés : à surveiller toi-même.')]);
-  else if (s.br <= 3 && !c3.length) out.push(['ok', has3 ? T('Aucun combo à 2 ou 3 cartes connu (Commander Spellbook)') : T('Aucun combo à 2 cartes connu (Commander Spellbook)')]);
-  if (c3.length && s.br <= 2) out.push(['bad', T('Combo à 3 cartes à éviter en bracket {b} : {list}', { b: b[0], list: cl(c3) })]);      // pas interdit par les règles officielles, mais hors du niveau d'un deck préconstruit : jamais proposé en bracket 1-2
-  else if (c3.length && s.br === 3) out.push(['info', T('Combo à 3 cartes, permis en bracket 3 : {list}', { list: cl(c3) })]);
-  return `<div class="sec-title">${T('Bracket {n} · {name}', { n: b[0], name: b[1] })}</div><ul class="bd-issues dw-br">${out.length ? out.map(([lv, t]) => `<li class="${lv === 'info' ? '' : lv}">${esc(t)}</li>`).join('') : ''}<li class="ok">${esc(b[3] > 10 ? TN(prof.gc.length, '{n} Game Changer, sans limite dans ce bracket', '{n} Game Changers, sans limite dans ce bracket') : TN(prof.gc.length, '{n} Game Changer sur {max} permis', '{n} Game Changers sur {max} permis', { max: b[3] }))}</li></ul>`;
+  const b = DW_BRACKETS.find(x => x[0] === s.br) || DW_BRACKETS[2], R = DWB.brRule(b[0]), out = DWB.bracketBreaks(b[0], dwBrFacts(prof)).map(x => [x.lv, x.t]);      // LA table (brackets.js) : même verdict que l'éditeur (dkCheck), la note et le générateur
+  const c2 = prof.combos.filter(c => !dwCombo3(c)), c3 = prof.combos.filter(dwCombo3), has3 = !!(DW.core && DW.core.combos3 && DW.core.combos3.length);
+  if (!c2.length && R.c2 !== 'ok') out.push(!(DW.core && DW.core.combos && DW.core.combos.length) ? ['info', T('Les combos à 2 cartes ne sont pas vérifiés : à surveiller toi-même.')] : !c3.length ? ['ok', has3 ? T('Aucun combo à 2 ou 3 cartes connu (Commander Spellbook)') : T('Aucun combo à 2 cartes connu (Commander Spellbook)')] : null);
+  return `<div class="sec-title">${T('Bracket {n} · {name}', { n: b[0], name: b[1] })}</div><ul class="bd-issues dw-br">${out.filter(Boolean).map(([lv, t]) => `<li class="${lv === 'info' ? '' : lv}">${esc(t)}</li>`).join('')}<li class="ok">${esc(R.gc > 10 ? TN(prof.gc.length, '{n} Game Changer, sans limite dans ce bracket', '{n} Game Changers, sans limite dans ce bracket') : TN(prof.gc.length, '{n} Game Changer sur {max} permis', '{n} Game Changers sur {max} permis', { max: R.gc }))}</li></ul>`;
 }
 function dwBudgetHtml(prof, s = BD.wiz) {
   const cur = mkCur(); if (!(s.bud > 0) && !prof.cents) return '';
@@ -29223,11 +29398,11 @@ function dwFillBasics(quiet) {
 /** Cartes fétiches (réglages : pets) mises dans le deck X : celles qui respectent les couleurs, les cartes interdites et les règles du bracket. → { in: [noms], out: [noms] } */
 function dwPetsInto(X, cmd) {
   const set = X.wiz || dwDefaults(), got = { in: [], out: [] }; if (!cmd || !(set.pets || []).length || !DW.byKey) return got;
-  const ci = new Set([...cmd.ci]), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], combo = set.br <= 2, inX = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
+  const ci = new Set([...cmd.ci]), R = DWB.brRule(set.br), inX = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
   for (const nm of set.pets) {
     const k = ownKey(nm), x = dwCard(k); if (!k || X.main.has(k) || X.cmdr.some(c => c.key === k)) continue;
-    const prof = dwProfile(X), bad = !x || !DW.byKey.has(k) || [...String(x.ci)].some(c => !ci.has(c)) || x.fl & 16 || (x.fl & 1 && prof.gc.length >= b[3]) || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)
-      || (combo && dwComboWith(k, inX));      // brackets 1-2 : jamais la pièce qui complète un combo à 2 ou 3 cartes
+    const prof = dwProfile(X), bad = !x || !DW.byKey.has(k) || [...String(x.ci)].some(c => !ci.has(c)) || x.fl & 16 || (x.fl & 1 && prof.gc.length >= R.gc) || (x.fl & 4 && !R.mld) || (x.fl & 2 && prof.xt.length >= R.xt)
+      || (() => { const cw = dwComboWith(k, inX); return !!cw && (dwCombo3(cw.c) ? R.c3 === 'avoid' : R.c2 === 'no'); })();      // règles du bracket (brackets.js) : jamais la pièce qui complète un combo interdit ou à éviter
     if (bad) { got.out.push(nm); continue; }
     X.main.set(k, { key: k, name: x.name, qty: 1 }); got.in.push(x.name);
   }
@@ -29666,7 +29841,7 @@ function dmxPool(cmd, plan) {
 function dmxReasons(k, X, cmd, plan) {
   const m = dmx(k), out = [], nm = cmd ? cmd.names[0].split(',')[0] : '', set = X.wiz || {};
   if ((set.pets || []).some(n => ownKey(n) === k)) out.push(T('ta carte fétiche'));
-  if (DW.core && (Array.isArray(DW.core.combos) || Array.isArray(DW.core.combos3)) && set.br >= 3) { const cw = dwComboWith(k, p => p !== k && (X.main.has(p) || X.cmdr.some(c => c.key === p))); if (cw) out.push(dwComboWhy(cw.o)); }      // combo à 2 ou 3 cartes dont les autres pièces sont là
+  if (DW.core && (Array.isArray(DW.core.combos) || Array.isArray(DW.core.combos3)) && DWB.brRule(set.br).c2 !== 'no') { const cw = dwComboWith(k, p => p !== k && (X.main.has(p) || X.cmdr.some(c => c.key === p))); if (cw) out.push(dwComboWhy(cw.o)); }      // combo à 2 ou 3 cartes dont les autres pièces sont là
   if (plan && plan.ai) {      // fiche IA du commandant : cœur du plan, moteur, condition de victoire, piège
     const ai = plan.ai, nmK = n => ownKey(n), has = n => X.main.has(nmK(n)) || X.cmdr.some(c => c.key === nmK(n));
     const e = (ai.eng || []).find(([, cs]) => cs.some(n => nmK(n) === k) && cs.some(n => nmK(n) !== k && has(n)));
@@ -29766,13 +29941,10 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
      la limite de prix globale est respectée à chaque échange (ou l'échange fait baisser le prix).
    « Ouvrir dans l'éditeur avec N échanges » : les échanges cochés appliqués, onglet Coach ; un deck de Mes decks est modifié (à enregistrer). */
 const DA = { api: null, X: null, id: null, name: '', text: '', off: new Set(), brAuto: true, swaps: [] };
-/** Bracket estimé d'un deck d'après son profil (dwProfile) : 4 avec plus de 3 Game Changers ou une destruction massive de terrains ; 3 avec un Game Changer
- *  plusieurs tours supplémentaires ou un combo à 2 ou 3 cartes ; 2 sinon (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
-function dwBracketOf(prof) {
-  if (prof.gc.length > 3 || prof.mld.length) return 4;
-  if (prof.gc.length || prof.xt.length > 1 || prof.combos.length) return 3;      // combo à 2 cartes (interdit en 1 et 2) ou à 3 cartes (à éviter)
-  return 2;
-}
+/** Bracket estimé d'un deck d'après son profil (dwProfile) : le plus bas de 2 à 4 dont les règles (brackets.js › BRACKET_RULES, LA table) sont tenues :
+ *  4 avec plus de 3 Game Changers ou une destruction massive de terrains ; 3 avec un Game Changer, plus d'un tour supplémentaire ou un combo à 2 ou 3 cartes ; 2 sinon
+ *  (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
+const dwBracketOf = prof => DWB.bracketEstimate(dwBrFacts(prof));
 /** Deck à analyser d'après son texte : { main, cmdr } ; sans bloc « Commander », la première carte si elle peut être commandant. */
 function daDeckOf(text) {
   const p = dkParse(text), main = new Map(); for (const c of p.main) main.set(c.key, { ...c });
@@ -29781,7 +29953,7 @@ function daDeckOf(text) {
     const ks = typeof commanderKeys === 'function' ? commanderKeys(text).filter(k => main.has(k)) : [];
     const first = p.main[0], fx = first && dwCard(first.key), m = first && dmOf(first.key);
     if (ks.length) cmdr = ks.slice(0, 2).map(k => ({ key: k, name: main.get(k).name }));
-    else if (first && ((m && m.cd) || (fx && fx.ty & 256 && fx.ty & 2))) cmdr = [{ key: first.key, name: first.name }];
+    else if (first && canCommand(m, fx) === 1) cmdr = [{ key: first.key, name: first.name }];      // même règle que le viewer et l'éditeur (core.js › canCommand)
   }
   for (const c of cmdr) { const x = main.get(c.key); if (x) { if (x.qty > 1) x.qty--; else main.delete(c.key); } }
   return { main, cmdr, wiz: null, skip: null };
@@ -29901,7 +30073,7 @@ const DA_ROLE = {
   tutor: ['Ajouter {n} tuteur', 'Ajouter {n} tuteurs', 'il manque des tuteurs'], recursion: ['Ajouter {n} carte de récursion', 'Ajouter {n} cartes de récursion', 'il manque de la récursion'],
   wincon: ['Ajouter {n} condition de victoire', 'Ajouter {n} conditions de victoire', 'il manque des conditions de victoire'],
 };
-/** Actions prioritaires (3 au plus), les plus rentables d'abord : { k (rôle, 'land', 'gc', 'mld', 'combo', 'budget', 'curve', 'swap'), t (titre), s (détail), gain (points estimés), issue (phrase de synthèse) }.
+/** Actions prioritaires (3 au plus), les plus rentables d'abord : { k (rôle, 'land', 'gc', 'mld', 'xt', 'combo', 'budget', 'curve', 'swap'), t (titre), s (détail), gain (points estimés), issue (phrase de synthèse) }.
  *  Points estimés comme la note du coach (deckopt.js › dsScore), pour l'ordre seulement. */
 function daActions(prof, tgt, cmd, set, swaps, pack) {
   const out = [], roles = [...DW_GAUGES.map(g => g[0]), 'wincon'].filter(r => r !== 'land' && DA_ROLE[r] && tgt[r] && tgt[r][2] > 0 && !(r === 'counter' && !cmd.ci.includes('U')));
@@ -29917,11 +30089,12 @@ function daActions(prof, tgt, cmd, set, swaps, pack) {
   }
   const dl = prof.land - tgt.land[1];
   if (dl) out.push({ k: 'land', sg: dl > 0 ? '−' : '+', t: dl > 0 ? TN(dl, 'Retirer {n} terrain', 'Retirer {n} terrains') : TN(-dl, 'Ajouter {n} terrain', 'Ajouter {n} terrains'), s: T('{n} terrains, {m} conseillés', { n: prof.land, m: tgt.land[1] }), gain: Math.min(1, Math.abs(dl) * 0.12) * 10, issue: dl > 0 ? T('un peu trop de terrains') : T('un peu juste en terrains') });
-  const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2];
-  if (prof.gc.length > b[3]) out.push({ k: 'gc', sg: '−', t: TN(prof.gc.length - b[3], 'Retirer {n} Game Changer', 'Retirer {n} Game Changers'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: b[3] }), gain: 5, issue: T('trop fort pour le bracket visé') });
-  if (prof.mld.length && set.br <= 3) out.push({ k: 'mld', sg: '−', t: T('Retirer la destruction de terrains'), s: T('Interdite en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
-  if (prof.combos.some(c => !dwCombo3(c)) && set.br <= 2) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
-  else if (prof.combos.length && set.br <= 2) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 3 cartes'), s: T('À éviter en bracket {b}', { b: b[0] }), gain: 3, issue: T('trop fort pour le bracket visé') });
+  const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], bad = new Set(DWB.bracketBreaks(b[0], dwBrFacts(prof)).filter(x => x.lv === 'bad').map(x => x.k)), R = DWB.brRule(b[0]);      // règles du bracket (brackets.js)
+  if (bad.has('gc')) out.push({ k: 'gc', sg: '−', t: TN(prof.gc.length - R.gc, 'Retirer {n} Game Changer', 'Retirer {n} Game Changers'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: R.gc }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  if (bad.has('mld')) out.push({ k: 'mld', sg: '−', t: T('Retirer la destruction de terrains'), s: T('Interdite en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  if (bad.has('xt')) out.push({ k: 'xt', sg: '−', t: TN(prof.xt.length - R.xt, 'Retirer {n} tour supplémentaire', 'Retirer {n} tours supplémentaires'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: R.xt }), gain: 3, issue: T('trop fort pour le bracket visé') });
+  if (bad.has('c2')) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  else if (bad.has('c3')) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 3 cartes'), s: T('À éviter en bracket {b}', { b: b[0] }), gain: 3, issue: T('trop fort pour le bracket visé') });
   if (set.bud > 0 && prof.cents > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
   if (prof.nonland && prof.mv > tgt.mv[2]) out.push({ k: 'curve', sg: '−', t: T('Baisser la courbe de mana'), s: T('Coût moyen {v}, repère {m}', { v: dsNum(prof.mv), m: dsNum(tgt.mv[1], 1) }), gain: Math.min(1, (prof.mv - tgt.mv[2]) / 0.6) * 10, issue: T('la courbe est un peu haute') });
   if (sw) out.push({ k: 'swap', sg: '⇄', t: T('Échanger {a} → {b}', { a: bdLabel(sw.out.k, sw.out.name), b: bdLabel(sw.in.k, sw.in.name) }), s: daWhy(sw, cmd), gain: swGain, issue: sw.issue || '' });
@@ -30229,8 +30402,8 @@ function drReportHtml(X) {
   for (const t of themes) { const lbl = dwThemeLabel(t, thChoices), inf = typeof edhThemeInfo === 'function' ? edhThemeInfo({ label: ((pack && pack.thl) || []).concat((cmd && cmd.th) || []).find(x => x[0] === t)?.[1] || t }) : ''; if (inf) h += `<p class="dr-p"><b>${esc(lbl)} :</b> ${edhInfoHtml(inf)}</p>`; }
   const combos = prof.combos || [];
   const cb2 = combos.filter(c => !dwCombo3(c)), cb3 = combos.filter(dwCombo3), cbLi = l => `<ul class="dr-ul">${l.slice(0, 8).map(c => `<li>${dwComboCards(c).map(n => drCard(ownKey(n), n)).join(' + ')} : <i>${esc(dwComboRes(c))}</i></li>`).join('')}</ul>`;
-  if (cb2.length) h += `<p class="dr-h">${TN(cb2.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p>${cbLi(cb2)}${est <= 2 || set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
-  if (cb3.length) h += `<p class="dr-h">${TN(cb3.length, '{n} combo à 3 cartes dans le deck', '{n} combos à 3 cartes dans le deck')}</p>${cbLi(cb3)}${set.br <= 2 ? `<p class="hint">${T('Attention : les combos à 3 cartes sont à éviter en bracket 1 et 2.')}</p>` : ''}`;
+  if (cb2.length) h += `<p class="dr-h">${TN(cb2.length, '{n} combo à 2 cartes dans le deck', '{n} combos à 2 cartes dans le deck')}</p>${cbLi(cb2)}${DWB.brRule(est).c2 === 'no' || DWB.brRule(set.br).c2 === 'no' ? `<p class="hint">${T('Attention : les combos à 2 cartes sont interdits en bracket 1 et 2, et pas avant le tour 6 en bracket 3.')}</p>` : ''}`;
+  if (cb3.length) h += `<p class="dr-h">${TN(cb3.length, '{n} combo à 3 cartes dans le deck', '{n} combos à 3 cartes dans le deck')}</p>${cbLi(cb3)}${DWB.brRule(set.br).c3 === 'avoid' ? `<p class="hint">${T('Attention : les combos à 3 cartes sont à éviter en bracket 1 et 2.')}</p>` : ''}`;
   const wk = typeof dwWinKeys === 'function' ? dwWinKeys(X) : null;      // conditions de victoire au sens du plan (comme la jauge) : le commandant quand il gagne lui-même, les cartes de la fiche
   const win = [...(wk && wk.cmdr ? cm : []), ...spells.filter(c => has('wincon')(c) || (wk && wk.cards.has(c.k)))];
   if (win.length) h += `<p class="dr-h">${T('Conditions de victoire')}</p><p class="dr-p">${drList(win.slice(0, 8))}</p>`;
@@ -30272,7 +30445,7 @@ function drReportHtml(X) {
       const o = info.get(mk); all.push({ have: ia ? c[0] : c[1], miss, res: c[2], s: (o ? dwVal(o) * 3 : 0) + (inDeck(ownKey(ia ? c[0] : c[1])) && (info.get(ownKey(ia ? c[0] : c[1])) || {}).syn > 10 ? 0.3 : 0) - i / 4000 });
     });
     const near = all.sort((a, b) => b.s - a.s).slice(0, 5);      // la carte qui manque est-elle jouée avec ce commandant ? d'abord celles-là, puis les combos les plus joués
-    if (near.length) h += `<div class="sec-title">${T('Combos à une carte près')}</div><ul class="dr-ul">${near.map(n => `<li>${esc(T('Tu as'))} ${drCard(ownKey(n.have), n.have)} : ${esc(T('avec'))} ${drCard(ownKey(n.miss), n.miss)}, <i>${esc(n.res)}</i></li>`).join('')}</ul>${set.br <= 2 ? `<p class="hint">${T('À éviter en bracket 1 et 2 (combos à 2 cartes interdits).')}</p>` : ''}`;
+    if (near.length) h += `<div class="sec-title">${T('Combos à une carte près')}</div><ul class="dr-ul">${near.map(n => `<li>${esc(T('Tu as'))} ${drCard(ownKey(n.have), n.have)} : ${esc(T('avec'))} ${drCard(ownKey(n.miss), n.miss)}, <i>${esc(n.res)}</i></li>`).join('')}</ul>${DWB.brRule(set.br).c2 === 'no' ? `<p class="hint">${T('À éviter en bracket 1 et 2 (combos à 2 cartes interdits).')}</p>` : ''}`;
   }
   // Rôle de chaque carte
   h += `<details class="dr-roles"><summary>${T('Rôle de chaque carte')}</summary>`;
@@ -30326,7 +30499,7 @@ const dwRoleNames = bits => DW_GAUGES.filter(([r]) => r !== 'land' && bits & DW_
  *  → [{ k, name, why, s }] (s : plus bas = à retirer d'abord). Terrains de base proposés quand il y a trop de terrains. */
 function dwCuts(X, cmd, pack, prof, tgt, n) {
   const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], nm = cmd ? cmd.names[0].split(',')[0] : '';
-  const gcOver = prof.gc.length > b[3], over = set.bud > 0 && prof.cents > set.bud, out = [];
+  const R = DWB.brRule(b[0]), gcOver = prof.gc.length > R.gc, xtOver = prof.xt.length > R.xt, over = set.bud > 0 && prof.cents > set.bud, out = [];
   for (const c of X.main.values()) {
     if (BASIC_NAMES.has(c.key)) continue;
     const x = dwCard(c.key); if (!x || x.roles & DW_RB.land) continue;
@@ -30335,8 +30508,9 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
     const sur = DW_GAUGES.find(([r]) => r !== 'land' && x.roles & DW_RB[r] && prof[r] > tgt[r][1]);
     if (low) s += 0.5; if (sur) s -= 0.15;
     const price = dwPrice(c.key, x, true);      // carte du deck : son prix dans la valeur du deck (dwProfile)
-    if (x.fl & 1 && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }
-    else if (x.fl & 4 && set.br <= 3) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
+    if (dwGC(c.key, x) && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }      // règles du bracket : brackets.js
+    else if (x.fl & 4 && !R.mld) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
+    else if (x.fl & 2 && xtOver) { s -= 0.6; why = T('Tour supplémentaire en trop pour le bracket {b}', { b: b[0] }); }
     else if (over && price > 500 && collQty(c.key) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }
     else if ((hard = false) || sur) why = T('{r} en surplus ({n} pour {m} conseillées)', { r: T(sur[1]), n: prof[sur[0]], m: tgt[sur[0]][1] });
     else if (o.incl || o.syn) why = T('Peu jouée avec {name} ({p} % des decks)', { name: nm, p: o.incl || 0 });
@@ -30353,10 +30527,10 @@ function dwCuts(X, cmd, pack, prof, tgt, n) {
 }
 /** Prochaines étapes (3 au plus) : [{ t: texte, b: bouton, act, v, ok }]. */
 function dwNextSteps(prof, tgt, cmd, set) {
-  const st = [], b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], n = prof.n;
+  const st = [], b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], n = prof.n, R = DWB.brRule(b[0]), bad = DWB.bracketBreaks(b[0], dwBrFacts(prof)).filter(x => x.lv === 'bad');      // règles du bracket : brackets.js
   if (n > 100) st.push({ t: TN(n - 100, '{n} carte de trop', '{n} cartes de trop'), b: T('Que retirer ?'), act: 'dw-goto', v: 'cuts' });
-  if (prof.gc.length > b[3]) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: b[3], b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
-  if ((prof.mld.length && set.br <= 3) || (prof.combos.length && set.br <= 2)) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
+  if (bad.some(x => x.k === 'gc')) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: R.gc, b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
+  if (bad.some(x => x.k !== 'gc')) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
   if (set.bud > 0 && prof.cents > set.bud && n >= 60) st.push({ t: T('Au-dessus du budget : {a} pour {b}', { a: fmt(prof.cents, mkCur()), b: fmt(set.bud, mkCur()) }), b: T('Voir les échanges'), act: 'dw-goto', v: 'swaps' });
   if (n < 100) st.push({ t: TN(100 - n, 'Il manque {n} carte', 'Il manque {n} cartes'), b: n <= BD.cmdr.length ? T('Générer le deck') : T('Compléter'), act: 'dw-auto' });
   const def = DW_GAUGES.filter(([r]) => r !== 'land' && (r !== 'counter' || cmd.ci.includes('U')) && prof[r] < tgt[r][0]).map(([r, l]) => ({ r, l, miss: tgt[r][1] - prof[r], k: (tgt[r][1] - prof[r]) / Math.max(1, tgt[r][1]) })).sort((a, b) => b.k - a.k);
@@ -30518,11 +30692,12 @@ function dsScore(X = BD, ctx = {}) {
   // Règles et budget
   const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2]; let pr = 10;
   const rule = (bad, pts, t) => { if (bad) { pr -= pts; tips.push({ t, gain: pts }); } };
-  rule(prof.gc.length > b[3], 5, T('Trop de Game Changers pour le bracket {b}', { b: b[0] }));
-  rule(prof.mld.length && set.br <= 3, 5, T('Destruction massive de terrains interdite en bracket {b}', { b: b[0] }));
-  rule(prof.xt.length && set.br === 1, 3, T('Tours supplémentaires interdits en bracket 1'));
-  rule(prof.combos.some(c => !dwCombo3(c)) && set.br <= 2, 5, T('Combo à 2 cartes interdit en bracket {b}', { b: b[0] }));
-  rule(prof.combos.some(dwCombo3) && set.br <= 2, 3, T('Combo à 3 cartes à éviter en bracket {b}', { b: b[0] }));
+  const brBad = new Set(DWB.bracketBreaks(b[0], dwBrFacts(prof)).filter(x => x.lv === 'bad').map(x => x.k));      // règles du bracket : brackets.js (la même table que l'audit et l'éditeur)
+  rule(brBad.has('gc'), 5, T('Trop de Game Changers pour le bracket {b}', { b: b[0] }));
+  rule(brBad.has('mld'), 5, T('Destruction massive de terrains interdite en bracket {b}', { b: b[0] }));
+  rule(brBad.has('xt'), 3, T('Trop de tours supplémentaires pour le bracket {b}', { b: b[0] }));
+  rule(brBad.has('c2'), 5, T('Combo à 2 cartes interdit en bracket {b}', { b: b[0] }));
+  rule(brBad.has('c3'), 3, T('Combo à 3 cartes à éviter en bracket {b}', { b: b[0] }));
   rule(!prof.wincon && prof.n >= 60, 3, T('Aucune condition de victoire : ajoute une carte qui peut finir la partie'));      // obligatoire, thème ou pas
   if (set.bud > 0 && prof.cents > set.bud) rule(true, Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), T('Au-dessus du budget de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }));
   if (prof.n !== 100) rule(true, Math.min(5, Math.abs(100 - prof.n)), prof.n < 100 ? TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes') : TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'));

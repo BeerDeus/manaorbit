@@ -88,7 +88,7 @@ test('valeurs de colonnes : code d\'extension en majuscules ou minuscules, nom e
 
 /* ── Decklists exportées (texte collé dans la recherche de prix, Mes decks, l'éditeur) : sections des exports Moxfield, Archidekt, MTGA, MTGO ──
    Maybeboard / Considering / Tokens : hors du deck (ni cherchés, ni chiffrés, ni comptés) ; Sideboard : la réserve, comme les lignes « SB: » (dkSideCards) ;
-   Commander et Companion : dans le deck ; « About » / « Name … » (MTGA) : ignoré. */
+   Commander : dans le deck ; Companion : hors du deck, dans la réserve (règle officielle : le compagnon commence hors du jeu ; core.js › deckModel) ; « About » / « Name … » (MTGA) : ignoré. */
 const deckSum = t => { const d = C.parseDeck(t); return { cards: d.cards.map(c => c.qty + ' ' + c.name), basics: d.basicCopies, side: C.dkSideCards(t).map(c => c.qty + ' ' + c.name), ignored: d.ignored }; };
 test('decklist Moxfield (export MTGA) : About / Name ignorés, Commander gardé, Sideboard = réserve, Maybeboard et Tokens hors du deck', () => {
   const t = 'About\nName Atraxa Superfriends\n\nCommander\n1 Atraxa, Praetors\' Voice (2X2) 190\n\nDeck\n1 Sol Ring (CMM) 400\n1 Arcane Signet (CMM) 297\n30 Forest (CMM) 449\n\nSideboard\n1 Negate (M20) 69\n\nMaybeboard\n1 Mana Crypt (2XM) 270\n\nTokens\n1 Treasure (TCMM) 21';
@@ -105,9 +105,10 @@ test('decklist Moxfield (texte) et Archidekt : en-têtes en capitales avec « : 
   assert.deepEqual(deckSum('Commanders\n1 Edgar Markov\n\nDeck\n1 Sol Ring'), { cards: ['1 Edgar Markov', '1 Sol Ring'], basics: 0, side: [], ignored: 0 }, '« Commanders » : un en-tête, pas une carte');
   assert.deepEqual(deckSum('Deck\n1 Sol Ring\n\nMaybeboard\n1 Arcane Signet'), { cards: ['1 Sol Ring'], basics: 0, side: [], ignored: 0 }, 'repro de l\'audit : 1 carte à chercher, pas 2');
 });
-test('decklist MTGA (Arena) : Companion gardé, Sideboard = réserve (comme « SB: »), même chiffre qu\'un deck de l\'éditeur', () => {
+test('decklist MTGA (Arena) : Companion dans la réserve (compté une fois), Sideboard = réserve (comme « SB: »), même chiffre qu\'un deck de l\'éditeur', () => {
   const t = 'Companion\n1 Lurrus of the Dream-Den (IKO) 226\n\nDeck\n4 Lightning Bolt (STA) 42\n20 Mountain (ZNR) 279\n\nSideboard\n1 Lurrus of the Dream-Den (IKO) 226\n2 Negate (M20) 69';
-  assert.deepEqual(deckSum(t), { cards: ['1 Lurrus of the Dream-Den', '4 Lightning Bolt'], basics: 20, side: ['1 Lurrus of the Dream-Den', '2 Negate'], ignored: 0 });
+  assert.deepEqual(deckSum(t), { cards: ['4 Lightning Bolt'], basics: 20, side: ['1 Lurrus of the Dream-Den', '2 Negate'], ignored: 0 }, 'Arena écrit le compagnon dans « Companion » et dans « Sideboard » : une seule carte, dans la réserve');
+  assert.deepEqual(C.dkCount(t), { n: 24, size: 0 }, 'Mes decks : le compagnon n\'est pas compté dans le deck');
   const sb = '4 Lightning Bolt\n20 Mountain\nSB: 2 Negate';
   assert.deepEqual([C.parseDeck(sb).copies, C.dkSideCards(sb).length], [C.parseDeck('Deck\n4 Lightning Bolt\n20 Mountain\n\nSideboard\n2 Negate').copies, C.dkSideCards('Deck\n4 Lightning Bolt\n\nSideboard\n2 Negate').length], 'Sideboard et SB: : même traitement');
   assert.deepEqual(C.engSnapshot('Deck\n4 Lightning Bolt\n\nSideboard\n2 Negate', () => 9), { 'lightning bolt': 4, negate: 2 }, 'deck monté : la réserve d\'un export est mise de côté comme « SB: »');
