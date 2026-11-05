@@ -286,14 +286,14 @@ function daSimRun() {
     if (card) card.outerHTML = daSimCard();
   });
 }
-/** Résumé de la simulation : mains gardées, commandant à temps, couleurs ; « Rapport du coach » pour le reste. */
+/** Résumé de la simulation : mains gardées, commandant à temps, couleurs (quand elles bloquent) ou adversaire éliminé ; « Rapport du coach » pour le reste. */
 function daSimCard() {
   if (typeof dsimEnsure !== 'function' || !DW.core) return '';
   const r = DSIM.sig === dsimSig(DA.X) ? DSIM.res : null; if (r && r.none) return '';
   const tile = (ok, v, t) => `<span class="cb-st ${ok ? 'ok' : 'warn'}"><b>${esc(v)}</b><small>${esc(t)}</small></span>`;
   const body = !r ? `<span class="ds-big"><i style="width:${Math.round((DSIM.prog || 0) * 100)}%"></i></span><small class="cb-sim-w">${T('Parties en cours…')}</small>`
-    : `<div class="cb-sts">${tile(r.keep7 >= 74, r.keep7 + ' %', T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps')) : tile(r.miss3 <= 20, r.miss3 + ' %', T('parties sans terrain avant le tour 4'))}${tile(r.screw4 <= 10, r.screw4 + ' %', T('parties bloquées par les couleurs'))}</div>`;
-  return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('8 premiers tours joués par le coach, sans adversaire')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
+    : `<div class="cb-sts">${tile(r.keep7 >= 74, dsimPct(r.keep7), T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, dsimPct(r.cmdOn), T('commandant lancé à temps')) : tile(r.miss3 <= 20, dsimPct(r.miss3), T('parties sans terrain avant le tour 4'))}${r.screw4 > 10 || r.elim10 == null ? tile(r.screw4 <= 10, dsimPct(r.screw4), T('parties bloquées par les couleurs')) : tile(r.kill10 >= 20, dsimPct(r.kill10), T('parties où un adversaire tombe avant le tour 11'))}</div>`;      // 3e case : les couleurs quand elles bloquent, sinon la table
+  return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('10 premiers tours joués par le coach, face à 3 adversaires')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
 }
 /** Réglage changé (formulaire partagé) : bracket ou budget choisis ne suivent plus la liste ; gardés pour un deck de Mes decks ; le bilan suit. */
 function daSetChanged(kind) {

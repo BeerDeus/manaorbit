@@ -1,0 +1,16 @@
+{
+ "Le coach a joué les 10 premiers tours avec ce deck, {n} fois, face à 3 adversaires à 40 points de vie : mains de départ, terrains, couleurs, commandant, puis le plan (attaques contre leurs bloqueurs, jetons, drain, moteurs), leurs retraits et un balayage probable entre les tours 5 et 7. Des règles simples et du hasard.": "The coach played the first 10 turns with this deck, {n} times, against 3 opponents at 40 life: opening hands, lands, colors, commander, then the plan (attacks into their blockers, tokens, drain, engines), their removal and a likely board wipe between turns 5 and 7. Simple rules and chance.",
+ "jamais avant le tour 9 : {p}": "never before turn 9: {p}",
+ "{p} avant le tour 5": "{p} before turn 5",
+ "des parties où au moins un adversaire tombe avant le tour 11": "of games where at least one opponent falls before turn 11",
+ "{e} adversaires éliminés sur 3 en moyenne": "{e} of 3 opponents eliminated on average",
+ "table battue : {p}": "table beaten: {p}",
+ "des parties où le moteur est encore là au tour 10, malgré les retraits et le balayage": "of games where the engine is still there on turn 10, despite removal and the board wipe",
+ "moteur encore là au tour qui suit le balayage : {p}": "engine still there the turn after the board wipe: {p}",
+ "La table tient bon : plus de créatures qui passent les bloqueurs (vol, piétinement, menace), des retraits pour leurs bloqueurs, ou une condition de victoire.": "The table holds: more creatures that get past blockers (flying, trample, menace), removal for their blockers, or a win condition.",
+ "Moteur souvent détruit par les adversaires : de la protection (équipements, contresorts, sorts qui protègent) ou de la récursion pour le remonter.": "Engine often destroyed by opponents: add protection (equipment, counterspells, protective spells) or recursion to bring it back.",
+ "Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)": "Test games: {v} (opening hands, lands, colors, against 3 opponents)",
+ "un adversaire éliminé avant le tour 11 : {p}": "an opponent eliminated before turn 11: {p}",
+ "parties où un adversaire tombe avant le tour 11": "games where an opponent falls before turn 11",
+ "10 premiers tours joués par le coach, face à 3 adversaires": "first 10 turns played by the coach, against 3 opponents"
+}
