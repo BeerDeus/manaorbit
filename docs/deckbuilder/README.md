@@ -52,7 +52,20 @@ Le coach raisonne sur le **classement par mécaniques** (`data/card-mech.json`, 
 - **Partie jouée** (`decksim.js`, 10 tours) : la simulation joue aussi le plan (créatures qui attaquent, jetons, drain, pioche, condition de victoire, moteur assemblé) → « adversaire mort avant le tour 11 (seul) », « moteur du plan en place », « cartes vues au tour 6 », avec des conseils. Estimations identiques pour tous les decks : elles comparent, elles ne prédisent pas.
 - **Plusieurs tirages par version** (`dsMake`, `DS_DRAWS` = 3, 20 s au plus en tout) : chaque tirage est construit et amélioré, puis jugé (`dsJudge` : note + partie jouée) ; le meilleur passe aux essais en partie. Sur 32 commandants : note moyenne 97,6 → 98,3, moteur en place 39 % → 43 %, le reste stable (405 s pour 256 decks en Node).
 - Fiches écrites le 5 novembre : 1 503 commandants (301 lots de 5), chaque lot relu par un arbitre qui vérifie sur le texte Oracle (`briefs/card.js`, texte des fiches Scryfall de la base) : de 150 à 300 corrections par tranche de 85 commandants (surtout de faux pièges retirés, des « conditions de victoire » qui ne font que renforcer, des cartes hors couleurs, des règles mal lues) ; les 39 premiers lots, relus de mémoire, relus une seconde fois sur le texte exact (≈ 0,6 correction par fiche : la relecture converge). Les commandants « Rulebreaker » (Seluma, Maular, Valko…) gardent l'identité de couleur stricte (voir `docs/a-faire.md`).
-- Mesure (32 commandants × 4 versions × 2 tirages, fiches à 95 %) : moteur du plan en place 43 % → **75 %** des parties, adversaire mort avant le tour 11 73 % → 77 %, note moyenne 98,3 → 98,1, part du thème demandé 65,8 → 64,9 %, mains gardées 80 %, commandant à temps 83 %, couleurs bloquées 5 % (inchangés), staples 21 % → 19 %, sorts communs entre tirages 73 % → 77 % et entre versions 42 % → 50 % (les fiches donnent un cœur commun plus net). Banc d'essai (rappel@20) : 27,5 % → 25,2 % (garde-fou : les fiches valorisent des cartes que les joueurs jouent peu).
+- Mesure finale (5 novembre, 32 commandants × 4 versions × 2 tirages, toutes les fiches ; « avant » = code du 4 novembre matin, rejoué avec la même simulation) :
+
+| | Avant (4 nov. matin) | Après (5 nov.) |
+|---|---|---|
+| Sorts communs entre deux tirages · entre versions | 100 % · 87 % | 77 % · 50 % |
+| Part des sorts qui servent le thème demandé | 56 % | 66 % |
+| Moteur du plan en place avant le tour 11 | 34 % | 77 % |
+| Adversaire mort avant le tour 11 (seul) · tour moyen | 67 % · 9,7 | 76 % · 9,4 |
+| Mains gardées · commandant à temps · couleurs bloquées | 80 · 83 · 5 % | 80 · 83 · 5 % |
+| Cartes vues au tour 6 | 13,9 | 13,8 |
+| Staples (rang < 300) · rang EDHREC médian | 31 % · 1 085 | 19 % · 1 596 |
+| Note du coach (médiane ; barème changé entre les deux) | 94 | 99 |
+| Decks en défaut | 0 / 127 | 0 / 127 |
+| Banc d'essai (rappel@20, garde-fou) | 29,0 % | 25,2 % |
 - Pilote des fiches (5 commandants) : moteur du plan en place 35 % → 64 % des parties, adversaire mort avant le tour 11 79 % → 80 %, note stable, part du thème demandé 73 % → 70 %.
 
 ### Mesures (4 novembre 2026, `tools/coach-eval.mjs`)
