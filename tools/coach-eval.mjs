@@ -71,7 +71,7 @@ export function coachCtx(srcDir, D) {
 }
 let BUDGET = 1e12;
 /** Résultats de simulation gardés dans la mesure : tous les chiffres (anciens et nouveaux, selon le code mesuré). */
-const simPick = r => r ? Object.fromEntries(Object.entries(r).filter(([k, v]) => k !== 'n' && (typeof v === 'number' || v === null))) : null;
+const simPick = r => r ? Object.fromEntries(Object.entries(r).filter(([k, v]) => k !== 'n' && (typeof v === 'number' || v === null || (k === 'blind' && v)))) : null;      // blind : plan que la simulation ne joue pas (voltron, ninjutsu…)
 /** Réglages d'une version (style) pour un cas : ceux de buildCase, plus le style de la version (plan du deck : decksim.js › dsimDeck). */
 const wizOf = (cs, vid) => ({ th: cs.th || [], br: cs.br || 3, bud: cs.bud || 0, own: false, mech: cs.mech || [], tribe: cs.tribe || '', pets: cs.pets || [], ban: cs.ban || [], avoid: cs.avoid || [], ...(vid === 'agg' ? { arch: 'aggro', style: 'aggro' } : vid === 'ctl' ? { arch: 'control', style: 'control' } : vid === 'eco' ? { style: 'eco' } : {}) });
 const slugOf = (D, names) => { for (const l of [names, [...names].reverse()]) { const s = l.map(n => normKey(n).replace(/ /g, '-')).join('-'); if (D.cmd[s]) return s; } return names.map(n => normKey(n).replace(/ /g, '-')).join('-'); };
@@ -210,6 +210,6 @@ if (process.env.COACH_EVAL_CHILD) {
     decks: agg.decks, decksEnDefaut: agg.bad, erreurs: agg.errs,
     versions: Object.fromEntries(Object.entries(vAgg).map(([k, v]) => [k, { note: Math.round(avg(v.sc) * 10) / 10, theme: r1(avg(v.th)), keep7: Math.round(avg(v.keep7)), cmdOn: Math.round(avg(v.cmdOn)), screw4: Math.round(avg(v.screw4)) }])) };
   console.log(JSON.stringify(sum, null, 1));
-  for (const r of rows) console.log(r.err ? `${r.id} ERREUR ${r.err}` : `${r.id.padEnd(15)} ${r.pack ? 'P' : '-'} tirages ${r.draw ?? '-'} % · versions ${r.vers ?? '-'} % (max ${r.versMax ?? '-'}) · ` + r.v.map(v => `${v.id} ${v.sc} th${v.th ?? '-'} rg${v.rank} st${v.staple} k${v.sim ? v.sim.keep7 : '-'}/c${v.sim ? v.sim.cmdOn : '-'}/s${v.sim ? v.sim.screw4 : '-'}${v.sim && v.sim.elim10 != null ? `/a${v.sim.kill10}/m${v.sim.engKeep ?? '-'}` : ''} L${v.land} ${v.eur}€${v.bad.length ? ' !' + v.bad.join(';') : ''}${v.theme ? ' [' + v.theme + ']' : ''}`).join(' | '));
+  for (const r of rows) console.log(r.err ? `${r.id} ERREUR ${r.err}` : `${r.id.padEnd(15)} ${r.pack ? 'P' : '-'} tirages ${r.draw ?? '-'} % · versions ${r.vers ?? '-'} % (max ${r.versMax ?? '-'}) · ` + r.v.map(v => `${v.id} ${v.sc} th${v.th ?? '-'} rg${v.rank} st${v.staple} k${v.sim ? v.sim.keep7 : '-'}/c${v.sim ? v.sim.cmdOn : '-'}/s${v.sim ? v.sim.screw4 : '-'}${v.sim && v.sim.elim10 != null ? `/a${v.sim.kill10}${v.sim.blind ? '~' + v.sim.blind : ''}/m${v.sim.engKeep ?? '-'}` : ''} L${v.land} ${v.eur}€${v.bad.length ? ' !' + v.bad.join(';') : ''}${v.theme ? ' [' + v.theme + ']' : ''}`).join(' | '));
   if (outF) writeFileSync(outF, JSON.stringify({ sum, rows, raw: got }, null, 0));
 }
