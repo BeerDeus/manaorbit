@@ -230,9 +230,9 @@ assert.match(await txt(p, '[data-da-swt]'), /^Échanges conseillés 1 échange �
 assert.match(await txt(p, '.cb-set'), /^Réglages bracket 2 \(estimé\) · limite [\d\s,]+ € \(valeur actuelle\) Modifier$/, 'budget = valeur actuelle');
 await shot(p, 'coach-bilan');
 await p.click('[data-da-swt]'); await p.waitForSelector('.da-sw');
-const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + x.querySelector('.da-why').textContent.replace(/\s*Pourquoi \?$/, '')).map(t => t.replace(/\s+/g, ' ').trim()));
+const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + [...x.querySelectorAll('.da-why .da-wh, .da-why .da-px, .da-why small')].map(e => e.textContent).join(' · ')).map(t => t.replace(/\s+/g, ' ').trim()));
 let sws = await swRows();
-assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · 80 % des decks (contre 0 %) · −4,60 €');
+assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · −4,60 € · 80 % des decks (contre 0 %)');
 // vignettes : image de la fiche ou de Scryfall par le nom ; un toucher agrandit la carte (retirée, ajoutée…)
 assert.deepEqual(await p.$$eval('.da-sw .thumb', t => t.map(x => !!x.querySelector('img') && x.dataset.zoom)), ['da', 'da']);
 await p.waitForFunction(() => document.querySelectorAll('.da-sw .thumb img.ok').length === 2, null, { timeout: 10000 });      // images chargées et visibles (classe ok), pas seulement présentes
