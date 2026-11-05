@@ -1,0 +1,2156 @@
+{
+ "data": {
+  "commanders": {
+   "edges": [
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjM=",
+      "name": "Kraum, Ludevic's Opus / Tymna the Weaver",
+      "colorId": "WUBR",
+      "breakdownUrl": "/commander/Kraum%2C%20Ludevic's%20Opus%20%2F%20Tymna%20the%20Weaver",
+      "stats": {
+       "conversionRate": 0.27605386416861827,
+       "topCuts": 943,
+       "count": 3416,
+       "metaShare": 0.02735601255685822,
+       "winRate": 0.21755725190839695
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/5/557fcd17-6cb3-414a-b2b1-ea9ae32e5aec.jpg?1783937084"
+        ],
+        "id": "Q2FyZDo3NDUw"
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/c/bc7cbe9b-324e-42b8-94e2-36e91cb32163.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1ODc="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "1"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjEz",
+      "name": "Kinnan, Bonder Prodigy",
+      "colorId": "UG",
+      "breakdownUrl": "/commander/Kinnan%2C%20Bonder%20Prodigy",
+      "stats": {
+       "conversionRate": 0.2669683257918552,
+       "topCuts": 885,
+       "count": 3315,
+       "metaShare": 0.026547184316740344,
+       "winRate": 0.21795129804789695
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/6/3/63cda4a0-0dff-4edb-ae67-a2b7e2971350.jpg?1783931023"
+        ],
+        "id": "Q2FyZDoxMDE2"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "2"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjQ3",
+      "name": "Rograkh, Son of Rohgahh / Thrasios, Triton Hero",
+      "colorId": "URG",
+      "breakdownUrl": "/commander/Rograkh%2C%20Son%20of%20Rohgahh%20%2F%20Thrasios%2C%20Triton%20Hero",
+      "stats": {
+       "conversionRate": 0.27627752388865806,
+       "topCuts": 665,
+       "count": 2407,
+       "metaShare": 0.019275738356076624,
+       "winRate": 0.21751986693771946
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/4/a4fab67f-00c2-4125-9262-d21a29411797.jpg?1783928807"
+        ],
+        "id": "Q2FyZDo5Mg=="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/1/21e27b91-c7f1-4709-aa0d-8b5d81b22a0a.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1MzQ="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "3"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjM2",
+      "name": "Rograkh, Son of Rohgahh / Silas Renn, Seeker Adept",
+      "colorId": "UBR",
+      "breakdownUrl": "/commander/Rograkh%2C%20Son%20of%20Rohgahh%20%2F%20Silas%20Renn%2C%20Seeker%20Adept",
+      "stats": {
+       "conversionRate": 0.23895401262398558,
+       "topCuts": 530,
+       "count": 2218,
+       "metaShare": 0.01776218848100455,
+       "winRate": 0.20355361596009974
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/4/a4fab67f-00c2-4125-9262-d21a29411797.jpg?1783928807"
+        ],
+        "id": "Q2FyZDo5Mg=="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/e/4e3fe912-1374-47c7-b73f-89ef55c479c1.jpg?1783937082"
+        ],
+        "id": "Q2FyZDoxMjY2Ng=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "4"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjMz",
+      "name": "Sisay, Weatherlight Captain",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Sisay%2C%20Weatherlight%20Captain",
+      "stats": {
+       "conversionRate": 0.27333677153171737,
+       "topCuts": 530,
+       "count": 1939,
+       "metaShare": 0.015527900570183868,
+       "winRate": 0.22272099447513813
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/a/5a293c45-1e73-4527-be2f-2dcd5c47b610.jpg?1783933156"
+        ],
+        "id": "Q2FyZDoyMDU4"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "5"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI2",
+      "name": "Thrasios, Triton Hero / Tymna the Weaver",
+      "colorId": "WUBG",
+      "breakdownUrl": "/commander/Thrasios%2C%20Triton%20Hero%20%2F%20Tymna%20the%20Weaver",
+      "stats": {
+       "conversionRate": 0.2680788897005113,
+       "topCuts": 367,
+       "count": 1369,
+       "metaShare": 0.010963226343776026,
+       "winRate": 0.20656214643607565
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/1/21e27b91-c7f1-4709-aa0d-8b5d81b22a0a.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1MzQ="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/c/bc7cbe9b-324e-42b8-94e2-36e91cb32163.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1ODc="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "6"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjQw",
+      "name": "Ral, Monsoon Mage // Ral, Leyline Prodigy",
+      "colorId": "UR",
+      "breakdownUrl": "/commander/Ral%2C%20Monsoon%20Mage%20%2F%2F%20Ral%2C%20Leyline%20Prodigy",
+      "stats": {
+       "conversionRate": 0.2473633748801534,
+       "topCuts": 258,
+       "count": 1043,
+       "metaShare": 0.00835255301428663,
+       "winRate": 0.20302423838114297
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1783911228",
+         "https://cards.scryfall.io/art_crop/back/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1783911228"
+        ],
+        "id": "Q2FyZDo3MzE="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "7"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjU=",
+      "name": "Vivi Ornitier",
+      "colorId": "UR",
+      "breakdownUrl": "/commander/Vivi%20Ornitier",
+      "stats": {
+       "conversionRate": 0.23477406679764243,
+       "topCuts": 239,
+       "count": 1018,
+       "metaShare": 0.008152348004356462,
+       "winRate": 0.19024834814308497
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/e/c/ecc1027a-8c07-44a0-bdde-fa2844cff694.jpg?1783906561"
+        ],
+        "id": "Q2FyZDozNTY="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "8"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjY=",
+      "name": "Dargo, the Shipwrecker / Tymna the Weaver",
+      "colorId": "WBR",
+      "breakdownUrl": "/commander/Dargo%2C%20the%20Shipwrecker%20%2F%20Tymna%20the%20Weaver",
+      "stats": {
+       "conversionRate": 0.23108808290155441,
+       "topCuts": 223,
+       "count": 965,
+       "metaShare": 0.007727913383304504,
+       "winRate": 0.19797188292233234
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/c/5cd87cf8-4d5d-4aba-8dfa-800b1fb3799b.jpg?1783928817"
+        ],
+        "id": "Q2FyZDoyMTAx"
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/c/bc7cbe9b-324e-42b8-94e2-36e91cb32163.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1ODc="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "9"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjMw",
+      "name": "Magda, Brazen Outlaw",
+      "colorId": "R",
+      "breakdownUrl": "/commander/Magda%2C%20Brazen%20Outlaw",
+      "stats": {
+       "conversionRate": 0.30603448275862066,
+       "topCuts": 284,
+       "count": 928,
+       "metaShare": 0.007431609968607854,
+       "winRate": 0.23258616534104604
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/0/7/079e6263-e54c-4899-a336-5315909b9322.jpg?1783928229"
+        ],
+        "id": "Q2FyZDoyOTg="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "10"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI0Mw==",
+      "name": "Ishai, Ojutai Dragonspeaker / Rograkh, Son of Rohgahh",
+      "colorId": "WUR",
+      "breakdownUrl": "/commander/Ishai%2C%20Ojutai%20Dragonspeaker%20%2F%20Rograkh%2C%20Son%20of%20Rohgahh",
+      "stats": {
+       "conversionRate": 0.2341842397336293,
+       "topCuts": 211,
+       "count": 901,
+       "metaShare": 0.007215388557883272,
+       "winRate": 0.1986706056129985
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/e/2e89ce6a-6bc9-427f-a8b2-c07a9fc3218f.jpg?1783934777"
+        ],
+        "id": "Q2FyZDo4Nzk4"
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/4/a4fab67f-00c2-4125-9262-d21a29411797.jpg?1783928807"
+        ],
+        "id": "Q2FyZDo5Mg=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "11"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjEx",
+      "name": "Etali, Primal Conqueror // Etali, Primal Sickness",
+      "colorId": "RG",
+      "breakdownUrl": "/commander/Etali%2C%20Primal%20Conqueror%20%2F%2F%20Etali%2C%20Primal%20Sickness",
+      "stats": {
+       "conversionRate": 0.17299107142857142,
+       "topCuts": 155,
+       "count": 896,
+       "metaShare": 0.007175347555897239,
+       "winRate": 0.16158696794534944
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/9/5/95c14c4d-6c16-4826-8d93-d89ad04aee09.jpg?1783916997",
+         "https://cards.scryfall.io/art_crop/back/9/5/95c14c4d-6c16-4826-8d93-d89ad04aee09.jpg?1783916997"
+        ],
+        "id": "Q2FyZDoxODc4"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "12"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjM1",
+      "name": "Thrasios, Triton Hero / Yoshimaru, Ever Faithful",
+      "colorId": "WUG",
+      "breakdownUrl": "/commander/Thrasios%2C%20Triton%20Hero%20%2F%20Yoshimaru%2C%20Ever%20Faithful",
+      "stats": {
+       "conversionRate": 0.23214285714285715,
+       "topCuts": 169,
+       "count": 728,
+       "metaShare": 0.005829969889166507,
+       "winRate": 0.19196011218448114
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/1/21e27b91-c7f1-4709-aa0d-8b5d81b22a0a.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1MzQ="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/a/aa409269-3698-42a2-8c51-75557b27a6f6.jpg?1783923987"
+        ],
+        "id": "Q2FyZDo1ODAw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "13"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjQ5",
+      "name": "Tayam, Luminous Enigma",
+      "colorId": "WBG",
+      "breakdownUrl": "/commander/Tayam%2C%20Luminous%20Enigma",
+      "stats": {
+       "conversionRate": 0.23654390934844194,
+       "topCuts": 167,
+       "count": 706,
+       "metaShare": 0.005653789480427958,
+       "winRate": 0.20876288659793815
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/0/5/05b837a2-5773-4340-87f9-b4d6a43deb27.jpg?1783931228"
+        ],
+        "id": "Q2FyZDoxNzcxNw=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "14"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIwNjY=",
+      "name": "Crystal, Inhuman Princess",
+      "colorId": "WURG",
+      "breakdownUrl": "/commander/Crystal%2C%20Inhuman%20Princess",
+      "stats": {
+       "conversionRate": 0.272992700729927,
+       "topCuts": 187,
+       "count": 685,
+       "metaShare": 0.005485617272086617,
+       "winRate": 0.21533824514400535
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/1/e/1e9aec49-08d7-4fc8-87dd-69ab8910688a.jpg?1783981173"
+        ],
+        "id": "Q2FyZDoyMjQ0OQ=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "15"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI4",
+      "name": "Ob Nixilis, Captive Kingpin",
+      "colorId": "BR",
+      "breakdownUrl": "/commander/Ob%20Nixilis%2C%20Captive%20Kingpin",
+      "stats": {
+       "conversionRate": 0.18769716088328076,
+       "topCuts": 119,
+       "count": 634,
+       "metaShare": 0.005077199051829073,
+       "winRate": 0.16922514619883042
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/d/d/ddb68233-3683-41bd-9b6e-4f07a1b54244.jpg?1783916511"
+        ],
+        "id": "Q2FyZDo1NzM3"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "16"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIwNzI=",
+      "name": "Nick Fury, Agent of S.H.I.E.L.D.",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Nick%20Fury%2C%20Agent%20of%20S.H.I.E.L.D.",
+      "stats": {
+       "conversionRate": 0.28929765886287623,
+       "topCuts": 173,
+       "count": 598,
+       "metaShare": 0.0047889038375296305,
+       "winRate": 0.23178322958623215
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/3/a/3aa6fc02-ef76-426b-accd-6c0ef88b2a5e.jpg?1783902971"
+        ],
+        "id": "Q2FyZDoyMjQ3NA=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "17"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjk=",
+      "name": "Kefka, Court Mage // Kefka, Ruler of Ruin",
+      "colorId": "UBR",
+      "breakdownUrl": "/commander/Kefka%2C%20Court%20Mage%20%2F%2F%20Kefka%2C%20Ruler%20of%20Ruin",
+      "stats": {
+       "conversionRate": 0.21739130434782608,
+       "topCuts": 120,
+       "count": 552,
+       "metaShare": 0.004420526619258121,
+       "winRate": 0.19345238095238096
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/8/f/8fcf3fbb-1ddd-437e-81c1-f5a3133f5ee8.jpg?1783906572",
+         "https://cards.scryfall.io/art_crop/back/8/f/8fcf3fbb-1ddd-437e-81c1-f5a3133f5ee8.jpg?1783906572"
+        ],
+        "id": "Q2FyZDoxOTE5"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "18"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE0",
+      "name": "Tivit, Seller of Secrets",
+      "colorId": "WUB",
+      "breakdownUrl": "/commander/Tivit%2C%20Seller%20of%20Secrets",
+      "stats": {
+       "conversionRate": 0.24349442379182157,
+       "topCuts": 131,
+       "count": 538,
+       "metaShare": 0.004308411813697226,
+       "winRate": 0.19571865443425077
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/9/2/9235977e-a999-4ed0-83a3-742be87b13bb.jpg?1783923378"
+        ],
+        "id": "Q2FyZDoxMzMw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "19"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE3",
+      "name": "Winota, Joiner of Forces",
+      "colorId": "WR",
+      "breakdownUrl": "/commander/Winota%2C%20Joiner%20of%20Forces",
+      "stats": {
+       "conversionRate": 0.198,
+       "topCuts": 99,
+       "count": 500,
+       "metaShare": 0.00400410019860337,
+       "winRate": 0.19556650246305418
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/d/5dd13a6c-23d3-44ce-a628-cb1c19d777c4.jpg?1783931014"
+        ],
+        "id": "Q2FyZDo3MDM4"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "20"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjU2",
+      "name": "Lumra, Bellow of the Woods",
+      "colorId": "G",
+      "breakdownUrl": "/commander/Lumra%2C%20Bellow%20of%20the%20Woods",
+      "stats": {
+       "conversionRate": 0.1870824053452116,
+       "topCuts": 84,
+       "count": 449,
+       "metaShare": 0.003595681978345826,
+       "winRate": 0.18216012896292316
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/e/ae4f3aaf-3960-48cd-b34b-32e4ae5ae088.jpg?1785161492"
+        ],
+        "id": "Q2FyZDoyOTYw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "21"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE3ODc=",
+      "name": "Brigid, Clachan's Heart // Brigid, Doun's Mind",
+      "colorId": "WG",
+      "breakdownUrl": "/commander/Brigid%2C%20Clachan's%20Heart%20%2F%2F%20Brigid%2C%20Doun's%20Mind",
+      "stats": {
+       "conversionRate": 0.1963882618510158,
+       "topCuts": 87,
+       "count": 443,
+       "metaShare": 0.0035476327759625856,
+       "winRate": 0.19581958195819582
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.jpg?1783904517",
+         "https://cards.scryfall.io/art_crop/back/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.jpg?1783904517"
+        ],
+        "id": "Q2FyZDoyMDU1Ng=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "22"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjUy",
+      "name": "Malcolm, Keen-Eyed Navigator / Vial Smasher the Fierce",
+      "colorId": "UBR",
+      "breakdownUrl": "/commander/Malcolm%2C%20Keen-Eyed%20Navigator%20%2F%20Vial%20Smasher%20the%20Fierce",
+      "stats": {
+       "conversionRate": 0.24685138539042822,
+       "topCuts": 98,
+       "count": 397,
+       "metaShare": 0.003179255557691076,
+       "winRate": 0.19678714859437751
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/1/51187cdb-85ee-4f68-9e29-d84d296f0825.jpg?1783913885"
+        ],
+        "id": "Q2FyZDo4OTU="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/c/c/cc7be939-2202-40fe-8899-a05682d76190.jpg?1783909586"
+        ],
+        "id": "Q2FyZDoyNjAw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "23"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI0",
+      "name": "K'rrik, Son of Yawgmoth",
+      "colorId": "B",
+      "breakdownUrl": "/commander/K'rrik%2C%20Son%20of%20Yawgmoth",
+      "stats": {
+       "conversionRate": 0.18766066838046272,
+       "topCuts": 73,
+       "count": 389,
+       "metaShare": 0.003115189954513422,
+       "winRate": 0.1785925487876996
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/f/4f087b1c-97e0-4379-a94d-beac53685314.jpg?1783911216"
+        ],
+        "id": "Q2FyZDo5OTY="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "24"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjU5",
+      "name": "Arcum Dagsson",
+      "colorId": "U",
+      "breakdownUrl": "/commander/Arcum%20Dagsson",
+      "stats": {
+       "conversionRate": 0.296195652173913,
+       "topCuts": 109,
+       "count": 368,
+       "metaShare": 0.0029470177461720804,
+       "winRate": 0.2509025270758123
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/f/5/f5ecf811-2efc-4fa6-9af8-ef09f559ec1a.jpg?1783930205"
+        ],
+        "id": "Q2FyZDo4NjI="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "25"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI1",
+      "name": "Rowan, Scion of War",
+      "colorId": "BR",
+      "breakdownUrl": "/commander/Rowan%2C%20Scion%20of%20War",
+      "stats": {
+       "conversionRate": 0.279874213836478,
+       "topCuts": 89,
+       "count": 318,
+       "metaShare": 0.002546607726311743,
+       "winRate": 0.21881682109764788
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/e/4ee179ab-a15b-4bd6-b7f8-1e1abeeb31b7.jpg?1783915070"
+        ],
+        "id": "Q2FyZDo3MDY3"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "26"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE1OA==",
+      "name": "Scion of the Ur-Dragon",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Scion%20of%20the%20Ur-Dragon",
+      "stats": {
+       "conversionRate": 0.32371794871794873,
+       "topCuts": 101,
+       "count": 312,
+       "metaShare": 0.0024985585239285027,
+       "winRate": 0.23742026931254429
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/6/565b2a40-57b1-451f-8c2a-e02222502288.jpg?1783935875"
+        ],
+        "id": "Q2FyZDoyNA=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "27"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjU1",
+      "name": "Rocco, Cabaretti Caterer",
+      "colorId": "WRG",
+      "breakdownUrl": "/commander/Rocco%2C%20Cabaretti%20Caterer",
+      "stats": {
+       "conversionRate": 0.2709030100334448,
+       "topCuts": 81,
+       "count": 299,
+       "metaShare": 0.0023944519187648152,
+       "winRate": 0.24110671936758893
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/6/b6cf8b35-2a81-40fd-b383-becb81bef806.jpg?1783923072"
+        ],
+        "id": "Q2FyZDo3ODQw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "28"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjQz",
+      "name": "Marneus Calgar",
+      "colorId": "WUB",
+      "breakdownUrl": "/commander/Marneus%20Calgar",
+      "stats": {
+       "conversionRate": 0.20134228187919462,
+       "topCuts": 60,
+       "count": 298,
+       "metaShare": 0.0023864437183676083,
+       "winRate": 0.16614664586583464
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/e/7/e7517e8e-b424-4731-ba9d-6132bdefa6bf.jpg?1783920949"
+        ],
+        "id": "Q2FyZDo4MDU1"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "29"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjg=",
+      "name": "Glarb, Calamity's Augur",
+      "colorId": "UBG",
+      "breakdownUrl": "/commander/Glarb%2C%20Calamity's%20Augur",
+      "stats": {
+       "conversionRate": 0.15202702702702703,
+       "topCuts": 45,
+       "count": 296,
+       "metaShare": 0.0023704273175731948,
+       "winRate": 0.14874696847210994
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/f/f/ffc70b2d-5a3a-49ea-97db-175a62248302.jpg?1783910796"
+        ],
+        "id": "Q2FyZDo0ODg5"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "30"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE1NA==",
+      "name": "Zirda, the Dawnwaker",
+      "colorId": "WR",
+      "breakdownUrl": "/commander/Zirda%2C%20the%20Dawnwaker",
+      "stats": {
+       "conversionRate": 0.2983050847457627,
+       "topCuts": 88,
+       "count": 295,
+       "metaShare": 0.0023624191171759882,
+       "winRate": 0.22027439024390244
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/1/b/1bd8e61c-2ee8-4243-a848-7008810db8a0.jpg?1783931007"
+        ],
+        "id": "Q2FyZDoyOTU2"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "31"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjcz",
+      "name": "Terra, Magical Adept // Esper Terra",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Terra%2C%20Magical%20Adept%20%2F%2F%20Esper%20Terra",
+      "stats": {
+       "conversionRate": 0.18430034129692832,
+       "topCuts": 54,
+       "count": 293,
+       "metaShare": 0.0023464027163815748,
+       "winRate": 0.1791767554479419
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/f/b/fbd447aa-588d-4c4d-925e-a7d3bdf6a65c.jpg?1783906567",
+         "https://cards.scryfall.io/art_crop/back/f/b/fbd447aa-588d-4c4d-925e-a7d3bdf6a65c.jpg?1783906567"
+        ],
+        "id": "Q2FyZDoxMzM2MQ=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "32"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjYy",
+      "name": "Inalla, Archmage Ritualist",
+      "colorId": "UBR",
+      "breakdownUrl": "/commander/Inalla%2C%20Archmage%20Ritualist",
+      "stats": {
+       "conversionRate": 0.2526690391459075,
+       "topCuts": 71,
+       "count": 281,
+       "metaShare": 0.002250304311615094,
+       "winRate": 0.19324430479183033
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/7/c/7c6e803a-451c-4aa6-97a2-400077f32c47.jpg?1783935937"
+        ],
+        "id": "Q2FyZDoxNzg1MQ=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "33"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE2",
+      "name": "Yuriko, the Tiger's Shadow",
+      "colorId": "UB",
+      "breakdownUrl": "/commander/Yuriko%2C%20the%20Tiger's%20Shadow",
+      "stats": {
+       "conversionRate": 0.14181818181818182,
+       "topCuts": 39,
+       "count": 275,
+       "metaShare": 0.0022022551092318533,
+       "winRate": 0.15594713656387665
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/f/e/fe9be3e0-076c-4703-9750-2a6b0a178bc9.jpg?1791803568"
+        ],
+        "id": "Q2FyZDo4MDM5"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "34"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE3MzU=",
+      "name": "The Cabbage Merchant",
+      "colorId": "G",
+      "breakdownUrl": "/commander/The%20Cabbage%20Merchant",
+      "stats": {
+       "conversionRate": 0.23722627737226276,
+       "topCuts": 65,
+       "count": 274,
+       "metaShare": 0.002194246908834647,
+       "winRate": 0.20730671197960918
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/f/2fea0356-6684-4730-9eb4-0262856bc1f9.jpg?1783904816"
+        ],
+        "id": "Q2FyZDoxMDE4"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "35"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjY3",
+      "name": "Kenrith, the Returned King",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Kenrith%2C%20the%20Returned%20King",
+      "stats": {
+       "conversionRate": 0.2518248175182482,
+       "topCuts": 69,
+       "count": 274,
+       "metaShare": 0.002194246908834647,
+       "winRate": 0.19373942470389172
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/0/e/0e259db1-14db-4314-998c-6a076a28d8cb.jpg?1783916113"
+        ],
+        "id": "Q2FyZDo0NDA1"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "36"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE4NjI=",
+      "name": "Raph & Mikey, Troublemakers",
+      "colorId": "RG",
+      "breakdownUrl": "/commander/Raph%20%26%20Mikey%2C%20Troublemakers",
+      "stats": {
+       "conversionRate": 0.20074349442379183,
+       "topCuts": 54,
+       "count": 269,
+       "metaShare": 0.002154205906848613,
+       "winRate": 0.1972972972972973
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/8/7/8795fba4-0ff3-4c04-a81c-60408608a00c.jpg?1783904069"
+        ],
+        "id": "Q2FyZDoyMTE5Mw=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "37"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjgz",
+      "name": "Thrasios, Triton Hero / Vial Smasher the Fierce",
+      "colorId": "UBRG",
+      "breakdownUrl": "/commander/Thrasios%2C%20Triton%20Hero%20%2F%20Vial%20Smasher%20the%20Fierce",
+      "stats": {
+       "conversionRate": 0.2190082644628099,
+       "topCuts": 53,
+       "count": 242,
+       "metaShare": 0.001937984496124031,
+       "winRate": 0.2014995313964386
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/1/21e27b91-c7f1-4709-aa0d-8b5d81b22a0a.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1MzQ="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/c/c/cc7be939-2202-40fe-8899-a05682d76190.jpg?1783909586"
+        ],
+        "id": "Q2FyZDoyNjAw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "38"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjc0",
+      "name": "Aang, at the Crossroads // Aang, Destined Savior",
+      "colorId": "WUG",
+      "breakdownUrl": "/commander/Aang%2C%20at%20the%20Crossroads%20%2F%2F%20Aang%2C%20Destined%20Savior",
+      "stats": {
+       "conversionRate": 0.225,
+       "topCuts": 54,
+       "count": 240,
+       "metaShare": 0.0019219680953296175,
+       "winRate": 0.20096153846153847
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/f/e/fea89ca0-8070-4f28-9851-994314f9d248.jpg?1783904940",
+         "https://cards.scryfall.io/art_crop/back/f/e/fea89ca0-8070-4f28-9851-994314f9d248.jpg?1783904940"
+        ],
+        "id": "Q2FyZDoyMDAzOA=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "39"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjU0",
+      "name": "The Wandering Minstrel",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/The%20Wandering%20Minstrel",
+      "stats": {
+       "conversionRate": 0.17083333333333334,
+       "topCuts": 41,
+       "count": 240,
+       "metaShare": 0.0019219680953296175,
+       "winRate": 0.17835051546391753
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/7/7/77bc419d-ff69-4e7c-afe6-faca383a5ed7.jpg?1792421941"
+        ],
+        "id": "Q2FyZDoxNDg1OQ=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "40"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjM5",
+      "name": "Atraxa, Grand Unifier",
+      "colorId": "WUBG",
+      "breakdownUrl": "/commander/Atraxa%2C%20Grand%20Unifier",
+      "stats": {
+       "conversionRate": 0.21524663677130046,
+       "topCuts": 48,
+       "count": 223,
+       "metaShare": 0.001785828688577103,
+       "winRate": 0.1952054794520548
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/a/4a1f905f-1d55-4d02-9d24-e58070793d3f.jpg?1783918003"
+        ],
+        "id": "Q2FyZDoyMDQ1"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "41"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIx",
+      "name": "Urza, Lord High Artificer",
+      "colorId": "U",
+      "breakdownUrl": "/commander/Urza%2C%20Lord%20High%20Artificer",
+      "stats": {
+       "conversionRate": 0.11363636363636363,
+       "topCuts": 25,
+       "count": 220,
+       "metaShare": 0.0017618040873854828,
+       "winRate": 0.1108719052744887
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/7/b/7b7a348a-51f7-4dc5-8fe7-1c70fea5e050.jpg?1783915686"
+        ],
+        "id": "Q2FyZDo1NzQ="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "42"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE4",
+      "name": "The Gitrog Monster",
+      "colorId": "BG",
+      "breakdownUrl": "/commander/The%20Gitrog%20Monster",
+      "stats": {
+       "conversionRate": 0.20574162679425836,
+       "topCuts": 43,
+       "count": 209,
+       "metaShare": 0.0016737138830162086,
+       "winRate": 0.18418079096045198
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/0/40489e28-878d-44a2-847f-07beef1aa0f8.jpg?1783906028"
+        ],
+        "id": "Q2FyZDozMTU1"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "43"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE4NDg=",
+      "name": "Leonardo, the Balance / Michelangelo, the Heart",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Leonardo%2C%20the%20Balance%20%2F%20Michelangelo%2C%20the%20Heart",
+      "stats": {
+       "conversionRate": 0.21951219512195122,
+       "topCuts": 45,
+       "count": 205,
+       "metaShare": 0.0016416810814273816,
+       "winRate": 0.2063305978898007
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/7/2/72e637db-7112-406f-809b-0eda248488b5.jpg?1783904176"
+        ],
+        "id": "Q2FyZDoyMTE1NA=="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/a/bac2d744-db65-4b56-8634-c87fd00c090e.jpg?1783904173"
+        ],
+        "id": "Q2FyZDoyMTE2Ng=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "44"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjg0",
+      "name": "Derevi, Empyrial Tactician",
+      "colorId": "WUG",
+      "breakdownUrl": "/commander/Derevi%2C%20Empyrial%20Tactician",
+      "stats": {
+       "conversionRate": 0.2975609756097561,
+       "topCuts": 61,
+       "count": 205,
+       "metaShare": 0.0016416810814273816,
+       "winRate": 0.21428571428571427
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/3/a/3a1d0dad-18a8-489e-ac11-08f64b72fda4.jpg?1783936231"
+        ],
+        "id": "Q2FyZDoxMTc0"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "45"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjEw",
+      "name": "Malcolm, Keen-Eyed Navigator / Tana, the Bloodsower",
+      "colorId": "URG",
+      "breakdownUrl": "/commander/Malcolm%2C%20Keen-Eyed%20Navigator%20%2F%20Tana%2C%20the%20Bloodsower",
+      "stats": {
+       "conversionRate": 0.31443298969072164,
+       "topCuts": 61,
+       "count": 194,
+       "metaShare": 0.0015535908770581074,
+       "winRate": 0.21118721461187215
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/1/51187cdb-85ee-4f68-9e29-d84d296f0825.jpg?1783913885"
+        ],
+        "id": "Q2FyZDo4OTU="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/3/a3d8d64f-a403-42a7-881b-4f70e9fe15a2.jpg?1783937081"
+        ],
+        "id": "Q2FyZDoxNzIzOQ=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "46"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjMx",
+      "name": "Dihada, Binder of Wills",
+      "colorId": "WBR",
+      "breakdownUrl": "/commander/Dihada%2C%20Binder%20of%20Wills",
+      "stats": {
+       "conversionRate": 0.39361702127659576,
+       "topCuts": 74,
+       "count": 188,
+       "metaShare": 0.001505541674674867,
+       "winRate": 0.24786324786324787
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/d/d/ddeb54d6-a600-42b9-98df-20f8d58caed8.jpg?1783921477"
+        ],
+        "id": "Q2FyZDoxNDE3"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "47"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjM0",
+      "name": "Krark, the Thumbless / Sakashima of a Thousand Faces",
+      "colorId": "UR",
+      "breakdownUrl": "/commander/Krark%2C%20the%20Thumbless%20%2F%20Sakashima%20of%20a%20Thousand%20Faces",
+      "stats": {
+       "conversionRate": 0.15934065934065933,
+       "topCuts": 29,
+       "count": 182,
+       "metaShare": 0.0014574924722916267,
+       "winRate": 0.16381766381766383
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/0/6/06a981cd-1951-438e-95c9-68294795638e.jpg?1783928810"
+        ],
+        "id": "Q2FyZDozMDA2"
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/7/1/714c3a1f-7b30-4ed8-8f38-6176758741fb.jpg?1783928853"
+        ],
+        "id": "Q2FyZDoxODEw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "48"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjExOQ==",
+      "name": "Chatterfang, Squirrel General",
+      "colorId": "BG",
+      "breakdownUrl": "/commander/Chatterfang%2C%20Squirrel%20General",
+      "stats": {
+       "conversionRate": 0.2784090909090909,
+       "topCuts": 49,
+       "count": 176,
+       "metaShare": 0.0014094432699083862,
+       "winRate": 0.22427440633245382
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/1/7/1785cf85-1ac0-4246-9b89-1a8221a8e1b2.jpg?1783926835"
+        ],
+        "id": "Q2FyZDoxMTc1"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "49"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjk2",
+      "name": "Kediss, Emberclaw Familiar / Malcolm, Keen-Eyed Navigator",
+      "colorId": "UR",
+      "breakdownUrl": "/commander/Kediss%2C%20Emberclaw%20Familiar%20%2F%20Malcolm%2C%20Keen-Eyed%20Navigator",
+      "stats": {
+       "conversionRate": 0.3313953488372093,
+       "topCuts": 57,
+       "count": 172,
+       "metaShare": 0.0013774104683195593,
+       "winRate": 0.2480719794344473
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/f/6/f606ebf1-483d-4331-b16a-9fb6f591a39f.jpg?1783928811"
+        ],
+        "id": "Q2FyZDoxNTI3"
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/1/51187cdb-85ee-4f68-9e29-d84d296f0825.jpg?1783913885"
+        ],
+        "id": "Q2FyZDo4OTU="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "50"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjc3",
+      "name": "Y'shtola, Night's Blessed",
+      "colorId": "WUB",
+      "breakdownUrl": "/commander/Y'shtola%2C%20Night's%20Blessed",
+      "stats": {
+       "conversionRate": 0.08139534883720931,
+       "topCuts": 14,
+       "count": 172,
+       "metaShare": 0.0013774104683195593,
+       "winRate": 0.1008130081300813
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/c/7/c7f2c2d5-e052-49e8-b5de-712858c2ea78.jpg?1783906373"
+        ],
+        "id": "Q2FyZDoxMTA0OQ=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "51"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE0Mg==",
+      "name": "Hashaton, Scarab's Fist",
+      "colorId": "WUB",
+      "breakdownUrl": "/commander/Hashaton%2C%20Scarab's%20Fist",
+      "stats": {
+       "conversionRate": 0.12727272727272726,
+       "topCuts": 21,
+       "count": 165,
+       "metaShare": 0.001321353065539112,
+       "winRate": 0.1628614916286149
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/0/2/02645651-cd55-4bd0-8a4d-fa257270a0e0.jpg?1783907754"
+        ],
+        "id": "Q2FyZDoxMDcxOQ=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "52"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjU3",
+      "name": "Gwenom, Remorseless",
+      "colorId": "B",
+      "breakdownUrl": "/commander/Gwenom%2C%20Remorseless",
+      "stats": {
+       "conversionRate": 0.21818181818181817,
+       "topCuts": 36,
+       "count": 165,
+       "metaShare": 0.001321353065539112,
+       "winRate": 0.23022598870056496
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/6/46b6cc5d-7a37-4e8b-a1a5-9a573056610c.jpg?1783905344"
+        ],
+        "id": "Q2FyZDozNDgx"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "53"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjY0",
+      "name": "Stella Lee, Wild Card",
+      "colorId": "UR",
+      "breakdownUrl": "/commander/Stella%20Lee%2C%20Wild%20Card",
+      "stats": {
+       "conversionRate": 0.21518987341772153,
+       "topCuts": 34,
+       "count": 158,
+       "metaShare": 0.0012652956627586648,
+       "winRate": 0.15072463768115943
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/4/54820d80-f32e-4e2f-a0e2-4db781444217.jpg?1793187478"
+        ],
+        "id": "Q2FyZDo1NzUy"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "54"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjM4",
+      "name": "Malcolm, Keen-Eyed Navigator / Tymna the Weaver",
+      "colorId": "WUB",
+      "breakdownUrl": "/commander/Malcolm%2C%20Keen-Eyed%20Navigator%20%2F%20Tymna%20the%20Weaver",
+      "stats": {
+       "conversionRate": 0.2929936305732484,
+       "topCuts": 46,
+       "count": 157,
+       "metaShare": 0.001257287462361458,
+       "winRate": 0.19970631424375918
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/1/51187cdb-85ee-4f68-9e29-d84d296f0825.jpg?1783913885"
+        ],
+        "id": "Q2FyZDo4OTU="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/c/bc7cbe9b-324e-42b8-94e2-36e91cb32163.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1ODc="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "55"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjg5",
+      "name": "Rakdos, the Muscle",
+      "colorId": "BR",
+      "breakdownUrl": "/commander/Rakdos%2C%20the%20Muscle",
+      "stats": {
+       "conversionRate": 0.23809523809523808,
+       "topCuts": 35,
+       "count": 147,
+       "metaShare": 0.0011772054583893906,
+       "winRate": 0.2190923317683881
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/b/bb34babd-1b85-4a7d-a066-a8337805056e.jpg?1783911786"
+        ],
+        "id": "Q2FyZDoxNzM4"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "56"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjQy",
+      "name": "Norman Osborn // Green Goblin",
+      "colorId": "UBR",
+      "breakdownUrl": "/commander/Norman%20Osborn%20%2F%2F%20Green%20Goblin",
+      "stats": {
+       "conversionRate": 0.2,
+       "topCuts": 29,
+       "count": 145,
+       "metaShare": 0.0011611890575949772,
+       "winRate": 0.16129032258064516
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/d/5/d5c53af9-7150-4e78-8771-2de7980aa307.jpg?1783905356",
+         "https://cards.scryfall.io/art_crop/back/d/5/d5c53af9-7150-4e78-8771-2de7980aa307.jpg?1783905356"
+        ],
+        "id": "Q2FyZDo0NTEw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "57"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjMy",
+      "name": "Najeela, the Blade-Blossom",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Najeela%2C%20the%20Blade-Blossom",
+      "stats": {
+       "conversionRate": 0.14583333333333334,
+       "topCuts": 21,
+       "count": 144,
+       "metaShare": 0.0011531808571977706,
+       "winRate": 0.16306156405990016
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/c/2cb1d1da-6077-46b5-8c63-39882b8016f2.jpg?1783934856"
+        ],
+        "id": "Q2FyZDo0MzIy"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "58"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIxMTU=",
+      "name": "Shang-Chi, Master of Kung Fu",
+      "colorId": "G",
+      "breakdownUrl": "/commander/Shang-Chi%2C%20Master%20of%20Kung%20Fu",
+      "stats": {
+       "conversionRate": 0.35,
+       "topCuts": 49,
+       "count": 140,
+       "metaShare": 0.0011211480556089436,
+       "winRate": 0.26094003241491087
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/e/2edbb62f-ad45-4422-850b-68dcc18b4c73.jpg?1783902911"
+        ],
+        "id": "Q2FyZDoyMjM4Mw=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "59"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjExNw==",
+      "name": "Korvold, Fae-Cursed King",
+      "colorId": "BRG",
+      "breakdownUrl": "/commander/Korvold%2C%20Fae-Cursed%20King",
+      "stats": {
+       "conversionRate": 0.18571428571428572,
+       "topCuts": 26,
+       "count": 140,
+       "metaShare": 0.0011211480556089436,
+       "winRate": 0.17281879194630873
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/6/0/607c1793-8e5a-4ebf-87c6-7f9c99bbd29a.jpg?1783906027"
+        ],
+        "id": "Q2FyZDozMTMw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "60"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjky",
+      "name": "Tevesh Szat, Doom of Fools / Thrasios, Triton Hero",
+      "colorId": "UBG",
+      "breakdownUrl": "/commander/Tevesh%20Szat%2C%20Doom%20of%20Fools%20%2F%20Thrasios%2C%20Triton%20Hero",
+      "stats": {
+       "conversionRate": 0.3,
+       "topCuts": 42,
+       "count": 140,
+       "metaShare": 0.0011211480556089436,
+       "winRate": 0.20292207792207792
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/8/f/8f244716-78ab-46f5-b6e9-fc1e6db28052.jpg?1783928825"
+        ],
+        "id": "Q2FyZDoxMDc2Mg=="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/1/21e27b91-c7f1-4709-aa0d-8b5d81b22a0a.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1MzQ="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "61"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjYx",
+      "name": "Zhulodok, Void Gorger",
+      "colorId": "C",
+      "breakdownUrl": "/commander/Zhulodok%2C%20Void%20Gorger",
+      "stats": {
+       "conversionRate": 0.21804511278195488,
+       "topCuts": 29,
+       "count": 133,
+       "metaShare": 0.0010650906528284964,
+       "winRate": 0.19424460431654678
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/0/a015461d-4214-4feb-8b04-519c537759eb.jpg?1783915492"
+        ],
+        "id": "Q2FyZDo0Mzgw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "62"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIyMTY=",
+      "name": "Dack Fayden, Helping Hand",
+      "colorId": "W",
+      "breakdownUrl": "/commander/Dack%20Fayden%2C%20Helping%20Hand",
+      "stats": {
+       "conversionRate": 0.416,
+       "topCuts": 52,
+       "count": 125,
+       "metaShare": 0.0010010250496508425,
+       "winRate": 0.28397212543554007
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/b/0/b0db02cb-d029-46d5-9df2-dee980047758.jpg?1789644199"
+        ],
+        "id": "Q2FyZDoyMzUxMg=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "63"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE3NzM=",
+      "name": "Maralen, Fae Ascendant",
+      "colorId": "UBG",
+      "breakdownUrl": "/commander/Maralen%2C%20Fae%20Ascendant",
+      "stats": {
+       "conversionRate": 0.17647058823529413,
+       "topCuts": 21,
+       "count": 119,
+       "metaShare": 0.000952975847267602,
+       "winRate": 0.16059957173447537
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/c/5/c50f5408-5b5c-41dc-807e-136233403a09.jpg?1783904406"
+        ],
+        "id": "Q2FyZDoyMDU1MA=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "64"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjQx",
+      "name": "Heliod, the Radiant Dawn // Heliod, the Warped Eclipse",
+      "colorId": "WU",
+      "breakdownUrl": "/commander/Heliod%2C%20the%20Radiant%20Dawn%20%2F%2F%20Heliod%2C%20the%20Warped%20Eclipse",
+      "stats": {
+       "conversionRate": 0.1810344827586207,
+       "topCuts": 21,
+       "count": 116,
+       "metaShare": 0.0009289512460759818,
+       "winRate": 0.17777777777777778
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/7/a7113c93-6c6d-410f-aeec-abc5ee121cdf.jpg?1783917074",
+         "https://cards.scryfall.io/art_crop/back/a/7/a7113c93-6c6d-410f-aeec-abc5ee121cdf.jpg?1783917074"
+        ],
+        "id": "Q2FyZDo0NDM5"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "65"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI0Nw==",
+      "name": "Helga, Skittish Seer",
+      "colorId": "WUG",
+      "breakdownUrl": "/commander/Helga%2C%20Skittish%20Seer",
+      "stats": {
+       "conversionRate": 0.25,
+       "topCuts": 28,
+       "count": 112,
+       "metaShare": 0.0008969184444871549,
+       "winRate": 0.18181818181818182
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/4/0/40339715-22d0-4f99-822b-a00d9824f27a.jpg?1783910795"
+        ],
+        "id": "Q2FyZDo1NTg3"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "66"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIxMA==",
+      "name": "Akiri, Line-Slinger / Thrasios, Triton Hero",
+      "colorId": "WURG",
+      "breakdownUrl": "/commander/Akiri%2C%20Line-Slinger%20%2F%20Thrasios%2C%20Triton%20Hero",
+      "stats": {
+       "conversionRate": 0.24299065420560748,
+       "topCuts": 26,
+       "count": 107,
+       "metaShare": 0.0008568774425011212,
+       "winRate": 0.1908548707753479
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/3/b/3b951e0c-a4dd-4a20-87c6-eaa947e33aa4.jpg?1783937085"
+        ],
+        "id": "Q2FyZDoxNDIyNg=="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/2/1/21e27b91-c7f1-4709-aa0d-8b5d81b22a0a.jpg?1783937081"
+        ],
+        "id": "Q2FyZDo1MzQ="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "67"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjExNQ==",
+      "name": "Bjorna, Nightfall Alchemist / Wernog, Rider's Chaplain",
+      "colorId": "WUBR",
+      "breakdownUrl": "/commander/Bjorna%2C%20Nightfall%20Alchemist%20%2F%20Wernog%2C%20Rider's%20Chaplain",
+      "stats": {
+       "conversionRate": 0.27102803738317754,
+       "topCuts": 29,
+       "count": 107,
+       "metaShare": 0.0008568774425011212,
+       "winRate": 0.2346723044397463
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/8/3/83b0b716-bcb0-4044-b64a-354e3cbbd563.jpg?1783923612"
+        ],
+        "id": "Q2FyZDoxMDMwNw=="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/3/9/39491011-bdf6-4e61-8534-fe26c1571f8f.jpg?1783923608"
+        ],
+        "id": "Q2FyZDo2ODQw"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "68"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjQ=",
+      "name": "Jhoira, Ageless Innovator",
+      "colorId": "UR",
+      "breakdownUrl": "/commander/Jhoira%2C%20Ageless%20Innovator",
+      "stats": {
+       "conversionRate": 0.29245283018867924,
+       "topCuts": 31,
+       "count": 106,
+       "metaShare": 0.0008488692421039144,
+       "winRate": 0.23799582463465555
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/d/d/dd911900-1f5f-4420-96b8-1e4fe67e59f6.jpg?1783921284"
+        ],
+        "id": "Q2FyZDo3Mzkx"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "69"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIxMDM=",
+      "name": "King T'Challa // Black Panther, Hope Enduring",
+      "colorId": "WU",
+      "breakdownUrl": "/commander/King%20T'Challa%20%2F%2F%20Black%20Panther%2C%20Hope%20Enduring",
+      "stats": {
+       "conversionRate": 0.17307692307692307,
+       "topCuts": 18,
+       "count": 104,
+       "metaShare": 0.0008328528413095009,
+       "winRate": 0.14831460674157304
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/d/add7d3ce-aa58-4da0-8c2a-cfd01c3a8975.jpg?1783902911",
+         "https://cards.scryfall.io/art_crop/back/a/d/add7d3ce-aa58-4da0-8c2a-cfd01c3a8975.jpg?1783902911"
+        ],
+        "id": "Q2FyZDoyMjQ2Nw=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "70"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIy",
+      "name": "Zur the Enchanter",
+      "colorId": "WUB",
+      "breakdownUrl": "/commander/Zur%20the%20Enchanter",
+      "stats": {
+       "conversionRate": 0.2268041237113402,
+       "topCuts": 22,
+       "count": 97,
+       "metaShare": 0.0007767954385290537,
+       "winRate": 0.14432989690721648
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/6/561cfc04-65ea-49a4-8638-b4631a7cf828.jpg?1783918424"
+        ],
+        "id": "Q2FyZDoyMjgx"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "71"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI5Ng==",
+      "name": "Baylen, the Haymaker",
+      "colorId": "WRG",
+      "breakdownUrl": "/commander/Baylen%2C%20the%20Haymaker",
+      "stats": {
+       "conversionRate": 0.2,
+       "topCuts": 19,
+       "count": 95,
+       "metaShare": 0.0007607790377346402,
+       "winRate": 0.17897727272727273
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/0/0/00e93be2-e06b-4774-8ba5-ccf82a6da1d8.jpg?1783910800"
+        ],
+        "id": "Q2FyZDo5Mzg3"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "72"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI3",
+      "name": "Talion, the Kindly Lord",
+      "colorId": "UB",
+      "breakdownUrl": "/commander/Talion%2C%20the%20Kindly%20Lord",
+      "stats": {
+       "conversionRate": 0.13829787234042554,
+       "topCuts": 13,
+       "count": 94,
+       "metaShare": 0.0007527708373374335,
+       "winRate": 0.11702127659574468
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/6/2/62a6b452-c796-45c6-b4d1-0ae3d675e38e.jpg?1783915070"
+        ],
+        "id": "Q2FyZDo1OTQ="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "73"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE5NDM=",
+      "name": "Prismari, the Inspiration",
+      "colorId": "UR",
+      "breakdownUrl": "/commander/Prismari%2C%20the%20Inspiration",
+      "stats": {
+       "conversionRate": 0.25,
+       "topCuts": 23,
+       "count": 92,
+       "metaShare": 0.0007367544365430201,
+       "winRate": 0.21578947368421053
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/7/6/767ff9fa-4e7f-421a-b911-45186b520ae1.jpg?1783903636"
+        ],
+        "id": "Q2FyZDoyMTc0Nw=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "74"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjIwODI=",
+      "name": "Super-Skrull",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Super-Skrull",
+      "stats": {
+       "conversionRate": 0.24175824175824176,
+       "topCuts": 22,
+       "count": 91,
+       "metaShare": 0.0007287462361458134,
+       "winRate": 0.21927710843373494
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/1/1/11fc8221-756a-4919-9272-38793e9c1ad9.jpg?1783902936"
+        ],
+        "id": "Q2FyZDoyMjU3Mw=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "75"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI0NQ==",
+      "name": "Dargo, the Shipwrecker / Reyhan, Last of the Abzan",
+      "colorId": "BRG",
+      "breakdownUrl": "/commander/Dargo%2C%20the%20Shipwrecker%20%2F%20Reyhan%2C%20Last%20of%20the%20Abzan",
+      "stats": {
+       "conversionRate": 0.2857142857142857,
+       "topCuts": 26,
+       "count": 91,
+       "metaShare": 0.0007287462361458134,
+       "winRate": 0.25654450261780104
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/c/5cd87cf8-4d5d-4aba-8dfa-800b1fb3799b.jpg?1783928817"
+        ],
+        "id": "Q2FyZDoyMTAx"
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/8/a/8afad106-a49b-4910-959e-228c109ea983.jpg?1783934777"
+        ],
+        "id": "Q2FyZDo2MTY4"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "76"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjMxMw==",
+      "name": "Rograkh, Son of Rohgahh / Tevesh Szat, Doom of Fools",
+      "colorId": "BR",
+      "breakdownUrl": "/commander/Rograkh%2C%20Son%20of%20Rohgahh%20%2F%20Tevesh%20Szat%2C%20Doom%20of%20Fools",
+      "stats": {
+       "conversionRate": 0.16279069767441862,
+       "topCuts": 14,
+       "count": 86,
+       "metaShare": 0.0006887052341597796,
+       "winRate": 0.16032608695652173
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/a/4/a4fab67f-00c2-4125-9262-d21a29411797.jpg?1783928807"
+        ],
+        "id": "Q2FyZDo5Mg=="
+       },
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/8/f/8f244716-78ab-46f5-b6e9-fc1e6db28052.jpg?1783928825"
+        ],
+        "id": "Q2FyZDoxMDc2Mg=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "77"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI0Mg==",
+      "name": "Yisan, the Wanderer Bard",
+      "colorId": "G",
+      "breakdownUrl": "/commander/Yisan%2C%20the%20Wanderer%20Bard",
+      "stats": {
+       "conversionRate": 0.3493975903614458,
+       "topCuts": 29,
+       "count": 83,
+       "metaShare": 0.0006646806329681594,
+       "winRate": 0.2753246753246753
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/9/4/94e3a130-deeb-4bf4-a1f6-9219c3d8c373.jpg?1783915616"
+        ],
+        "id": "Q2FyZDoxODI5"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "78"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE2NA==",
+      "name": "Shorikai, Genesis Engine",
+      "colorId": "WU",
+      "breakdownUrl": "/commander/Shorikai%2C%20Genesis%20Engine",
+      "stats": {
+       "conversionRate": 0.20481927710843373,
+       "topCuts": 17,
+       "count": 83,
+       "metaShare": 0.0006646806329681594,
+       "winRate": 0.22
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/9/6/969ac7dd-f3aa-4888-9ff0-d16a31b5e7a9.jpg?1783923999"
+        ],
+        "id": "Q2FyZDoxMjYy"
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "79"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjE3NzU=",
+      "name": "Ashling, the Limitless",
+      "colorId": "WUBRG",
+      "breakdownUrl": "/commander/Ashling%2C%20the%20Limitless",
+      "stats": {
+       "conversionRate": 0.08536585365853659,
+       "topCuts": 7,
+       "count": 82,
+       "metaShare": 0.0006566724325709527,
+       "winRate": 0.12237762237762238
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/5/9/5924c01f-2815-4e37-b700-3ba6cc81e0e4.jpg?1783904607"
+        ],
+        "id": "Q2FyZDoyMDU2Ng=="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "80"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI2OQ==",
+      "name": "Lotho, Corrupt Shirriff",
+      "colorId": "WB",
+      "breakdownUrl": "/commander/Lotho%2C%20Corrupt%20Shirriff",
+      "stats": {
+       "conversionRate": 0.16049382716049382,
+       "topCuts": 13,
+       "count": 81,
+       "metaShare": 0.0006486642321737459,
+       "winRate": 0.14826498422712933
+      },
+      "cards": [
+       {
+        "imageUrls": [
+         "https://cards.scryfall.io/art_crop/front/c/e/ce01ff8f-a037-484f-9148-c847ffaabc5a.jpg?1783916251"
+        ],
+        "id": "Q2FyZDoxODE="
+       }
+      ],
+      "__typename": "Commander"
+     },
+     "cursor": "81"
+    },
+    {
+     "node": {
+      "id": "Q29tbWFuZGVyOjI1NQ==",
+      "name": "Krark, the Thumbless / Thrasios, Triton 
