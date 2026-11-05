@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut, bulkUri, bulkParse, mechRow, subTypes, mechRoleBits } from '../gen-deckdb.mjs';
+import { csbCombo, combos3Of, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut, bulkUri, bulkParse, mechRow, subTypes, mechRoleBits } from '../gen-deckdb.mjs';
 import { taxonomy } from '../tools/card-mech-merge.mjs';
 import { benchCoach, coachVm } from '../bench-coach.mjs';
 import { normKey } from '../gen-edhrec.mjs';
@@ -112,9 +112,11 @@ test('agrégats : table des cartes, cibles, commandants, thèmes', () => {
     ['cultivate', scryCard({ name: 'Cultivate', layout: 'normal', cmc: 3, type_line: 'Sorcery', oracle_text: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.', color_identity: ['G'], legalities: { commander: 'legal' }, prices: { eur: '0.30' } })],
   ]);
   const cmds = [{ slug: 'atraxa-praetors-voice', names: ['Atraxa, Praetors\' Voice'], ci: 'WUBG', decks: 5000, themes: [['plus-1-plus-1-counters', '+1/+1 Counters', 300]] }];
+  C.combos = [['Sol Ring', 'Rhystic Study', 'Infinite fun', 'S']]; C.combos3 = [['Forest', 'Rhystic Study', 'Sol Ring', 'Infinite more', 'S'], ['A', 'B', 'C', 'Win the game', 'R']];      // corpus (hors ligne : gardés tels quels)
   const D = aggregate(C, S, new Map([['cultivate', RB.ramp], ['counterspell', RB.counter | RB.removal]]), cmds);
   const row = n => D.cards.find(r => r[0] === n);
   assert.deepEqual(D.roles, ROLES); assert.equal(row('Banned Thing'), undefined, 'bannie en Commander : hors table');
+  assert.deepEqual(D.combos, C.combos); assert.deepEqual(D.combos3, [['A', 'B', 'C', 'Win the game', 'R']], 'combos à 3 cartes à part, sans ceux qui contiennent un combo à 2 cartes');
   assert.ok(row('Sol Ring')[4] & RB.ramp); assert.equal(row('Sol Ring')[5], 150); assert.equal(row('Sol Ring')[6] & 1, 1, 'Game Changer'); assert.equal(row('Sol Ring')[8], 1, 'rang EDHREC');
   assert.equal(row('Forest')[4], RB.land); assert.equal(row('Forest')[7], 'G'); assert.equal(row('Forest')[3] & 1, 1, 'type : terrain');
   assert.ok(row('Rhystic Study')[4] & RB.draw); assert.ok(row('Cultivate')[4] & RB.ramp, 'Tagger');
@@ -151,10 +153,16 @@ test('Commander Spellbook : combos à 2 cartes infinis ou gagnants seulement', (
   assert.deepEqual(csbCombo(v(['Sanguine Bond', 'Exquisite Blood'], ['Infinite lifegain triggers'])).slice(0, 3), ['Sanguine Bond', 'Exquisite Blood', 'Infinite lifegain triggers']);
   assert.equal(csbCombo(v(['A', 'B', 'C'], ['Win the game'])), null, '3 cartes'); assert.equal(csbCombo(v(['A', 'B'], ['Card draw'])), null, 'ni infini ni victoire');
   assert.equal(csbCombo(v(['A', 'B'], ['Infinite mana'], [{ template: 'a creature' }])), null, 'pièce en plus exigée'); assert.equal(csbCombo(null), null);
+  assert.deepEqual(csbCombo(v(['Basalt Monolith', 'Rings of Brighthearth', 'Power Artifact'], ['Infinite colorless mana']), 3), ['Basalt Monolith', 'Rings of Brighthearth', 'Power Artifact', 'Infinite colorless mana', 'R'], 'combo à 3 cartes');
+  assert.equal(csbCombo(v(['A', 'B', 'C'], ['Win the game'], [{ template: 'a sacrifice outlet' }]), 3), null, '3 cartes : pièce générique exigée');
+  assert.equal(csbCombo(v(['A', 'B'], ['Win the game']), 3), null, '2 cartes demandées à 3'); assert.equal(csbCombo(v(['A', 'B', 'C'], ['Card draw']), 3), null, 'ni infini ni victoire');
+  assert.equal(csbCombo(v(['A', 'A', 'B'], ['Win the game']), 3), null, 'même carte deux fois');
+  assert.deepEqual(combos3Of([['A', 'B', 'C', 'x', 'S'], ['D', 'E', 'F', 'y', 'S']], [['f', 'D', 'z', 'S']]), [['A', 'B', 'C', 'x', 'S']], 'variante plus longue d\'un combo à 2 cartes écartée');
+  assert.deepEqual(combos3Of(undefined, undefined), []);
 });
 
 test('serveur : découpe, /api/dkw (cœur, commandant, thème), gzip, ETag, erreurs', async () => {
-  const D = { v: 1, at: '2026-11-01T00:00:00Z', roles: ROLES, cards: [['Sol Ring', '', 1, 4, 2, 150, 1, 'C', 1]], tg: { all: { n: 3 } }, combos: [['A', 'B', 'Win the game', 'R']], cmd: { 'edgar-markov': { n: 9, cards: [['Sol Ring', 90, 1]] }, 'BAD SLUG': {} }, themes: { tokens: { n: 5, cards: [] } } };
+  const D = { v: 1, at: '2026-11-01T00:00:00Z', roles: ROLES, cards: [['Sol Ring', '', 1, 4, 2, 150, 1, 'C', 1]], tg: { all: { n: 3 } }, combos: [['A', 'B', 'Win the game', 'R']], combos3: [['A', 'C', 'D', 'Infinite mana', 'S']], cmd: { 'edgar-markov': { n: 9, cards: [['Sol Ring', 90, 1]] }, 'BAD SLUG': {} }, themes: { tokens: { n: 5, cards: [] } } };
   const s = dkwSplit(D); assert.equal(s.cmd.size, 1, 'adresse invalide écartée'); assert.equal(s.th.size, 1);
   assert.throws(() => dkwSplit({ v: 2 }));
   { const core = JSON.parse(gunzipSync(dkwSplit({ ...D, mech: { v: 1, tags: ['treasure'], roles: ['ramp'] } }).core.gz).toString()); assert.deepEqual(core.mech.tags, ['treasure'], 'vocabulaire des mécaniques dans le cœur'); }
@@ -165,7 +173,8 @@ test('serveur : découpe, /api/dkw (cœur, commandant, thème), gzip, ETag, erre
   const call = async (q, hd = {}) => { const res = { st: 0, hd: {}, body: null, writeHead(st, h) { this.st = st; this.hd = h || {}; }, end(b) { this.body = b; } }; await S.api({ method: 'GET', headers: hd }, res, new URL('http://x/api/dkw' + q)); return res; };
   assert.equal((await call('')).st, 503, 'pas encore chargé'); S.start(); await new Promise(r => setTimeout(r, 80));
   const core = await call('', { 'accept-encoding': 'gzip' }); assert.equal(core.st, 200); assert.equal(core.hd['Content-Encoding'], 'gzip');
-  const cj = JSON.parse(gunzipSync(core.body)); assert.deepEqual(cj.cmds, ['edgar-markov']); assert.deepEqual(cj.themes, [['tokens', 5]]); assert.equal(cj.cards.length, 1); assert.equal(cj.cmd, undefined, 'paquets des commandants à part'); assert.deepEqual(cj.combos, [['A', 'B', 'Win the game', 'R']], 'combos dans le cœur');
+  const cj = JSON.parse(gunzipSync(core.body)); assert.deepEqual(cj.cmds, ['edgar-markov']); assert.deepEqual(cj.themes, [['tokens', 5]]); assert.equal(cj.cards.length, 1); assert.equal(cj.cmd, undefined, 'paquets des commandants à part'); assert.deepEqual(cj.combos, [['A', 'B', 'Win the game', 'R']], 'combos dans le cœur'); assert.deepEqual(cj.combos3, [['A', 'C', 'D', 'Infinite mana', 'S']], 'combos à 3 cartes dans le cœur');
+  { const old = JSON.parse(gunzipSync(dkwSplit({ ...D, combos3: undefined }).core.gz).toString()); assert.deepEqual(old.combos3, [], 'base sans combos à 3 cartes : liste vide'); }
   const c = await call('?c=edgar-markov'); assert.equal(c.st, 200); assert.equal(c.hd['Content-Encoding'], undefined, 'sans gzip demandé'); assert.equal(JSON.parse(c.body).cards[0][1], 90);
   assert.equal((await call('?c=edgar-markov', { 'if-none-match': c.hd.ETag })).st, 304);
   assert.equal((await call('?t=tokens')).st, 200); assert.equal((await call('?c=inconnu')).st, 404); assert.equal((await call('?c=../etc')).st, 400);

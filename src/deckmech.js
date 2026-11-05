@@ -207,7 +207,7 @@ function dmxPool(cmd, plan) {
 function dmxReasons(k, X, cmd, plan) {
   const m = dmx(k), out = [], nm = cmd ? cmd.names[0].split(',')[0] : '', set = X.wiz || {};
   if ((set.pets || []).some(n => ownKey(n) === k)) out.push(T('ta carte fétiche'));
-  if (DW.core && Array.isArray(DW.core.combos) && set.br >= 3) { for (const e of dwComboIdx().get(k) || []) if (X.main.has(e.p) || X.cmdr.some(c => c.key === e.p)) { out.push(T('combo avec {card}', { card: e.c[0] === (dwCard(k) || {}).name ? e.c[1] : e.c[0] })); break; } }
+  if (DW.core && (Array.isArray(DW.core.combos) || Array.isArray(DW.core.combos3)) && set.br >= 3) { const cw = dwComboWith(k, p => p !== k && (X.main.has(p) || X.cmdr.some(c => c.key === p))); if (cw) out.push(dwComboWhy(cw.o)); }      // combo à 2 ou 3 cartes dont les autres pièces sont là
   if (plan && plan.ai) {      // fiche IA du commandant : cœur du plan, moteur, condition de victoire, piège
     const ai = plan.ai, nmK = n => ownKey(n), has = n => X.main.has(nmK(n)) || X.cmdr.some(c => c.key === nmK(n));
     const e = (ai.eng || []).find(([, cs]) => cs.some(n => nmK(n) === k) && cs.some(n => nmK(n) !== k && has(n)));

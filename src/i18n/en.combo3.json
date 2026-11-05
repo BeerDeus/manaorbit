@@ -1,0 +1,12 @@
+{
+ "combo avec {a} et {b}": "combo with {a} and {b}",
+ "Aucun combo à 2 ou 3 cartes connu (Commander Spellbook)": "No known 2- or 3-card combo (Commander Spellbook)",
+ "Combo à 3 cartes à éviter en bracket {b} : {list}": "3-card combo to avoid in bracket {b}: {list}",
+ "Combo à 3 cartes, permis en bracket 3 : {list}": "3-card combo, allowed in bracket 3: {list}",
+ "Combo à 3 cartes à éviter en bracket {b}": "3-card combo to avoid in bracket {b}",
+ "Casser le combo à 3 cartes": "Break up the 3-card combo",
+ "À éviter en bracket {b}": "Avoid in bracket {b}",
+ "{n} combo à 3 cartes dans le deck": "{n} 3-card combo in the deck",
+ "{n} combos à 3 cartes dans le deck": "{n} 3-card combos in the deck",
+ "Attention : les combos à 3 cartes sont à éviter en bracket 1 et 2.": "Careful: 3-card combos are best avoided in brackets 1 and 2."
+}

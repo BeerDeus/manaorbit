@@ -436,28 +436,36 @@ async function taggerRoles(C) {
   return out;
 }
 
-/* ── 4 bis) Commander Spellbook : combos à 2 cartes (règle des brackets 1 à 3) ─────────────────────────── */
+/* ── 4 bis) Commander Spellbook : combos à 2 et 3 cartes (règles des brackets) ──────────────────────────── */
 const CSB = process.env.CSB_BASE || 'https://backend.commanderspellbook.com/';
-/** Variante Commander Spellbook → [carte A, carte B, résultat, étiquette de bracket] si c'est un combo à 2 cartes infini ou gagnant, sinon null. */
-export function csbCombo(v) {
+/** Variante Commander Spellbook → [carte A, carte B, (carte C,) résultat, étiquette de bracket] si c'est un combo de n cartes (2 ou 3) infini ou gagnant, sans pièce générique (requires), sinon null. */
+export function csbCombo(v, n = 2) {
   const uses = (v && Array.isArray(v.uses) ? v.uses : []).map(u => u && u.card && u.card.name).filter(Boolean);
   const prod = (v && Array.isArray(v.produces) ? v.produces : []).map(x => x && x.feature && x.feature.name).filter(Boolean);
-  if (uses.length !== 2 || (v.requires && v.requires.length)) return null;
+  if (uses.length !== n || new Set(uses).size !== n || (v.requires && v.requires.length)) return null;
   const win = prod.find(x => /win the game/i.test(x)) || prod.find(x => /^infinite/i.test(x)); if (!win) return null;
-  return [uses[0], uses[1], String(win).slice(0, 60), String(v.bracketTag || '').slice(0, 3)];
+  return [...uses, String(win).slice(0, 60), String(v.bracketTag || '').slice(0, 3)];
 }
-/** Les combos à 2 cartes les plus joués (une fois par semaine) : C.combos. */
-async function spellbook(C, max = 4000) {
-  if (C.comboAt && Date.now() - Date.parse(C.comboAt) < 7 * DAY && Array.isArray(C.combos) && C.combos.length) return;
-  const out = [], seen = new Set(); let url = CSB + 'variants/?' + new URLSearchParams({ q: 'cards=2 legal:commander', limit: '100', ordering: '-popularity' }), n = 0;
-  while (url && out.length < max && n < 80 && left() > BUDGET_MS * 0.5) {
-    let j = null; try { j = await getJson(url, { gap: 400 }); } catch (e) { log('  Commander Spellbook : ' + e.message); break; }
-    n++; if (!j) break;
-    for (const v of j.results || []) { const c = csbCombo(v); if (!c) continue; const k = [normKey(c[0]), normKey(c[1])].sort().join('|'); if (seen.has(k)) continue; seen.add(k); out.push(c); }
-    url = typeof j.next === 'string' && j.next.startsWith(CSB) ? j.next : '';
+/** Combos à 3 cartes, sans ceux qui contiennent un combo à 2 cartes connu (variante plus longue du même combo : déjà comptée). */
+export function combos3Of(c3, c2) {
+  const two = new Set((Array.isArray(c2) ? c2 : []).map(c => [normKey(c[0]), normKey(c[1])].sort().join('|')));
+  return (Array.isArray(c3) ? c3 : []).filter(c => { const k = c.slice(0, 3).map(normKey); return !two.has([k[0], k[1]].sort().join('|')) && !two.has([k[0], k[2]].sort().join('|')) && !two.has([k[1], k[2]].sort().join('|')); });
+}
+/** Les combos les plus joués, une fois par semaine : à 2 cartes (C.combos, 4 000 au plus, C.comboAt) et à 3 cartes (C.combos3, 2 500 au plus, C.combo3At ; lus aussi
+ *  quand ils manquent alors que les combos à 2 cartes sont récents). */
+async function spellbook(C) {
+  for (const [n, key, atKey, max, pages] of [[2, 'combos', 'comboAt', 4000, 80], [3, 'combos3', 'combo3At', 2500, 50]]) {
+    if (C[atKey] && Date.now() - Date.parse(C[atKey]) < 7 * DAY && Array.isArray(C[key]) && C[key].length) continue;
+    const out = [], seen = new Set(); let url = CSB + 'variants/?' + new URLSearchParams({ q: `cards=${n} legal:commander`, limit: '100', ordering: '-popularity' }), p = 0;
+    while (url && out.length < max && p < pages && left() > BUDGET_MS * 0.5) {
+      let j = null; try { j = await getJson(url, { gap: 400 }); } catch (e) { log('  Commander Spellbook : ' + e.message); break; }
+      p++; if (!j) break;
+      for (const v of j.results || []) { const c = csbCombo(v, n); if (!c || out.length >= max) continue; const k = c.slice(0, n).map(normKey).sort().join('|'); if (seen.has(k)) continue; seen.add(k); out.push(c); }
+      url = typeof j.next === 'string' && j.next.startsWith(CSB) ? j.next : '';
+    }
+    if (out.length) { C[key] = out; C[atKey] = new Date().toISOString(); }
+    log(`  Commander Spellbook : ${out.length} combos à ${n} cartes (${p} pages)`);
   }
-  if (out.length) { C.combos = out; C.comboAt = new Date().toISOString(); }
-  log(`  Commander Spellbook : ${out.length} combos à 2 cartes (${n} pages)`);
 }
 
 /* ── 5) Agrégats ────────────────────────────────────────────────────────────────────────────────── */
@@ -586,7 +594,7 @@ export function aggregate(C, S, tagger, cmds, mech = null) {
   const pairs = pairsOf(C, info, cards);
   const themes = {}; for (const [s, p] of Object.entries(C.tags)) if (p && p.cards && p.cards.length) themes[s] = { n: p.n, cards: p.cards.slice(0, 250), cmds: (p.cmds || []).slice(0, 40) };
   const mechMeta = mech ? { v: mech.meta.v, at: mech.meta.at, tax: mech.tax.version, roles: mech.tax.roles, tags: mech.tax.tags, n: cards.filter(r => r[10]).length } : undefined;
-  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], mech: mechMeta, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size, mech: mechMeta ? mechMeta.n : 0, briefs: briefs.size } };
+  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], combos3: combos3Of(C.combos3, C.combos), mech: mechMeta, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size, mech: mechMeta ? mechMeta.n : 0, briefs: briefs.size } };
 }
 
 /* ── Principal ──────────────────────────────────────────────────────────────────────────────────── */
