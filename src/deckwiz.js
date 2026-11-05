@@ -60,7 +60,7 @@ const DW_BRACKETS = [
   [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', 99],
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
-const DW_KEY = 'dkw:core', DW_FRESH = DAY;
+const DW_KEY = 'dkw:core', DW_FRESH = 3 * 3600e3;      // copie de l'appareil gardée 3 h sans redemander (au-delà : ETag, 304 si la base n'a pas changé)
 const dwOn = () => true;      // le coach est pour tout le monde (n'est plus une fonctionnalité en test)
 /** Vignettes d'une feuille ou d'un écran du coach : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste (builder.js › thumbLoad, thumbErr). */
 function dwImgs(el) {
@@ -86,7 +86,7 @@ function dwLoad() {
   DW.err = '';
   DW.p = (async () => {
     const rec = await Cache.get(DW_KEY, 60 * DAY).catch(() => null);
-    if (rec && rec.j && Date.now() - rec.at < DW_FRESH) return rec.j;
+    if (rec && rec.j && rec.j.mech && Date.now() - rec.at < DW_FRESH) return rec.j;      // copie sans classement par mécaniques (base d'avant le 4 novembre) : toujours redemandée
     const g = await dwGet('', rec && rec.etag);
     if (g && g.same && rec) { Cache.set(DW_KEY, { ...rec, at: Date.now() }); return rec.j; }
     if (g && g.j && Array.isArray(g.j.cards)) { Cache.set(DW_KEY, { j: g.j, at: Date.now(), etag: g.etag }); return g.j; }

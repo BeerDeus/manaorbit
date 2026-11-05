@@ -7916,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'bc654b81';
+const DD_BUILD = '1ea334e3';
 const I18N_FILES = {"de":"i18n/de.3fcf5c3a.js","en":"i18n/en.471181af.js","es":"i18n/es.3fd7cbb0.js","it":"i18n/it.59d6759f.js","pt":"i18n/pt.d6df0457.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -27960,7 +27960,7 @@ const DW_BRACKETS = [
   [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', 99],
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
-const DW_KEY = 'dkw:core', DW_FRESH = DAY;
+const DW_KEY = 'dkw:core', DW_FRESH = 3 * 3600e3;      // copie de l'appareil gardée 3 h sans redemander (au-delà : ETag, 304 si la base n'a pas changé)
 const dwOn = () => true;      // le coach est pour tout le monde (n'est plus une fonctionnalité en test)
 /** Vignettes d'une feuille ou d'un écran du coach : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste (builder.js › thumbLoad, thumbErr). */
 function dwImgs(el) {
@@ -27986,7 +27986,7 @@ function dwLoad() {
   DW.err = '';
   DW.p = (async () => {
     const rec = await Cache.get(DW_KEY, 60 * DAY).catch(() => null);
-    if (rec && rec.j && Date.now() - rec.at < DW_FRESH) return rec.j;
+    if (rec && rec.j && rec.j.mech && Date.now() - rec.at < DW_FRESH) return rec.j;      // copie sans classement par mécaniques (base d'avant le 4 novembre) : toujours redemandée
     const g = await dwGet('', rec && rec.etag);
     if (g && g.same && rec) { Cache.set(DW_KEY, { ...rec, at: Date.now() }); return rec.j; }
     if (g && g.j && Array.isArray(g.j.cards)) { Cache.set(DW_KEY, { j: g.j, at: Date.now(), etag: g.etag }); return g.j; }
