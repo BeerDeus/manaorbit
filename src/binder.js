@@ -401,9 +401,9 @@ function bndOpenSettings() {
     };
     /** Suggestions : les cartes de la liste qui correspondent à la recherche (nom affiché, anglais ou français), sinon les plus chères ; jamais celles déjà épinglées. */
     const sug = () => {
-      const c = bndCfg(), qq = normPart(q.value || ''), full = c.k.length >= BND_PINS, h = $('.bnd-sug-h', api.body), box = $('.bnd-sug', api.body);
+      const c = bndCfg(), qq = normPart(q.value || ''), Q = cnQ(qq), ix = cnIx(), full = c.k.length >= BND_PINS, h = $('.bnd-sug-h', api.body), box = $('.bnd-sug', api.body);
       let list = cards.filter(x => !c.k.includes(x.k));
-      if (qq) list = list.filter(x => normPart(x.nm).includes(qq) || normPart(x.n).includes(qq) || (x.fn && normPart(x.fn).includes(qq)));
+      if (Q) { list = list.filter(x => cnItem(x, Q, ix)); cnWhen(() => { if (q.isConnected) sug(); }); }      // nom affiché, anglais, de la langue des cartes ou de l'appli (cardnames.js)
       else list = list.slice().sort((a, b) => (b.u || 0) - (a.u || 0));
       list = list.slice(0, 6);
       h.textContent = !cards.length ? T('Rien à épingler : aucune carte à échanger pour l\'instant.') : full ? T('{max} cartes épinglées au plus (deux pages).', { max: BND_PINS }) : qq ? (list.length ? '' : T('Aucune carte de ta liste ne correspond.')) : list.length ? T('Tes cartes les plus chères :') : '';

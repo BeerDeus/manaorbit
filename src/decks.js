@@ -491,7 +491,7 @@ function setDeckCover(id, name) {
 function openCoverPicker(id, done) {
   const d0 = findDeck(id); if (!d0) return;
   openSheet(T('Image du deck'), T('Touche la carte qui illustrera ce deck'), api => {
-    api.body.innerHTML = `<div class="field-in"><label class="label" for="cvQ">${T('Chercher dans le deck')}</label><input type="search" id="cvQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${T('Nom de la carte')}"></div><div class="cv-grid" id="cvGrid"></div>`;
+    api.body.innerHTML = `<div class="field-in"><label class="label" for="cvQ">${T('Chercher dans le deck')}</label><input type="search" id="cvQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(cnPh())}"></div><div class="cv-grid" id="cvGrid"></div>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn ghost" type="button" id="cvAuto">${T('Automatique')}</button>`);
     const q = $('#cvQ', api.body), grid = $('#cvGrid', api.body);
     const pool = () => {
@@ -501,8 +501,9 @@ function openCoverPicker(id, done) {
       return out.sort((a, b) => (b.cmd - a.cmd) || (eu(b) - eu(a)) || a.name.localeCompare(b.name));
     };
     const paint = () => {
-      const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', f = q.value.trim().toLowerCase();
-      const list = pool().filter(c => !f || c.name.toLowerCase().includes(f)).slice(0, 150);
+      const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', Q = cnQ(q.value), ix = cnIx();
+      const list = pool().filter(c => !Q || cnItem({ k: c.key, n: c.name, fn: frOf(c.key) }, Q, ix)).slice(0, 150);      // nom anglais, de la langue de l'appli ou des cartes (cardnames.js)
+      if (Q) cnWhen(() => { if (sheets.includes(api)) paint(); });
       imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.key, c.name, im)}>` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
     };
     grid.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);

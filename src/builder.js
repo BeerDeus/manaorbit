@@ -438,7 +438,7 @@ function bdRow(k, name, q, tgt, ctx, label) {
   const img = m && m.im ? collImage(k, l, m.im, name).src : '', tags = bdTags(k, q, ctx);
   if (ctx === 'coll' && BD.sel) return bdPickRow(k, name, nm, img, hue, letter, tags);      // mode sélection (bdadd.js) : case à cocher
   return `<div class="crow bd-row" data-k="${esc(k)}" data-n="${esc(name)}" data-t="${tgt}"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span>${tags ? `<span class="row-meta">${tags}</span>` : ''}</span>
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span>${tags || (ctx === 'coll' && nm !== name) ? `<span class="row-meta">${ctx === 'coll' && nm !== name ? `<span class="tag bd-en">${esc(name)}</span>` : ''}${tags}</span>` : ''}</span>
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
 }
 /** Vues de l'onglet Deck : la liste modifiable (− / +), ou les vues du deck viewer (grille, piles, piles compactes, bandeaux), triées par coût, type ou rôle ;
@@ -502,13 +502,14 @@ function bdDeckHtml() {
   return h;
 }
 function bdIndex() {
-  if (BD.idx) return BD.idx;
-  return (BD.idx = Object.entries(COLL.map).map(([k, x]) => { const dn = (x.l && frName(k, x.l)) || ''; return { k, n: x.n, dn, s: normPart(x.n + ' ' + dn + ' ' + frOf(k)) }; })
+  if (BD.idx && BD.idxV === CN.v) return BD.idx;
+  BD.idxV = CN.v;      // index des noms arrivé : noms de la langue de l'appli et des cartes cherchés aussi (cardnames.js)
+  return (BD.idx = Object.entries(COLL.map).map(([k, x]) => { const dn = (x.l && frName(k, x.l)) || ''; return { k, n: x.n, dn, s: normPart(x.n + ' ' + dn + ' ' + frOf(k) + ' ' + cnOf(x.n)) }; })
     .sort((a, b) => NAME_CMP(a.dn || a.n, b.dn || b.n)));
 }
 function bdAddRow(k, name, label) {
   const tgt = BD.tgt, q = tgt === 'cmdr' ? (BD.cmdr.some(c => c.key === k) ? 1 : 0) : ((BD[tgt].get(k) || {}).qty || 0);
-  return bdRow(k, name, q, tgt, 'coll', label);
+  return bdRow(k, name, q, tgt, 'coll', label || (COLL.map[k] ? '' : cnOf(name)));      // carte à acheter : son nom dans la langue de l'appli (l'anglais en petit)
 }
 function bdCollHtml() {
   if (!collCount()) return `<div class="deck-empty">${T('Ta collection est vide. Utilise « Chercher » pour ajouter n\'importe quelle carte au deck.')}</div>`;
@@ -538,9 +539,9 @@ function bdAddHtml() {
     else {
       const sug = collSuggest(BD.cat, q, 24).filter(n => !mine.has(ownKey(n))).slice(0, 20); BD.want = sug.map(n => ({ key: ownKey(n), name: n })); bdMetaSoon();
       if (sug.length) h += `<div class="sec-title">${T('À acheter')} · ${T('toutes les cartes Magic')}</div>` + sug.map(n => bdAddRow(ownKey(n), n)).join('');
-      else if (!own.length) h += `<p class="hint">${T('Aucune carte de ce nom. Vérifie l\'orthographe (nom anglais).')}</p>`;
+      else if (!own.length) h += `<p class="hint">${T('Aucune carte de ce nom. Vérifie l\'orthographe.')}</p>`;
     }
-  } else if (!has) h += `<div class="deck-empty">${T('Tape au moins 2 lettres du nom (anglais) : toutes les cartes Magic sont cherchables ici.')}</div>`;
+  } else if (!has) h += `<div class="deck-empty">${T('Tape au moins 2 lettres du nom : toutes les cartes Magic sont cherchables ici.')}</div>`;
   else if (!own.length && (words.length || flt)) h += `<p class="hint">${T('Aucune carte de ta collection ne correspond.')}</p>`;
   return h;
 }
@@ -548,9 +549,9 @@ function bdFindHtml() {
   if (BD.catErr) return `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
   if (!BD.cat) return `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
   const q = BD.q.trim();
-  if (q.length < 2) return `<p class="hint">${T('Tape au moins 2 lettres du nom (anglais) : toutes les cartes Magic sont cherchables ici.')}</p>`;
+  if (q.length < 2) return `<p class="hint">${T('Tape au moins 2 lettres du nom : toutes les cartes Magic sont cherchables ici.')}</p>`;
   const sug = collSuggest(BD.cat, q, 20); BD.want = sug.map(n => ({ key: ownKey(n), name: n })); bdMetaSoon();
-  return sug.map(n => bdAddRow(ownKey(n), n)).join('') || `<p class="hint">${T('Aucune carte de ce nom. Vérifie l\'orthographe (nom anglais).')}</p>`;
+  return sug.map(n => bdAddRow(ownKey(n), n)).join('') || `<p class="hint">${T('Aucune carte de ce nom. Vérifie l\'orthographe.')}</p>`;
 }
 function bdList() {
   const el = BD.el; if (!el) return;

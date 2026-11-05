@@ -159,7 +159,7 @@ function lotTotals() { let n = 0, v = 0; for (const x of LOT.list) { n += x.q; c
 function lotPaintHead() {
   const el = LOT.el; if (!el) return;
   const t = lotTotals();
-  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte dans ce lot', '{n} cartes dans ce lot') + (t.v ? ' · ' + fmt(t.v, mkCur()) : '') : nmT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
+  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte dans ce lot', '{n} cartes dans ce lot') + (t.v ? ' · ' + fmt(t.v, mkCur()) : '') : cnT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
   const sticky = $('.lot-sticky', el);
   sticky.hidden = !LOT.set; if (LOT.set) sticky.innerHTML = `<span class="ls-l">${T('Extension proposée')}</span><span class="ls-v">${setIcHtml(LOT.set)}<b>${esc(setName(LOT.set) || LOT.set.toUpperCase())}</b></span><button type="button" class="link-btn" data-act="unstick" aria-label="${T('Ne plus proposer cette extension')}">${T('Retirer')}</button>`;
 }
@@ -185,7 +185,7 @@ function lotSuggest() {
   if (!LOT.cat || (document.activeElement !== inp && !q) || (c && q === (c.p || c.n))) { list.innerHTML = ''; return; }      // nom de la carte choisie (après « Ajouter ») : pas de suggestions par-dessus
   const sug = collSuggestX(LOT.cat, q, 12, () => { if (LOT.el === el) lotSuggest(); });      // autres langues arrivées : la liste se repeint
   list.innerHTML = sug.map(x => { const have = collQty(ownKey(x.n)); return `<button type="button" class="ca-opt" role="option" data-n="${esc(x.n)}"${x.p ? ` data-p="${esc(x.p)}"` : ''}${x.l ? ` data-l="${esc(x.l)}"` : ''}><span>${sugHtml(x.n, q, x.p || '', x.l)}</span><i>${have ? `× ${have}` : '+'}</i></button>`; }).join('')
-    || (q.length >= 2 && NMX.p ? '<p class="hint">' + T('Recherche dans les autres langues…') + '</p>' : q.length >= 2 ? '<p class="hint">' + (FRX.ix || !namesLang() ? T('Aucune carte de ce nom. Vérifie l\'orthographe.') : nmT('Aucune carte de ce nom. Vérifie l\'orthographe (les noms français arrivent dès que leur liste est chargée).', 'Aucune carte de ce nom. Vérifie l\'orthographe (les noms en {lang} arrivent dès que leur liste est chargée).')) + '</p>' : '');
+    || (q.length >= 2 && NMX.p ? '<p class="hint">' + T('Recherche dans les autres langues…') + '</p>' : q.length >= 2 ? '<p class="hint">' + (cnHas() ? T('Aucune carte de ce nom. Vérifie l\'orthographe.') : cnT('Aucune carte de ce nom. Vérifie l\'orthographe (les noms français arrivent dès que leur liste est chargée).', 'Aucune carte de ce nom. Vérifie l\'orthographe (les noms en {lang} arrivent dès que leur liste est chargée).')) + '</p>' : '');
 }
 /** Cartes du scan (« Ajouter » du récapitulatif, scan ouvert depuis le lot ; scan mobile) : chacune rejoint la collection et le lot.
  *  it.e (édition décidée au scan, scaned.js ; '' : sans) : telle quelle, impression it.p si connue (sinon relue pour son image et son prix) ;
@@ -222,7 +222,7 @@ function openLot() {
       <div class="dv-title"><b>${T('Ajouter des cartes')}</b><span></span></div>
       <button class="icon-btn" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}"><svg class="i"><use href="#i-camera"/></svg></button></header>
     <div class="dv-scroll"><div class="dv-body lot-body">
-      <div class="lot-search field-in"><label class="label" for="caName">${T('Nom de la carte')}</label><input type="text" id="caName" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(nmExample())}" enterkeyhint="search"></div>
+      <div class="lot-search field-in"><label class="label" for="caName">${T('Nom de la carte')}</label><input type="text" id="caName" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(cnExample())}" enterkeyhint="search"></div>
       <div class="ca-list" id="caList" role="listbox" aria-label="${T('Suggestions')}"></div>
       <div class="status" id="caStatus" data-ok="0" hidden><span class="dot"></span><span></span></div>
       <div class="mob-pc" hidden></div>
