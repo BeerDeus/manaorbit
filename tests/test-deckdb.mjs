@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut, bulkUri, bulkParse, mechRow, subTypes, mechRoleBits } from '../gen-deckdb.mjs';
+import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut, bulkUri, bulkParse, mechRow, subTypes, mechRoleBits, ptOf } from '../gen-deckdb.mjs';
 import { taxonomy } from '../tools/card-mech-merge.mjs';
 import { benchCoach, coachVm } from '../bench-coach.mjs';
 import { normKey } from '../gen-edhrec.mjs';
@@ -143,6 +143,20 @@ test('agrégats : classement par mécaniques (rôles, [10] mécaniques, [11] sou
   assert.deepEqual(D.mech.tags, tax.tags); assert.equal(D.mech.n, 2); assert.equal(D.src.mech, 2);
   assert.equal(subTypes('Legendary Artifact — Equipment // Land', ''), 'Equipment'); assert.equal(mechRoleBits({ roles: ['fixing', 'stax', 'draw'] }), RB.draw, 'fixing et stax : seulement dans [10]');
   assert.deepEqual(mechRow({ roles: [], provides: ['treasure', 'inconnue'], wants: [], tribes: [], power: 2 }, tax), [0, [tax.tags.indexOf('treasure')], [], 0, 2]);
+});
+
+test('force et endurance des créatures ([12] : face avant, mots-clés de combat ; absente des autres cartes, rangée sans classement complétée)', () => {
+  const cre = (o) => ({ layout: 'normal', cmc: 4, type_line: 'Creature — Angel', color_identity: ['W'], legalities: { commander: 'legal' }, ...o });
+  assert.deepEqual(ptOf(cre({ name: 'Serra Angel', power: '4', toughness: '4', keywords: ['Flying', 'Vigilance'], oracle_text: 'Flying, vigilance' })), [4, 4, 1], 'vol : évasion');
+  assert.deepEqual(ptOf(cre({ name: 'Tarmogoyf', power: '*', toughness: '1+*', keywords: [] })), [null, null], '* : null (force estimée par la simulation)');
+  assert.deepEqual(ptOf(cre({ name: 'Craterhoof Behemoth', power: '5', toughness: '5', keywords: ['Haste', 'Trample'], oracle_text: 'Haste' })), [5, 5, 2 | 4]);
+  assert.deepEqual(ptOf(cre({ name: 'Invisible Stalker', power: '1', toughness: '1', keywords: ['Hexproof'], oracle_text: 'Hexproof\nInvisible Stalker can\'t be blocked.' })), [1, 1, 1 | 32], 'imblocable, défense talismanique');
+  assert.deepEqual(ptOf({ name: 'Delver of Secrets // Insectile Aberration', layout: 'transform', keywords: ['Flying', 'Transform'], card_faces: [{ name: 'Delver of Secrets', type_line: 'Creature — Human Wizard', power: '1', toughness: '1', oracle_text: 'At the beginning of your upkeep, look at the top card of your library.' }, { name: 'Insectile Aberration', type_line: 'Creature — Human Insect', power: '3', toughness: '2', oracle_text: 'Flying' }] }), [1, 1], 'deux faces : la face avant seulement');
+  assert.equal(ptOf({ name: 'Sol Ring', type_line: 'Artifact', layout: 'normal' }), null); assert.equal(ptOf({ name: 'Bala Ged Recovery // Bala Ged Sanctuary', layout: 'modal_dfc', card_faces: [{ type_line: 'Sorcery' }, { type_line: 'Land' }] }), null);
+  const C = corpusNew(); C.names = ['Serra Angel']; C.meta = [{}];
+  const S = new Map([['serra angel', scryCard(cre({ name: 'Serra Angel', mana_cost: '{3}{W}{W}', power: '4', toughness: '4', keywords: ['Flying'], oracle_text: 'Flying, vigilance' }))], ['sol ring', scryCard({ name: 'Sol Ring', layout: 'normal', cmc: 1, type_line: 'Artifact', oracle_text: '{T}: Add {C}{C}.', color_identity: [], legalities: { commander: 'legal' }, produced_mana: ['C'] })]]);
+  const D = aggregate(C, S, new Map(), []), row = n => D.cards.find(r => r[0] === n);
+  assert.deepEqual(row('Serra Angel').slice(10), [null, '', [4, 4, 1]], 'base sans classement : [10] et [11] vides, [12] la force'); assert.equal(row('Sol Ring').length, 10, 'pas une créature : pas de [12]');
 });
 
 test('Commander Spellbook : combos à 2 cartes infinis ou gagnants seulement', () => {
