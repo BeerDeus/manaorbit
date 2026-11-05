@@ -12,6 +12,15 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 5 novembre (soir) : éditeur de deck, ajouter en nombre (rangement, filtres, appui long)
+
+**Fait (Claude, branche locale `lot-add`, pas poussée : le propriétaire fusionne)** — README › « Créer un deck dans l'app » › « Ajouter en nombre » ; code `src/bdadd.js` (+ `builder.js`, `search.js` › `srchSync`, `back.js`, `core.js` › `dkCheck`), test `tests/bdadd-e2e.mjs` :
+- Suggestion d'un utilisateur validée : onglet **Ajouter** de l'éditeur avec **Rangement** (emplacement de la collection) et **les filtres de la collection** (même composant `mountFilters`, « Plus de filtres », recherches enregistrées), puis **« Ajouter les N cartes listées »** ; **appui long** (450 ms) sur une ligne → mode sélection (cases, barre « Ajouter N cartes » / « Annuler »).
+- Règles retenues : Commander 1 exemplaire, terrains de base jamais ajoutés, déjà présentes ignorées, hors identité écartées (comptées), pas légales en Commander ajoutées mais signalées (nouvelle pastille et nouvelle alerte de `dkCheck`, d'après `COLL.meta[k].lg`) ; Standard : exemplaires possédés (ceux du rangement et des filtres d'exemplaire), 4 au plus (terrains de base : tous), réserve 15 au plus ; réservées par un autre deck monté : ajoutées avec le message de l'ajout à l'unité ; plus de 10 exemplaires : feuille de confirmation, puis « N cartes ajoutées » + Annuler (deck d'avant).
+- Captures 393 × 852 clair et sombre (rangement, filtres, ajout groupé, confirmation, message, sélection) remises au propriétaire avant la mise en ligne.
+- [ ] Décision : terrains de base en Standard, « tous les exemplaires possédés » (règle demandée) peut en mettre beaucoup d'un coup (37 Forêts) ; plafonner (par exemple 20) ou laisser ?
+- [ ] Décision : une carte pas légale en Commander est ajoutée et signalée ; l'écarter comme les cartes hors identité ? (la légalité n'est connue que pour les cartes lues depuis l'arrivée du filtre « Format » : inconnue, rien n'est signalé.)
+
 ## Point du 5 novembre (après-midi) : vérification du coach, lots A, B, C, E, affichage
 
 **Fait (Claude, branche `claude/bold-ramanujan-mb1nql`, PAS encore sur `main` : attend l'accord du propriétaire)** — `docs/deckbuilder/README.md` › « Vérification et lots A, B, C, E, affichage » :
