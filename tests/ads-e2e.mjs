@@ -121,9 +121,11 @@ async function natPage(o = {}) {
   assert.equal(await n(p, 'removeBanner'), 3, 'compte autorisé : bandeau détruit');
   await p.waitForTimeout(1200); assert.equal(await n(p, 'showBanner'), 2, 'et jamais remontré');
   await p.evaluate(() => { CTX.serverOk = false; adsRefresh(); }); await shown(p); assert.equal(await n(p, 'showBanner'), 3, 'autre compte : bandeau recréé');
+  await p.evaluate(() => { EV.uid = 'adm1'; EV.adm = 'adm1'; adsRefresh(); }); await gone(p); assert.equal(await n(p, 'removeBanner'), 4, 'compte de l\'éditeur : bandeau détruit, même sans compte autorisé');
+  await p.evaluate(() => { EV.adm = ''; adsRefresh(); }); await shown(p); assert.equal(await n(p, 'showBanner'), 4, 'plus éditeur : bandeau recréé');
   await p.route('**/__me', r => r.fulfill({ json: { server: true } }));
   await p.evaluate(async () => { CTX.proxy = CTX.hasToken = CTX.needsLogin = true; CTX.idToken = async () => 'jeton'; await checkServer(); });
-  await gone(p); assert.equal(await n(p, 'removeBanner'), 4, 'checkServer() confirme un compte autorisé : bandeau retiré');
+  await gone(p); assert.equal(await n(p, 'removeBanner'), 5, 'checkServer() confirme un compte autorisé : bandeau retiré');
   assert.equal(await p.evaluate(() => CTX.serverOk), true);
   assert.equal(await n(p, 'initialize'), 1, 'SDK initialisé une seule fois'); assert.equal(await n(p, 'requestConsentInfo'), 2, 'consentement : au lancement, puis après « Choix publicitaires »');
   assert.deepEqual(errs, []); await p.context().close();

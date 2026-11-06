@@ -640,6 +640,7 @@ Prête dans le code, **à construire après la mise en production** (rien ne pre
 Un petit bandeau Google AdMob, en haut de l'écran, paie l'hébergement :
 - seulement dans l'appli Android, jamais sur le site ni la PWA ;
 - jamais pour les comptes de `ALLOWED_UIDS` (le tien) quand le serveur a `CARDTRADER_TOKEN` : connecté avec ton compte, tu ne vois aucune pub ;
+- jamais pour le **compte de l'éditeur** (adresse vérifiée reconnue par son empreinte, `event.js` › `evAdmOn`, depuis le 6 novembre 2026), même sans `ALLOWED_UIDS` ni token CardTrader ;
 - seulement sur les écrans de consultation : accueil, collection, Mes decks, liste d'échange d'un autre joueur. Jamais pendant la saisie d'une liste, la recherche et ses résultats, l'éditeur de deck, le scan, la carte en grand ni l'accueil du premier lancement (choix du 9 octobre, `adsBusy` dans `src/ads.js`) ;
 - il arrive quelques secondes après l'ouverture puis reste en place sur ces écrans. La page descend de sa hauteur : rien n'est caché dessous.
 

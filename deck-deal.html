@@ -8068,7 +8068,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '76f85efc';
+const DD_BUILD = 'b5ae2f0d';
 const I18N_FILES = {"de":"i18n/de.17248131.js","en":"i18n/en.49fc5d9d.js","es":"i18n/es.26ac2062.js","it":"i18n/it.d7e9b691.js","pt":"i18n/pt.48ac96e9.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -34831,7 +34831,7 @@ async function adsStep() {
   const P = natPlugin('AdMob'); if (!P) return;
   const now = Date.now(), busy = adsBusy();
   if (busy) AD.calm = 0; else if (!AD.calm) AD.calm = now;
-  if (CTX.serverOk === true || AD.no || (typeof streamOn === 'function' && streamOn())) {  // compte autorisé, pub refusée, ou mode streamer (opening.js, html.streamer : réévalué au changement) : bandeau détruit
+  if (CTX.serverOk === true || AD.no || (typeof streamOn === 'function' && streamOn()) || (typeof evAdmOn === 'function' && evAdmOn())) {  // compte autorisé, pub refusée, mode streamer (opening.js, html.streamer : réévalué au changement) ou compte de l'éditeur (event.js › evAdmOn) : bandeau détruit
     if (AD.st !== 'off') { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); }
     return;
   }
@@ -44583,6 +44583,7 @@ async function evAdmChk(user) {
     const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(m)))].map(b => b.toString(16).padStart(2, '0')).join('');
     if (h !== EV_ADM || EV.uid !== user.uid) return;
     EV.adm = user.uid; if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
+    if (typeof adsRefresh === 'function') adsRefresh();      // compte de l'éditeur : pas de bandeau de pub (ads.js › adsStep)
   } catch (e) { /* pas de WebCrypto : pas d'aperçu */ }
 }
 const evAdmOn = () => !!EV.adm && EV.adm === EV.uid;
