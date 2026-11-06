@@ -235,18 +235,18 @@ async function stpVerify(R) {
       for (const x of todo) { const c = stpCtGet(x.k, sig); if (c) { x.ct = c.p; run.done++; } }
       const left = todo.filter(x => x.ct === undefined);
       for (let i = 0; i < left.length; i += PX_CHUNK) {
-        const chunk = left.slice(i, i + PX_CHUNK), offers = new Map();
+        const chunk = left.slice(i, i + PX_CHUNK), offers = new Map(), imgs = new Map();
         const hooks = {
           step: (id, st, d) => { if (st === 'run') { run.step = (PX_STEPS[id] || id) + (d ? ' ' + d : ''); upd(); } },
           progress: f => { run.frac = f * chunk.length; upd(); },
           rate() {}, hint() {}, cacheAge() {},
           needsEn: key => needsEnglish(offers.get(key) || [], opts),
-          card: (key, p) => { const l = p.fellBack ? (offers.get(key) || []).concat(p.offers || []) : p.offers || []; offers.set(key, p.notFound ? [] : l); },
+          card: (key, p) => { const l = p.fellBack ? (offers.get(key) || []).concat(p.offers || []) : p.offers || []; offers.set(key, p.notFound ? [] : l); if (p.img) imgs.set(key, p.img); },      // image lue par la recherche : la vignette, sans autre requête
         };
         await runLive(chunk.map(x => ({ key: x.k, name: x.name, qty: x.need })), opts, hooks, run.ctrl.signal);
         for (const x of chunk) {
           const l = offers.get(x.k) || [], b = cheapestOffer(l, opts) || (opts.fallbackEn ? cheapestOffer(l, { ...opts, lang: 'en' }) : null);
-          x.ct = b ? b.price : null; stpCtSet(x.k, sig, x.ct);
+          x.ct = b ? b.price : null; stpCtSet(x.k, sig, x.ct); if (imgs.has(x.k)) x.img = imgs.get(x.k);
         }
         run.done += chunk.length; run.frac = 0; stpCtSave(); upd(); stpPaint();      // prix CardTrader lus : affichés tout de suite
       }
@@ -469,7 +469,7 @@ function stpWhy(x, R) {
   return out.slice(0, 3).join(' · ');
 }
 function stpRowHtml(x, i, R) {
-  const nm = stpNm(x.name), en = nm !== x.name ? x.name : '', im = typeof dmOf === 'function' ? (dmOf(x.k) || {}).im || '' : '', ct = x.ct === undefined ? '' : x.ct == null ? `<small class="bad">${T('CT : aucune offre')}</small>` : `<small${stpCtOk(x.ct, R.o) ? '' : ' class="bad"'}>CT ${esc(stpEuro(x.ct))}</small>`;
+  const nm = stpNm(x.name), en = nm !== x.name ? x.name : '', im = x.img || (typeof dmOf === 'function' ? (dmOf(x.k) || {}).im || '' : ''), ct = x.ct === undefined ? '' : x.ct == null ? `<small class="bad">${T('CT : aucune offre')}</small>` : `<small${stpCtOk(x.ct, R.o) ? '' : ' class="bad"'}>CT ${esc(stpEuro(x.ct))}</small>`;
   return `<div class="stp-row" data-k="${esc(x.k)}" data-n="${esc(x.name)}"><span class="stp-i">${nf0(i + 1)}</span><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('stp', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span>
     <span class="stp-n"><b>${x.need > 1 ? `<em>${nf0(x.need)} ×</em> ` : ''}<span class="row-name">${esc(nm)}</span></b><small>${stpPipsHtml(x.ci)}<span>${esc(en || stpWhy(x, R))}</span></small>${en ? `<small class="stp-why"><span>${esc(stpWhy(x, R))}</span></small>` : ''}</span>
     <span class="stp-p">${esc(stpEuro(x.eur))}${ct}</span><button type="button" class="icon-btn stp-x" data-stp="x" data-v="${esc(x.k)}" aria-label="${esc(T('Retirer {name} de cette liste', { name: x.name }))}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
@@ -511,12 +511,13 @@ function stpPaint() {
   }
   api.body.scrollTop = y;
 }
-/** Images des vignettes : fiches lues par lots (builder.js › dmFetch : /cards/collection, 75 cartes par requête ; images ensuite servies par cards.scryfall.io), jamais
+/** Images des vignettes : pendant la vérification CardTrader, aucune demande (une carte validée reçoit l'image déjà lue par la recherche ; une carte rejetée ne coûte rien) ;
+ *  la liste finale établie, seules les cartes encore sans image sont demandées. Fiches lues par lots (builder.js › dmFetch : /cards/collection, 75 cartes par requête ; images ensuite servies par cards.scryfall.io), jamais
  *  une requête par carte à api.scryfall.com (limitée en débit : une rafale bloquait Scryfall, « Scryfall en pause » dans la recherche suivante). La lettre en attendant. */
 async function stpMeta() {
-  const R = STP.res; if (!R || typeof dmFetch !== 'function') return;
-  const sig = R.list.map(x => x.k).join('|'); if (STP.metaSig === sig) return; STP.metaSig = sig;
-  try { await dmLoad(); if (await dmFetch(R.list.map(x => ({ key: x.k, name: x.name })), false)) stpPaint(); } catch (e) { /* hors ligne, limite Scryfall : les lettres restent */ }
+  const R = STP.res; if (!R || STP.run || typeof dmFetch !== 'function') return;      // vérification en cours : la liste n'est pas finale
+  const need = R.list.filter(x => !x.img), sig = need.map(x => x.k).join('|'); if (!need.length || STP.metaSig === sig) return; STP.metaSig = sig;
+  try { await dmLoad(); if (await dmFetch(need.map(x => ({ key: x.k, name: x.name })), false)) stpPaint(); } catch (e) { /* hors ligne, limite Scryfall : les lettres restent */ }
 }
 /** Seule la barre de progression bouge pendant la vérification (repeinte au plus une fois par image). */
 function stpPaintRun() {
