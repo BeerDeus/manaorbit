@@ -434,8 +434,7 @@ function simgDeckSpec(o) {
   const d = o && o.id ? findDeck(o.id) : null, text = d ? d.text : String((o && o.text) || ''), name = d ? d.name : String((o && o.name) || 'Deck');
   const pd = parseDeck(text), cmd = commanderKeys(text).map(k => pd.cards.find(c => c.key === k)).filter(Boolean), fk = dkFmtOf(text);
   const cv = dkCoverCard(text, dmOf), v = typeof dkEst === 'function' ? dkEst(text) : dkValue(text, dmOf);
-  const ci = cmd.length ? [...new Set(cmd.flatMap(c => [...String((dmOf(ownKey(c.key)) || {}).ci || '')]))].join('') : '';
-  const colors = [...'WUBRG'].filter(c => (ci || dkColors(text)).includes(c)).join('');
+  const colors = deckColors(text);      // la règle de Mes decks (core.js › deckColors) : identité du commandant, sinon couleurs des cartes, sinon terrains de base
   const sub = cmd.length ? cmd.map(c => c.dn || c.name).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
   return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', ...(cv && !ownLangImg(cv.key) ? { ln: cv.name, wl: imgLang() } : {}), cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
 }

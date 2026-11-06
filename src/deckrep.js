@@ -25,6 +25,11 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.dr = el => {
   return zoomFrom(rows, el, r => zoomNamed(r.dataset.k, bdLabel(r.dataset.k, r.dataset.n), r.dataset.n, viewLang(r.dataset.k, true)));
 };
 
+/** Couleurs du deck X : core.js › deckColors (identité du ou des commandants, la règle de Mes decks et de l'image de partage) ; fiche du commandant pas encore lue : celle du coach (cmd.ci). */
+function drColors(X, cmd) {
+  const all = [...X.main.values()], info = deckColorInfo({ cmdr: X.cmdr, cards: [...X.cmdr, ...all.filter(c => !BASIC_NAMES.has(c.key))], basics: all.filter(c => BASIC_NAMES.has(c.key)) }, { fmt: 'commander' });
+  return info.by === 'cmdr' || !cmd ? info.c : cmd.ci || '';
+}
 /** Contenu du rapport (HTML) pour le deck X ({ main, cmdr, wiz }). */
 function drReportHtml(X) {
   const cmd = dwCmdOf(X), pack = cmd ? DW.cmd.get(cmd.slug) || null : null, set = X.wiz || dwDefaults();
@@ -38,7 +43,7 @@ function drReportHtml(X) {
   const themes = (set.th.length ? set.th : ((pack && pack.thl) || (cmd && cmd.th) || []).slice(0, 2).map(t => t[0])).slice(0, 3);
   const thChoices = dwThemeChoices(cmd, pack, { th: themes });
   h += `<div class="da-sum"><p class="dw-line"><span>${T('Commandant')}</span><b>${cm.map(c => drCard(c.k, c.name)).join(' + ')}</b></p>
-    <p class="dw-line"><span>${T('Couleurs')}</span><b>${[...(cmd.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}</b></p>
+    <p class="dw-line"><span>${T('Couleurs')}</span><b>${[...(drColors(X, cmd) || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}</b></p>
     <p class="dw-line"><span>${T('Bracket estimé')}</span><b>${est} · ${esc(bName(est))}</b></p>
     ${themes.length ? `<p class="dw-line"><span>${T('Thèmes')}</span><b>${esc(themes.map(t => dwThemeLabel(t, thChoices)).join(', '))}</b></p>` : ''}
     <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b></p></div>`;

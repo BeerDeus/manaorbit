@@ -47,8 +47,10 @@ await p.click('.coll .fcol[data-c="G"]'); assert.deepEqual((await rows()).map(x 
 await p.click('.coll .fcol[data-c="G"]'); await p.click('.coll .fopt[data-t="Artefacts"]'); assert.deepEqual((await rows()).map(x => x.name), ['Sol Ring']);
 await p.click('.coll .fopt[data-t="Artefacts"]'); await p.click('.coll .fopt[data-m="2"]'); assert.equal((await rows()).length, 0); assert.match(await txt(p, '.coll .listempty'), /Aucune carte ne correspond/);
 await p.click('.coll .fopt[data-m="2"]'); await p.click('.coll .fopt[data-m="1"]'); await p.click('.coll .fcol[data-c="W"]'); assert.deepEqual((await rows()).map(x => x.name), ['Swords to Plowshares'], 'coût 1 ET couleur blanche');
+assert.equal(await p.$eval('.coll .fcol-rule', e => e.hidden), true, 'une couleur : rien à expliquer');
 await p.click('.coll .fcol[data-c="C"]'); assert.deepEqual((await rows()).map(x => x.name), ['Sol Ring', 'Swords to Plowshares'], 'blanc OU incolore');
-await p.screenshot({ path: 'shots/coll-3-filtres.png' });
+assert.equal(await p.$eval('.coll .fcol-rule', e => e.hidden ? '' : e.textContent), 'Cartes d\'au moins une de ces couleurs.', 'lot R5 : deux couleurs cochées → le sens du filtre est dit');
+await p.screenshot({ path: 'shots/coll-3-filtres.png' }); if (process.env.SHOTS) { await p.setViewportSize({ width: 393, height: 852 }); await p.waitForTimeout(300); await p.screenshot({ path: process.env.SHOTS + '/r5-collection-filtre.png' }); await p.setViewportSize({ width: 390, height: 844 }); }      // captures à la demande
 await p.click('.coll .freset'); assert.equal((await rows()).length, 3); assert.equal(await p.$eval('.coll .fbtn b', b => b.hidden), true);
 await p.selectOption('#collSort', 'qty'); assert.deepEqual((await rows()).map(x => x.name), ['Llanowar Elves', 'Sol Ring', 'Swords to Plowshares'], 'quantité décroissante');
 await p.selectOption('#collSort', 'price'); assert.deepEqual((await rows()).map(x => x.name), ['Swords to Plowshares', 'Sol Ring', 'Llanowar Elves'], 'prix décroissant');

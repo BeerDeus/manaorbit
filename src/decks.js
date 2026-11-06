@@ -153,8 +153,9 @@ function deltaChip(h) {
   return `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${fmt(Math.abs(d.diff), modeCur(d.mode))}</span>`;
 }
 const COLOR_NAMES = { W: 'blanc', U: 'bleu', B: 'noir', R: 'rouge', G: 'vert' };
-/** Pastilles de couleur d'un deck (d'après ses terrains de base). */
-function pips(text) { const c = dkColors(text); return c ? `<span class="deck-pips" role="img" aria-label="${T('Couleurs : {list}', { list: [...c].map(x => T(COLOR_NAMES[x])).join(', ') })}" title="${T('Couleurs d\'après les terrains de base')}">${[...c].map(x => `<i class="pip ${x}"></i>`).join('')}</span>` : ''; }
+/** Pastilles de couleur d'un deck (Mes decks, decks d'un ami) : core.js › deckColorInfo (identité du commandant, sinon couleurs des cartes, sinon terrains de base), la source dans la bulle. */
+const pipsBy = by => (by === 'cmdr' ? T('Identité de couleur du commandant') : by === 'cards' ? T('Couleurs des cartes du deck') : T('Couleurs d\'après les terrains de base'));
+function pips(text) { const { c, by } = deckColorInfo(text); return c ? `<span class="deck-pips" role="img" aria-label="${T('Couleurs : {list}', { list: [...c].map(x => T(COLOR_NAMES[x])).join(', ') })}" title="${pipsBy(by)}">${[...c].map(x => `<i class="pip ${x}"></i>`).join('')}</span>` : ''; }
 const deckFmt = d => dkFmtOf(d.text);
 /** Image de la carte de présentation d'un deck (grande taille), '' tant que sa fiche n'est pas lue. */
 const coverImg = c => { if (!c) return ''; const o = ownLangImg(c.key), m = dmOf(c.key); return o ? o.src : (m && m.im) || ''; };      // carte possédée : dans la langue de l'exemplaire
@@ -490,7 +491,7 @@ function setDeckCover(id, name) {
 function openCoverPicker(id, done) {
   const d0 = findDeck(id); if (!d0) return;
   openSheet(T('Image du deck'), T('Touche la carte qui illustrera ce deck'), api => {
-    api.body.innerHTML = `<div class="field-in"><label class="label" for="cvQ">${T('Chercher dans le deck')}</label><input type="search" id="cvQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${T('Nom de la carte')}"></div><div class="cv-grid" id="cvGrid"></div>`;
+    api.body.innerHTML = `<div class="field-in"><label class="label" for="cvQ">${T('Chercher dans le deck')}</label><input type="search" id="cvQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(cnPh())}"></div><div class="cv-grid" id="cvGrid"></div>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn ghost" type="button" id="cvAuto">${T('Automatique')}</button>`);
     const q = $('#cvQ', api.body), grid = $('#cvGrid', api.body);
     const pool = () => {
@@ -500,8 +501,9 @@ function openCoverPicker(id, done) {
       return out.sort((a, b) => (b.cmd - a.cmd) || (eu(b) - eu(a)) || a.name.localeCompare(b.name));
     };
     const paint = () => {
-      const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', f = q.value.trim().toLowerCase();
-      const list = pool().filter(c => !f || c.name.toLowerCase().includes(f)).slice(0, 150);
+      const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', Q = cnQ(q.value), ix = cnIx();
+      const list = pool().filter(c => !Q || cnItem({ k: c.key, n: c.name, fn: frOf(c.key) }, Q, ix)).slice(0, 150);      // nom anglais, de la langue de l'appli ou des cartes (cardnames.js)
+      if (Q) cnWhen(() => { if (sheets.includes(api)) paint(); });
       imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.key, c.name, im)}>` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
     };
     grid.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);

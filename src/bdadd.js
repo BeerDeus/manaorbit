@@ -43,7 +43,7 @@ function bdFiltChanged() {
 /** Monte la barre de filtres de la collection dans root (onglet « Ajouter ») ; son champ garde l'identifiant #bdQ. */
 function bdFiltMount(root) {
   const ext = typeof srchExt === 'function' ? { ...srchExt(), id: 'bdMore' } : null;
-  BD.fb = mountFilters(root, BD.f, bdFiltChanged, { placeholder: nmT('Nom français ou anglais', 'Nom en {lang} ou en anglais', 'Nom de la carte'), commander: BD.fmt === 'commander', sets: bdSetList,
+  BD.fb = mountFilters(root, BD.f, bdFiltChanged, { placeholder: cnPh(), commander: BD.fmt === 'commander', sets: bdSetList,
     setsSub: n => TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection'), ...(ext ? { ext } : {}) });
   const inp = $('input', root); if (inp) inp.id = 'bdQ';
   BD.fsig = bdFSig();

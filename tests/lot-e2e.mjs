@@ -108,10 +108,14 @@ await p.selectOption('.lot-lang', '').catch(() => {}); await p.evaluate(() => { 
 await p.fill('#caName', 'Fulmine'); await p.waitForSelector('.ca-opt[data-n="Lightning Bolt"]', { timeout: 8000 });
 assert.deepEqual(await p.$$eval('.ca-opt', b => b.map(x => [x.dataset.n, x.dataset.l || ''])), [['Lightning Bolt', 'it'], ['Arc Lightning', 'it']], 'nom italien : le nom exact d\'abord');
 assert.match(await txt(p, '.ca-opt[data-n="Lightning Bolt"]'), /Fulmine\s*Lightning Bolt/); assert.ok(await p.$('.ca-opt[data-n="Lightning Bolt"] .flag'), 'drapeau de la langue');
-await p.fill('#caName', 'Elfi di Llan'); await p.waitForSelector('.ca-opt[data-n="Llanowar Elves"][data-l="it"]');
+const ownL = await p.evaluate(() => collMainLang(collLines(COLL.map['llanowar elves'])));      // Llanowar Elves déjà ajoutée plus haut
+await p.fill('#caName', 'Elfi di Llan'); await p.waitForSelector('.ca-opt[data-n="Llanowar Elves"]');
+assert.equal(await p.$eval('.ca-opt[data-n="Llanowar Elves"]', b => b.dataset.l || ''), ownL || 'it', 'carte déjà possédée : langue de tes exemplaires, pas celle du nom tapé');
+await p.evaluate(() => { delete COLL.map['llanowar elves']; collChanged(); });      // non possédée : langue du nom tapé (italien)
+await p.fill('#caName', ''); await p.fill('#caName', 'Elfi di Llan'); await p.waitForSelector('.ca-opt[data-n="Llanowar Elves"][data-l="it"]');
 await p.click('.ca-opt[data-n="Llanowar Elves"]'); await p.waitForSelector('.lot-card:not([hidden]) #lotAdd');
 assert.equal(await p.$eval('.lot-lang', s => s.value), 'it', 'carte prise en italien'); assert.match(await txt(p, '.lot-name'), /Elfi di Llanowar/);
-await edReady(); await p.click('#lotAdd'); await p.waitForFunction(() => { const x = COLL.map['llanowar elves']; return x && x.x && Object.keys(x.x).some(g => g.startsWith('it')); });
+await edReady(); await p.click('#lotAdd'); await p.waitForFunction(() => { const x = COLL.map['llanowar elves']; return x && collLines(x).some(([g]) => lineLang(g) === 'it'); });      // une seule ligne : x.l, sinon x.x
 await p.fill('#caName', 'sol r'); await p.waitForSelector('.ca-opt[data-n="Sol Ring"]');
 assert.deepEqual(await p.$$eval('.ca-opt', b => b.map(x => x.dataset.n)), ['Sol Ring'], 'nom anglais trouvé : pas de bruit des autres langues');
 ok('recherche dans les autres langues : « Fulmine » (italien) → Lightning Bolt d\'abord, drapeau ; « Elfi di Llan » → carte ajoutée en italien ; « sol r » sans bruit');

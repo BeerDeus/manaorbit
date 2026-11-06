@@ -93,7 +93,7 @@ const edhInfoHtml = x => { const i = x.indexOf(' Ex. : '); return i < 0 ? esc(T(
 /** Nom court d'un type de deck, traduit ('' si inconnu). */
 const edhKindName = k => (EDH_KIND_NAMES[k] ? T(EDH_KIND_NAMES[k]) : '');
 const EDH_BUDGETS = [[0, 'Budget illimité'], [3000, '≤ 30 €'], [6000, '≤ 60 €'], [10000, '≤ 100 €'], [20000, '≤ 200 €']];
-const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
+const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), colsEq: false, tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
 
 /** Fichier du site (null hors http, ou s'il manque) : { buf, etag }. same : ETag déjà connu ; si le site répond avec le même, le corps n'est pas lu → { same: true }. */
 async function edhGet(file, same) {
@@ -187,19 +187,21 @@ const edhDate = () => { const d = EDH.data && EDH.data.at ? new Date(EDH.data.at
 function edhRows() {
   if (!EDH.data) return [];
   for (const t of [...EDH.themes]) if (!EDH.data.themeIx.has(t)) EDH.themes.delete(t);      // un thème absent du fichier chargé (version plus ancienne ou plus récente) ne filtre plus rien
-  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join(''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? FRX.l : ''].join('|');
+  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join('') + (EDH.colsEq ? '=' : ''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? CN.v + FRX.l : ''].join('|');
   if (EDH.memo && EDH.memo.sig === sig) return EDH.memo.rows;
-  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
+  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, colsEq: EDH.colsEq, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
   EDH.memo = { sig, rows }; return rows;
 }
-/* ── Recherche dans la langue des noms (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés du catalogue chargé (FRX.ix.fr : clé anglaise → nom imprimé) sont
-   cherchés avec les noms anglais. Normalisés une fois par catalogue et gardés (≈ 30 000 noms : quelques dizaines de ms), relus si le catalogue change (langue). */
-const EDH_ALT = { ix: null, map: null };
+/* ── Recherche dans la langue de l'appli et dans celle des cartes (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés des index chargés (cardnames.js › cnIx,
+   FRX.ix : clé anglaise → nom imprimé) sont cherchés avec les noms anglais. Normalisés une fois par index et gardés (≈ 30 000 noms : quelques dizaines de ms), relus s'ils changent. */
+const EDH_ALT = { a: null, c: null, map: null };
 function edhAlt() {
-  const ix = FRX.ix; if (!ix || !ix.fr) { if (!FRN.p && typeof frLoad === 'function') frLoad().then(ok => { if (ok && COLL.el && EDH.q) collPaintBody(true); }).catch(() => {}); return null; }      // catalogue pas encore là : chargé (1 requête), la liste se repeint quand il arrive
-  if (EDH_ALT.ix !== ix) { EDH_ALT.ix = ix; EDH_ALT.map = new Map(); }
+  const a = cnIx(), c = FRX.ix && FRX.ix !== a ? FRX.ix : null;
+  if (!FRX.ix && !FRN.p && namesLang()) frLoad().then(ok => { if (ok && COLL.el && EDH.q) collPaintBody(true); }).catch(() => {});      // catalogue pas encore là : chargé (1 requête), la liste se repeint quand il arrive (langue de l'appli : cnReady)
+  if (!a && !c) return null;
+  if (EDH_ALT.a !== a || EDH_ALT.c !== c) Object.assign(EDH_ALT, { a, c, map: new Map() });
   const m = EDH_ALT.map;
-  return k => { let v = m.get(k); if (v === undefined) { const p = ix.fr.get(k); v = p ? normName(p).replace(/ \/\/ /g, ' ') : ''; m.set(k, v); } return v; };
+  return k => { let v = m.get(k); if (v === undefined) { v = [...new Set([a, c].map(ix => ix && ix.fr.get(k)).filter(Boolean))].map(p => normName(p).replace(/ \/\/ /g, ' ')).join(' '); m.set(k, v); } return v; };
 }
 /** Recherche en cours, ou '' : un nom de commandant dès 1 lettre, une carte à partir de 2 (sinon presque tous les decks la contiennent). */
 const edhQuery = () => { const t = edhTokens(EDH.q); return t.length && (EDH.qm === 'cmd' || t.join('').length >= 2) ? EDH.q : ''; };
@@ -289,7 +291,7 @@ function edhActive() {
   const out = [], e = EDH.data;
   if (EDH.kinds.size) out.push(['kinds', EDH_KINDS.filter(k => EDH.kinds.has(k)).map(edhKindName).join(' · ')]);
   if (EDH.tiers.size) out.push(['tiers', T('Tier {t}', { t: EDH_TIER_NAMES.filter(t => EDH.tiers.has(t)).join(' · ') })]);
-  if (EDH.cols.size) out.push(['cols', T('Couleurs ⊆ {c}', { c: COLOR_DEF.map(c => c[0]).filter(c => EDH.cols.has(c)).join('') })]);
+  if (EDH.cols.size) { const c = COLOR_DEF.map(x => x[0]).filter(x => EDH.cols.has(x)).join(''); out.push(['cols', EDH.colsEq ? T('Couleurs = {c}', { c }) : T('Couleurs ⊆ {c}', { c })]); }      // core.js › colorFit : identité incluse, ou exactement
   if (EDH.budget) out.push(['budget', (EDH_BUDGETS.find(b => b[0] === EDH.budget) || [0, ''])[1]]);
   if (EDH.themes.size && e) out.push(['themes', [...EDH.themes].map(sl => { const i = e.themeIx.get(sl); return i === undefined ? sl : edhThemeName(e.themes[i]); }).join(' + ')]);
   if (EDH.mine) out.push(['mine', T('J\'ai le commandant')]);
@@ -299,7 +301,7 @@ function edhPillsHtml() {
   const a = edhActive(); if (!a.length) return '';
   return `<div class="dk-pills">${a.map(([g, l]) => `<button type="button" class="dk-pill" data-act="dpx" data-g="${g}" aria-label="${esc(T('Retirer le filtre {f}', { f: l }))}"><span>${esc(l)}</span><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}<button type="button" class="link-btn dk-clr" data-act="dclear">${T('Tout effacer')}</button></div>`;
 }
-function edhClearAll() { EDH.kinds.clear(); EDH.tiers.clear(); EDH.cols.clear(); EDH.themes.clear(); EDH.budget = 0; EDH.mine = false; EDH.shown = 30; }
+function edhClearAll() { EDH.kinds.clear(); EDH.tiers.clear(); EDH.cols.clear(); EDH.colsEq = false; EDH.themes.clear(); EDH.budget = 0; EDH.mine = false; EDH.shown = 30; }
 function edhPanelHtml() {
   if (!EDH.data) {
     return EDH.err ? `<div class="dv-empty"><b>${T('Decks indisponibles')}</b><p>${esc(EDH.err)}</p><div class="coll-cta"><button class="btn ghost" type="button" data-act="dretry">${T('Réessayer')}</button></div></div>`
@@ -324,7 +326,8 @@ function edhFiltersHtml() {
   return `<div class="dkf">
     ${kindsHave.size > 1 ? h(T('Type de deck')) + `<div class="fopts" role="group" aria-label="${T('Type de deck')}">${EDH_KINDS.filter(k => kindsHave.has(k)).map(k => `<button type="button" class="fopt" data-act="dkind" data-k="${k}" aria-pressed="${EDH.kinds.has(k)}">${edhKindName(k)}</button>`).join('')}</div>` : ''}
     ${h(T('Tier du commandant'))}<div class="fopts" role="group" aria-label="${T('Tier du commandant')}">${EDH_TIER_NAMES.filter(t => tiersHave.has(t)).map(t => `<button type="button" class="fopt tier t-${t.toLowerCase()}" data-act="dtier" data-t="${t}" aria-pressed="${EDH.tiers.has(t)}" aria-label="${T('Tier {t}', { t })}">${t}</button>`).join('')}</div>
-    ${h(T('Couleurs permises'))}<div class="fcols" role="group" aria-label="${T('Couleurs permises')}">${COLOR_DEF.filter(c => c[0] !== 'C').map(([c, nm]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-act="dcol" data-c="${c}" aria-pressed="${EDH.cols.has(c)}" aria-label="${nm}" title="${nm}">${c}</button>`).join('')}</div>
+    ${h(T('Couleurs permises'))}<div class="fcols" role="group" aria-label="${T('Couleurs permises')}">${COLOR_DEF.filter(c => c[0] !== 'C').map(([c, nm]) => `<button type="button" class="fcol mc-${c.toLowerCase()}" data-act="dcol" data-c="${c}" aria-pressed="${EDH.cols.has(c)}" aria-label="${nm}" title="${nm}">${c}</button>`).join('')}<button type="button" class="fopt" data-act="dceq" aria-pressed="${EDH.colsEq}">${T('Exactement')}</button></div>
+    <p class="hint dkf-rule">${colorRuleText(EDH.colsEq)}</p>
     ${h(T('Budget maximum à acheter'))}<div class="fopts" role="radiogroup" aria-label="${T('Budget maximum à acheter')}">${EDH_BUD_SHORT.map(([v, l]) => `<button type="button" class="fopt" role="radio" data-act="dbudget" data-v="${v}" aria-checked="${EDH.budget === v}" aria-pressed="${EDH.budget === v}">${v ? l : T(l)}</button>`).join('')}</div>
     ${(e.themeOrder || []).length ? h(T('Thèmes')) + edhThemesHtml() : ''}
     <button type="button" class="dkf-sw" role="switch" data-act="dmine" aria-checked="${EDH.mine}" aria-pressed="${EDH.mine}"><span>${T('J\'ai le commandant')}${mineN ? ` <small>${nf0(mineN)}</small>` : ''}</span><span class="switch" aria-hidden="true"><i></i></span></button>
@@ -349,7 +352,7 @@ function openEdhFilters() {
 /** Résultats (résumé, liste, « Afficher plus ») : repeints seuls pendant la frappe, pour que le champ de recherche garde le focus. */
 function edhResHtml() {
   const rows = edhRows(), shown = rows.slice(0, EDH.shown), near = rows.filter(r => r.miss <= 10).length, q = edhQuery(), card = EDH.qm === 'card';
-  const sum = `<p class="hint dk-sum">${TN(rows.length, '{n} deck sur {total}', '{n} decks sur {total}', { total: nf0(EDH.data.decks.length) })}${q ? ' · ' + T(card ? 'contenant « {q} »' : 'commandant « {q} »', { q: esc(EDH.q.trim()) }) : ''}${EDH.cols.size ? ' · ' + T('couleurs ⊆ {c}', { c: [...EDH.cols].join('') }) : ''}${EDH.tiers.size ? ' · ' + T('tier {t}', { t: EDH_TIER_NAMES.filter(t => EDH.tiers.has(t)).join(' ') }) : ''}${EDH.kinds.size ? ' · ' + EDH_KINDS.filter(k => EDH.kinds.has(k)).map(edhKindName).join(' / ') : ''}${EDH.themes.size ? ' · ' + T(EDH.themes.size > 1 ? 'thèmes : {list}' : 'thème : {list}', { list: esc([...EDH.themes].map(s => { const i = EDH.data.themeIx.get(s); return i === undefined ? s : edhThemeName(EDH.data.themes[i]); }).join(' + ')) }) : ''}${near ? ' · ' + T('<b>{n}</b> à 10 cartes ou moins', { n: nf0(near) }) : ''}</p>`;
+  const sum = `<p class="hint dk-sum">${TN(rows.length, '{n} deck sur {total}', '{n} decks sur {total}', { total: nf0(EDH.data.decks.length) })}${q ? ' · ' + T(card ? 'contenant « {q} »' : 'commandant « {q} »', { q: esc(EDH.q.trim()) }) : ''}${EDH.cols.size ? ' · ' + (EDH.colsEq ? T('couleurs = {c}', { c: COLOR_DEF.map(x => x[0]).filter(x => EDH.cols.has(x)).join('') }) : T('couleurs ⊆ {c}', { c: COLOR_DEF.map(x => x[0]).filter(x => EDH.cols.has(x)).join('') })) : ''}${EDH.tiers.size ? ' · ' + T('tier {t}', { t: EDH_TIER_NAMES.filter(t => EDH.tiers.has(t)).join(' ') }) : ''}${EDH.kinds.size ? ' · ' + EDH_KINDS.filter(k => EDH.kinds.has(k)).map(edhKindName).join(' / ') : ''}${EDH.themes.size ? ' · ' + T(EDH.themes.size > 1 ? 'thèmes : {list}' : 'thème : {list}', { list: esc([...EDH.themes].map(s => { const i = EDH.data.themeIx.get(s); return i === undefined ? s : edhThemeName(EDH.data.themes[i]); }).join(' + ')) }) : ''}${near ? ' · ' + T('<b>{n}</b> à 10 cartes ou moins', { n: nf0(near) }) : ''}</p>`;
   let note = '', none = T('Aucun deck ne correspond à ces réglages.');
   if (q && !card) {
     const toks = edhTokens(q), alt = edhAlt(), found = EDH.data.cmds.filter(c => edhCmdHas(c, toks, alt)), has = EDH.data.withDeck || (EDH.data.withDeck = new Set(EDH.data.decks.map(d => d.cmd.slug))), nod = found.filter(c => !has.has(c.slug)).sort((a, b) => a.rank - b.rank);
@@ -537,13 +540,14 @@ function edhClick(e) {
   if (act === 'dthen') { EDH.then = EDH.then === b.dataset.v ? '' : b.dataset.v; EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dkind') { const k = b.dataset.k; if (EDH.kinds.has(k)) EDH.kinds.delete(k); else EDH.kinds.add(k); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dcol') { const c = b.dataset.c; if (EDH.cols.has(c)) EDH.cols.delete(c); else EDH.cols.add(c); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
+  else if (act === 'dceq') { EDH.colsEq = !EDH.colsEq; EDH.shown = 30; haptic('tap'); collPaintBody(true); }      // « Exactement ces couleurs » (colorFit 'eq'), sinon identité incluse
   else if (act === 'dtier') { const t = b.dataset.t; if (EDH.tiers.has(t)) EDH.tiers.delete(t); else EDH.tiers.add(t); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dth') { const t = b.dataset.s; if (EDH.themes.has(t)) EDH.themes.delete(t); else EDH.themes.add(t); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dthall') { haptic('tap'); if (EDH.fclose) { EDH.fclose(); EDH.fclose = null; } openEdhThemes(); }      // depuis la feuille « Filtres » : elle laisse la place à la liste complète des thèmes
   else if (act === 'dmine') { EDH.mine = !EDH.mine; EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dbudget') { const v = Number(b.dataset.v) || 0; if (EDH.budget !== v) { EDH.budget = v; EDH.shown = 30; haptic('tap'); collPaintBody(true); } }
   else if (act === 'dfilt') { haptic('tap'); openEdhFilters(); }
-  else if (act === 'dpx') { const g = b.dataset.g; if (g === 'budget') EDH.budget = 0; else if (g === 'mine') EDH.mine = false; else if (EDH[g] && EDH[g].clear) EDH[g].clear(); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
+  else if (act === 'dpx') { const g = b.dataset.g; if (g === 'budget') EDH.budget = 0; else if (g === 'mine') EDH.mine = false; else if (g === 'cols') { EDH.cols.clear(); EDH.colsEq = false; } else if (EDH[g] && EDH[g].clear) EDH[g].clear(); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dclear') { edhClearAll(); haptic('tap'); collPaintBody(true); }
   else if (act === 'dqx') { EDH.q = ''; EDH.shown = 30; collPaintBody(true); const i = $('#dkQ', COLL.el); if (i) i.focus({ preventScroll: true }); }
   else if (act === 'dmore') { EDH.shown += 30; collPaintBody(true); }

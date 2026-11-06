@@ -662,50 +662,27 @@ function dwPersoHtml(s, cmd, px) {
   const det = cmd ? dmxCmdTags(cmd) : [], all = s._allMech ? DMX_PICK : DMX_PICK.slice(0, 18), mech = [...new Set([...det, ...(s.mech || []), ...all])];
   const chip = (attr, v, on, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}="${esc(v)}" aria-pressed="${on}">${esc(label)}</button>`;
   const tribes = [...dmxTribes().keys()].slice(0, 120), ct = cmd ? dmxCmdTribes(cmd) : [];
-  const shown = dwShownName;      // nom dans la langue de l'appli (sinon des cartes, sinon anglais) ; le réglage garde le nom anglais
+  const shown = cnName;      // nom dans la langue de l'appli, sinon anglais (cardnames.js) ; le réglage garde le nom anglais
   const list = (l, attr) => l.length ? `<div class="dw-chips">${l.map(n => `<button type="button" class="chip on" ${attr}="${esc(n)}" aria-label="${esc(T('Retirer {name}', { name: shown(n) }))}">${esc(shown(n))} ×</button>`).join('')}</div>` : '';
   const o = Number.isFinite(s.orig) ? s.orig : DW_ORIG0;
   return `<p class="label">${T('Mécaniques à mettre en avant (4 au plus)')}</p>${det.length ? `<p class="hint">${esc(T('Repérées pour ce commandant : {m}', { m: det.map(dmxLabel).join(', ') }))}</p>` : ''}
     <div class="dw-chips">${mech.map(t => chip('data-pm', t, (s.mech || []).includes(t), dmxLabel(t))).join('')}${s._allMech ? '' : `<button type="button" class="chip" data-pm-all="1">${T('Toutes les mécaniques')}</button>`}</div>
     <div class="field-in"><label class="label" for="${px}Tribe">${T('Type de créature (tribal)')}</label><input type="text" id="${px}Tribe" list="${px}TribeL" maxlength="30" autocomplete="off" placeholder="${esc(ct[0] || 'Elf, Dragon, Zombie…')}" value="${esc(s.tribe || '')}"><datalist id="${px}TribeL">${tribes.map(t => `<option value="${esc(t)}">`).join('')}</datalist></div>
     ${ct.length && !s.tribe ? `<div class="dw-chips">${ct.slice(0, 3).map(t => chip('data-ptr', t, false, t)).join('')}</div>` : ''}
-    <div class="field-in"><label class="label" for="${px}PetQ">${T('Cartes fétiches à inclure')}</label><input type="search" id="${px}PetQ" data-pq="pets" autocomplete="off" spellcheck="false" placeholder="${esc(dwNamesPh())}"></div><div class="dw-pres" data-pres="pets"></div>${list(s.pets || [], 'data-ppx')}
-    <div class="field-in"><label class="label" for="${px}BanQ">${T('Cartes à exclure')}</label><input type="search" id="${px}BanQ" data-pq="ban" autocomplete="off" spellcheck="false" placeholder="${esc(dwNamesPh())}"></div><div class="dw-pres" data-pres="ban"></div>${list(s.ban || [], 'data-pbx')}
+    <div class="field-in"><label class="label" for="${px}PetQ">${T('Cartes fétiches à inclure')}</label><input type="search" id="${px}PetQ" data-pq="pets" autocomplete="off" spellcheck="false" placeholder="${esc(cnPh())}"></div><div class="dw-pres" data-pres="pets"></div>${list(s.pets || [], 'data-ppx')}
+    <div class="field-in"><label class="label" for="${px}BanQ">${T('Cartes à exclure')}</label><input type="search" id="${px}BanQ" data-pq="ban" autocomplete="off" spellcheck="false" placeholder="${esc(cnPh())}"></div><div class="dw-pres" data-pres="ban"></div>${list(s.ban || [], 'data-pbx')}
     <p class="label">${T('Styles à éviter')}</p><div class="dw-chips">${DMX_AVOID.map(([id, l]) => chip('data-pa', id, (s.avoid || []).includes(id), T(l))).join('')}</div>
     <div class="field-in"><label class="label" for="${px}Orig">${T('Originalité : {v} %', { v: o })}</label><input type="range" id="${px}Orig" min="0" max="100" step="10" value="${o}"><p class="hint">${esc(o <= 20 ? T('Classique : les cartes qui ont fait leurs preuves avec ce commandant.') : o >= 70 ? T('Trouvailles : moins de staples, des cartes peu jouées qui font exactement ce que veut ton deck.') : T('Équilibré : des valeurs sûres et quelques trouvailles.'))}</p></div>`;
 }
-/** Index des noms imprimés dans la LANGUE DE L'APPLI (recherche des cartes fétiches et à exclure) : celui de l'appli quand il est déjà dans cette langue (FRX.ix),
- *  sinon le sien, lu une fois (même catalogue que les noms de la collection : scryFrCached / scryFrStatic), sans toucher à celui de la collection. null tant qu'il n'est pas prêt. */
-const DWN = { l: '', ix: null, p: null, fail: 0 };
-const dwNamesLang = () => typeof NAMES_LANGS !== 'undefined' && NAMES_LANGS.includes(I18N.lang) ? I18N.lang : '';
-function dwNamesIx() {
-  const l = dwNamesLang(); if (!l) return null;
-  if (typeof FRX !== 'undefined' && FRX.l === l && FRX.ix) return FRX.ix;
-  if (DWN.l === l && DWN.ix) return DWN.ix;
-  if (DWN.l !== l) { DWN.l = l; DWN.ix = null; DWN.fail = 0; }
-  if (!DWN.p && Date.now() - DWN.fail > 60000 && typeof scryFrStatic === 'function' && typeof frIndex === 'function') DWN.p = (async () => {
-    const rec = (await scryFrCached(l).catch(() => null)) || await scryFrStatic(undefined, l).catch(() => null);
-    if (!rec || DWN.l !== l) { DWN.fail = Date.now(); return; }
-    const ix = frIndex([]); for (let i = 0; i < rec.rows.length; i += 2500) { frIndex(rec.rows.slice(i, i + 2500), ix); await new Promise(r => setTimeout(r, 0)); }
-    if (DWN.l === l) DWN.ix = ix;
-  })().catch(() => { DWN.fail = Date.now(); }).finally(() => { DWN.p = null; });
-  return null;
-}
-/** Nom d'une carte dans la langue de l'appli (sinon dans celle des cartes, sinon anglais). */
-const dwShownName = n => { const k = ownKey(n), ix = dwNamesIx(); return (ix && ix.fr && ix.fr.get(k)) || (typeof frOf === 'function' && frOf(k)) || n; };
-/** Libellé du champ de recherche : « Nom français ou anglais », « Nom en allemand ou en anglais »… selon la langue de l'appli. */
-const dwNamesPh = () => { const l = dwNamesLang(); return l === 'fr' ? T('Nom français ou anglais') : l ? T('Nom en {lang} ou en anglais', { lang: (typeof LANGS !== 'undefined' && LANGS[l]) || l }) : T('Nom de la carte'); };
-/** Cartes trouvées pour une recherche (fétiches : dans les couleurs du commandant), par le nom anglais, le nom dans la langue de l'appli et celui dans la
- *  langue des cartes (index FRX.ix de la collection). → [[clé, nom anglais, rang du mot, rang EDHREC, libellé affiché]] */
+/** Cartes trouvées pour une recherche (fétiches : dans les couleurs du commandant) : recherche commune (cardnames.js › cnFind : langue de l'appli, anglais,
+ *  langue des cartes ; nom exact, début, milieu), cartes de la base du coach seulement, les plus jouées d'abord à rang égal.
+ *  → [[clé, nom anglais, rang du mot, rang EDHREC, libellé affiché (langue de l'appli, sinon anglais)]] */
 function dwPersoFind(q, cmd, kind) {
-  const w = ownKey(q || ''); if (!w || w.length < 2 || !DW.byKey) return [];
-  const ci = cmd ? new Set([...cmd.ci]) : null, out = new Map();
-  const take = (k, r, pos, label) => { if (r[6] & 16) return; if (kind === 'pets' && ci && [...String(r[1])].some(c => !ci.has(c))) return; const o = out.get(k); if (!o || pos < o[2] || (label && o[4] === r[0])) out.set(k, [k, r[0], Math.min(pos, o ? o[2] : 9), r[8] || 99999, label || (o && o[4]) || r[0]]); };
-  for (const [k, r] of DW.byKey) if (k.includes(w)) take(k, r, k.startsWith(w) ? 0 : 1);
-  const wp = normPart(q), cardIx = typeof FRX !== 'undefined' ? FRX.ix : null;
-  for (const ix of [...new Set([dwNamesIx(), cardIx])]) if (ix && ix.list && wp.length >= 2) for (const e of ix.list) { if (!e.k.includes(wp)) continue; const k = ownKey(e.en), r = DW.byKey.get(k); if (r) take(k, r, e.k.startsWith(wp) ? 0 : 1, e.n); }      // nom imprimé (« Anneau solaire », « Blitzschlag »)
-  if (!cardIx && typeof frLoad === 'function' && typeof namesLang === 'function' && namesLang()) frLoad();      // noms de la langue des cartes pas encore lus : la frappe suivante en profite
-  return [...out.values()].sort((a, b) => a[2] - b[2] || a[3] - b[3]).slice(0, 6);
+  if (!DW.byKey) return [];
+  const ci = cmd ? new Set([...cmd.ci]) : null;
+  const ok = k => { const r = DW.byKey.get(k); return !!r && !(r[6] & 16) && !(kind === 'pets' && ci && [...String(r[1])].some(c => !ci.has(c))); };
+  return cnFind(q, { n: 6, each: visit => { for (const [k, r] of DW.byKey) visit(k, r[0]); }, ok, tie: k => DW.byKey.get(k)[8] || 99999 })
+    .map(x => { const r = DW.byKey.get(x.k); return [x.k, r[0], x.r < 3 ? 0 : 1, r[8] || 99999, cnName(r[0])]; });
 }
 const dwPersoRes = (list, kind) => list.map(([, n, , , label]) => `<button type="button" class="chip" data-padd="${kind}" data-n="${esc(n)}"${label && label !== n ? ` title="${esc(n)}"` : ''}>+ ${esc(label || n)}</button>`).join('');      // nom imprimé affiché, nom anglais gardé (réglages, base du coach)
 /** Clic dans le bloc : vrai si traité (s modifié). */
@@ -726,7 +703,12 @@ function dwPersoClick(e, s) {
  *  sinon le bouton touché disparaissait sous le doigt et la carte n'était ajoutée qu'au 2e appui. */
 function dwPersoInput(e, s, cmd) {
   const t = e.target; if (!t || !t.id) return false;
-  if (t.dataset.pq) { if (e.type !== 'input') return 'live'; const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
+  if (t.dataset.pq) {
+    if (e.type !== 'input') return 'live';
+    const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling, paint = () => { if (box && box.dataset.pres && t.isConnected) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); };
+    paint(); if (t.value.trim()) cnWhen(paint);      // index des noms de la langue de l'appli arrivé après la frappe : résultats refaits
+    return 'live';
+  }
   if (/Tribe$/.test(t.id)) { s.tribe = String(t.value || '').trim().slice(0, 30); return e.type === 'change'; }
   if (/Orig$/.test(t.id)) { s.orig = Math.max(0, Math.min(100, Math.round(Number(t.value) || 0))); return e.type === 'change'; }
   return false;
@@ -1004,9 +986,9 @@ function openDeckPaste(name, fmt) {
 }
 
 /* ── Assistant « Deck à construire » (Commander) ──────────────────────────────────────────────────── */
-const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
+const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
 function openDeckWiz(name) {
-  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
+  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
@@ -1015,15 +997,17 @@ function openDeckWiz(name) {
       const E = typeof EDH !== 'undefined' && EDH.data, list = dwzCmds(E);
       api.body.innerHTML = `<div class="field-in"><label class="label" for="dwzQ">${T('Chercher un commandant')}</label><input type="search" id="dwzQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Atraxa, Edgar Markov…" value="${esc(DWZ.q)}"></div>
         <p class="label">${T('Ou d\'après un style de jeu')}</p><div class="dw-chips">${dwzThemeChips(E)}</div>
-        <div class="dw-chips dw-cols">${[...'WUBRG'].map(c => `<button type="button" class="chip${DWZ.cols.has(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${DWZ.cols.has(c)}"><i class="pip ${c}" aria-hidden="true"></i></button>`).join('')}</div>
+        <div class="dw-chips dw-cols">${[...'WUBRG'].map(c => `<button type="button" class="chip${DWZ.cols.has(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${DWZ.cols.has(c)}" aria-label="${esc(COLOR_DEF.find(x => x[0] === c)[1])}"><i class="pip ${c}" aria-hidden="true"></i></button>`).join('')}<button type="button" class="chip${DWZ.colsEq ? ' on' : ''}" data-ceq="1" aria-pressed="${DWZ.colsEq}">${T('Exactement')}</button></div>
+        ${DWZ.cols.size ? `<p class="hint dw-crule">${colorRuleText(DWZ.colsEq)}</p>` : ''}
         <div class="dw-cmds">${!E ? `<p class="hint">${EDH.err ? esc(EDH.err) : T('Chargement des commandants…')}</p>` : list.length ? list.map(dwzCmdRow).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`}</div>`;
       thumbsReady(api.body);      // style ou couleur touché : les vignettes déjà chargées ne repartent pas de zéro
-      const q = $('#dwzQ', api.body); q.oninput = () => { DWZ.q = q.value; const pos = q.selectionStart; paintList(); try { q.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } };
+      const q = $('#dwzQ', api.body); q.oninput = () => { DWZ.q = q.value; const pos = q.selectionStart; paintList(); try { q.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } if (DWZ.q.trim()) cnWhen(() => { if (sheets.includes(api)) paintList(); }); };
     };
     const paintList = () => { const E = typeof EDH !== 'undefined' && EDH.data, box = $('.dw-cmds', api.body); if (box && E) { const l = dwzCmds(E); box.innerHTML = l.length ? l.map(dwzCmdRow).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`; thumbsReady(box); } };
     api.body.addEventListener('click', e => {
       const t = e.target.closest('[data-pt]'); if (t) { const v = t.dataset.pt, i = DWZ.pickTh.indexOf(v); if (i >= 0) DWZ.pickTh.splice(i, 1); else DWZ.pickTh.push(v); haptic('tap'); paint(); return; }
       const c = e.target.closest('[data-c]'); if (c) { const v = c.dataset.c; if (DWZ.cols.has(v)) DWZ.cols.delete(v); else DWZ.cols.add(v); haptic('tap'); paint(); return; }
+      if (e.target.closest('[data-ceq]')) { DWZ.colsEq = !DWZ.colsEq; haptic('tap'); paint(); return; }      // « Exactement ces couleurs » (core.js › colorFit 'eq'), sinon identité incluse, comme À monter
       const r = e.target.closest('[data-slug]'); if (!r) return;
       const E = EDH.data, cm = E && E.bySlug.get(r.dataset.slug); if (!cm) return;
       DWZ.cmd = cm; DWZ.th = DWZ.pickTh.filter(t => (cm.th || []).some(([i]) => E.themes[i] && E.themes[i].slug === t)).slice(0, 3);
@@ -1039,14 +1023,14 @@ function dwzThemeChips(E) {
   if (!E) return '';
   return E.themeOrder.slice(0, 18).map(i => { const t = E.themes[i], on = DWZ.pickTh.includes(t.slug); return `<button type="button" class="chip${on ? ' on' : ''}" data-pt="${esc(t.slug)}" aria-pressed="${on}">${esc(typeof edhThemeName === 'function' ? edhThemeName(t) : t.label)}</button>`; }).join('');
 }
-/** Commandants proposés : recherche par nom ; sinon thèmes et couleurs choisis ; les plus joués d'abord, ceux de ta collection en tête. */
+/** Commandants proposés : recherche par nom ; thèmes et couleurs choisis (identité incluse dans la sélection, ou exactement : colorFit, la règle d'À monter) ; les plus joués d'abord, ceux de ta collection en tête. */
 function dwzCmds(E) {
   if (!E) return [];
   const words = normPart(DWZ.q).split(' ').filter(Boolean), th = DWZ.pickTh.map(s => E.themeIx.get(s)).filter(i => i !== undefined), cols = [...DWZ.cols];
   let l = E.cmds.filter(c => !c.comm);
-  if (words.length) l = l.filter(c => { const s = normPart(c.names.join(' ')); return words.every(w => s.includes(w)); });
+  if (words.length) { const Q = cnQ(DWZ.q), ix = cnIx(); l = l.filter(c => c.names.some(n => cnItem({ n, fn: frOf(ownKey(n)) }, Q, ix)) || cnHit(Q, c.names.join(' '))); }      // nom anglais, de la langue de l'appli ou des cartes (cardnames.js) ; une paire par l'un ou l'autre
   if (th.length) l = l.filter(c => th.every(i => (c.th || []).some(t => t[0] === i)));
-  if (cols.length) l = l.filter(c => cols.every(x => c.ci.includes(x)) && c.ci.length <= Math.max(cols.length, 1) + (words.length ? 5 : 0));
+  if (cols.length) l = l.filter(c => colorFit(c.ci, cols, DWZ.colsEq ? 'eq' : 'in'));      // même règle qu'À monter (core.js › colorFit) : jouable avec ces couleurs, ou exactement
   const own = c => c.keys.some(k => ownFree(k, null) > 0) ? 1 : 0;      // nouveau deck : un commandant réservé par un deck monté est à acheter (ownFor)
   const fit = c => th.reduce((a, i) => { const t = (c.th || []).find(x => x[0] === i); return a + (t ? t[1] / Math.max(1, c.decks) : 0); }, 0);
   return l.map(c => ({ c, s: own(c) * 2 + fit(c) * 3 + Math.log10(1 + c.decks) / 5 })).sort((a, b) => b.s - a.s).slice(0, 30).map(x => x.c);
@@ -1054,7 +1038,7 @@ function dwzCmds(E) {
 function dwzCmdRow(c) {
   const os = c.keys.map(k => ownFor(k, null)), own = os.some(o => o.free > 0), held = !own && os.find(o => o.held > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
   return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.keys[0], c.names[0], img)}>` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : held ? `<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${esc(bdHeldTxt(held))}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.map(cnName).join(' + '))}</span></span><span class="row-meta">${c.names.some(n => cnName(n) !== n) ? `<span class="tag">${esc(c.names.join(' + '))}</span>` : ''}${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : held ? `<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${esc(bdHeldTxt(held))}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
 }
 function openDeckWiz2() {
   const E = EDH.data, cm = DWZ.cmd; if (!cm) return;

@@ -258,6 +258,9 @@ const namesLangOf = (card, ui) => (NAMES_LANGS.includes(card) ? card : NAMES_LAN
 /** Clé d'un nom pour l'index français : accents, casse, apostrophes, tirets et espaces ignorés (« L'Aquilon », « l aquilon », « Laquilon » se rejoignent). */
 const frKey = s => normPart(s).replace(/ /g, '');
 const frUse = (ix, l = 'fr') => { FRX.ix = ix || null; FRX.l = l; };
+/** 2e index des noms imprimés : celui de la LANGUE DE L'APPLI quand ce n'est pas celle des cartes (cardnames.js › cnLoad) ; jamais plus de deux index en mémoire (FRX, CN).
+ *  v : version des noms (+ 1 à l'arrivée d'un index : recherches gardées refaites) ; on : écrans qui attendent l'index (cnWhen) ; ms : durée de construction. */
+const CN = { ix: null, l: '', p: null, local: false, fail: 0, v: 0, ms: 0, on: new Set() };
 
 /** Une ligne de decklist → undefined (vide) · { ignored: true } (commentaire, en-tête : + quiet ; invalide : signalée) · { qty, name, key }.
  *  Nom français reconnu (index chargé, sauf o.fr === false) : name et key de la carte anglaise, dn = nom imprimé français, fr = 1 ; nom français de plusieurs cartes : amb = [noms anglais], le nom reste tel qu'écrit.
@@ -280,8 +283,8 @@ function parseLine(raw, o) {
   if (!name || qty < 1 || qty > 999) return { ignored: true };
   const key = normName(name); if (!key) return { ignored: true };
   const out = { qty, name, key, ...(lang ? { lang } : {}), ...(foil ? { foil: 1 } : nf ? { nf: 1 } : {}), ...(ed ? { ed } : {}) };
-  if (FRX.ix && !(o && o.fr === false)) {
-    const f = frLookup(name, lang === FRX.l || !!(o && o.prefer === FRX.l), key.replace(/[ /]/g, ''));
+  if ((FRX.ix || CN.ix) && !(o && o.fr === false)) {      // langue de l'appli (CN), puis langue des cartes (FRX)
+    const f = nmLookup(name, [lang, o && o.prefer], key.replace(/[ /]/g, ''));
     if (f && f.en) { out.name = f.en; out.key = normName(f.en); out.dn = f.p; out.fr = 1; } else if (f && f.amb) out.amb = f.amb;
   }
   return out;
@@ -1061,11 +1064,12 @@ const dkMaxCopies = (fmt, k) => (BASIC_NAMES.has(k) ? Infinity : DK_ANY.get(k) |
 function dkFormat(text) { const m = String(text || '').match(/^\/\/\s*Deck Deal\s*:\s*(standard|commander)\b/im); return m ? m[1].toLowerCase() : ''; }
 /** Format d'un deck : celui noté par le créateur, sinon « commander » si la liste a un en-tête Commander, sinon ''. */
 const dkFmtOf = text => dkFormat(text) || (commanderKeys(text).length ? 'commander' : '');
-/** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs, d'après ses terrains de base) }. */
+/** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs : colorFit 'has'
+ *  sur deckColors, identité du commandant, sinon couleurs des cartes, sinon terrains de base), eq (exactement ces couleurs : colorFit 'eq'), metaOf (facultatif, voir deckColors) }. */
 function dkMatch(text, f) {
   const fmt = f && f.fmt, colors = (f && f.colors) || '';
   if (fmt && dkFmtOf(text) !== fmt) return false;
-  if (colors) { const have = dkColors(text); for (const c of colors) if (!have.includes(c)) return false; }
+  if (colors && !colorFit(deckColors(text, f.metaOf ? { metaOf: f.metaOf } : undefined), colors, f.eq ? 'eq' : 'has')) return false;
   return true;
 }
 /** Réserve d'une liste : lignes « SB: 2 Negate », section « Sideboard » d'un export et compagnon (comp : 1, voir deckModel) : [{ key, name, qty, comp? }] (additionnée par carte). parseDeck ne les voit pas. */
@@ -1161,11 +1165,55 @@ function dkValue(text, metaOf, pxOf) {
 function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
 /** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
 function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
-/** Couleurs d'un deck d'après ses terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. */
+/** Couleurs d'un deck d'après ses seuls terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. Dernier recours de deckColors. */
 function dkColors(text) {
-  const have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
-  for (const b of parseDeck(text).basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
+  const md = text && typeof text === 'object' ? text : deckModel(text), have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
+  for (const b of md.basics) { const c = by[b.key.replace(/^snow covered /, '')]; if (c && b.qty > 0) have.add(c); }
   return [...'WUBRG'].filter(c => have.has(c)).join('');
+}
+const wubrg = set => [...'WUBRG'].filter(c => set.has(c)).join('');
+/** LA règle des couleurs d'un deck (Mes decks, Amis, image de partage, rapport du coach, filtre de Mes decks). src : texte de la liste ou modèle (deckModel).
+ *  1. Commander (un commandant dans la liste) : identité de couleur du ou des commandants (fiche de la carte : COLL.meta / DM, sinon base du coach) ;
+ *  2. sinon (Standard, liste sans commandant) : union des couleurs des cartes connues (fiche : cl, ou ci à défaut ; base du coach : identité ; terrains écartés) ;
+ *     format Commander sans commandant choisi : union des identités ;
+ *  3. en dernier recours (aucune fiche connue, ou cartes toutes incolores) : terrains de base (dkColors).
+ *  o (facultatif) : { metaOf(clé) → fiche { ci, cl, tl } (défaut : builder.js › cardMeta), baseOf(clé) → { ci, land } de la base du coach ou null (défaut : DW.byKey), fmt }.
+ *  → { c (« WUBRG », dans cet ordre ; '' : incolore ou inconnu), by: 'cmdr' | 'cards' | 'basics' | '' }. */
+function deckColorInfo(src, o) {
+  const md = src && typeof src === 'object' ? src : deckModel(src), opt = o || {};
+  const metaOf = typeof opt.metaOf === 'function' ? opt.metaOf : k => (typeof cardMeta === 'function' ? cardMeta(k) : null);
+  const baseOf = typeof opt.baseOf === 'function' ? opt.baseOf : k => { const r = typeof DW !== 'undefined' && DW && DW.byKey ? DW.byKey.get(k) : null; return r && typeof r[1] === 'string' ? { ci: r[1], land: !!(r[3] & 1) } : null; };
+  const ciOf = k => { const m = metaOf(k); if (m && typeof m.ci === 'string') return m.ci; const b = baseOf(k); return b && typeof b.ci === 'string' ? b.ci : null; };
+  const cmdr = (md.cmdr || []).filter(c => !BASIC_NAMES.has(c.key));
+  if (cmdr.length) {
+    const have = new Set(); let known = true;
+    for (const c of cmdr) { const ci = ciOf(ownKey(c.name)); if (ci == null) { known = false; break; } for (const x of ci) have.add(x); }
+    if (known) return { c: wubrg(have), by: 'cmdr' };
+  }
+  const ident = cmdr.length > 0 || opt.fmt === 'commander' || (typeof src === 'string' && dkFmtOf(src) === 'commander'), have = new Set(); let known = 0;
+  for (const c of md.cards || []) {
+    const k = ownKey(c.name), m = metaOf(k); let v = null;
+    if (m && m.tl ? landKind(m.tl) : (baseOf(k) || {}).land) continue;      // terrains : leurs couleurs ne disent pas celles du deck (identité : celle des sorts suffit)
+    if (!ident && m && typeof m.cl === 'string') v = m.cl; else v = ciOf(k);
+    if (v == null) continue;
+    known++; for (const x of v) have.add(x);
+  }
+  if (known && have.size) return { c: wubrg(have), by: 'cards' };
+  const b = dkColors(md);
+  if (b) return { c: b, by: 'basics' };
+  return { c: '', by: known ? 'cards' : '' };
+}
+const deckColors = (src, o) => deckColorInfo(src, o).c;
+/** LA règle des filtres de couleur des DECKS et des COMMANDANTS (identité, lettres WUBRG). sel : chaîne ou Set de lettres (vide : tout passe ; « C » ignoré).
+ *  'in' (défaut) : « jouable avec ces couleurs », identité incluse dans la sélection (À monter, choix du commandant du coach ; Blanc + Bleu : mono-blancs, mono-bleus, blanc-bleu
+ *  et incolores) ; 'eq' : exactement ces couleurs (choix « Exactement » de ces deux écrans) ; 'has' : le deck a toutes ces couleurs (Mes decks : « mes decks avec du noir »).
+ *  Les CARTES (collection, viewer, éditeur) gardent « au moins une de ces couleurs » (filterItems), dit sous les pastilles. */
+function colorFit(ci, sel, mode = 'in') {
+  const s = [...(sel || '')].filter(x => 'WUBRG'.includes(x)); if (!s.length) return true;
+  const c = String(ci || '');
+  if (mode === 'has') return s.every(x => c.includes(x));
+  const inc = [...c].every(x => s.includes(x));
+  return mode === 'eq' ? inc && c.length === new Set(s).size : inc;
 }
 /** Vérifie un deck du créateur. d = { main, side, cmdr, comp } (comme dkParse) ; metaOf(clé) → { ci, cd, tl, lg } ou null (si connue).
  *  o (Commander, facultatif) : { legal: clé → true | false | null (builder.js › cardLegal : fiche Scryfall, sinon base du coach ; sans lui : metaOf(clé).lg),
@@ -1386,12 +1434,12 @@ function parseCollection(text, o) {
     break;
   }
   const bins = new Map();      // classeurs ManaBox (« Binder Name ») : id d'emplacement (même nom → même id) → { t, n }
-  const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
+  const map = new Map(), fr = !!(o && o.fr && (FRX.ix || CN.ix)), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
   const add = (name, q, l, d, e, f, a) => {
     name = String(name || '').trim(); q = Math.max(1, Math.min(9999, Math.round(q) || 1));
     if (fr && name) {
-      const f = frLookup(name, (l === '-' ? '' : l || dl) === FRX.l);
-      if (f && f.en) { name = f.en; if (!l) l = FRX.l; nfr++; } else if (f && f.amb && amb.length < 50 && !amb.includes(name)) amb.push(name);
+      const f = nmLookup(name, [l === '-' ? '' : l || dl]);
+      if (f && f.en) { name = f.en; if (!l) l = f.l; nfr++; } else if (f && f.amb && amb.length < 50 && !amb.includes(name)) amb.push(name);
     }
     if (!l) l = dl; else if (l === '-') l = '';
     const k = ownKey(name); if (!name || !k) { skipped++; return; }
@@ -1659,13 +1707,13 @@ function fltAdvOk(i, f, now) {
  *  Filtres avancés (FLT_ADV) : cartes préparées seulement (i.sl, voir plus haut) ; f.now : heure en secondes (tests). */
 function filterItems(items, f) {
   if (!f) return items;
-  const q = normPart(f.q || ''), colors = f.colors && f.colors.size ? f.colors : null, type = f.type || '', cmc = f.cmc === '' || f.cmc == null ? null : Number(f.cmc), cmdr = f.cmdr === 'can' || f.cmdr === 'played' ? f.cmdr : '';
+  const q = normPart(f.q || ''), Q = q && typeof cnQ === 'function' ? cnQ(q) : null, cix = Q ? cnIx(true) : null, colors = f.colors && f.colors.size ? f.colors : null, type = f.type || '', cmc = f.cmc === '' || f.cmc == null ? null : Number(f.cmc), cmdr = f.cmdr === 'can' || f.cmdr === 'played' ? f.cmdr : '';
   const set = f.set === '-' ? '' : f.set || null;      // '' : lignes sans édition ; null : toutes
   const adv = fltAdvCount(f) > 0, now = Number(f.now) || Math.floor(Date.now() / 1000);
   if (!q && !colors && !type && cmc == null && !cmdr && set == null && !adv) return items;
   return items.filter(i => {
     if (set != null && i.eds && !i.eds.includes(set)) return false;      // eds : extensions des lignes de la carte (collection, échange), '' pour une ligne sans édition ; sans eds (deck) : pas de filtre
-    if (q && !normPart(i.n).includes(q) && !(i.dn && normPart(i.dn).includes(q)) && !(i.fn && normPart(i.fn).includes(q))) return false;      // nom anglais, nom affiché (FR) ou nom français de la carte même si l'exemplaire est anglais
+    if (Q ? !cnItem(i, Q, cix) : q && !normPart(i.n).includes(q) && !(i.dn && normPart(i.dn).includes(q)) && !(i.fn && normPart(i.fn).includes(q))) return false;      // nom anglais, nom affiché, nom dans la langue des cartes (exemplaire anglais compris) et dans celle de l'appli (cardnames.js) ; mots dans n'importe quel ordre
     if (cmdr && (i.cx || 0) < (cmdr === 'played' ? 2 : 1)) return false;      // cx : 0 pas commandant · 1 peut l'être · 2 joué comme commandant (EDHREC)
     if (colors || type || cmc != null) {
       if (!hasMeta(i)) return false;
@@ -2045,12 +2093,12 @@ function edhDetail(r) {
   missing.sort((a, b) => ((b.u || 0) * b.q - (a.u || 0) * a.q) || a.n.localeCompare(b.n));
   Object.defineProperties(r, { missing: { value: missing, configurable: true }, owned: { value: owned, configurable: true }, gc: { value: gcs, configurable: true }, full: { value: full, configurable: true }, fullNo: { value: fullNo, configurable: true } });
 }
-/** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
+/** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir, colorFit 'in'), colsEq (vrai : exactement ces couleurs, colorFit 'eq'), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
  *  Terrains de base ignorés. Une ligne par deck : { deck, cmd, total, have, miss, cost, unpriced, mine, tier, rank, br (bracket estimé, 0 sans liste Game Changers), hit ([[clé, nom]] des cartes trouvées par une recherche « carte », sinon null), et à la demande : missing:[{ k, n, q, u, gc }], owned:[{ k, n, q, gc }], gc:[noms des Game Changers du deck, commandant compris] }.
  *  Calcul sur tableaux typés (un passage sur toutes les entrées de tous les decks) : quelques millisecondes pour 10 000 decks. */
 function edhRank(edh, qty, o = {}) {
   const rows = []; if (!edh || !edh.decks || !edh.decks.length) return rows;
-  const cols = o.cols && o.cols.size ? o.cols : null, card = o.qm === 'card'; let toks = o.q ? edhTokens(o.q) : null; if (toks && !toks.length) toks = null;
+  const cols = o.cols && o.cols.size ? o.cols : null, colSel = cols ? [...cols].join('') : '', colMode = o.colsEq ? 'eq' : 'in', card = o.qm === 'card'; let toks = o.q ? edhTokens(o.q) : null; if (toks && !toks.length) toks = null;      // couleurs : colorFit (identité incluse, ou exactement)
   const names = edh.names, keys = edh.keys, nn = names.length, own = new Uint16Array(nn), hold = typeof o.held === 'function' ? new Uint16Array(nn) : null;
   for (let i = 0; i < nn; i++) { const q = qty(keys[i]); if (q > 0) { own[i] = q > 65535 ? 65535 : q; if (hold) { const h = o.held(keys[i]); if (h > 0) hold[i] = h > 65535 ? 65535 : h; } } }
   const { off, ids, qty: qa, pr, bs, gcA } = edh, gset = edh.gc && edh.gc.size > 0;
@@ -2063,7 +2111,7 @@ function edhRank(edh, qty, o = {}) {
   for (const d of edh.decks) {
     const c = d.cmd; let mine = false; for (const id of c.ids) if (own[id] > 0) { mine = true; break; }
     if (o.mine && !mine) continue;
-    if (cols && ![...c.ci].every(x => cols.has(x))) continue;
+    if (cols && !colorFit(c.ci, colSel, colMode)) continue;
     if (o.tiers && o.tiers.size && !o.tiers.has(c.tier)) continue;
     if (o.kinds && o.kinds.size && !o.kinds.has(d.k)) continue;
     if (thIx && !thIx.every(i => c.thSet.has(i))) continue;
@@ -2416,8 +2464,8 @@ function frIndex(rows, ix) {
  *  Un nom qui est aussi le nom anglais d'une autre carte reste anglais (« Desolation », « Endurance ») sauf preferFr (exemplaire dit français) ou accents du nom imprimé tapés tels quels (« Désolation » = Badlands).
  *  ck : clé frKey déjà calculée. */
 const frAccent = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
-function frLookup(name, preferFr, ck) {
-  const ix = FRX.ix; if (!ix) return null;
+function frLookup(name, preferFr, ck, ix = FRX.ix) {
+  if (!ix) return null;
   const k = ck || frKey(name); if (k.length < 2) return null;
   const e = ix.by.get(k); if (!e) return null;
   if (ix.en.has(k)) {
@@ -2426,8 +2474,15 @@ function frLookup(name, preferFr, ck) {
   }
   return e.amb ? { amb: e.amb.slice(), p: e.p } : { en: e.en, p: e.p };
 }
-/** Nom anglais d'un nom français connu sans ambiguïté, sinon '' (pour les autres écrans : liste de souhaits…). */
-const frToEn = name => { const f = frLookup(name); return f && f.en ? f.en : ''; };
+/** Même chose dans les deux index : langue de l'appli (CN, s'il n'est pas FRX) puis langue des cartes (FRX). prefer : langues dites pour la ligne (« *FR* »,
+ *  « Langue de ces cartes »…) : un nom de cette langue qui est aussi un nom anglais y est lu dans cette langue. → { en | amb, p, l (langue du nom reconnu) } ou null. */
+function nmLookup(name, prefer, ck) {
+  const ps = (prefer || []).filter(Boolean), k = ck || frKey(name);
+  for (const [ix, l] of [[CN.ix !== FRX.ix ? CN.ix : null, CN.l], [FRX.ix, FRX.l]]) { if (!ix) continue; const f = frLookup(name, ps.includes(l), k, ix); if (f) return { ...f, l }; }
+  return null;
+}
+/** Nom anglais d'un nom imprimé connu sans ambiguïté (langue de l'appli, puis des cartes), sinon '' (pour les autres écrans : liste de souhaits…). */
+const frToEn = name => { const f = nmLookup(name); return f && f.en ? f.en : ''; };
 /** Nom imprimé français d'une carte (nom anglais ou clé), '' si l'index ne la connaît pas. */
 const enToFr = name => (FRX.ix && FRX.ix.fr.get(ownKey(name))) || '';
 /** Noms proches d'un nom inconnu (faute de frappe, nom français approché) : [{ n (anglais), p? (imprimé français), score }], les meilleurs d'abord, sans doublon de carte.
@@ -2435,7 +2490,7 @@ const enToFr = name => (FRX.ix && FRX.ix.fr.get(ownKey(name))) || '';
 function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
   const name = String(raw || '').trim(), key = normPart(name.split('//')[0]); if (key.length < 2) return [];
   const out = new Map(), put = (en, p, score) => { const k = ownKey(en); const cur = out.get(k); if (!cur || score > cur.score) out.set(k, { n: en, ...(p ? { p } : {}), score: Math.round(score * 1000) / 1000 }); };
-  const f = frLookup(name, true); if (f && f.en) put(f.en, f.p, 1); else if (f && f.amb) f.amb.forEach(en => put(en, f.p, 0.99));
+  const f = nmLookup(name, [CN.l, FRX.l]); if (f && f.en) put(f.en, f.p, 1); else if (f && f.amb) f.amb.forEach(en => put(en, f.p, 0.99));
   const max = Math.max(1, Math.floor(key.length * (1 - minScore)));
   const scan = (list, get) => {
     for (const e of list) {
@@ -2445,6 +2500,7 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
     }
   };
   if (idx && idx.list) scan(idx.list, (e, s) => put(e.n, '', s));
+  if (CN.ix && CN.ix !== FRX.ix) scan(CN.ix.list, (e, s) => put(e.en, e.n, s));      // langue de l'appli, puis langue des cartes
   if (FRX.ix) scan(FRX.ix.list, (e, s) => put(e.en, e.n, s));
   return [...out.values()].sort((a, b) => b.score - a.score || a.n.localeCompare(b.n)).slice(0, n);
 }
@@ -2722,7 +2778,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
@@ -2734,7 +2790,7 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, frKey, frUse, frIndex, frLookup, frToEn, enToFr, nameSuggest });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, CN, frKey, frUse, frIndex, frLookup, nmLookup, frToEn, enToFr, nameSuggest });
 // Langue des cartes et liens selon la langue de l'utilisateur (test.mjs) : exportés à part, eux aussi
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { MK, MKTS, MK_EU, mkGuess, mkPick, mkUs, mkSfx, mkCur, modeCur, mkMode, SNAP_MODES, mkName, mkAb, mkLabel, mkPx, mkText, tcgUrl, mkUrl, mkWantsUrl });
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { defaultCardLang, cmSite, ctCartUrl, namesLangOf, NAMES_LANGS, ASIA_LANGS, NAMES_ALL_LANGS, CJK_RE });

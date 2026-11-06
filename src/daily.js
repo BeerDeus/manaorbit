@@ -360,7 +360,8 @@ function dlyNamesLoad(l) {
   DY.namesL = l; DY.names = null;
   const p = DY.namesP = (async () => {
     if (l === 'en') { const c = await collCatalog(); return { ks: c.norm, ns: c.list, es: c.list }; }
-    if (typeof FRX !== 'undefined' && FRX.ix && FRX.l === l) { const L = FRX.ix.list; return { ks: L.map(x => x.k), ns: L.map(x => x.n), es: L.map(x => x.en) }; }      // déjà chargé par l'appli
+    const ix = typeof FRX !== 'undefined' && FRX.ix && FRX.l === l ? FRX.ix : typeof CN !== 'undefined' && CN.ix && CN.l === l ? CN.ix : null;      // déjà chargé par l'appli (langue des cartes, ou de l'appli : cardnames.js)
+    if (ix) { const L = ix.list; return { ks: L.map(x => x.k), ns: L.map(x => x.n), es: L.map(x => x.en) }; }
     const rec = (await scryFrCached(l).catch(() => null)) || (await scryFrStatic(undefined, l).catch(() => null));
     if (!rec) return null;
     const ks = [], ns = [], es = [], seen = new Set();

@@ -162,6 +162,32 @@ await p.click('label[for="dkTrack"]'); await p.waitForFunction(() => !dkTrack(fi
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
 ok('« Suivre les cartes manquantes » : sur chaque deck, éteint d\'office pour un deck venu d\'À monter ; « Je recherche » et alertes de prix suivent');
 
+/* ── 10) lot R5 : couleurs d'un deck = identité du commandant (Lurrus avec seulement des Plaines : blanc-noir), filtre Noir, sens dit sous les pastilles ─────── */
+world.prints['Lurrus of the Dream-Den'] = [{ id: 's-lurrus', set: 'iko', set_name: 'Ikoria', collector_number: '226', name: 'Lurrus of the Dream-Den', cmc: 3, type_line: 'Legendary Creature — Cat Nightmare', mana_cost: '{1}{W/B}{W/B}', colors: ['W', 'B'], color_identity: ['W', 'B'],
+  prices: { eur: '3.00' }, legalities: { commander: 'legal' }, image_uris: { small: 'https://cards.scryfall.io/small/front/a/b/lurrus-of-the-dream-den.jpg' } }];
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); putDeck('d6', deckDoc({ name: 'Lurrus', text: '// Deck Deal : commander\nCommander\n1 Lurrus of the Dream-Den\n\nDeck\n1 Swords to Plowshares\n1 Sol Ring\n30 Plains' })); });
+await p.evaluate(() => { closeDecks(); openDecks(); }); await p.waitForSelector('.dks.on .deck[data-id="d6"]');
+const pipsOf = id => p.$$eval(`.deck[data-id="${id}"] .deck-pips .pip`, n => n.map(x => x.className.replace('pip ', '')).join(''));
+await p.waitForFunction(() => document.querySelectorAll('.deck[data-id="d6"] .deck-pips .pip').length === 2, null, { timeout: 8000 });
+assert.equal(await pipsOf('d6'), 'WB', 'Lurrus, 30 Plaines : pastilles blanc + noir (identité du commandant), plus le blanc seul des terrains de base');
+assert.equal(await p.$eval('.deck[data-id="d6"] .deck-pips', e => e.title), 'Identité de couleur du commandant'); assert.equal(await p.$eval('.deck[data-id="d6"] .deck-pips', e => e.getAttribute('aria-label')), 'Couleurs : blanc, noir');
+assert.equal(await p.evaluate(() => simgDeckSpec({ id: 'd6' }).colors), 'WB', 'image de partage : la même règle');
+assert.equal(await pipsOf('d1'), 'BR','Standard sans sort coloré (Sol Ring) : terrains de base en dernier recours'); assert.equal(await p.$eval('.deck[data-id="d1"] .deck-pips', e => e.title), 'Couleurs d\'après les terrains de base');
+assert.equal(await pipsOf('d3'), 'G', 'Standard : couleurs des cartes (Llanowar Elves)'); assert.equal(await p.$eval('.deck[data-id="d3"] .deck-pips', e => e.title), 'Couleurs des cartes du deck');
+assert.equal(await p.$eval('.dks-rule', e => e.hidden), true, 'aucune couleur cochée : pas d\'explication');
+await p.click('.dks-c[data-c="B"]'); await p.waitForFunction(() => !document.querySelector('.dks-rule').hidden);
+assert.ok((await names()).includes('Lurrus'), 'filtre Noir : le deck Lurrus est trouvé (il ne l\'était pas d\'après ses Plaines)');
+assert.deepEqual((await names()).sort(), ['Edgar', 'Edgar CM', 'Lurrus', 'Rakdos'], 'Noir : Rakdos (B R), les deux Edgar (W B R), Lurrus (W B)');
+assert.equal(await txt(p, '.dks-rule'), 'Decks qui ont toutes ces couleurs : identité du commandant, sinon couleurs des cartes.');
+if (process.env.SHOTS) { await p.setViewportSize({ width: 393, height: 852 }); await p.waitForTimeout(500); await p.screenshot({ path: process.env.SHOTS + '/r5-mesdecks-noir.png' }); }      // captures à la demande (dossier choisi)
+assert.equal(await p.$eval('.dks-eq', e => e.hidden), false, '« Exactement » proposé dès une couleur cochée');
+await p.click('.dks-c[data-c="W"]'); await p.click('.dks-eq'); await p.waitForFunction(() => document.querySelector('.dks-eq').getAttribute('aria-pressed') === 'true');
+assert.deepEqual(await names(), ['Lurrus'], 'Blanc + Noir, Exactement : Lurrus (W B) seul, pas les Edgar (W B R)');
+assert.equal(await txt(p, '.dks-rule'), 'Decks exactement de ces couleurs : identité du commandant, sinon couleurs des cartes.');
+if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/mesdecks-exact.png' });
+await p.click('.dks-reset'); assert.equal(await p.evaluate(() => DKS.eq), false, '« Tout afficher » retire aussi « Exactement »'); assert.equal(await p.$eval('.dks-eq', e => e.hidden), true);
+ok('lot R5 : Lurrus avec seulement des Plaines → pastilles W + B (identité), trouvé par le filtre Noir ; source des couleurs dans la bulle, sens du filtre sous les pastilles');
+
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));
 await browser.close(); world.stop();
 console.log('DKLIST E2E OK');
