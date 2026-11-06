@@ -96,3 +96,70 @@ test('candidates : exclusions, exemplaires libres, couleurs, rôles, mécaniques
   const q2 = vm.runInContext('stpCands', ctx)({ n: 10, q: 2, max: 15, tol: 5, cols: 'G', cless: false, cmd: '', tags: [], roles: [] }, { pop: new Map(), cmd: null, C: null });
   assert.deepEqual([...q2].map(x => [x.name, x.need]).sort(), [['Owned Free', 1], ['Owned Held', 2]]);
 });
+
+test('analyse : poids des notes, fréquences pondérées, échantillon de commandants', () => {
+  assert.ok(S.stpNoteW(95) > 0.8 && S.stpNoteW(60) < 0.15 && S.stpNoteW(0) === 0 && S.stpNoteW(150) === 1);
+  const F = S.stpFreq([{ keys: ['a', 'b', 'b'], w: 3 }, { keys: ['a'], w: 1 }, { keys: ['c'], w: 0 }]);
+  assert.equal(F.get('a'), 1); assert.equal(F.get('b'), 0.75, 'doublon compté une fois'); assert.equal(F.has('c'), false, 'deck sans poids ignoré');
+  assert.equal(S.stpFreq([]).size, 0);
+  const cmds = [];
+  for (const ci of ['W', 'U', 'B', 'R', 'G']) for (let i = 0; i < 8; i++) cmds.push({ ci, rank: cmds.length + 1, decks: 100 });
+  for (let i = 0; i < 4; i++) cmds.push({ ci: '', rank: cmds.length + 1, decks: 50 }, { ci: 'WU', rank: cmds.length + 2, decks: 50 }, { ci: 'WUB', rank: cmds.length + 3, decks: 50 });
+  cmds.push({ ci: 'R', rank: 0, decks: 9, comm: true });
+  const n1 = () => 3, sm = S.stpSample(cmds, '', 30, n1);
+  assert.equal(sm.length, 10, '30 decks à 3 par commandant : 10 commandants');
+  assert.ok(new Set(sm.map(c => c.ci)).size >= 7, 'à tour de rôle entre les identités');
+  assert.ok(!sm.some(c => c.comm), 'decks de la communauté seuls : pas dans l\'échantillon');
+  const w = S.stpSample(cmds, '', 30, n1).filter(c => c.ci === 'W'); assert.deepEqual(w.map(c => c.rank), [...w.map(c => c.rank)].sort((a, b) => a - b), 'le plus joué d\'abord');
+  assert.equal(S.stpSample(cmds, '', 1e6, n1).length, cmds.length - 1, 'tout l\'index au plus');
+  const red = S.stpSample(cmds, 'R', 1e6, n1);
+  assert.ok(red.length && red.every(c => !c.ci || c.ci.includes('R')), 'couleurs choisies : commandants qui en partagent une (ou incolores)');
+});
+
+test('plusieurs commandants : identité de l\'un d\'eux, rangée chez celui qui la veut le plus, répartie à parts égales', () => {
+  const mech = { roles: ['land', 'ramp', 'fixing', 'draw', 'tutor', 'removal', 'wipe', 'counter', 'protect', 'recursion', 'wincon', 'stax'], tags: ['tokens-creature'] };
+  const row = (n, ci, eur, rank) => [n, ci, 2, 0, 0, eur, 0, '', rank, '{1}', [0, [], [], 0, 3], ''];
+  const D = { v: 1, mech, cards: [row('Goblin A', 'R', 5, 100), row('Goblin B', 'R', 5, 200), row('Elf A', 'G', 5, 100), row('Rock', '', 5, 50), row('Gruul Card', 'RG', 5, 10)] };
+  const ctx = coachCtx(new URL('../src', import.meta.url).pathname, D);
+  Object.assign(ctx, { colorFit: require('../src/core.js').colorFit, ownFree: () => 0, PXT: null });
+  vm.runInContext(readFileSync(new URL('../src/staples.js', import.meta.url), 'utf8'), ctx, { filename: 'staples.js' });
+  const val = m => ({ get: k => (k in m ? { incl: m[k], syn: 0, th: 0, g: 0, cx: 0, k: 1 } : undefined) });
+  const cmds = [{ slug: 'krenko', short: 'Krenko', cmd: { ci: 'R' }, C: val({ 'goblin a': 80, 'rock': 30 }), F: new Map([['goblin b', 1]]) },
+    { slug: 'elf', short: 'Elf', cmd: { ci: 'G' }, C: val({ 'elf a': 80, 'rock': 60 }) }];
+  const l = [...vm.runInContext('stpCands', ctx)({ n: 4, q: 1, max: 15, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [] }, { pop: new Map(), cmds })];
+  const by = Object.fromEntries(l.map(x => [x.name, x]));
+  assert.ok(!by['Gruul Card'], 'RG : ni Krenko (R) ni Elf (G) ne peuvent la jouer');
+  assert.equal(by['Goblin A'].g, 'krenko'); assert.equal(by['Elf A'].g, 'elf');
+  assert.equal(by['Rock'].g, 'elf', 'rangée chez le commandant qui la veut le plus'); assert.deepEqual([...by['Rock'].also], ['Krenko'], 'et sert aussi Krenko');
+  assert.ok(by['Goblin B'].f === 1 && by['Goblin B'].s > by['Goblin A'].s - 1, 'analyse : la carte des decks les mieux notés remonte');
+  const q = S.stpQuotas(4, ['krenko', 'elf']); assert.deepEqual([q.krenko, q.elf], [2, 2]);
+  const R = { bal: true, order: ['krenko', 'elf'], list: l };
+  assert.deepEqual([...new Set(S.stpSorted(R).map(x => x.g))], ['krenko', 'elf'], 'liste groupée par commandant, dans l\'ordre choisi');
+});
+
+test('classer par couleur, type ou rôle : seul l\'ordre change', () => {
+  const list = [{ name: 'Opt', g: 'U', ty: 16, r1: 'draw', s: 0.5, need: 1 }, { name: 'Mind Stone', g: 'C', ty: 4, r1: 'ramp', s: 0.9, need: 1 },
+    { name: 'Wood Elves', g: 'G', ty: 2, r1: 'ramp', s: 0.7, need: 1 }, { name: 'Terramorphic Expanse', g: 'C', ty: 1, r1: 'fixing', s: 0.6, need: 1 }, { name: 'Intangible Virtue', g: 'W', ty: 8, r1: '', s: 0.4, need: 1 }];
+  const R = { bal: true, list };
+  assert.equal(S.stpTypeOf(6), 'cre', 'créature-artefact : créature'); assert.equal(S.stpTypeOf(0), 'oth');
+  S.STP.o = { grp: '' };
+  assert.deepEqual(S.stpSorted(R).map(x => x.g), ['W', 'U', 'G', 'C', 'C']);
+  S.STP.o.grp = 'type';
+  assert.deepEqual(S.stpSorted(R).map(x => x.name), ['Terramorphic Expanse', 'Wood Elves', 'Opt', 'Mind Stone', 'Intangible Virtue']);
+  S.STP.o.grp = 'role';
+  assert.deepEqual(S.stpSorted(R).map(x => x.name), ['Mind Stone', 'Wood Elves', 'Opt', 'Terramorphic Expanse', 'Intangible Virtue'], 'rampe (meilleur score d\'abord), pioche, fixing, sans rôle');
+  assert.equal(S.stpText(R).split('\n').length, 5, 'les mêmes cartes, dans l\'ordre affiché');
+  S.STP.o = null;
+});
+
+test('plusieurs commandants : parts égales même quand les scores d\'un commandant sont bien plus hauts', () => {
+  const R = [];
+  for (let i = 0; i < 300; i++) R.push({ k: 'a' + i, g: 'krenko', s: 3 - i * 0.001 }, { k: 'b' + i, g: 'other', s: 0.6 - i * 0.001 });
+  R.sort((a, b) => b.s - a.s);
+  const q = S.stpQuotas(200, ['krenko', 'other']);
+  const strict = S.stpPick(R, 200, q, true).pick, loose = S.stpPick(R, 200, q).pick;
+  assert.deepEqual(['krenko', 'other'].map(g => strict.filter(x => x.g === g).length), [100, 100]);
+  assert.ok(loose.filter(x => x.g === 'other').length < 100, 'sans strict (couleurs) : le seuil de qualité joue');
+  const few = R.filter(x => x.g === 'krenko' || +x.k.slice(1) < 30);
+  assert.deepEqual(['krenko', 'other'].map(g => S.stpPick(few, 200, q, true).pick.filter(x => x.g === g).length), [170, 30], 'un commandant à court de cartes : ses places passent à l\'autre');
+});
