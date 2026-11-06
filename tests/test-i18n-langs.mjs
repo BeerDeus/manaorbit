@@ -106,7 +106,6 @@ const PL_KEEP = {
   '{n} exemplaires au maximum (deck et réserve)': 'max ≥ 2 (1 : « Commander : un seul exemplaire… »)',
   'Réserve : {n} cartes au maximum': 'réserve du format : 15',
   '/ {n} cartes': 'taille du deck : 60 ou 100',
-  'il y a {n} jours': '2 à 13 jours (hier : son texte)', 'il y a {n} semaines': '2 à 8 semaines',
   '{name} : {n} exemplaires (un seul en Commander).': 'texte d\'erreur : 2 ou plus', '{name} : {n} exemplaires ({max} au maximum).': 'texte d\'erreur : plus que max',
   'Réserve de {n} cartes ({max} au maximum).': 'texte d\'erreur : plus de 15',
   'Classement ouvert aux comptes de plus de {n} jours, connectés avec Google ou une adresse vérifiée. Ta partie compte pour tes badges.': 'constante (7 jours)',

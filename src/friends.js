@@ -143,7 +143,7 @@ function amHome() {
   if (CTX.proxy && !CTX.amis) return [];
   let l = AM.uid ? AM.l : null;
   if (!AM.uid && D.hint && !D.authReady) { const o = amLs(); if (o.l && !o.t) o.t = amTidy(o.l); l = o.t || null; }
-  return l ? l.friends.slice().sort((a, b) => b.m - a.m || a.n.localeCompare(b.n)).slice(0, 3) : [];
+  return l ? l.friends.slice().sort((a, b) => b.m - a.m || NAME_CMP(a.n, b.n)).slice(0, 3) : [];
 }
 
 /* ── Profil, appareil, parties envoyées ─────────────────────────────────────────────────────────────────────────────── */

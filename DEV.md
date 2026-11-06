@@ -41,6 +41,12 @@ Règle de rédaction (`core.js`, vérifiée par `tests/test-i18n-langs.mjs`) :
 - **Pourcentage** : `pct(v)` (v en points : « 78 % » en français, « 78% » en anglais, clé `'{n} %'`) ; jamais `+ ' %'` ni `${v} %` hors de `T`. `pctTxt(p)` (viewer.js) : p en fraction, « < 1 % » et « 100 % » aux bords.
 - **Afficher plus** : `moreBtn(shown, total, step, attrs)` (rien quand tout est montré ; attrs : `data-act="…"`, classe par défaut `btn ghost block coll-more`) et `moreLabel(left, step)` pour repeindre le libellé ; un seul libellé partout, « Afficher 30 de plus (45 autres) ». Chaque écran garde sa taille de tranche.
 
+## Dates, tris, formats : une seule fonction chacun (`core.js`)
+
+- **« il y a… »** : `relTime(ts)` (horodatage) ou `relTime('AAAA-MM-JJ')` (au jour près, puis semaines, mois, années), mots de la langue de l'appli ; jamais un « il y a {n} min » écrit à la main. **Date courte** (« 12 sept. ») : `dateShort(ts)`. **Nom d'un fichier daté** (export) : `dayIso(t)`, le jour sur l'appareil (jamais `toISOString().slice(0, 10)` : la veille avant 1 h du matin à Paris).
+- **Tri par nom** : `NAME_CMP` (langue de l'appli, accents et casse ignorés) ou `EN_CMP` (anglais, export) ; jamais `localeCompare` sans locale (un collator recréé à chaque comparaison, ordre de la langue du système).
+- **Formats** : `LG_FMT` (filtre « Format » de la collection, fiche d'une carte, `cardLegal`), même ordre partout ; un format ajouté porte le jour de son ajout (4e case) : les fiches lues avant sont relues (`LG_NEW`, `lgKnows`).
+
 ## Stockage de l'appareil
 
 - Une donnée de l'utilisateur écrite dans localStorage passe par `lsSet(clé, valeur, { msg })` (`core.js`) : stockage plein (`QuotaExceededError`), les caches relus sur le réseau (`LS_CACHES` : prix réels CardTrader, relevés de prix des decks, offres des incontournables) sont vidés puis l'écriture réessayée ; sinon un message, une seule fois par session (`msg` propre à la donnée, sinon le message général). Un nouveau cache reconstructible gardé dans localStorage s'ajoute à `LS_CACHES`.

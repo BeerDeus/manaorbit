@@ -89,7 +89,7 @@ const srchLgOf = k => (BASIC_NAMES.has(k) ? SRCH_LG_ALL : (COLL.meta[k] && COLL.
 /** Cartes dont les formats manquent ou datent de plus de 30 jours (bannissements). */
 function srchLgNeed() {
   const today = Math.floor(Date.now() / 864e5), out = [];
-  for (const k of Object.keys(COLL.map)) { const m = COLL.meta[k]; if (!m || BASIC_NAMES.has(k) || SRCH.lgTried.has(k)) continue; if (m.lg === undefined || !(today - (m.la || 0) < SRCH_LG_DAYS)) out.push(k); }
+  for (const k of Object.keys(COLL.map)) { const m = COLL.meta[k]; if (!m || BASIC_NAMES.has(k) || SRCH.lgTried.has(k)) continue; if (m.lg === undefined || !(today - (m.la || 0) < SRCH_LG_DAYS) || (m.la || 0) < LG_NEW) out.push(k); }
   return out;
 }
 let srchLgT = 0;

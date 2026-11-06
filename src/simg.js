@@ -335,7 +335,7 @@ async function simgRender(spec) {
 
 /* ── Feuille d'aperçu, partage, enregistrement ───────────────────────────────────────────────────── */
 const SIMG_TITLES = { coll: 'Ma collection', deck: 'Mon deck', trade: 'Ma liste d\'échange', opening: 'Session d\'ouverture', year: 'Mon année Magic' };
-const simgFile = kind => 'mana-orbit-' + kind + '-' + new Date().toISOString().slice(0, 10) + '.png';
+const simgFile = kind => 'mana-orbit-' + kind + '-' + dayIso(Date.now()) + '.png';      // jour local (core.js › dayIso)
 /** Message joint au partage (le lien, s'il y en a un, va dans url). */
 function simgText(s) {
   if (s.kind === 'deck') return T('{name} · deck Magic', { name: s.name || 'Deck' });

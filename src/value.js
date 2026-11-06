@@ -158,7 +158,6 @@ const valAlertN = () => { const mv = valMovers(); return mv && mv.ready && VAL.s
 const valPct = p => (p > 0 ? '+' : p < 0 ? '−' : '') + pct(Math.round(Math.abs(p)));
 const valEur = c => (c > 0 ? '+' : c < 0 ? '−' : '') + fmt(Math.abs(c), mkCur());
 const valCls = x => (x > 0 ? 'vu' : x < 0 ? 'vd' : '');
-const valDate = t => new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
 const valTag = m => `<span class="tag vm ${valCls(m.d)}" title="${T('Cardmarket : {a} → {b}', { a: esc(fmt(m.u0, mkCur())), b: esc(fmt(m.u1, mkCur())) })}">${m.d > 0 ? '▲' : '▼'} ${valPct(m.pct)}</span>`;
 
 /** Courbe de la valeur (SVG à l'échelle : axes min/max réels, temps proportionnel). W, H : taille du dessin (l'accueil sur ordinateur la prend de sa case). */
@@ -169,11 +168,11 @@ function valChartHtml(h, W = 320, H = 132) {
   const pts = h.map(x => f(X(x.t)) + ',' + f(Y(x.v))), last = h[h.length - 1];
   const area = `M${f(X(t0))},${f(H - pb)} L${pts.join(' L')} L${f(X(t1))},${f(H - pb)} Z`;
   const grid = max === min ? [max] : [max, min];
-  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${T('Valeur de la collection du {d0} au {d1} : de {v0} à {v1}', { d0: esc(valDate(t0)), d1: esc(valDate(t1)), v0: esc(fmt(h[0].v, mkCur())), v1: esc(fmt(last.v, mkCur())) })}">
+  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${T('Valeur de la collection du {d0} au {d1} : de {v0} à {v1}', { d0: esc(dateShort(t0)), d1: esc(dateShort(t1)), v0: esc(fmt(h[0].v, mkCur())), v1: esc(fmt(last.v, mkCur())) })}">
     ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 13 : -4))}" class="vl-txt">${esc(fmt(v, mkCur()))}</text>`).join('')}
     <path d="${area}" class="vl-area"/><polyline points="${pts.join(' ')}" class="vl-line" fill="none"/>
     <circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="3.4" class="vl-dot"/>
-    <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(valDate(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(valDate(t1))}</text></svg>`;
+    <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(dateShort(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(dateShort(t1))}</text></svg>`;
 }
 /** Courbe de l'onglet Stats à la taille de sa case. Téléphone : le dessin de 320 × 132 mis à la largeur de l'écran, comme toujours. Ordinateur : redessinée
  *  à sa largeur réelle (un pixel du dessin = un pixel de l'écran : textes à leur taille, trait fin), hauteur proportionnelle bornée à 150–230 px ; elle n'est
@@ -195,7 +194,7 @@ function valFit(host) {
   VAL.ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); });
   VAL.ro.observe(box);
 }
-const valDeltaHtml = (lab, d) => `<div class="vl-d"><span>${lab}</span>${d ? `<b class="${valCls(d.d)}">${valEur(d.d)}</b><small>${(d.pct == null ? '' : valPct(d.pct) + ' · ') + T('depuis le {d}', { d: esc(valDate(d.from.t)) })}</small>` : '<b>—</b><small>' + T('pas encore de recul') + '</small>'}</div>`;
+const valDeltaHtml = (lab, d) => `<div class="vl-d"><span>${lab}</span>${d ? `<b class="${valCls(d.d)}">${valEur(d.d)}</b><small>${(d.pct == null ? '' : valPct(d.pct) + ' · ') + T('depuis le {d}', { d: esc(dateShort(d.from.t)) })}</small>` : '<b>—</b><small>' + T('pas encore de recul') + '</small>'}</div>`;
 
 /** Rangée d'une carte qui a bougé (Stats). */
 function valMoveRow(m) {
@@ -207,7 +206,7 @@ function valMoveRow(m) {
 /** Sections « Valeur dans le temps » et « Variations des prix » de l'onglet Stats. */
 function valStatsHtml() {
   const h = valHist(), run = VAL.run;
-  const ago = VAL.at ? pxAgo(VAL.at) : '', status = run ? T('Lecture des prix · {a} / {b}', { a: nf0(run.done), b: nf0(run.total) }) : VAL.err ? esc(VAL.err) : VAL.at ? T('Dernier relevé : {ago}', { ago }) : T('Aucun relevé pour l\'instant');
+  const ago = VAL.at ? relTime(VAL.at) : '', status = run ? T('Lecture des prix · {a} / {b}', { a: nf0(run.done), b: nf0(run.total) }) : VAL.err ? esc(VAL.err) : VAL.at ? T('Dernier relevé : {ago}', { ago }) : T('Aucun relevé pour l\'instant');
   const act = run ? '' : `<button class="link-btn" type="button" data-act="valnow">${T('Actualiser')}</button>`;
   let chart;
   if (h.length >= 2) chart = `${valChartHtml(h)}<div class="vl-ds">${valDeltaHtml(T('7 jours'), histDelta(h, 7))}${valDeltaHtml(T('30 jours'), histDelta(h, 30))}</div>`;
@@ -218,10 +217,10 @@ function valStatsHtml() {
   const mv = valMovers();
   const thr = `<span class="cs-sw" role="group" aria-label="${T('Seuil de variation')}">${VAL_THRS.map(t => `<button type="button" data-act="valthr" data-v="${t}" aria-pressed="${VAL.thr === t}" class="${VAL.thr === t ? 'on' : ''}">${pct(t)}</button>`).join('')}</span>`;
   let body;
-  if (!mv || !mv.ready) body = `<p class="hint">${VAL.base ? T('Suivi commencé le {d} : les variations s\'affichent dès qu\'un jour a passé.', { d: esc(valDate(VAL.base.cur.t)) }) : T('Les variations s\'affichent après le premier relevé et un jour d\'écart.')}</p>`;
+  if (!mv || !mv.ready) body = `<p class="hint">${VAL.base ? T('Suivi commencé le {d} : les variations s\'affichent dès qu\'un jour a passé.', { d: esc(dateShort(VAL.base.cur.t)) }) : T('Les variations s\'affichent après le premier relevé et un jour d\'écart.')}</p>`;
   else {
     const shown = mv.list.slice(0, VAL.topN), more = mv.list.length - shown.length;
-    body = `<div class="vl-sum"><span>${T('Marché sur ta collection depuis le {d}', { d: esc(valDate(mv.since)) })}</span><b class="${valCls(mv.total)}">${valEur(mv.total)}</b></div>
+    body = `<div class="vl-sum"><span>${T('Marché sur ta collection depuis le {d}', { d: esc(dateShort(mv.since)) })}</span><b class="${valCls(mv.total)}">${valEur(mv.total)}</b></div>
       <p class="hint cs-topnote">${T('Prix Cardmarket carte par carte, hors cartes ajoutées depuis. Seules comptent les hausses et baisses d\'au moins {t} % et 0,20 € par exemplaire.', { t: VAL.thr })}</p>
       ${shown.length ? `<div class="cs-top vl-top">${shown.map(valMoveRow).join('')}</div>${moreBtn(0, more, 8, 'data-act="valmore"')}` : `<p class="hint listempty">${T('Aucune carte n\'a bougé de plus de {t} %.', { t: VAL.thr })}</p>`}`;
   }
@@ -234,7 +233,7 @@ function valPaintAlert() {
   const n = COLL.tab === 'stats' ? 0 : valAlertN();
   if (!n) { host.hidden = true; return; }
   const mv = valMovers(), top = mv.list.slice(0, 2).map(m => `${m.d > 0 ? '▲' : '▼'} ${esc(m.n.split(' // ')[0])} ${valPct(m.pct)}`).join(' · ');
-  host.hidden = false; host.innerHTML = `<span class="al-t">${TN(n, '<b>{n} prix a bougé de plus de {t} %</b> depuis le {d}', '<b>{n} prix ont bougé de plus de {t} %</b> depuis le {d}', { t: VAL.thr, d: esc(valDate(mv.since)) })}${top ? ' · ' + top : ''}</span><button class="link-btn" type="button" data-act="valsee">${T('Voir')}</button><button class="link-btn" type="button" data-act="valhide">${T('Ignorer')}</button>`;
+  host.hidden = false; host.innerHTML = `<span class="al-t">${TN(n, '<b>{n} prix a bougé de plus de {t} %</b> depuis le {d}', '<b>{n} prix ont bougé de plus de {t} %</b> depuis le {d}', { t: VAL.thr, d: esc(dateShort(mv.since)) })}${top ? ' · ' + top : ''}</span><button class="link-btn" type="button" data-act="valsee">${T('Voir')}</button><button class="link-btn" type="button" data-act="valhide">${T('Ignorer')}</button>`;
 }
 /** Clics des Stats « valeur » et de la bannière (appelé depuis l'écran de la collection). Retourne true si le clic était pour lui. */
 function valClick(e) {

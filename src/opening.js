@@ -325,7 +325,7 @@ function opnHistOpen(rec, after) {
       const a = b.dataset.opn; haptic('tap');
       if (a === 'copy') copyText(text());
       else if (a === 'img') opnbShare({ name: rec.name, at: rec.at, paid: rec.paid }, rows);
-      else if (a === 'file') opnDownload(text() + '\n', 'ouverture-' + new Date(rec.at).toISOString().slice(0, 10) + '.txt');
+      else if (a === 'file') opnDownload(text() + '\n', 'ouverture-' + dayIso(rec.at) + '.txt');
       else if (a === 'del') {
         const was = opnHist(); OPN.hist = was.filter(x => x !== rec); opnHistSave(); api.close(); if (after) after();
         toast(T('Ouverture supprimée'), { label: T('Annuler'), fn: () => { OPN.hist = was; opnHistSave(); if (after) after(); } });

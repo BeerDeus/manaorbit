@@ -43,7 +43,7 @@ const metaFull = m => !!m && m.tl !== undefined && m.lg !== undefined;
 function cardLegal(k, fmt = 'commander') {
   if (BASIC_NAMES.has(k)) return true;
   const f = LG_FMT.find(x => x[1] === fmt), m = cardMeta(k);
-  if (f && m && typeof m.lg === 'string' && m.lg) return m.lg.includes(f[0]);
+  if (f && lgKnows(m, f)) return m.lg.includes(f[0]);      // fiche lue avant l'ajout de ce format : inconnu, la base du coach ou rien
   const r = fmt === 'commander' && typeof DW !== 'undefined' && DW.byKey ? DW.byKey.get(k) : null;
   return r ? !(r[6] & 16) : null;
 }

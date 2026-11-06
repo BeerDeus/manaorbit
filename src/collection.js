@@ -767,16 +767,12 @@ function openCollPrices() {
     const paint = () => {
       const f = { lang: sel.value, scope: $('#pxScope', api.body)._v || 'old' }; targets = pxTargets(f);
       const pool = pxTargets({ lang: f.lang, scope: 'all' }), have = pool.filter(t => COLL.px[t.key] && COLL.px[t.key].t), last = have.reduce((a, t) => Math.max(a, COLL.px[t.key].t), 0);
-      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(targets.length, '<b>{n}</b> carte à lire sur {total}', '<b>{n}</b> cartes à lire sur {total}', { total: nf0(pool.length) })}</div><span>${have.length ? TN(have.length, '{n} déjà lue · dernière lecture {ago}', '{n} déjà lues · dernière lecture {ago}', { ago: pxAgo(last) }) : T('Aucun prix lu pour l\'instant')}</span>`;
+      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(targets.length, '<b>{n}</b> carte à lire sur {total}', '<b>{n}</b> cartes à lire sur {total}', { total: nf0(pool.length) })}</div><span>${have.length ? TN(have.length, '{n} déjà lue · dernière lecture {ago}', '{n} déjà lues · dernière lecture {ago}', { ago: relTime(last) }) : T('Aucun prix lu pour l\'instant')}</span>`;
       go.disabled = !targets.length; go.textContent = targets.length ? T('Lire {n} prix', { n: nf0(targets.length) }) : T('Rien à lire');
     };
     sel.onchange = paint; paint();
     go.onclick = () => { if (!targets.length) return; const all = $('#pxScope', api.body)._v === 'all'; api.close(); haptic('ok'); pxRun(targets, { fresh: all }); };      // « Toutes » : relecture voulue, on ignore le cache de 10 min du serveur
   });
-}
-function pxAgo(t) {
-  const m = Math.round((Date.now() - t) / 60000);
-  return m < 2 ? T('à l\'instant') : m < 90 ? T('il y a {n} min', { n: m }) : m < 36 * 60 ? T('il y a {n} h', { n: Math.round(m / 60) }) : T('il y a {n} j', { n: Math.round(m / 1440) });
 }
 
 /* ── Infos Scryfall ───────────────────────────────────────────────────────────────────────────── */
@@ -1182,7 +1178,7 @@ function collBigInfo() {
 function collDownload(body, ext, type, n = collCount(), part = false) {
   try {
     const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + dayIso(Date.now()) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
     toast(TN(n, 'Collection exportée ({n} carte)', 'Collection exportée ({n} cartes)'));
   } catch (e) { toast(T('Export impossible sur ce navigateur')); }
 }

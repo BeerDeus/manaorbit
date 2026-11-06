@@ -121,7 +121,6 @@ function recordRun() {
   S.runDelta = deltaFor(history); updateHeroDelta();
 }
 
-const dateShort = ts => new Date(ts).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
 function updateHeroDelta() {
   const el = $('#heroDelta'), dl = S.runDelta;
   const show = !!(dl && dl.mode === S.opts.mode && S.run && S.run.status === 'done' && !S.demo && !S.removed.length); // liste modifiée : l'écart ne porte plus sur la même liste
@@ -440,7 +439,7 @@ function openDeckSheet(id) {
 function dkTagPool(except) {
   const n = new Map();
   for (const d of allDecks()) for (const t of dkTags(d.text)) { const k = t.toLowerCase(); if (!except.some(x => x.toLowerCase() === k)) { const o = n.get(k) || { t, n: 0 }; o.n++; n.set(k, o); } }
-  return [...n.values()].sort((a, b) => b.n - a.n || a.t.localeCompare(b.t)).slice(0, 12).map(o => o.t);
+  return [...n.values()].sort((a, b) => b.n - a.n || NAME_CMP(a.t, b.t)).slice(0, 12).map(o => o.t);
 }
 function openDeckEdit(id, done) {
   const d0 = findDeck(id); if (!d0) return;
@@ -517,7 +516,7 @@ function openCoverPicker(id, done) {
       const t = (findDeck(id) || d0).text, pd = parseDeck(t), cm = new Set(commanderKeys(t)), seen = new Set(), out = [];
       for (const c of [...pd.cards, ...dkSideCards(t)]) { const k = ownKey(c.key); if (!seen.has(k)) { seen.add(k); out.push({ key: k, name: c.name, cmd: cm.has(c.key) }); } }
       const eu = c => dkPx(c.key) || -1;      // les plus chères d'abord (valeur estimée : dkPx)
-      return out.sort((a, b) => (b.cmd - a.cmd) || (eu(b) - eu(a)) || a.name.localeCompare(b.name));
+      return out.sort((a, b) => (b.cmd - a.cmd) || (eu(b) - eu(a)) || NAME_CMP(a.name, b.name));
     };
     const paint = () => {
       const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', Q = cnQ(q.value), ix = cnIx();
