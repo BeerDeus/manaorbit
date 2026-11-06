@@ -116,7 +116,7 @@ function lotEdSheet() {
       const b = e.target.closest('.lot-ev'); if (!b) return;
       const i = Number(b.dataset.i), p = i >= 0 ? c.prints[i] : null; haptic('tap');
       c.pick = p; c.e = p ? edKey(p.set, p.num) : ''; c.auto = false;
-      const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? Object.keys(SCRY_LANG).find(k => SCRY_LANG[k] === p.l) : '';
+      const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? cardLang(p.l) : '';
       if (pl && (typeof CARD_LANG_LIST === 'undefined' || CARD_LANG_LIST.includes(pl))) c.l = pl;      // impression d'une seule langue (NEO 295 : japonais) : cette carte passe dans cette langue (les suivantes gardent la leur)
       if (p) LOT.set = p.set;      // choisie à la main : l'extension devient collante pour les cartes suivantes
       lotSave(); api.close(); lotPaintCard(); lotPaintHead();
@@ -274,7 +274,7 @@ function openLot() {
     else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
-    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
+    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? cardLang(c.pick.l) || c.pick.l : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
     else if (act === 'mobgo') mobStart();
     else if (act === 'mobstop') { haptic('tap'); mobStop(); }
     else if (act === 'unstick') { LOT.set = ''; lotSave(); haptic('tap'); lotPaintHead(); }

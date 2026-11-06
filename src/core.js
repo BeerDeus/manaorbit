@@ -2525,7 +2525,6 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
 const bestOf = (fr, en) => (fr && (!en || fr.score >= en.score) ? fr : en || null);
 /* ── Noms alternatifs (pwa/names-flavor.tsv, gen-flavor-names.mjs) : « Thrum of the Vestige » imprimé en gros au-dessus de « Lightning Bolt » (Secret Lair, Final Fantasy…).
    Lignes « nom alternatif \t nom anglais \t extension|numéro \t langue Scryfall ». */
-const FV_LANG = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
 /** Lignes → { idx (recherche floue), by (nom alternatif normalisé → impressions [{ en, e, l }]), n } ou null. */
 function fvCatalog(rows) {
   const by = new Map(), names = [];
@@ -2543,7 +2542,7 @@ function fvMatch(lines, c) {
   const hs = c.by.get(frontName(m.name)) || [], ens = [...new Set(hs.map(h => h.en))]; if (ens.length !== 1) return null;      // même nom alternatif pour deux cartes : rien de sûr
   const eds = hs.map(h => h.e).filter(e => /^[a-z0-9]+\|./i.test(e)), ls = [...new Set(hs.map(h => h.l))];
   const ft = eds.length ? { nums: [...new Set(eds.map(e => e.split('|')[1].toLowerCase().replace(/^0+(?=\d)/, '')))], codes: [...new Set(eds.map(e => e.split('|')[0].toUpperCase()))], lang: '', lsep: false, langs: [], foil: false, tots: [] } : null;
-  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? FV_LANG[ls[0]] || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
+  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? cardLang(ls[0]) || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
 }
 /** Rectangle d'écran (x, y, w, h) dans un conteneur cw×ch qui affiche une vidéo vw×vh en « object-fit: cover » → rectangle en pixels de la vidéo. */
 function coverMap(cw, ch, vw, vh, r) {

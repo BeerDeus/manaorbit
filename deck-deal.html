@@ -8058,7 +8058,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'f3203405';
+const DD_BUILD = '45703e24';
 const I18N_FILES = {"de":"i18n/de.f2bc62ef.js","en":"i18n/en.65f53105.js","es":"i18n/es.4785759f.js","it":"i18n/it.ff890977.js","pt":"i18n/pt.2dfb7737.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -10814,7 +10814,6 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
 const bestOf = (fr, en) => (fr && (!en || fr.score >= en.score) ? fr : en || null);
 /* ── Noms alternatifs (pwa/names-flavor.tsv, gen-flavor-names.mjs) : « Thrum of the Vestige » imprimé en gros au-dessus de « Lightning Bolt » (Secret Lair, Final Fantasy…).
    Lignes « nom alternatif \t nom anglais \t extension|numéro \t langue Scryfall ». */
-const FV_LANG = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
 /** Lignes → { idx (recherche floue), by (nom alternatif normalisé → impressions [{ en, e, l }]), n } ou null. */
 function fvCatalog(rows) {
   const by = new Map(), names = [];
@@ -10832,7 +10831,7 @@ function fvMatch(lines, c) {
   const hs = c.by.get(frontName(m.name)) || [], ens = [...new Set(hs.map(h => h.en))]; if (ens.length !== 1) return null;      // même nom alternatif pour deux cartes : rien de sûr
   const eds = hs.map(h => h.e).filter(e => /^[a-z0-9]+\|./i.test(e)), ls = [...new Set(hs.map(h => h.l))];
   const ft = eds.length ? { nums: [...new Set(eds.map(e => e.split('|')[1].toLowerCase().replace(/^0+(?=\d)/, '')))], codes: [...new Set(eds.map(e => e.split('|')[0].toUpperCase()))], lang: '', lsep: false, langs: [], foil: false, tots: [] } : null;
-  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? FV_LANG[ls[0]] || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
+  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? cardLang(ls[0]) || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
 }
 /** Rectangle d'écran (x, y, w, h) dans un conteneur cw×ch qui affiche une vidéo vw×vh en « object-fit: cover » → rectangle en pixels de la vidéo. */
 function coverMap(cw, ch, vw, vh, r) {
@@ -12056,8 +12055,7 @@ async function scryPrintsFind(name, lang, q, signal) {
   const out = await scryPrintsIn(n, sl, signal, true, crit, 1), have = new Set(out.map(p => p.set + '/' + p.num));
   if (sl !== 'en') for (const p of await scryPrintsIn(n, 'en', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] }); }
   // impressions d'une seule autre langue (terrain plein art NEO 295 : japonais seulement) : toutes langues, marquées de leur langue (« JP »)
-  const back = Object.fromEntries(Object.entries(SCRY_LANG).map(([a, s]) => [s, a]));
-  for (const p of await scryPrintsIn(n, 'any', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, fx: [...p.fx, langCode(back[p.l] || p.l)] }); }
+  for (const p of await scryPrintsIn(n, 'any', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, fx: [...p.fx, langCode(cardLang(p.l) || p.l)] }); }
   return out;
 }
 async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0) {      // extra : critères en plus (scryPrintsFind : « (set:neo or cn:295) »)
@@ -19177,7 +19175,7 @@ function openCardViewer(items, index) {
     const rows = [...pfBox.children], r = (pfRow.dataset.id && rows.find(x => x.dataset.id === pfRow.dataset.id)) || rows.find(x => x.dataset.k && x.dataset.k === pfRow.dataset.k);
     return r ? (pfCls ? $('.' + CSS.escape(pfCls), r) : r) : null;
   };
-  const lk = l => ({ ja: 'jp', ko: 'kr', zhs: 'zh-CN', zht: 'zh-TW' }[l] || l);
+  const lk = l => cardLang(l) || l;      // code Scryfall (« ja » d'une impression lue) ou de l'appli (« jp ») → langue de l'appli
   /** Note « version anglaise » dans la langue voulue l (texte français inchangé ; allemand, espagnol… nommés) ; miss : Scryfall n'a pas cette langue (sinon : image en échec). */
   const noImg = (l, miss) => { const c = lk(l); return c === 'fr' || !c ? T(miss ? 'Pas d\'image française sur Scryfall : version anglaise' : 'Image française indisponible : version anglaise') : T(miss ? 'Pas d\'image en {lang} sur Scryfall : version anglaise' : 'Image en {lang} indisponible : version anglaise', { lang: LANGS[c] ? T(LANGS[c]) : c }); };
   let hideT = 0, fitRO = null, vl = 'en', idx = Math.max(0, Math.min(items.length - 1, index | 0)), ctrl = null, urls = [], face = 0, it = null, lang = 'en', enBig = '', where = '', shown = 'en', vars = [], canSave = false, wantOpen = false, varT = 0, pickAt = -1;
@@ -25407,7 +25405,7 @@ function scanAltPick(it, name) {
 }
 /** Carte du scan pour la visionneuse (appui sur sa miniature) : image dans sa langue si Scryfall l'a donnée, sinon anglaise ; photo prise au scan si la carte est « à vérifier ». */
 function scanViewItem(e) {
-  const l = e.l || 'en', u = scanThumb(e), pk = e.pk, lang = pk ? ({ ja: 'jp', zhs: 'zh-CN' }[pk.l] || pk.l || 'en') : l !== 'en' && COLL.li[liKey(l, e.key)] ? l : 'en', rn = scanReadNote(e, !!(e.raw && e.score < 0.97));
+  const l = e.l || 'en', u = scanThumb(e), pk = e.pk, lang = pk ? (cardLang(pk.l) || pk.l || 'en') : l !== 'en' && COLL.li[liKey(l, e.key)] ? l : 'en', rn = scanReadNote(e, !!(e.raw && e.score < 0.97));
   return { key: e.key, lid: e.id || e.key, name: scanShown(e), ln: e.name, wl: l !== 'en' && lang === 'en' ? l : '', small: u, big: pk ? pk.urls[0] || pk.th : lang === 'en' ? 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(e.name) + '&format=image&version=large' : '', lang, plain: true, shot: e.maybe ? e.shot || '' : '',
     extra: TN(e.q, '{n} exemplaire', '{n} exemplaires') + (e.e ? ' · ' + [(pk && pk.sn) || setName(edSet(e.e)), edLabel(e.e)].filter(Boolean).join(' ') : '') + (e.maybe ? ' · ' + T('à vérifier') : '') + (l !== 'en' && lang === 'en' ? ' · ' + T('image anglaise (pas encore d\'image {lang})', { lang: LANGS[l] || l }) : '') + (rn ? ' · ' + rn : '') };
 }
@@ -26128,7 +26126,7 @@ async function footIdentify(m, src, box) {
     if (r) break;
   }
   if (!r || !SC.el) return m;
-  const l = (typeof FOOT_SL !== 'undefined' && FOOT_SL[r.lang]) || 'en';
+  const l = cardLang(r.lang) || 'en';
   let sim = nameSimilar(raw, r.printed || r.name), araw = '';
   const fl = TESS_OF[l];
   if (sim < 0.6 && r.printed && fl && NAT_SCRIPT[fl] !== 'latin' && src && SC.el) {      // nom russe, japonais, coréen, chinois : illisible pour le moteur latin, relu avec celui de la langue lue en bas (le russe restait « à vérifier »)
@@ -26655,8 +26653,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && SC.
 
 /** Code de langue imprimé → langue des cartes de l'appli. */
 const FOOT_LANG = { EN: 'en', FR: 'fr', DE: 'de', ES: 'es', IT: 'it', PT: 'pt', JA: 'jp', JP: 'jp', KO: 'kr', KR: 'kr', RU: 'ru', CS: 'zh-CN', ZHS: 'zh-CN', CT: 'zh-TW', ZHT: 'zh-TW' };
-/** Langue Scryfall d'une impression (p.l) → langue de l'appli. */
-const FOOT_SL = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
+/** Langue Scryfall d'une impression (p.l : « ja », « zhs ») → langue de l'appli : la conversion unique de core.js (cardLang), aussi chargée seule par les tests Node. */
+const footSL = l => (typeof cardLang === 'function' ? cardLang : require('./core.js').cardLang)(l);
 /** Caractères que l'OCR confond : même classe = même caractère. */
 const FOOT_CLS = { 0: '0', O: '0', Q: '0', D: '0', 1: '1', I: '1', L: '1', '|': '1', '!': '1', 2: '2', Z: '2', 5: '5', S: '5', 6: '6', G: '6', 8: '8', B: '8', 7: '7', T: '7' };
 const footCls = ch => FOOT_CLS[ch] || ch;
@@ -26743,7 +26741,7 @@ function footMatch(lines, prints) {
   const numOk = p => f.nums.includes(pn(p));
   const pick = list => {      // à égalité : l'impression dans la langue lue, puis celle qui n'est pas une variante (promo, showcase…)
     if (list.length < 2) return list[0] || null;
-    const byLang = extra.lang ? list.filter(p => FOOT_SL[p.l || 'en'] === extra.lang) : [];
+    const byLang = extra.lang ? list.filter(p => footSL(p.l || 'en') === extra.lang) : [];
     const pool = byLang.length ? byLang : list;
     return pool.length === 1 ? pool[0] : null;
   };
@@ -35287,7 +35285,7 @@ function setvLocal(list, sl) {
   const by = new Map();
   for (const c of list) {
     const f0 = (c.card_faces && c.card_faces[0]) || {}, iu = c.image_uris || f0.image_uris || {}, dn = String(c.printed_name || f0.printed_name || '').trim();
-    if (c.collector_number && !by.has(c.collector_number)) by.set(c.collector_number, { dn: dn.slice(0, 160), iml: SETV_IMG_RE.test(iu.normal || '') ? iu.normal : '', il: sl });
+    if (c.collector_number && !by.has(c.collector_number)) by.set(c.collector_number, { dn: dn.slice(0, 160), iml: SETV_IMG_RE.test(iu.normal || '') ? iu.normal : '', il: cardLang(sl) || sl });      // il : langue de l'appli (« jp », « zh-CN »), pas le code Scryfall (« ja », « zhs ») : le viewer et les souhaits la lisent
   }
   return by;
 }
@@ -35302,11 +35300,13 @@ async function setvSearch(q, signal) {
   }
   return out;
 }
+/** Copie d'avant le 6 novembre : il gardait le code Scryfall (« ja ») ; relue avec le code de l'appli (« jp »). */
+const setvIl = cards => { for (const x of cards) if (x && x.il) x.il = cardLang(x.il) || x.il; return cards; };
 /** Cartes de l'extension : copie de l'appareil si elle est fraîche, sinon Scryfall (et la copie ancienne en secours). */
 async function setvLoad(row, signal) {
   const sl = SCRY_LANG[userLang()] || 'en', key = SETV_KEY + row.code + ':' + sl, fresh = row.d >= 0 ? SETV_FRESH : SETV_OLD;
   const hit = await Cache.get(key, 30 * DAY).catch(() => null);
-  if (hit && Array.isArray(hit.cards) && hit.fin && hit.sty && Date.now() - hit.at < fresh) return hit.cards;      // fin, sty : copie avec les finitions (setvFin) et les styles (styOf) ; plus ancienne, relue (et gardée hors ligne)
+  if (hit && Array.isArray(hit.cards) && hit.fin && hit.sty && Date.now() - hit.at < fresh) return setvIl(hit.cards);      // fin, sty : copie avec les finitions (setvFin) et les styles (styOf) ; plus ancienne, relue (et gardée hors ligne)
   try {
     if ((typeof navigator !== 'undefined' && navigator.onLine === false) || scryLeft() > 0) throw Object.assign(new Error('pause'), { code: navigator.onLine === false ? 'network' : 'rate' });
     const cards = (await setvSearch('e:' + row.code, signal)).map(setvCard);
@@ -35318,7 +35318,7 @@ async function setvLoad(row, signal) {
     return cards;
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    if (hit && Array.isArray(hit.cards)) return hit.cards;      // hors ligne, Scryfall en pause : la copie plus ancienne
+    if (hit && Array.isArray(hit.cards)) return setvIl(hit.cards);      // hors ligne, Scryfall en pause : la copie plus ancienne
     throw e;
   }
 }
@@ -35767,7 +35767,7 @@ function msActDone(it, label, extra) {
   const x = $('.imgv-extra', v); if (x && extra != null) { x.textContent = extra; x.hidden = !extra; }
 }
 /** Infos de l'impression pour la ligne qui la reçoit (prix, extension, rareté, petites images : anglaise, et dans la langue l si Scryfall l'a). */
-const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && SCRY_LANG[l] === x.il ? { li: scrySmall(x.iml) } : {}) });
+const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && l === x.il ? { li: scrySmall(x.iml) } : {}) });
 /** « C'est celle-ci » : n exemplaires sans édition reçoivent cette édition, pris dans les lignes sans édition (langue des options, finition de la case),
  *  la plus fournie d'abord ; « Annuler » les remet. */
 function msAssign(code, x, it, n = 1, fin = '') {
@@ -36309,7 +36309,7 @@ function lotEdSheet() {
       const b = e.target.closest('.lot-ev'); if (!b) return;
       const i = Number(b.dataset.i), p = i >= 0 ? c.prints[i] : null; haptic('tap');
       c.pick = p; c.e = p ? edKey(p.set, p.num) : ''; c.auto = false;
-      const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? Object.keys(SCRY_LANG).find(k => SCRY_LANG[k] === p.l) : '';
+      const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? cardLang(p.l) : '';
       if (pl && (typeof CARD_LANG_LIST === 'undefined' || CARD_LANG_LIST.includes(pl))) c.l = pl;      // impression d'une seule langue (NEO 295 : japonais) : cette carte passe dans cette langue (les suivantes gardent la leur)
       if (p) LOT.set = p.set;      // choisie à la main : l'extension devient collante pour les cartes suivantes
       lotSave(); api.close(); lotPaintCard(); lotPaintHead();
@@ -36467,7 +36467,7 @@ function openLot() {
     else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
-    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
+    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? cardLang(c.pick.l) || c.pick.l : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
     else if (act === 'mobgo') mobStart();
     else if (act === 'mobstop') { haptic('tap'); mobStop(); }
     else if (act === 'unstick') { LOT.set = ''; lotSave(); haptic('tap'); lotPaintHead(); }

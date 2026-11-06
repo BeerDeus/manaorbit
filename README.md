@@ -288,6 +288,7 @@ Chaque recherche live d'un deck enregistré garde les prix carte par carte (cart
 ## Carte en grand
 
 Toucher l'image d'une carte l'affiche en grand (précédent / suivant dans l'ordre de la liste), dans la langue de l'offre retenue (Scryfall `/cards/<ext>/<n°>/<langue>`) ; si Scryfall n'a pas la version française, l'anglaise est affichée avec une mention. Cartes double face : bouton « Retourner ».
+**Codes de langue** (6 novembre 2026) : l'appli ne passe que ses propres codes (« jp », « kr », « zh-CN », « zh-TW ») à la carte en grand, aux souhaits et aux lignes ; le code Scryfall (« ja », « ko », « zhs », « zht ») ne sert qu'aux adresses Scryfall (`data.js` › `SCRY_LANG`). Code Scryfall lu (impression, page d'une extension, masterset, scan) → code de l'appli : une seule conversion, `core.js` › `cardLang` (avant : cinq tables faites à la main, dont deux incomplètes ; cartes japonaises de la page d'une extension et du masterset agrandies en anglais, souhait gardé avec « ja »).
 Toute vignette de carte (résultats CardTrader et Cardmarket, collection, Stats, échange, page publique, scan et fiche « Ajouter », éditeur, deck viewer, main de départ) s'ouvre en grand au toucher, ou avec Entrée / Espace ; précédente et suivante parcourent la liste affichée. Sans image, la carte est chargée par son nom, dans la langue voulue. Le reste de la ligne garde son action (offres, prix, +/−). Un mécanisme unique : `src/zoom.js`.
 
 ## Ma collection (cartes possédées)
