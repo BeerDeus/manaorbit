@@ -381,7 +381,7 @@ function trPanelHtml() {
   TR.bv = bv && list.length ? { list, want } : null;
   return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
     <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
-    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>` : ''}
+    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>${typeof alEntryHtml === 'function' ? alEntryHtml() : ''}` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
@@ -436,6 +436,7 @@ function trClick(e) {
   else if (act === 'trlive' && typeof trocEntry === 'function') trocEntry();      // échange en direct, face à face (troc.js)
   else if (act === 'trview') { const p = trPayload(); openPublicTrade(readShare('trade', { ...p, ...profShare(), at: Date.now() }), true); }
   else if (act === 'trmore') { TR.shown += TR_PAGE; collPaintBody(true); }
+  else if (act === 'tralert') { haptic('tap'); openAlertSheet({ onClose: trRepaint }); }      // alertes de prix (alerts.js), nombre de cartes surveillées repeint à la fermeture
   else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); } }); }
   else if (act === 'tunkeep' && k) { TR.kept.delete(k); haptic('tap'); trChanged(); }
   else if ((act === 'wplus' || act === 'wminus') && k && TR.wish[k]) {
