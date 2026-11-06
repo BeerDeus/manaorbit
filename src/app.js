@@ -1012,12 +1012,26 @@ function openCartSheet() {
           return;
         }
       }
-      run(null, ctrl);
+      if (S.demo) { run(null, ctrl); return; }
+      begin(T('Lecture du panier…'));      // cartes de la liste déjà dans le panier : ajouter quand même (doublons voulus), seulement ce qui manque, ou vider d'abord
+      let cur = null;
+      try { cur = await cartRead(ctrl.signal); } catch (e) { toast(T('Panier CardTrader non lu : doublons non vérifiés')); run(null, ctrl); return; }
+      const dup = cartDups(parts, cur.items);
+      if (!dup.length) { run(null, ctrl); return; }
+      const nCopies = dup.reduce((a, d) => a + d.inCart, 0), rest = cartMinus(parts, cur.items);
+      api.body.innerHTML = status(TN(dup.length, '{n} carte de cette liste est déjà dans ton panier CardTrader.', '{n} cartes de cette liste sont déjà dans ton panier CardTrader.'))
+        + `<ul class="cart-dups">${dup.slice(0, 12).map(d => `<li><span>${esc(cardName(d.key, d.name))}</span><small>${esc(T('{a} au panier · {b} dans la liste', { a: nf0(d.inCart), b: nf0(d.want) }))}</small></li>`).join('')}${dup.length > 12 ? `<li class="hint">${esc(TN(dup.length - 12, 'et {n} autre', 'et {n} autres'))}</li>` : ''}</ul>
+        <p class="hint">${T('« Ajouter quand même » : tu gardes les deux (par exemple une pour un deck, une pour la collection). « Sans celles déjà au panier » : seuls les exemplaires qui manquent sont ajoutés.')}</p>`;
+      api.setFoot(`<button class="btn ghost" type="button" id="cfBack">${T('Annuler')}</button><button class="btn ghost" type="button" id="cfDup">${T('Ajouter quand même')}</button><button class="btn" type="button" id="cfMinus"${rest.length ? '' : ' disabled'}>${T('Sans celles déjà au panier')}</button>`);
+      $('#cfBack', api.foot).onclick = intro;
+      $('#cfDup', api.foot).onclick = () => run(null, ctrl);
+      $('#cfMinus', api.foot).onclick = () => run(null, ctrl, rest);
+      if (nCopies && !rest.length) $('#cfMinus', api.foot).title = T('Tout est déjà dans ton panier');
     }
 
     // Étape 2 : vidage éventuel, puis ajout. La fenêtre peut être fermée : tout continue, la pastille flottante prend le relais.
-    async function run(clearItems, ctrl) {
-      task = floatTask(T('Remplissage du panier'), { total: parts.length, sub: T('Démarrage…') }, () => !sheets.includes(api));
+    async function run(clearItems, ctrl, list = parts) {      // list : offres à ajouter (sans les cartes déjà au panier si demandé)
+      task = floatTask(T('Remplissage du panier'), { total: list.length, sub: T('Démarrage…') }, () => !sheets.includes(api));
       const bye = (msg, kind, d) => { const shown = task.isShown(); task.finish(msg, kind, d); haptic(kind); if (!shown && !sheets.includes(api)) toast(msg); };
       try {
         if (clearItems) {
@@ -1033,7 +1047,7 @@ function openCartSheet() {
           }
         }
         begin(T('Ajout des articles…')); task.label(T('Remplissage du panier'));
-        const res = await cartFill(parts, S.opts.mode, null, ctrl.signal, (i, n) => prog(T('Ajout des articles'), i, n, T('Ajout')), S.demo);
+        const res = await cartFill(list, S.opts.mode, null, ctrl.signal, (i, n) => prog(T('Ajout des articles'), i, n, T('Ajout')), S.demo);
         if (res.gone.length) { res.gone.forEach(id => S.gone.add(id)); scheduleRecompute(true); } // offres indisponibles : retirées de la recherche
         if (!S.demo) buyRemember(res.added, !!clearItems);      // « J'ai acheté » : les cartes réellement au panier attendent ta validation
         const rep = res.replaced.length;

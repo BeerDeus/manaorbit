@@ -1,0 +1,12 @@
+{
+ "Panier CardTrader non lu : doublons non vérifiés": "CardTrader-Warenkorb nicht gelesen: Duplikate nicht geprüft",
+ "{n} carte de cette liste est déjà dans ton panier CardTrader.": "{n} Karte dieser Liste liegt schon in deinem CardTrader-Warenkorb.",
+ "{n} cartes de cette liste sont déjà dans ton panier CardTrader.": "{n} Karten dieser Liste liegen schon in deinem CardTrader-Warenkorb.",
+ "{a} au panier · {b} dans la liste": "{a} im Warenkorb · {b} in der Liste",
+ "et {n} autre": "und {n} weitere",
+ "et {n} autres": "und {n} weitere",
+ "« Ajouter quand même » : tu gardes les deux (par exemple une pour un deck, une pour la collection). « Sans celles déjà au panier » : seuls les exemplaires qui manquent sont ajoutés.": "„Trotzdem hinzufügen“: Du behältst beide (zum Beispiel eine für ein Deck, eine für die Sammlung). „Ohne die schon im Warenkorb“: Nur die fehlenden Exemplare werden hinzugefügt.",
+ "Ajouter quand même": "Trotzdem hinzufügen",
+ "Sans celles déjà au panier": "Ohne die schon im Warenkorb",
+ "Tout est déjà dans ton panier": "Alles liegt schon in deinem Warenkorb"
+}

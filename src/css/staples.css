@@ -36,3 +36,6 @@
 .stp-x{flex:none;width:36px;height:36px}
 .stp-grp{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
 .stp-grp > span{font-size:13px;font-weight:650;color:var(--ink-2)}
+.cart-dups{margin:10px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.cart-dups li{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.cart-dups li small{flex:none;color:var(--ink-3);font-size:12.5px}

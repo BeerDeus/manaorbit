@@ -1011,6 +1011,19 @@ async function cartRead(signal) {
   return { items, subtotal: cart && cart.subtotal };
 }
 
+/** Cartes de la liste (parts : offres { key, name, n }) déjà dans le panier (items de cartRead, par nom anglais) : [{ key, name, want, inCart }]. */
+function cartDups(parts, items) {
+  const inCart = new Map(); for (const it of items || []) { const k = ownKey(it.name); if (k) inCart.set(k, (inCart.get(k) || 0) + it.quantity); }
+  const want = new Map(); for (const p of parts) { const w = want.get(p.key) || { key: p.key, name: p.name, want: 0, inCart: inCart.get(p.key) || 0 }; w.want += p.n; want.set(p.key, w); }
+  return [...want.values()].filter(w => w.inCart > 0);
+}
+/** Les offres sans les exemplaires déjà au panier (même carte, toute édition ou langue) : une carte voulue en 3 et présente en 1 n'en ajoute que 2. */
+function cartMinus(parts, items) {
+  const left = new Map(); for (const it of items || []) { const k = ownKey(it.name); if (k) left.set(k, (left.get(k) || 0) + it.quantity); }
+  const out = [];
+  for (const p of parts) { const l = left.get(p.key) || 0, cut = Math.min(l, p.n); if (cut) left.set(p.key, l - cut); if (p.n - cut > 0) out.push(cut ? { ...p, n: p.n - cut } : p); }
+  return out;
+}
 /** Vide le panier : l'API n'a pas de « tout supprimer », on retire chaque ligne (quantité exacte lue dans le panier). */
 async function cartClear(items, signal, onItem) {
   const failed = []; let ok = 0;
@@ -1072,4 +1085,4 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
   }
   return { ok, failed, replaced, gone, added };
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = { ...(module.exports || {}), bpNum, bpIndexOf, expIndexOf, mapBlueprints };
+if (typeof module !== 'undefined' && module.exports) module.exports = { ...(module.exports || {}), bpNum, bpIndexOf, expIndexOf, mapBlueprints, cartDups, cartMinus };

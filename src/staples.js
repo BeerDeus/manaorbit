@@ -116,12 +116,12 @@ function stpSample(cmds, cols, target, nOf) {
 const stpCtOk = (p, o) => p != null && p < o.max + o.tol;
 
 /* ── Réglages ─────────────────────────────────────────────────────────────────────────────────────── */
-const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true, nd: 1000, grp: '' });
+const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true, nd: 1000, grp: '', cart: true });
 function stpLoad() {
   if (STP.o) return STP.o;
   let o = {}; try { o = JSON.parse(localStorage.getItem(STP_KEY) || '{}') || {}; } catch (e) { o = {}; }
   const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
-  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
+  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, cart: o.cart !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
     cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
     tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
   return STP.o;
@@ -183,7 +183,7 @@ function stpCands(o, ctx) {
     const m = dmx(k);
     if (o.roles.length && !o.roles.some(x => stpRole(m, r, x))) continue;
     if (tagI.length && !(m && tagI.some(i => m.p.includes(i) || m.w.includes(i) || m.ip.includes(i)))) continue;
-    const need = o.q - Math.max(0, ownFree(k, null)); if (need <= 0) continue;      // assez d'exemplaires libres (ni engagés dans un deck monté)
+    const need = o.q - Math.max(0, ownFree(k, null)) - (ctx.cart ? ctx.cart.get(k) || 0 : 0); if (need <= 0) continue;      // assez d'exemplaires libres (ni engagés dans un deck monté), ou déjà dans le panier CardTrader
     const p = pop.get(k) || 0, ps = stpPopScore(p, r[8] || 0), qv = dmxQ(m), roles = STP_UTIL.filter(x => stpRole(m, r, x));
     let s, x = null, g = stpGroup(ci), also = [], f = ctx.U ? ctx.U.get(k) || 0 : 0;
     if (cmds.length) {
@@ -373,11 +373,17 @@ async function stpGo() {
     }
     STP.prog = null;
     if (STP.atask) { STP.atask.finish(T('Chasse aux staples'), STP.stop ? 'warn' : 'ok', TN(A.n, '{n} deck analysé', '{n} decks analysés')); STP.atask = null; }
+    let cart = null, cartN = 0, cartNote = '';      // panier CardTrader : ses cartes comptent comme déjà là (une commande de deck en cours ne revient pas dans la liste)
+    if (o.cart && !stpCtWhy()) {
+      STP.busy = T('Lecture du panier CardTrader…'); stpPaint();
+      try { const c = await cartRead(); cart = new Map(); for (const it of c.items) { const k = ownKey(it.name); if (k) cart.set(k, (cart.get(k) || 0) + it.quantity); } cartN = cart.size; }
+      catch (e) { cartNote = T('Panier CardTrader non lu : ses cartes ne sont pas écartées.'); }
+    }
     STP.busy = T('Classement des cartes…'); stpPaint();
     await new Promise(r => setTimeout(r, 30));
-    const ranked = stpCands(o, { pop: stpPop(), cmds, U: !cmds.length && o.deep ? STP.U : null }), bal = cmds.length !== 1, order = cmds.length > 1 ? cmds.map(c => c.slug) : null;      // plusieurs commandants : parts égales entre eux ; un seul : classement pur ; aucun : par couleur
+    const ranked = stpCands(o, { pop: stpPop(), cmds, cart, U: !cmds.length && o.deep ? STP.U : null }), bal = cmds.length !== 1, order = cmds.length > 1 ? cmds.map(c => c.slug) : null;      // plusieurs commandants : parts égales entre eux ; un seul : classement pur ; aucun : par couleur
     const quotas = bal ? stpQuotas(o.n, order || stpGroupsOf(o)) : null, { pick, rest } = stpPick(ranked, o.n, quotas, !!order);      // plusieurs commandants : parts égales strictes (Krenko, très documenté, ne prend plus les places de l'autre)
-    const R = STP.res = { o, list: pick, rest, out: [], rep: 0, bal, quotas, order, gn: Object.fromEntries(cmds.map(c => [c.slug, c])), cmd: cmds.map(c => c.short).join(', '), pool: ranked.length, A, stopped: STP.stop, note: '', warn: EDH.data ? '' : T('Decks EDHREC indisponibles : classement par force et rôles seulement.'), at: Date.now() };
+    const R = STP.res = { o, list: pick, rest, out: [], rep: 0, bal, quotas, order, gn: Object.fromEntries(cmds.map(c => [c.slug, c])), cmd: cmds.map(c => c.short).join(', '), pool: ranked.length, A, stopped: STP.stop, cartN, note: '', warn: [EDH.data ? '' : T('Decks EDHREC indisponibles : classement par force et rôles seulement.'), cartNote].filter(Boolean).join(' '), at: Date.now() };
     STP.busy = '';
     if (o.ct && R.list.length) { stpPaint(); await stpVerify(R); }
   } catch (e) {
@@ -438,6 +444,8 @@ function stpFormHtml() {
       : T('Des commandants de toutes les couleurs, les plus joués d\'abord, jusqu\'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.'))
       : T('Classement immédiat : popularité EDHREC, force et rôles du coach.')}</p>
     ${o.deep && !cs.length ? h(T('Decks à analyser') + ` <small>${T('(plus de decks : plus long)')}</small>`) + `<div class="fopts" role="group">${STP_ND.map(n => chip('nd', n, o.nd === n, nf0(n))).join('')}</div>` : ''}
+    ${typeof mkUs === 'function' && mkUs() ? '' : `<button type="button" class="dkf-sw" role="switch" data-stp="cart" aria-checked="${o.cart}" aria-pressed="${o.cart}"><span>${T('Écarter les cartes déjà dans mon panier CardTrader')}</span><span class="switch" aria-hidden="true"><i></i></span></button>
+    <p class="hint">${T('Une commande en préparation (un deck par exemple) ne revient pas dans la liste ; sans CardTrader configuré, rien n\'est écarté.')}</p>`}
     ${h(T('Commandants') + ` <small>${T('(facultatif, {n} au plus)', { n: STP_CMD_MAX })}</small>`)}
     <div class="fopts stp-cmds" role="group">${chip('cmd', '', !o.cmds.length, T('Aucun'))}${mine.length > 1 ? chip('cmdall', '', allMine, T('Tous mes decks')) : ''}${mine.map(cmdChip).join('')}${cs.filter(x => !mine.some(y => y.slug === x.slug)).map(cmdChip).join('')}</div>
     ${E ? `<label class="fsearch stp-q"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="stpCmdQ" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(T('Chercher un commandant'))}" value="${esc(STP.q)}"></label>
@@ -497,7 +505,7 @@ function stpResHtml() {
   const vv = l.filter(x => x.ct != null), ctTot = vv.reduce((a, x) => a + x.ct * x.need, 0), nv = l.filter(x => x.ct === undefined).length;
   let html = `<div class="stp-sum"><b>${TN(l.length, '{n} carte', '{n} cartes')}${copies !== l.length ? ' · ' + TN(copies, '{n} exemplaire', '{n} exemplaires') : ''}</b>
     <span>${T('≈ {p} au prix Cardmarket', { p: esc(stpEuro(cm)) })}${vv.length ? ` · CardTrader ≈ ${esc(stpEuro(ctTot))}${vv.length < l.length ? ' ' + TN(vv.length, '({n} vérifiée)', '({n} vérifiées)') : ''}` : ''}</span>
-    <small>${[R.cmd ? T('Pour {name}', { name: R.cmd }) : '', TN(R.pool, '{n} candidate sous {p}', '{n} candidates sous {p}', { p: esc(stpEuro(R.o.max)) }), R.rep ? TN(R.rep, '{n} remplacée après vérification', '{n} remplacées après vérification') : '', nv && R.o.ct && !STP.run ? TN(nv, '{n} non vérifiée', '{n} non vérifiées') : ''].filter(Boolean).join(' · ')}</small>
+    <small>${[R.cmd ? T('Pour {name}', { name: R.cmd }) : '', TN(R.pool, '{n} candidate sous {p}', '{n} candidates sous {p}', { p: esc(stpEuro(R.o.max)) }), R.rep ? TN(R.rep, '{n} remplacée après vérification', '{n} remplacées après vérification') : '', R.cartN ? TN(R.cartN, '{n} carte de ton panier CardTrader écartée', '{n} cartes de ton panier CardTrader écartées') : '', nv && R.o.ct && !STP.run ? TN(nv, '{n} non vérifiée', '{n} non vérifiées') : ''].filter(Boolean).join(' · ')}</small>
     ${R.A && R.A.n ? `<p class="hint stp-note">${esc(stpABil(R))}</p>` : ''}
     ${R.warn || R.note ? `<p class="hint stp-note">${esc([R.warn, R.note].filter(Boolean).join(' '))}</p>` : ''}
     <div class="stp-grp"><span>${T('Classer par')}</span><div class="fopts" role="radiogroup" aria-label="${esc(T('Classer par'))}">${[['', R.order ? T('Commandant') : R.bal ? T('Couleur') : T('Classement')], ['type', T('Type')], ['role', T('Rôle')]].map(([v, lb]) => `<button type="button" class="fopt" role="radio" data-stp="grp" data-v="${v}" aria-checked="${(STP.o.grp || '') === v}" aria-pressed="${(STP.o.grp || '') === v}">${esc(lb)}</button>`).join('')}</div></div>
@@ -551,7 +559,7 @@ function stpClick(e) {
   const b = e.target.closest('[data-stp]'); if (!b || b.disabled) return;
   const o = stpLoad(), a = b.dataset.stp, v = b.dataset.v, tog = (l, x) => (l.includes(x) ? l.filter(y => y !== x) : [...l, x]);
   if (a === 'n') o.n = +v; else if (a === 'nd') o.nd = +v; else if (a === 'q') o.q = +v; else if (a === 'max') o.max = +v;
-  else if (a === 'ct') o.ct = !o.ct; else if (a === 'deep') o.deep = !o.deep; else if (a === 'cless') o.cless = !o.cless;
+  else if (a === 'ct') o.ct = !o.ct; else if (a === 'deep') o.deep = !o.deep; else if (a === 'cart') o.cart = !o.cart; else if (a === 'cless') o.cless = !o.cless;
   else if (a === 'cmd') {
     if (!v) o.cmds = [];
     else if (o.cmds.includes(v)) o.cmds = o.cmds.filter(x => x !== v);

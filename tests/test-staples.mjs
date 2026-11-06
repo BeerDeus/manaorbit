@@ -163,3 +163,28 @@ test('plusieurs commandants : parts égales même quand les scores d\'un command
   const few = R.filter(x => x.g === 'krenko' || +x.k.slice(1) < 30);
   assert.deepEqual(['krenko', 'other'].map(g => S.stpPick(few, 200, q, true).pick.filter(x => x.g === g).length), [170, 30], 'un commandant à court de cartes : ses places passent à l\'autre');
 });
+
+test('panier CardTrader : cartes déjà au panier (doublons) et seulement ce qui manque', () => {
+  globalThis.ownKey = globalThis.ownKey || require('../src/core.js').ownKey;
+  const { cartDups, cartMinus } = require('../src/data.js');
+  const parts = [{ key: 'sol ring', name: 'Sol Ring', n: 1, offer: { id: 1 } }, { key: 'opt', name: 'Opt', n: 2, offer: { id: 2 } }, { key: 'opt', name: 'Opt', n: 1, offer: { id: 3 } }, { key: 'negate', name: 'Negate', n: 1, offer: { id: 4 } }];
+  const items = [{ name: 'Opt', quantity: 2 }, { name: 'Sol Ring', quantity: 1 }, { name: 'Island', quantity: 5 }];
+  assert.deepEqual(cartDups(parts, items).map(d => [d.name, d.want, d.inCart]), [['Sol Ring', 1, 1], ['Opt', 3, 2]]);
+  const rest = cartMinus(parts, items);
+  assert.deepEqual(rest.map(p => [p.name, p.n, p.offer.id]), [['Opt', 1, 3], ['Negate', 1, 4]], 'Opt voulue en 3, 2 au panier : 1 seule ajoutée');
+  assert.equal(parts[1].n, 2, 'les offres d\'origine ne sont pas modifiées');
+  assert.deepEqual(cartDups(parts, []), []); assert.equal(cartMinus(parts, []).length, 4);
+});
+
+test('Chasse aux staples : une carte déjà au panier compte comme déjà là', () => {
+  const mech = { roles: ['land', 'ramp', 'fixing', 'draw', 'tutor', 'removal', 'wipe', 'counter', 'protect', 'recursion', 'wincon', 'stax'], tags: [] };
+  const row = (n, ci, eur, rank) => [n, ci, 2, 0, 0, eur, 0, '', rank, '{1}', [8, [], [], 0, 3], ''];
+  const D = { v: 1, mech, cards: [row('Opt', 'U', 3, 300), row('Negate', 'U', 8, 60)] };
+  const ctx = coachCtx(new URL('../src', import.meta.url).pathname, D);
+  Object.assign(ctx, { colorFit: require('../src/core.js').colorFit, ownFree: () => 0, PXT: null });
+  vm.runInContext(readFileSync(new URL('../src/staples.js', import.meta.url), 'utf8'), ctx, { filename: 'staples.js' });
+  const run = (q, cart) => [...vm.runInContext('stpCands', ctx)({ n: 10, q, max: 15, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [] }, { pop: new Map(), cmds: [], cart })].map(x => x.name + ' ' + x.need).sort();
+  assert.deepEqual(run(1, new Map([['opt', 1]])), ['Negate 1']);
+  assert.deepEqual(run(2, new Map([['opt', 1]])), ['Negate 2', 'Opt 1'], '2 voulues, 1 au panier : 1 à acheter');
+  assert.deepEqual(run(1, null), ['Negate 1', 'Opt 1']);
+});
