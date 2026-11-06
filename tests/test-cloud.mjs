@@ -178,5 +178,31 @@ un(); unsub();
   delete globalThis.isNativeApp; delete globalThis.natPlugin;
   console.log('✓ Google : jeton refusé → message Google ; APK sans plugin → « mets-la à jour », sans fenêtre web ; erreur native détaillée');
 }
+{      // écoute en erreur (quota du jour, réseau) : relancée seule après un délai, tout de suite sur relance() ; arrêtée : plus jamais relancée (makeSum › legacyOn)
+  const { makeSum, SUB_RETRY } = require('../src/cloud.js'); const keep = { ...SUB_RETRY }; SUB_RETRY.first = 30; SUB_RETRY.max = 60;
+  let calls = 0; const plan = [];      // plan[i] : 'err' | 'ok' pour la i-e écoute ouverte
+  const fakeFs = { doc: (db, ...p) => ({ path: p.join('/') }), onSnapshot: (ref, o, next, err) => {
+    const i = calls++, what = plan[i] || 'ok';
+    setTimeout(() => (what === 'err' ? err(Object.assign(new Error('quota'), { code: 'resource-exhausted' })) : next({ exists: () => true, data: () => ({ updatedAt: i }), metadata: { hasPendingWrites: false, fromCache: false } })), 5);
+    return () => {};
+  } };
+  const sm = makeSum({ fs: fakeFs }, {}, () => ({}));
+  const got = [], errs = [], wait = ms => new Promise(r => setTimeout(r, ms));
+  plan.push('err', 'err', 'ok');
+  const off = sm.sub('u1', { kind: 'meta', id: 'collection', onData: d => got.push(d.updatedAt), onErr: e => errs.push(e.code) });
+  await wait(20); assert.deepEqual([errs, got, calls], [['resource-exhausted'], [], 1], '1re écoute en erreur : abonné prévenu');
+  await wait(45); assert.deepEqual([errs.length, calls], [2, 2], 'relancée après 30 ms, de nouveau en erreur');
+  await wait(90); assert.deepEqual([got, calls], [[2], 3], 'relancée après 60 ms : données reçues');
+  plan.push('err'); calls = 3;
+  const sm2 = makeSum({ fs: fakeFs }, {}, () => ({})); SUB_RETRY.first = 5000; SUB_RETRY.max = 5000;
+  const got2 = [], off2 = sm2.sub('u2', { kind: 'meta', id: 'collection', onData: d => got2.push(d.updatedAt), onErr: () => {} });
+  await wait(20); assert.equal(calls, 4, 'en erreur, relance dans 5 s'); sm2.relance(); await wait(20); assert.deepEqual([calls, got2], [5, [4]], 'relance() (réseau revenu, appli au premier plan) : tout de suite');
+  plan[5] = 'err'; off(); off2();
+  const sm3 = makeSum({ fs: fakeFs }, {}, () => ({})); SUB_RETRY.first = 20;
+  const off3 = sm3.sub('u3', { kind: 'meta', id: 'collection', onData: () => {}, onErr: () => {} }); await wait(10); off3(); await wait(60);
+  assert.equal(calls, 6, 'abonnement arrêté pendant l\'attente : pas relancé');
+  Object.assign(SUB_RETRY, keep);
+  console.log('✓ écoute Firestore en erreur (quota) : abonné prévenu, relancée seule (délai croissant) puis tout de suite par relance(), jamais après l\'arrêt');
+}
 console.log('\nCLOUD OK');
 process.exit(0);

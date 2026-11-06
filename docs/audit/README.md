@@ -11,6 +11,7 @@ Synthèse de 7 analyses (1 étude concurrentielle + 6 audits par domaine). Déta
 | [40-decks-prix.md](40-decks-prix.md) | Mes decks, À monter, Communauté, builder, viewer, Prix d'une liste, panier |
 | [50-echange-social.md](50-echange-social.md) | Échange, classeur, liens/QR, échange en direct, amis, Carte mystère, niveaux |
 | [60-compteur-de-vie.md](60-compteur-de-vie.md) | Commander / Standard / Libre, 2 à 8 joueurs, affichages A/B/C, portrait/paysage, multi-téléphone |
+| [70-regles-et-ux-6-novembre.md](70-regles-et-ux-6-novembre.md) | 6 novembre : règles en plusieurs versions (prix, noms, synchro, réseau), code mort, parcours sur téléphone (ajout, deck, coach, échange, alertes) ; lots A à F |
 
 **Couverture** : environ 1 900 captures au total (360, 375, 393, 412, 430 px, tablette 820, PC 1280 et 1890 px ; clair et sombre ; vide, rempli, déconnecté, connecté, hors ligne ; pont Android simulé). Pour le compteur de vie : 630 dispositions mesurées, plus une partie à 5 téléphones. Les captures sont restées dans la session d'audit et ne sont pas versionnées ; `tests/menus-e2e.mjs` (UI_FULL=1) les régénère.
 **État global** : aucune erreur JS ni console sur l'ensemble des parcours, aucun défilement horizontal. Les problèmes sont surtout des **cas limites de données** (foil, sections d'import), des **adaptations PC / paysage** et des **manques fonctionnels** face aux concurrents.

@@ -23,14 +23,28 @@ function collRead() {
   try {
     const r = JSON.parse(localStorage.getItem(COLL_KEY) || 'null');
     if (r && typeof r.t === 'string') {
-      collDocSet(collDocFromText(r.t)); COLL.u = Number(r.u) || 0; COLL.s = typeof r.s === 'string' ? r.s : '';
+      COLL.disk = r.t; collDocSet(collDocFromText(r.t)); COLL.u = Number(r.u) || 0; COLL.s = typeof r.s === 'string' ? r.s : '';
       COLL.base = COLL.s && typeof r.b === 'string' ? collDocFromText(r.b) : null;                  // dernier état du compte connu de cet appareil (null : inconnu → fusion par union)
     }
   } catch (e) { /* illisible : on repart d'une collection vide */ }
 }
 function collWrite() {
-  try { localStorage.setItem(COLL_KEY, JSON.stringify({ t: collDocText(collDocNow()), u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collDocText(COLL.base) } : {}) })); return true; }
+  try { const t = collDocText(collDocNow()); localStorage.setItem(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collDocText(COLL.base) } : {}) })); COLL.disk = t; return true; }
   catch (e) { toast(T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil')); return false; }
+}
+/** Autre onglet de l'appli (PWA et navigateur, deux onglets) : la collection gardée sur l'appareil vient d'y changer. Fusion à trois avec ce qui est ici, d'après
+ *  le dernier état lu ou écrit par cet onglet (COLL.disk) : sans elle, le prochain enregistrement d'ici effaçait ce que l'autre onglet avait ajouté. Fusion différente
+ *  de la sienne : réécrite (l'autre onglet la reprend, sans aller-retour de plus : son dernier état est alors la base). */
+function collStorage(e) {
+  if (e.key !== COLL_KEY || e.newValue == null) return;
+  let r; try { r = JSON.parse(e.newValue); } catch (x) { return; }
+  if (!r || typeof r.t !== 'string' || r.t === COLL.disk) return;
+  const theirs = collDocFromText(r.t), before = collDocNow(), next = mergeDoc3(typeof COLL.disk === 'string' ? collDocFromText(COLL.disk) : null, before, theirs);
+  COLL.disk = r.t; COLL.u = Math.max(COLL.u || 0, Number(r.u) || 0);
+  if (typeof r.s === 'string' && r.s && (!COLL.s || r.s === COLL.s)) { COLL.s = r.s; if (typeof r.b === 'string') COLL.base = collDocFromText(r.b); }      // même compte : son dernier état du compte (envoi fait là-bas)
+  collDocSet(next);
+  if (!sameDoc(next, theirs)) collWrite();
+  if (!sameDoc(before, next)) { COLL.seq++; collPaint(); paintCollSection(); refreshDeck(); trSoon(); collEnrich(); homeSoon(); }
 }
 /* ── Collection d'un autre compte gardée sur l'appareil ──────────────────────────────────────────────────────────────
    La copie de l'appareil appartient au dernier compte synchronisé (COLL.s). Un autre compte qui s'y connecte (compte supprimé puis recréé avec la même
@@ -601,7 +615,7 @@ function collRemoteApplied(b0, a0, o = {}) {
   else if (add || del) toast(T('Autre appareil : {changes}', { changes: [add && '+' + plural(add), del && '−' + plural(del)].filter(Boolean).join(' · ') }));
 }
 /** Retour au premier plan / réseau revenu : on envoie ce qui attend et on relit le compte (les navigateurs mobiles endorment la connexion en arrière-plan). */
-function collWake() { if (cloudOn()) collSyncNow(); collEnrichResume(); }
+function collWake() { if (D.cloud && D.cloud.relance) D.cloud.relance(); if (cloudOn()) collSyncNow(); collEnrichResume(); }      // relance : écoutes du compte arrêtées par une erreur (quota du jour, réseau), sans attendre leur délai
 function collSleep() { if (typeof syncFlush === 'function') syncFlush(); else if (cloudOn() && COLL.pushT) collPush(); }       // on part : envoyer sans attendre le délai (collection, et les autres envois en attente)
 
 /* ── Prix réels : l'offre CardTrader la moins chère de chaque carte, lue avec le moteur de la recherche ───────────
@@ -765,6 +779,8 @@ function collCatalog() {
   if (!COLL.namesP) COLL.namesP = scryCatalogNames().then(list => { COLL.names = { list, idx: nameIndex(list), norm: list.map(n => normPart(n)) }; return COLL.names; }).catch(e => { COLL.namesP = null; throw e; });
   return COLL.namesP;
 }
+/** Message d'un catalogue des noms qui n'arrive pas (Ajouter des cartes, éditeur, recherches) : hors ligne, pause demandée par Scryfall, ou Scryfall injoignable. */
+const collCatErr = e => (typeof navigator !== 'undefined' && navigator.onLine === false ? T('Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.') : e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'));
 /* ── Noms imprimés de toutes les langues pour la saisie (« Ajouter des cartes », « Ajouter une carte ») : names-all.tsv (anglais, fr, de, es, it, pt), le fichier du scan.
    Gardé sur l'appareil (téléchargé par le scan, sinon ici à la première recherche qui en a besoin, hors réseau mobile) ; index construit par tranches, gardé en mémoire
    tant que l'appli est ouverte (≈ 150 000 noms : clés normalisées + renvoi à la ligne du fichier). Carte choisie par son nom italien (allemand…) : exemplaire dans cette langue. */
@@ -855,6 +871,7 @@ function collInit() {
   collRead(); pxRead(); paintCollSection(); collMetaLoad();
   document.addEventListener('visibilitychange', () => { if (document.hidden) collSleep(); else collWake(); });
   window.addEventListener('online', collWake);
+  window.addEventListener('storage', collStorage);      // autre onglet de l'appli
   window.addEventListener('offline', () => { if (cloudOn() && COLL.cloud !== 'error') { COLL.cloud = 'offline'; collPaintHead(); } });
   window.addEventListener('pagehide', collSleep);
   const sec = $('#collSec'); if (sec) sec.hidden = false;
@@ -1223,7 +1240,7 @@ function collStatsHtml(items) {
   const typeRows = TYPE_ORDER.map(t => [esc(T(t)), st.types[t], 'k-t']);
   const nums = `<div class="cs-tiles"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div class="cs-val" role="button" tabindex="0" data-act="pxsrc"${ctOff ? ' data-ctno="1"' : ''} aria-label="${ctOff ? T('Valeur de la collection, source Cardmarket : touche pour ajouter ton token CardTrader') : T('Valeur de la collection, source {a} : touche pour passer à {b}', { a: cm ? 'Cardmarket' : 'CardTrader', b: cm ? 'CardTrader' : 'Cardmarket' })}"><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${cm ? T('valeur · tendance Cardmarket') + (st.valued < st.known ? ' ' + TN(st.valued, '({n} carte)', '({n} cartes)') : '') : st.real ? (st.valued > st.real ? T('valeur · {n} au prix réel CardTrader, {m} estimées Cardmarket', { n: nf0(st.real), m: nf0(st.valued - st.real) }) : T('valeur · {n} au prix réel CardTrader', { n: nf0(st.real) })) : T('valeur ≈ tendance Cardmarket') + (st.valued && st.valued < st.known ? ' ' + TN(st.valued, '({n} carte)', '({n} cartes)') : '')}</span>${`<div class="cs-src"><div class="cs-sw" aria-hidden="true"><i${cm ? '' : ' class="on"'}>CT</i><i${cm ? ' class="on"' : ''}>CM</i></div><small>${ctOff ? T('CT : prix réels avec ton token CardTrader') : cm && !items.some(i => i.rp > 0) ? T('CT : aucun prix lu · touche pour changer') : st.alt.valued ? T('{src} : {v} · touche pour changer', { src: cm ? 'CT' : 'CM', v: esc(fmt(st.alt.value, mkCur())) }) : T('touche pour changer')}</small></div>`}</div></div>`;      // aucune offre CardTrader lue : le chiffre « CT » ne serait que l'estimation Cardmarket
   const note = miss ? `<p class="hint">${T('Stats sur {a} cartes lues ; {b} sans infos pour l\'instant.', { a: nf0(st.known), b: nf0(miss) })}</p>` : '';
-  const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : 'EUR');
+  const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : mkCur());      // prix réel CardTrader : sa devise ; estimation : devise du marché (dollars TCGplayer aux États-Unis), comme la tuile de valeur
   const top = list.length ? `<h3 class="cs-h">${T('Les plus chères')} <span class="cs-sw" role="group" aria-label="${T('Classer par')}"><button type="button" data-act="topby" data-v="lot" aria-pressed="${byLot}" class="${byLot ? 'on' : ''}">${T('Par lot')}</button><button type="button" data-act="topby" data-v="one" aria-pressed="${!byLot}" class="${byLot ? '' : 'on'}">${T('Par carte')}</button></span></h3><p class="hint cs-topnote">${byLot ? T('Classées par valeur du lot : prix × exemplaires.') : T('Classées par prix d\'un exemplaire.')}</p><div class="cs-top">${shown.map(i => `<div class="crow ro" data-k="${esc(i.k)}"><span class="thumb" style="--h:${hash32(i.k) % 360}"${zoomAt('coll', i.dn || i.n)}>${esc((i.n.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn || i.n)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}${i.rl ? '<span class="tag real">' + T('prix réel') + '</span>' : ''}</span></span><span class="row-price"><b>${esc(fmt(byLot ? i.lot : i.up, cur(i)))}</b>${i.q > 1 ? `<small>${byLot ? `${esc(fmt(i.up, cur(i)))} × ${nf0(i.q)}` : `× ${nf0(i.q)} = ${esc(fmt(i.lot, cur(i)))}`}</small>` : ''}</span></div>`).join('')}</div>${moreBtn(shown.length, list.length, 10, 'data-act="topmore"')}` : '';
   const share = st.unique ? `<div class="simg-coll"><button class="link-btn" type="button" data-act="simgcoll"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager en image')}</button></div>` : '';      // image de la collection (simg.js)
   // .cs-col : sans effet sur le téléphone (display:contents, css/stats.css) ; deux colonnes sur ordinateur (zz-desktop.css) : valeur et variations | le reste
@@ -1621,7 +1638,7 @@ function openCollAdd(o) {
     const onFr = () => { if (inp.isConnected) paint(); else FRN.on.delete(onFr); };      // index français arrivé pendant la saisie
     FRN.on.add(onFr);
     say(T('Chargement du catalogue (une seule fois)…'), false);
-    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false));
+    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(collCatErr(e), false));
     setTimeout(() => inp.focus(), 380);
   });
 }

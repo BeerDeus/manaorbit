@@ -181,3 +181,11 @@ test('num, pct, moreLabel, moreBtn : locale et dictionnaires de la langue', () =
     assert.deepEqual([num(1234.5, 1), pct(78), moreLabel(1, 30)], ['1.234,5', '78 %', '1 weitere anzeigen (noch 1)']);
   } finally { i18nPick({ nav: 'fr-FR', robot: true, all: {} }); }
 });
+
+test('moneyIn : montant tapé (budget, prix cible, frais de port) lu selon la locale, symboles et espaces ignorés', () => {
+  const { moneyIn } = require('../src/core.js');
+  const cases = [['50 €', 'fr-FR', 50], ['1 000', 'fr-FR', 1000], ['89,90 €', 'fr-FR', 89.9], ['4.90', 'fr-FR', 4.9], ['1.234,50', 'fr-FR', 1234.5], ['0,5', 'fr-FR', 0.5],
+    ['$1,234.50', 'en-US', 1234.5], ['1,000', 'en-US', 1000], ['4,90', 'en-US', 4.9], ['1.000', 'de-DE', 1000], ['2.5', 'de-DE', 2.5], ['1.000,5 €', 'de-DE', 1000.5], ['1 000,00', 'fr-FR', 1000]];
+  for (const [s, loc, v] of cases) assert.equal(moneyIn(s, loc), v, `${JSON.stringify(s)} (${loc})`);
+  for (const s of ['', '  ', 'abc', '12,3,4', null]) assert.ok(Number.isNaN(moneyIn(s, 'fr-FR')), `illisible : ${JSON.stringify(s)}`);
+});

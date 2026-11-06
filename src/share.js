@@ -1,7 +1,7 @@
 /* ── share.js : liste d'échange (doublons, cartes recherchées) et liens publics en lecture seule (liste d'échange, deck) ──────────
    · Onglet « Échange » de la collection : cartes à échanger (possédé − decks − réserve, terrains de base exclus), « Garder » carte par carte,
      cartes recherchées (manquantes des decks + souhaits ajoutés à la main), valeur estimée (même prix que « Pour toi »), tri par prix, « ≥ X € », lien public.
-     Réglages sur l'appareil (deckdeal:trade:v1) et dans le compte (users/{uid}/meta/trade : keep, kept, wish, share, dsh, updatedAt ; le plus récent l'emporte).
+     Réglages sur l'appareil (deckdeal:trade:v1) et dans le compte (users/{uid}/meta/trade : keep, kept, wish, share, dsh, updatedAt ; fusion à trois d'un appareil à l'autre, core.js › tradeMerge3).
    · Partages : shares/{id} { o (empreinte SHA-256 de l'UID du propriétaire), kind ('trade' | 'deck'), v, updatedAt, d (JSON) }. Lisibles par quiconque a le lien, jamais listables, modifiables
      seulement par leur propriétaire (règles Firestore). Tenus à jour par les appareils du propriétaire : collection, decks, souhaits, réserve.
      Un deck enregistré partagé suit ses modifications ; un deck EDHREC ou une liste en cours est partagé tel quel (figé).
@@ -10,7 +10,7 @@
    · Doublons partagés : une carte par langue et par édition (e : « cmm/400 », image de cette impression exacte), foil en fo ; un partage d'avant (sans e) s'affiche comme avant. */
 const TR_KEY = 'deckdeal:trade:v1', TR_KEEPS = [0, 1, 2, 3, 4], TR_PAGE = 120, TR_MAX = 880000, TR_SHARE_MAX = 900000;      // TR_SHARE_MAX : champ d d'un partage (règles Firestore)
 const TR_REPORT = 'contact@manaorbit.app';      // « Signaler ce partage » : contact de la politique de confidentialité (pwa/privacy.html)
-const TR = { who: '', creating: false, st: null, dmBusy: false, keep: 1, kept: new Set(), wish: {}, share: '', dsh: {}, u: 0, sig: {}, sub: 'have', shown: TR_PAGE, err: '', busy: false, again: false, syncT: 0,
+const TR = { who: '', base: null, creating: false, st: null, dmBusy: false, keep: 1, kept: new Set(), wish: {}, share: '', dsh: {}, u: 0, sig: {}, sub: 'have', shown: TR_PAGE, err: '', busy: false, again: false, syncT: 0,
   doc: { unsub: null, uid: '', pushT: 0 }, pub: null, sort: 'name', min: 0, pxTry: 0 };      // sort, min : tri et prix minimal de l'onglet (cet écran seulement) ; pxTry : fichier de prix déjà demandé (1 sans serveur, 2 avec)
 const TR_MINS = [0, 100, 200, 500, 1000, 2000, 5000];      // filtre « ≥ X € » des doublons (centimes)
 
@@ -25,19 +25,35 @@ const trWishClean = w => {
   return out;
 };
 const trDshClean = o => { const out = {}; if (o && typeof o === 'object' && !Array.isArray(o)) for (const [k, v] of Object.entries(o).slice(0, 200)) if (typeof v === 'string' && SHARE_ID_RE.test(v)) out[k] = v; return out; };
+/** Réglages lus (appareil, compte), nettoyés : { keep, kept: [clés], wish, share, dsh, u }. */
+const trParse = j => ({ keep: TR_KEEPS.includes(j.keep) ? j.keep : 1, kept: Array.isArray(j.kept) ? j.kept.filter(k => typeof k === 'string' && k).slice(0, 5000) : [], wish: trWishClean(j.wish),
+  share: typeof j.share === 'string' && SHARE_ID_RE.test(j.share) ? j.share : '', dsh: trDshClean(j.dsh), u: Number(j.u || j.updatedAt) || 0 });
 function trApply(j) {
-  TR.keep = TR_KEEPS.includes(j.keep) ? j.keep : 1;
-  TR.kept = new Set(Array.isArray(j.kept) ? j.kept.filter(k => typeof k === 'string' && k).slice(0, 5000) : []);
-  TR.wish = trWishClean(j.wish);
-  TR.share = typeof j.share === 'string' && SHARE_ID_RE.test(j.share) ? j.share : '';
-  TR.dsh = trDshClean(j.dsh);
-  TR.u = Number(j.u || j.updatedAt) || 0;
+  const x = trParse(j || {});
+  TR.keep = x.keep; TR.kept = new Set(x.kept); TR.wish = x.wish; TR.share = x.share; TR.dsh = x.dsh; TR.u = x.u;
 }
 const trDoc = () => ({ keep: TR.keep, kept: [...TR.kept], wish: TR.wish, share: TR.share, dsh: TR.dsh, updatedAt: TR.u || Date.now() });
 function trRead() {
-  try { const j = JSON.parse(localStorage.getItem(TR_KEY) || '{}') || {}; trApply(j); TR.sig = j.sig && typeof j.sig === 'object' ? j.sig : {}; TR.who = typeof j.who === 'string' ? j.who : ''; } catch (e) { /* neuf */ }
+  try {
+    const raw = localStorage.getItem(TR_KEY) || '{}', j = JSON.parse(raw) || {}; TR.disk = raw; trApply(j); TR.sig = j.sig && typeof j.sig === 'object' ? j.sig : {}; TR.who = typeof j.who === 'string' ? j.who : '';
+    TR.base = j.b && typeof j.b === 'object' ? trParse(j.b) : null;      // dernier état commun avec le compte (fusion à trois, trUser)
+  } catch (e) { /* neuf */ }
 }
-function trWrite() { try { localStorage.setItem(TR_KEY, JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who })); } catch (e) { /* stockage indisponible */ } }
+function trWrite() { try { const raw = JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who, b: TR.base }); localStorage.setItem(TR_KEY, raw); TR.disk = raw; } catch (e) { /* stockage indisponible */ } }
+/** Autre onglet de l'appli : souhaits et réglages de l'échange changés là-bas. Fusion à trois (tradeMerge3) d'après le dernier état lu ou écrit ici ; autre compte : repris tel quel. */
+function trStorage(e) {
+  if (e.key !== TR_KEY || e.newValue == null || e.newValue === TR.disk) return;
+  let j; try { j = JSON.parse(e.newValue) || {}; } catch (x) { return; }
+  let base = null; try { base = TR.disk ? trParse(JSON.parse(TR.disk) || {}) : null; } catch (x) { /* illisible : union */ }
+  TR.disk = e.newValue;
+  if (typeof j.who === 'string' && j.who && j.who !== TR.who) { trRead(); trRepaint(); return; }
+  const rem = trParse(j), loc = { keep: TR.keep, kept: [...TR.kept], wish: TR.wish, share: TR.share, dsh: TR.dsh }, m = tradeMerge3(base, loc, rem);
+  const differs = JSON.stringify([m.keep, [...m.kept].sort(), m.wish, m.share, m.dsh]) !== JSON.stringify([rem.keep, [...rem.kept].sort(), rem.wish, rem.share, rem.dsh]);
+  const sig = j.sig && typeof j.sig === 'object' ? j.sig : TR.sig, rb = j.b && typeof j.b === 'object' ? trParse(j.b) : null;
+  trApply({ ...m, u: differs ? Math.max(Date.now(), rem.u + 1) : rem.u }); TR.sig = sig; if (rb && (!TR.base || rb.u >= TR.base.u)) TR.base = rb;
+  if (differs) { trWrite(); trPushSoon(); }
+  trRepaint();
+}
 const trOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 /** Les écritures Firestore attendent le serveur : hors ligne, on prévient au lieu de laisser le bouton sans réponse. */
 function trNeedNet() { if (!trOffline()) return true; toast(T('Hors ligne : réessaie une fois connecté')); return false; }
@@ -50,15 +66,20 @@ function trUser(user) {
   pubSoon();      // liste d'un autre joueur ouverte : ses correspondances suivent la connexion
   const d = TR.doc; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.uid = '';
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
-  if (TR.who && TR.who !== user.uid) { trApply({}); TR.sig = {}; }                // autre compte sur cet appareil : ses réglages et liens ne sont pas les nôtres
+  if (TR.who && TR.who !== user.uid) { trApply({}); TR.sig = {}; TR.base = null; }                // autre compte sur cet appareil : ses réglages et liens ne sont pas les nôtres
   TR.who = user.uid; trWrite();
   d.uid = user.uid;
   d.unsub = D.cloud.watchMeta(user.uid, 'trade', (data, pending, fromCache) => {
     if (pending || fromCache || D.uid !== user.uid) return;
     if (data) acctSaw('trade', user.uid); else if (acctLost('trade', user.uid)) return;      // vu ici puis disparu : compte supprimé ailleurs ? ni réglages ni liens renvoyés (decks.js vérifie)
     const ru = Number(data && data.updatedAt) || 0;
-    if (data && ru > TR.u) { const sig = TR.sig; trApply(data); TR.sig = sig; trWrite(); trRepaint(); trSoon(); }
-    else if (TR.u > ru) trPushSoon();
+    if (!data) { if (TR.u) trPushSoon(); return; }
+    if (TR.base && ru === TR.base.u) { if (TR.u !== ru) trPushSoon(); return; }      // rien de nouveau ailleurs depuis le dernier état commun : nos changements partent
+    // changé ailleurs (ou première synchro) : fusion à trois, rien de perdu d'un appareil à l'autre (l'heure de chaque appareil ne décide plus)
+    const rem = trParse(data), loc = { keep: TR.keep, kept: [...TR.kept], wish: TR.wish, share: TR.share, dsh: TR.dsh }, m = tradeMerge3(TR.base, loc, rem), sig = TR.sig;
+    const differs = JSON.stringify([m.keep, [...m.kept].sort(), m.wish, m.share, m.dsh]) !== JSON.stringify([rem.keep, [...rem.kept].sort(), rem.wish, rem.share, rem.dsh]);
+    trApply({ ...m, u: differs ? Math.max(Date.now(), ru + 1) : ru }); TR.sig = sig; TR.base = rem;
+    trWrite(); trRepaint(); trSoon(); if (differs) trPushSoon();
   }, err => { if (err && err.code === 'permission-denied') TR.err = 'rules'; trRepaint(); });
   trSoon(1500);
 }
@@ -66,7 +87,7 @@ function trPushSoon() { const d = TR.doc; if (!d.uid) return; clearTimeout(d.pus
 async function trPush() {
   const d = TR.doc; clearTimeout(d.pushT); d.pushT = 0;      // non nul : envoi en attente (syncFlush)
   if (!d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
-  try { await D.cloud.saveMeta(d.uid, 'trade', trDoc()); acctSaw('trade', d.uid); if (TR.err === 'rules') { TR.err = ''; trRepaint(); } }
+  try { const doc = trDoc(); await D.cloud.saveMeta(d.uid, 'trade', doc); if (d.uid === TR.who) { TR.base = trParse(doc); trWrite(); } acctSaw('trade', d.uid); if (TR.err === 'rules') { TR.err = ''; trRepaint(); } }
   catch (err) { if (err && err.code === 'permission-denied') { TR.err = 'rules'; trRepaint(); } }
 }
 
@@ -451,12 +472,12 @@ function openWishAdd() {
     list.onclick = e => {
       const b = e.target.closest('.ca-opt'); if (!b) return;
       const n = b.dataset.n, k = ownKey(n); if (BASIC_NAMES.has(k)) { toast(T('Les terrains de base ne sont pas listés')); return; }
-      TR.wish[k] = { n, q: Math.min(99, ((TR.wish[k] || {}).q || 0) + 1) }; trChanged(); haptic('ok');
+      TR.wish[k] = { ...(TR.wish[k] || {}), n: (TR.wish[k] || {}).n || n, q: Math.min(99, ((TR.wish[k] || {}).q || 0) + 1) }; trChanged(); haptic('ok');      // un exemplaire de plus : l'illustration, l'édition et la langue choisies restent
       $('i', b).textContent = '× ' + TR.wish[k].q; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); say(TN(TR.wish[k].q, '{name} · {n} recherchée', '{name} · {n} recherchées', { name: n }), true);
     };
     inp.oninput = paint;
     say(T('Chargement du catalogue (une seule fois)…'), false);
-    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false));
+    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(collCatErr(e), false));
     setTimeout(() => inp.focus(), 380);
   });
 }
@@ -702,7 +723,7 @@ function pubRow(it) {
 }
 
 function trInit() {
-  trRead();
+  trRead(); window.addEventListener('storage', trStorage);      // autre onglet de l'appli
   let id = ''; try { id = new URLSearchParams(location.search).get('p') || ''; } catch (e) { /* ignore */ }
   if (id) setTimeout(() => openPublicLink(id), 0);
 }

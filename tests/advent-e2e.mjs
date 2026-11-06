@@ -55,6 +55,14 @@ const bd = await p.evaluate(() => { const x = prgBadges().find(y => y.b.id === '
 assert.deepEqual(bd, [1, 0, 'Lutin', '1 booster ouvert'], 'badge : boosters ouverts');
 await p.click('#hmEvent .adv-d[data-adv="1"]'); await p.waitForSelector('.adv-open.on'); assert.match(await p.textContent('.adv-open h2 ~ *, .adv-open small'), /Jour 1/);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.adv-open'));
+{      // carte du booster déjà possédée, nom à apostrophe ou double face : reconnue (clé ownKey, pas toLowerCase : « wayfarer's bauble » ≠ clé de la collection)
+  const [i, n] = await p.evaluate(() => { const cs = advNow().cards, j = cs.findIndex(c => ownKey(c.c) !== String(c.c).toLowerCase()); return [j + 1, j >= 0 ? cs[j].c : '']; });
+  assert.ok(i > 0, 'une carte à apostrophe ou double face parmi les 24 du calendrier (8 sur 39 dans le pack)');
+  await p.evaluate(c => collAdd([{ k: ownKey(c), n: c, q: 4 }], 'add'), n); await p.waitForTimeout(200);
+  await p.evaluate(j => advReveal(advNow(), j, { again: true }), i); await p.waitForSelector('.adv-open.on');
+  assert.match(await p.textContent('.adv-open .adv-have'), /Tu l'as déjà en 4 exemplaires/, n + ' possédée ×4');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.adv-open'));
+}
 ok('2 cadeaux du jour sur 3 cachés (SVG) → le booster s\'ouvre, le 3e disparaît : carte du jour (image Scryfall), anecdote ; 1 / 24, lumière allumée, badge « Lutin » ; porte ouverte revue');
 
 /* ── 3) Récompenses : calendrier complet (simulé côté appli) ── */

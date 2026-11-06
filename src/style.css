@@ -262,12 +262,13 @@ textarea#deckText:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0
 .kv .total{font-family:var(--font-body)}
 .cartbar{height:8px}
 .fail{font-size:13.5px;color:var(--bad);display:flex;flex-direction:column;gap:4px}
+::placeholder{color:var(--ink-3);opacity:1}      /* texte indicatif des champs : gris de l'appli (≥ 4,9:1 en clair et en sombre), pas celui du navigateur (≈ 4,1:1 en clair, 3,9:1 en sombre) */
 .field-in{display:flex;flex-direction:column;gap:6px}
 .field-in input[type="text"],.field-in input[type="password"],.field-in input[type="email"],.field-in input[type="search"]{height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);font-size:14.5px;min-width:0;width:100%}
 .field-in input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
 .status{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:var(--r-md);background:var(--surface-2);font-size:14px}
 .status .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none}
-.status[data-ok="1"] .sy-d{background:var(--good)}
+.status[data-ok="1"] .dot{background:var(--good)}
 .sec-title{font-size:13px;font-weight:650;color:var(--ink-3);margin-top:4px}
 
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:95;transform:translate(-50%,16px);opacity:0;pointer-events:none;width:max-content;max-width:min(92vw,460px);padding:11px 16px;border-radius:14px;background:var(--ink);color:var(--bg);font-weight:600;font-size:14px;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);transition:opacity .28s,transform .38s cubic-bezier(.2,.85,.25,1)}
@@ -1513,7 +1514,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .seg{background:var(--glass-2);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px var(--line)}
 .seg.dv-seg{background:var(--surface-2)}      /* barre Mana / Prix / Type collée en haut du viewer : opaque, sinon les cartes défilent au travers */
 .seg-thumb{border:1.5px solid transparent;background:linear-gradient(var(--seg-thumb,var(--surface)),var(--seg-thumb,var(--surface))) padding-box,var(--foil-ring) border-box;box-shadow:0 6px 16px -8px rgba(127,176,255,.7)}
-.sheet{background:color-mix(in srgb,var(--surface) 96%,transparent)}      /* sans flou : ouverture d'une feuille 23 → 7 images perdues (fiche carte, CPU ×4) ; le flou ne se voyait presque pas derrière 90 % d'opacité */
+.sheet{background:var(--surface)}      /* opaque, sans flou : à 96 % le texte de l'écran du dessous se lisait à travers (feuilles empilées mélangées) ; flou retiré pour la fluidité (ouverture d'une feuille 23 → 7 images perdues, fiche carte, CPU ×4) */
 /* foil : valeurs mises en avant */
 .cs-tiles .cs-val{border:1.5px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--foil-ring) border-box;box-shadow:0 12px 28px -18px rgba(146,156,255,.8)}
 .cs-tiles .cs-val b,.dv-amt,.hero-amt{background:var(--foil-ink);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:foilhue 7s linear infinite}

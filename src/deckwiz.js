@@ -940,7 +940,7 @@ if (typeof document !== 'undefined') {      // personnalisation dans les réglag
 }
 if (typeof document !== 'undefined') document.addEventListener('change', e => {
   const t = e.target; if (!BD.el || !t || !BD.wiz) return;
-  if (t.id === 'dwBud') { const v = Math.max(0, Math.round(Number(String(t.value).replace(',', '.')) || 0)); BD.wiz.bud = v * 100; DW.changed = true; dwPersist(BD.id); bdList(); }
+  if (t.id === 'dwBud') { const v = Math.max(0, Math.round(moneyIn(t.value) || 0)); BD.wiz.bud = v * 100; DW.changed = true; dwPersist(BD.id); bdList(); }
   else if (t.id === 'dwOwn') { BD.wiz.own = t.checked; DW.changed = true; dwPersist(BD.id); bdList(); }
 });
 

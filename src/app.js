@@ -341,7 +341,7 @@ function readOpts() {
   S.opts.foil = $('#segFoil')._v; S.opts.mode = $('#segMode')._v;
   S.opts.fallbackEn = $('#optFallback').checked;
   { const x = $('#optExactEd'); if (x) S.opts.exactEd = x.checked; }
-  const v = parseFloat(String($('#optShip').value || '0').replace(',', '.'));
+  const v = moneyIn($('#optShip').value);
   S.opts.ship = Math.max(0, Math.round((isNaN(v) ? 0 : v) * 100));
 }
 function syncShip() { $('#shipField').hidden = S.opts.mode !== 'direct'; }
@@ -1370,7 +1370,7 @@ function init() {
   syncCTX(); applyTheme();
 
   $('#optLang').value = S.opts.lang; $('#optCond').value = S.opts.cond; $('#optFallback').checked = !!S.opts.fallbackEn; if ($('#optExactEd')) $('#optExactEd').checked = !!S.opts.exactEd;
-  $('#optShip').value = (S.opts.ship / 100).toFixed(2).replace('.', ',');
+  $('#optShip').value = num(S.opts.ship / 100, 2);
   mountSeg($('#segFoil'), [{ v: 'no', label: T('Sans foil') }, { v: 'any', label: T('Peu importe') }, { v: 'yes', label: 'Foil' }], S.opts.foil, () => { readOpts(); saveStore(); });
   mountSeg($('#segMode'), [{ v: 'zero', label: 'CardTrader Zero' }, { v: 'direct', label: T('Direct vendeurs') }], S.opts.mode, () => { readOpts(); syncShip(); modeHint(); saveStore(); });
   mountSeg($('#segTab'), [{ v: 'cards', label: T('Cartes') }, { v: 'sellers', label: T('Vendeurs') }], 'cards', v => {

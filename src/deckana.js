@@ -404,7 +404,7 @@ function daSetFormBind(box, set, change) {
   });
   box.addEventListener('change', e => {
     const t = e.target;
-    if (t.matches('[data-ds-bud]')) { const v = String(t.value).trim(); if (!v && set.bv) return; delete set.bv; set.bud = Math.max(0, Math.round(Number(v.replace(',', '.')) || 0)) * 100; change('bud'); }
+    if (t.matches('[data-ds-bud]')) { const v = String(t.value).trim(); if (!v && set.bv) return; delete set.bv; set.bud = Math.max(0, Math.round(moneyIn(v) || 0)) * 100; change('bud'); }
     else if (t.matches('[data-ds-own]')) { set.own = t.checked; change('own'); }
   });
 }

@@ -572,6 +572,11 @@ function bdPaint() {
   bdHead(); $('#bdSum', el).innerHTML = bdSumHtml(); bdList();
 }
 /** Changement d'onglet : contrôles (nom · cible + recherche) puis liste. */
+/** Catalogue de toutes les cartes (2e partie des résultats de l'onglet Ajouter) : lu une fois ; échec : message (hors ligne, Scryfall), relu au retour du réseau. */
+function bdCatLoad() {
+  collCatalog().then(c => { BD.cat = c; BD.catErr = ''; if (BD.el && BD.tab === 'coll' && BD.q.trim().length >= 2) bdList(); })
+    .catch(e => { BD.catErr = collCatErr(e); if (BD.el && BD.tab === 'coll') bdList(); window.addEventListener('online', () => { if (BD.cat) return; BD.catErr = ''; if (BD.el && BD.tab === 'coll') bdList(); bdCatLoad(); }, { once: true }); });
+}
 function bdTab(v) {
   const el = BD.el; if (!el) return;
   BD.tab = v; BD.q = BD.f.q = ''; BD.shown = BD_PAGE; BD.fb = null; if (v !== 'coll') { BD.sel = null; bdSelPaint(); }
@@ -586,7 +591,7 @@ function bdTab(v) {
       <div id="bdPlc">${bdPlcHtml()}</div><div id="bdF"></div>`;      // rangement et filtres de la collection (bdadd.js)
     mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; if (t === 'cmdr') { BD.sel = null; bdSelPaint(); } bdList(); });
     bdFiltMount($('#bdF', ctl));
-    if (!BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'coll' && BD.q.trim().length >= 2) bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'coll') bdList(); });      // catalogue de toutes les cartes : lu une fois, pour la 2e partie des résultats
+    if (!BD.cat && !BD.catErr) bdCatLoad();      // catalogue de toutes les cartes : lu une fois, pour la 2e partie des résultats
     if (v === 'coll') { BD.idx = null; if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); }
   }
   bdList(); if (typeof dwBannerHtml === 'function' && dwOn()) $('#bdSum', el).innerHTML = bdSumHtml();      // bannière du coach : visible hors de l'onglet Coach

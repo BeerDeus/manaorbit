@@ -64,7 +64,7 @@ async function amCall(path, { method = 'GET', body, params } = {}) {
   const go = async force => {
     let tok = ''; try { tok = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); }
     let r;
-    try { r = await fetch('api/friends' + path + (params ? '?' + new URLSearchParams(params) : ''), { method, cache: 'no-store', headers: { Accept: 'application/json', 'x-firebase-token': tok, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }); }
+    try { r = await fetchT('api/friends' + path + (params ? '?' + new URLSearchParams(params) : ''), { method, cache: 'no-store', headers: { Accept: 'application/json', 'x-firebase-token': tok, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }); }
     catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (!r.ok) throw Object.assign(new Error((j && j.message) || 'HTTP ' + r.status), { code: (j && j.error) || (r.status === 413 ? 'too_large' : 'http'), status: r.status });

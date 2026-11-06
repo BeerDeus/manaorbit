@@ -77,7 +77,7 @@ const scsPaLabel = () => fmt(SCS.pa, mkCur()).replace(/[,.]00(?=\D)/, '');
 const scsPaPlace = () => (SCS.pp && typeof COLL !== 'undefined' && COLL.places && COLL.places[SCS.pp] ? SCS.pp : '');
 /** Montant de l'alerte dans le champ (« 1,5 » → « 1,50 ») ; montant tapé → centimes (0 : vide ou illisible). */
 const scsPaInput = () => (SCS.pa / 100).toLocaleString(LOC(), { minimumFractionDigits: SCS.pa % 100 ? 2 : 0, maximumFractionDigits: 2 });
-const scsPaParse = v => { const n = Number(String(v || '').replace(/[\s€]/g, '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? Math.min(1e7, Math.round(n * 100)) : 0; };
+const scsPaParse = v => { const n = moneyIn(v); return Number.isFinite(n) && n > 0 ? Math.min(1e7, Math.round(n * 100)) : 0; };
 /** Cadrage ou éditions : la liste des choix, avec leur explication. */
 function scsChoose(k, done) {
   const [title, list] = k === 'frame' ? [T('Cadrage'), SCS_FRAMES] : [T('Éditions'), SCS_EDS];

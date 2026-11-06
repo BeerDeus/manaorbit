@@ -354,4 +354,30 @@ function qrDecode(m) {
   assert.deepEqual(B.bndFoil([{ k: 'a', q: 3, fo: 1, e: 'cmm|400' }, { k: 'a', q: 2, e: '2x2|101' }]), [{ k: 'a', q: 2, e: 'cmm|400' }, { k: 'a', q: 1, e: 'cmm|400', foil: true }, { k: 'a', q: 2, e: '2x2|101' }], 'foil d\'une édition : sa pochette, même édition');
   console.log('✓ classeur : épinglées puis tri (valeur, couleur, extension, nom), réglages nettoyés, bd du partage relu sans risque, foil à part (fo), une pochette par édition (e relue et bornée)');
 }
+{      // réglages de l'échange de deux appareils : fusion à trois (share.js › trUser)
+  const M = C.tradeMerge3, w = (n, q, x = {}) => ({ n, q, ...x });
+  const base = { keep: 1, kept: ['a'], wish: { sol: w('Sol Ring', 1), bolt: w('Lightning Bolt', 2) }, share: 's1', dsh: { d1: 'x1' } };
+  // PC : ajoute 5 souhaits ; téléphone (hors ligne) : en ajoute 3, retire Bolt → les 8 restent, Bolt retiré
+  const pc = { ...base, wish: { ...base.wish, a1: w('A1', 1), a2: w('A2', 1), a3: w('A3', 1), a4: w('A4', 1), a5: w('A5', 1) } };
+  const tel = { ...base, wish: { sol: w('Sol Ring', 1), b1: w('B1', 1), b2: w('B2', 2), b3: w('B3', 1) } };
+  let m = M(base, tel, pc);
+  assert.deepEqual(Object.keys(m.wish).sort(), ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'sol'], 'souhaits des deux appareils gardés, Bolt retiré sur le téléphone');
+  assert.deepEqual(M(base, pc, tel).wish, m.wish, 'même résultat dans les deux sens');
+  // même carte changée des deux côtés : ajouts additionnés, illustration de cet appareil
+  m = M(base, { ...base, wish: { ...base.wish, sol: w('Sol Ring', 2, { i: 'https://cards.scryfall.io/small/front/a/b/x.jpg' }) } }, { ...base, wish: { ...base.wish, sol: w('Sol Ring', 3) } });
+  assert.deepEqual(m.wish.sol, w('Sol Ring', 4, { i: 'https://cards.scryfall.io/small/front/a/b/x.jpg' }), '1 + (1 ici) + (2 ailleurs)');
+  // retiré ici, changé ailleurs : gardé (changement de l'autre)
+  m = M(base, { ...base, wish: { sol: base.wish.sol } }, { ...base, wish: { ...base.wish, bolt: w('Lightning Bolt', 3) } });
+  assert.equal(m.wish.bolt.q, 3, 'retiré ici, changé ailleurs : la version changée reste');
+  // cartes gardées : ajout ici, retrait ailleurs
+  m = M(base, { ...base, kept: ['a', 'b'] }, { ...base, kept: [] });
+  assert.deepEqual(m.kept.sort(), ['b'], 'a retirée ailleurs, b ajoutée ici');
+  // réserve et lien : le côté qui a changé ; decks partagés clé par clé
+  m = M(base, { ...base, keep: 3 }, { ...base, share: 's2', dsh: { d1: 'x1', d2: 'x2' } });
+  assert.deepEqual([m.keep, m.share, m.dsh], [3, 's2', { d1: 'x1', d2: 'x2' }]);
+  // sans base (première synchro après la mise à jour) : union, la plus grande quantité
+  m = M(null, { keep: 1, kept: ['a'], wish: { sol: w('Sol Ring', 2), b1: w('B1', 1) }, share: '', dsh: {} }, { keep: 2, kept: ['c'], wish: { sol: w('Sol Ring', 1), a1: w('A1', 1) }, share: 's9', dsh: {} });
+  assert.deepEqual([m.keep, m.kept.sort(), Object.keys(m.wish).sort(), m.wish.sol.q, m.share], [2, ['a', 'c'], ['a1', 'b1', 'sol'], 2, 's9']);
+  console.log('✓ tradeMerge3 : souhaits et cartes gardées de deux appareils fusionnés (rien de perdu), quantités additionnées, sans base : union');
+}
 console.log('test-trade OK');

@@ -8,8 +8,7 @@
 
 /** « 120 », « 89,90 € » → centimes ; null si vide ou illisible. */
 function opnbParse(s) {
-  const t = String(s == null ? '' : s).replace(/[\s€]/g, '').replace(',', '.'); if (!t) return null;
-  const n = parseFloat(t); return Number.isFinite(n) && n >= 0 && n < 1e6 ? Math.round(n * 100) : null;
+  const n = moneyIn(s); return Number.isFinite(n) && n >= 0 && n < 1e6 ? Math.round(n * 100) : null;
 }
 const opnbIn = (id, paid) => `<div class="field-in opnb-paid"><label class="label" for="${id}">${T('Prix payé (facultatif)')}</label><span class="opnb-eur"><input type="text" id="${id}" inputmode="decimal" autocomplete="off" placeholder="${esc(T('ex. {p}', { p: '120' }))}" value="${paid != null ? esc((paid / 100).toLocaleString(LOC(), { minimumFractionDigits: paid % 100 ? 2 : 0, maximumFractionDigits: 2, useGrouping: false })) : ''}"><i aria-hidden="true">€</i></span></div>`;
 /** Champ du prix payé dans « Commencer une session ». */

@@ -38,6 +38,7 @@ BROWSER=(
   menus-e2e.mjs
   applink-e2e.mjs
   apkupd-e2e.mjs
+  onglets-e2e.mjs
   scanreport-e2e.mjs
   scansess-e2e.mjs
   daily-e2e.mjs

@@ -140,7 +140,7 @@ const CS_H_TTL = 6 * 3600e3;      // le serveur relit l'historique toutes les 6 
 async function csHist(k, n) {
   const key = 'ph1:' + k, hit = await Cache.get(key, CS_H_TTL); if (hit) return hit;
   if (!CTX.proxy || collOffline()) return null;
-  const r = await fetch('api/hist?' + new URLSearchParams({ n: String(n || k).slice(0, 150) }), { headers: { Accept: 'application/json' } });
+  const r = await fetchT('api/hist?' + new URLSearchParams({ n: String(n || k).slice(0, 150) }), { headers: { Accept: 'application/json' } });
   if (!r.ok) return null;
   const j = await r.json(), d = Date.parse(String(j && j.d) + 'T00:00:00Z'), col = mkUs() ? j && j.u : j && j.e; if (!Number.isFinite(d) || !Array.isArray(col)) return null;      // marché TCGplayer : relevés en dollars (u)
   const out = { d, e: col.slice(0, 400).map(v => (Number(v) > 0 ? Math.round(Number(v)) : null)) };

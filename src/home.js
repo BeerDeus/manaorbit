@@ -156,7 +156,7 @@ function homeDeskPaint() {
   $('#hmDkHi').textContent = nm ? T(eve ? 'Bonsoir {name}' : 'Bonjour {name}', { name: nm }) : T(eve ? 'Bonsoir' : 'Bonjour');
   const n = collCount(), dl = days => { const h = histDelta(valHist(), days); return h && Math.abs(h.d) >= 100 ? `<b class="${valCls(h.d)}">${(h.d < 0 ? '−' : '+') + esc(hmEur(Math.abs(h.d)))}</b>` : '<b>—</b>'; };      // euros entiers, comme l'orbe
   const al = n ? valAlertN() : 0;
-  $('#hmDkKpi').innerHTML = `<div><b>${nf0(n)}</b><span>${TN(n, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${T('exemplaires')}</span></div>`
+  $('#hmDkKpi').innerHTML = `<div><b>${nf0(n)}</b><span>${TN(n, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${TN(collCopies(), 'exemplaire', 'exemplaires')}</span></div>`
     + `<div>${dl(7)}<span>${T('sur 7 jours')}</span></div><div>${dl(30)}<span>${T('sur 30 jours')}</span></div>`
     + (al ? `<button type="button" class="hm-dk-mv" data-hm="stats">${TN(al, '{n} prix a bougé', '{n} prix ont bougé')} ›</button>` : '');
   homeDeskChart();

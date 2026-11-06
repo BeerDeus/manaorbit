@@ -596,7 +596,7 @@ function partieEnqueue(it) {
 /** Contexte de l'appli (navigateur) ; sous Node, tout vient de o : { fetch, user ({ uid, getIdToken(force) }), online, on (serveur qui annonce la partie), base (adresse du serveur) }. */
 function partieEnv(o = {}) {
   return {
-    fetch: o.fetch || (typeof fetch === 'function' ? (...x) => fetch(...x) : null),
+    fetch: o.fetch || (typeof fetchT === 'function' ? (...x) => fetchT(...x) : typeof fetch === 'function' ? (...x) => fetch(...x) : null),      // fetchT : délai maximal (data.js)
     user: 'user' in o ? o.user : (typeof D !== 'undefined' && D && D.user) || null,
     online: 'online' in o ? o.online : !(typeof navigator !== 'undefined' && navigator.onLine === false),
     on: 'on' in o ? o.on : !!(typeof CTX !== 'undefined' && CTX && CTX.proxy && CTX.partie),

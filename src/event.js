@@ -297,7 +297,7 @@ async function evCall(path, { method = 'GET', body } = {}) {
   const go = async force => {
     const h = { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(EV.dev ? { 'x-event-device': EV.dev } : {}), ...(EV.pv ? { 'x-event-preview': EV.pv } : {}) };
     if (u) { try { h['x-firebase-token'] = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); } }
-    let r; try { r = await fetch('api/event' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
+    let r; try { r = await fetchT('api/event' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (j && typeof j.dev === 'string' && /^[\w-]{22}\.[\w-]{16}$/.test(j.dev)) { EV.dev = j.dev; try { localStorage.setItem(EV_DEV, j.dev); } catch (e) { /* refusé */ } }
     if (!r.ok) throw Object.assign(new Error((j && j.message) || 'HTTP ' + r.status), { code: (j && j.error) || 'http', status: r.status, j });

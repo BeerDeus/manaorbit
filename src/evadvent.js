@@ -130,8 +130,8 @@ function advRing(a) {
 }
 
 /* ── Ouverture d'un booster ──────────────────────────────────────────────────────────────────────────────────── */
-/** Nom affiché d'une carte : français si connu (catalogue des noms), sinon anglais. */
-const advName = c => { const k = String(c || '').toLowerCase(), fr = typeof frName === 'function' && frName(k, I18N.lang === 'fr' ? 'fr' : ''); return fr || (c.length > 24 && c.includes(' // ') ? c.split(' // ')[0] : c); };      // carte double au nom trop long : sa première face
+/** Nom affiché d'une carte : dans la langue de l'appli si connu (index de l'appli, sinon catalogue des cartes dans cette langue), sinon anglais. */
+const advName = c => { c = String(c || ''); const nm = (typeof cnOf === 'function' && cnOf(c)) || (typeof frName === 'function' && frName(ownKey(c), I18N.lang)); return nm || (c.length > 24 && c.includes(' // ') ? c.split(' // ')[0] : c); };      // carte double au nom trop long : sa première face
 /** Après une trouvaille (event.js › evTap) : une porte vient de s'ouvrir → son ouverture ; vrai si elle est montrée. j0 : jours avant la trouvaille. */
 function advAfterFind(j0, me) {
   const a = advNow(); if (!a) return false;
@@ -143,7 +143,7 @@ function advAfterFind(j0, me) {
 /** Plein écran : booster qui se déchire, carte du jour retournée, récompense. o.again : revue depuis l'accueil ; o.late : rattrapée ; o.then : à la fermeture. */
 function advReveal(a, i, o = {}) {
   if (document.querySelector('.adv-open')) return;
-  const it = a.cards[i - 1] || {}, r = a.p.advent.rw[i - 1] || {}, k = String(it.c || '').toLowerCase(), nm = advName(it.c), have = typeof collQty === 'function' ? collQty(k) : 0;
+  const it = a.cards[i - 1] || {}, r = a.p.advent.rw[i - 1] || {}, k = ownKey(it.c || ''), nm = advName(it.c), have = typeof collQty === 'function' ? collQty(k) : 0;
   const rw = [], rare = a.dr[i], covName = id => { const c = typeof BND_COVERS !== 'undefined' ? BND_COVERS.find(x => x[0] === id) : null; return T(c ? c[1] : id); };
   if (rare) rw.push(['rwCover', T('Couleur rare : « {c} »', { c: covName(rare) }), T('1 chance sur 100 par booster. Dans les réglages de ton classeur, section Échange.'), 'rare']);
   if (r.cover) { const c = typeof BND_COVERS !== 'undefined' ? BND_COVERS.find(x => x[0] === r.cover) : null; rw.push(['rwCover', T('Décoration de classeur « {c} »', { c: T(c ? c[1] : r.cover) }), T('Une guirlande qui s\'allume sur ton classeur. Dans ses réglages, section Échange.'), 'anim']); }

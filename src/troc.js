@@ -76,7 +76,7 @@ async function trocCall(path, { method = 'GET', body, auth } = {}) {
     if (auth) { const u = D.user; if (!u) throw Object.assign(new Error('déconnecté'), { code: 'auth_required' }); try { h['x-firebase-token'] = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); } }
     else if (TRC.key) h['x-troc-key'] = TRC.key;
     let r;
-    try { r = await fetch('api/troc' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); }
+    try { r = await fetchT('api/troc' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); }
     catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (!r.ok) throw Object.assign(new Error((j && j.message) || 'HTTP ' + r.status), { code: (j && j.error) || 'http', status: r.status, s: j && j.s });

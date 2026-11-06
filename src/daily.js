@@ -59,7 +59,7 @@ async function dlyCall(path, { method = 'GET', body, base = 'api/daily' } = {}) 
   const go = async force => {
     const h = { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(DY.dev ? { 'x-daily-device': DY.dev } : {}) };
     if (u) { try { h['x-firebase-token'] = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); } }
-    let r; try { r = await fetch(base + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
+    let r; try { r = await fetchT(base + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (j && j.dev) dlyDevSave(j.dev);
     if (j && Number(j.now) > 0) DY.off = Number(j.now) - Date.now();

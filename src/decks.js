@@ -10,12 +10,12 @@ const D = {
 /* ── Stockage local ───────────────────────────────────────────────────────────────────────── */
 function localRead() {
   try {
-    const a = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+    const raw = localStorage.getItem(LOCAL_KEY) || '[]', a = JSON.parse(raw); D.disk = raw; D.diskIds = (Array.isArray(a) ? a : []).map(d => d && d.id).filter(Boolean);
     return (Array.isArray(a) ? a : []).filter(d => d && d.id).map(d => readDeck(d.id, d)).sort((x, y) => y.updatedAt - x.updatedAt);
   } catch (e) { return []; }
 }
 function localWrite(list) {
-  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(list)); return true; }
+  try { const raw = JSON.stringify(list); localStorage.setItem(LOCAL_KEY, raw); D.disk = raw; D.diskIds = list.map(d => d.id); return true; }
   catch (e) { toast(T('Stockage local indisponible : le deck ne sera pas conservé')); return false; }
 }
 const stripDeck = d => ({ name: d.name, text: d.text, opts: d.opts, cards: d.cards, history: d.history, createdAt: d.createdAt, updatedAt: d.updatedAt });   // les prix gardés (snap) restent dans snapsRead() pour les decks locaux
@@ -129,7 +129,7 @@ function updateHeroDelta() {
 function applyOpts(o) {
   Object.assign(S.opts, o, S.opts.langSet ? {} : { lang: S.opts.lang });      // langue jamais choisie : celle de l'utilisateur, pas celle enregistrée avec le deck (souvent l'ancien défaut, le français)
   $('#optLang').value = S.opts.lang; $('#optCond').value = o.cond; $('#optFallback').checked = !!o.fallbackEn;
-  $('#optShip').value = (o.ship / 100).toFixed(2).replace('.', ',');
+  $('#optShip').value = num(o.ship / 100, 2);
   $('#segFoil').setValue(o.foil); $('#segMode').setValue(o.mode);
   syncShip(); modeHint(); saveStore(); namesSync();      // langue du deck choisie à la main : le catalogue des noms suit
 }
@@ -801,9 +801,10 @@ function onUser(user) {
       renderDecks(); renderAccountBtn(); paintAccount(); refreshDeck();
       if (D.listSure && typeof engSweepSoon === 'function') engSweepSoon();      // decks supprimés sans être démontés : réservations et « Deck : … » rendues
     }, err => {
+      const again = !!D.listErr;      // écoute relancée seule (cloud.js › legacyOn) : un seul toast par panne
       D.listErr = err && err.code === 'permission-denied' ? T('Règles Firestore à publier') : T('Synchronisation impossible');
       console.error(err); renderDecks(); paintAccount();
-      toast(deckErr(err));
+      if (!again) toast(deckErr(err));
     });
   }
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
@@ -830,8 +831,24 @@ async function connectCloud() {
   D.cloud.onUser(onUser);
 }
 
+/** Autre onglet de l'appli : les decks de l'appareil (sans compte) viennent d'y changer. Fusion deck par deck : le plus récent l'emporte ; un deck créé ici et pas encore
+ *  vu là-bas reste ; un deck connu ici (dernier état lu ou écrit, D.diskIds) et absent là-bas a été supprimé dans l'autre onglet. */
+function decksStorage(e) {
+  if (e.key !== LOCAL_KEY || e.newValue == null || e.newValue === D.disk) return;
+  let a; try { a = JSON.parse(e.newValue); } catch (x) { return; }
+  if (!Array.isArray(a)) return;
+  const theirs = a.filter(d => d && d.id).map(d => readDeck(d.id, d)), known = new Set(D.diskIds || []), mine = new Map(D.localList.map(d => [d.id, d])), out = new Map();
+  for (const t of theirs) { const m = mine.get(t.id); out.set(t.id, m && (m.updatedAt || 0) > (t.updatedAt || 0) ? m : t); }
+  for (const m of D.localList) if (!out.has(m.id) && !known.has(m.id)) out.set(m.id, m);
+  D.disk = e.newValue; D.diskIds = theirs.map(d => d.id);
+  const before = D.localList; D.localList = [...out.values()].sort((x, y) => y.updatedAt - x.updatedAt);
+  const sig = l => JSON.stringify(l.map(d => [d.id, d.updatedAt]));
+  if (sig(D.localList) !== sig(theirs.slice().sort((x, y) => y.updatedAt - x.updatedAt))) localWrite(D.localList.map(d => ({ id: d.id, ...stripDeck(d) })));
+  if (sig(before) !== sig(D.localList) && !D.user) { renderDecks(); refreshDeck(); trSoon(); }
+}
 function initDecks() {
   D.localList = localRead();
+  window.addEventListener('storage', decksStorage);      // autre onglet de l'appli
   try { D.hint = JSON.parse(localStorage.getItem(ACCT_KEY) || 'null'); } catch (e) { D.hint = null; }
   if (D.hint && typeof D.hint.l !== 'string') D.hint = null;
   // Jeton d'identité envoyé au proxy. On attend (6 s max) que la session enregistrée soit restaurée, sinon une recherche lancée dès l'ouverture passerait pour « non connecté ».

@@ -289,12 +289,13 @@ textarea#deckText:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0
 .kv .total{font-family:var(--font-body)}
 .cartbar{height:8px}
 .fail{font-size:13.5px;color:var(--bad);display:flex;flex-direction:column;gap:4px}
+::placeholder{color:var(--ink-3);opacity:1}      /* texte indicatif des champs : gris de l'appli (≥ 4,9:1 en clair et en sombre), pas celui du navigateur (≈ 4,1:1 en clair, 3,9:1 en sombre) */
 .field-in{display:flex;flex-direction:column;gap:6px}
 .field-in input[type="text"],.field-in input[type="password"],.field-in input[type="email"],.field-in input[type="search"]{height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);font-size:14.5px;min-width:0;width:100%}
 .field-in input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
 .status{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:var(--r-md);background:var(--surface-2);font-size:14px}
 .status .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none}
-.status[data-ok="1"] .sy-d{background:var(--good)}
+.status[data-ok="1"] .dot{background:var(--good)}
 .sec-title{font-size:13px;font-weight:650;color:var(--ink-3);margin-top:4px}
 
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:95;transform:translate(-50%,16px);opacity:0;pointer-events:none;width:max-content;max-width:min(92vw,460px);padding:11px 16px;border-radius:14px;background:var(--ink);color:var(--bg);font-weight:600;font-size:14px;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);transition:opacity .28s,transform .38s cubic-bezier(.2,.85,.25,1)}
@@ -1540,7 +1541,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .seg{background:var(--glass-2);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px var(--line)}
 .seg.dv-seg{background:var(--surface-2)}      /* barre Mana / Prix / Type collée en haut du viewer : opaque, sinon les cartes défilent au travers */
 .seg-thumb{border:1.5px solid transparent;background:linear-gradient(var(--seg-thumb,var(--surface)),var(--seg-thumb,var(--surface))) padding-box,var(--foil-ring) border-box;box-shadow:0 6px 16px -8px rgba(127,176,255,.7)}
-.sheet{background:color-mix(in srgb,var(--surface) 96%,transparent)}      /* sans flou : ouverture d'une feuille 23 → 7 images perdues (fiche carte, CPU ×4) ; le flou ne se voyait presque pas derrière 90 % d'opacité */
+.sheet{background:var(--surface)}      /* opaque, sans flou : à 96 % le texte de l'écran du dessous se lisait à travers (feuilles empilées mélangées) ; flou retiré pour la fluidité (ouverture d'une feuille 23 → 7 images perdues, fiche carte, CPU ×4) */
 /* foil : valeurs mises en avant */
 .cs-tiles .cs-val{border:1.5px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--foil-ring) border-box;box-shadow:0 12px 28px -18px rgba(146,156,255,.8)}
 .cs-tiles .cs-val b,.dv-amt,.hero-amt{background:var(--foil-ink);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:foilhue 7s linear infinite}
@@ -8020,8 +8021,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'aeec62d1';
-const I18N_FILES = {"de":"i18n/de.98169de0.js","en":"i18n/en.dc32b18f.js","es":"i18n/es.d84acbaf.js","it":"i18n/it.e28975da.js","pt":"i18n/pt.59959353.js"};
+const DD_BUILD = 'cb4992f3';
+const I18N_FILES = {"de":"i18n/de.8765af3d.js","en":"i18n/en.118afd07.js","es":"i18n/es.7962fb3c.js","it":"i18n/it.44c4676e.js","pt":"i18n/pt.3e61ff18.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -8352,6 +8353,19 @@ function TN(n, one, many, v) {
 /** Nombre écrit dans la locale de l'appli (LOC) : num(1234) → « 1 234 » (français), « 1,234 » (anglais) ; num(3.125, 2) → « 3,13 » : d décimales toujours écrites
  *  (sans d : jusqu'à 3, comme toLocaleString). Jamais toFixed dans un texte (« 3.12 » en français). */
 const num = (v, d) => Number(v || 0).toLocaleString(LOC(), d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Montant tapé par l'utilisateur → nombre (unités : euros, dollars), NaN si vide ou illisible. Symboles et espaces ignorés (« 50 € », « 1 000 », « $1,234.50 ») ;
+ *  séparateurs lus selon la locale de l'appli (LOC) : « 4,90 » partout, « 1,000 » = mille en anglais, « 1.000 » = mille en allemand ; les deux présents : le dernier est la virgule décimale. */
+function moneyIn(s, loc) {
+  let t = String(s == null ? '' : s).replace(/[\s\u00a0\u202f€$£]|eur|usd/gi, ''); if (!t) return NaN;
+  const c = t.lastIndexOf(','), d = t.lastIndexOf('.');
+  if (c >= 0 && d >= 0) t = c > d ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  else if (c >= 0 || d >= 0) {
+    const sep = c >= 0 ? ',' : '.', grp = (new Intl.NumberFormat(loc || LOC()).formatToParts(1234.5).find(p => p.type === 'group') || {}).value;
+    const thousands = sep === grp && new RegExp('^\\d{1,3}(\\' + sep + '\\d{3})+$').test(t);
+    t = thousands ? t.split(sep).join('') : t.split(sep).length === 2 ? t.replace(sep, '.') : '';
+  }
+  return /^-?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
+}
 /** Pourcentage, v en points : pct(78) → « 78 % » (français, allemand, espagnol), « 78% » (anglais, italien, portugais) : clé '{n} %' des dictionnaires ; d : décimales (num).
  *  Jamais « + ' %' » hors de T. */
 const pct = (v, d) => T('{n} %', { n: num(v, d) });
@@ -9296,9 +9310,9 @@ function canCommand(m, x) {
 const canLead = m => canCommand(typeof m === 'string' || m == null ? { tl: m || '' } : m) === 1;
 
 /* ── Créateur de deck (Standard / Commander) ──────────────────────────────────────────────────── */
-const DK_FORMATS = {
-  standard: { label: T('Standard'), size: 60, copies: 4, side: 15, hint: T('60 cartes, 4 exemplaires d\'une même carte au maximum (terrains de base exclus), réserve de 15 facultative.') },
-  commander: { label: 'Commander', size: 100, copies: 1, side: 0, hint: T('100 cartes dont ton commandant, un seul exemplaire de chaque carte (terrains de base exclus).') },
+const DK_FORMATS = {      // libellé et aide lus à l'affichage (getters) : core.js est chargé avant le dictionnaire de la langue
+  standard: { get label() { return T('Standard'); }, size: 60, copies: 4, side: 15, get hint() { return T('60 cartes, 4 exemplaires d\'une même carte au maximum (terrains de base exclus), réserve de 15 facultative.'); } },
+  commander: { label: 'Commander', size: 100, copies: 1, side: 0, get hint() { return T('100 cartes dont ton commandant, un seul exemplaire de chaque carte (terrains de base exclus).'); } },
 };
 /** Cartes dont le texte Oracle lève la limite d'exemplaires : clé (ownKey) → maximum dans un deck, quel que soit le format. « A deck can have any number of cards named … » : sans limite ;
  *  « up to seven / nine » : Seven Dwarves, Nazgûl. Liste en dur (le texte Oracle n'est pas gardé dans les infos des cartes) : recherche Scryfall o:"deck can have" du 24 octobre 2026,
@@ -10853,6 +10867,30 @@ function tradeLists(coll, use, keep, kept, places, unsorted) {
   const byN = (a, b) => EN_CMP(a.n, b.n);
   return { have: have.sort(byN), held: held.sort(byN) };
 }
+/** Réglages de l'échange (souhaits, cartes gardées, réserve, lien, decks partagés) de deux appareils : fusion à trois d'après le dernier état commun (base, '' / null :
+ *  aucun, première synchro). Docs { keep, kept: [clés], wish: { clé → { n, q, i?, w?, l? } }, share, dsh: { id deck → id partage } }. Chaque souhait, chaque carte gardée,
+ *  chaque deck partagé : le côté qui a changé l'emporte ; souhait changé des deux côtés : quantités additionnées (base + ajouts de chacun), illustration de cet appareil ;
+ *  retiré d'un côté, changé de l'autre : gardé. Sans base : union (souhait : la plus grande quantité). Réserve et lien : le côté qui a changé, sinon l'autre appareil. */
+function tradeMerge3(base, local, remote) {
+  const b = base || null, l = local || {}, r = remote || {}, same = (x, y) => JSON.stringify(x == null ? null : x) === JSON.stringify(y == null ? null : y);
+  const one = (bv, lv, rv) => (same(lv, bv) ? rv : same(rv, bv) ? lv : rv);
+  const wish = {}, bw = (b && b.wish) || {}, lw = l.wish || {}, rw = r.wish || {};
+  for (const k of new Set([...Object.keys(lw), ...Object.keys(rw)])) {
+    const B = b ? bw[k] : undefined, L = lw[k], R = rw[k];
+    let v;
+    if (!b) v = L && R ? { ...R, ...L, q: Math.max(L.q || 1, R.q || 1) } : L || R;
+    else if (same(L, B)) v = R;
+    else if (same(R, B)) v = L;
+    else if (!L || !R) v = L || R;
+    else v = { ...R, ...L, q: Math.max(1, Math.min(99, (L.q || 1) + (R.q || 1) - ((B && B.q) || 0))) };
+    if (v) wish[k] = v;
+  }
+  const bk = new Set((b && b.kept) || []), lk = new Set(l.kept || []), rk = new Set(r.kept || []), kept = [];
+  for (const k of new Set([...lk, ...rk])) if (!b || (lk.has(k) && rk.has(k)) || (lk.has(k) && !bk.has(k)) || (rk.has(k) && !bk.has(k))) kept.push(k);
+  const dsh = {}, bd = (b && b.dsh) || {}, ld = l.dsh || {}, rd = r.dsh || {};
+  for (const k of new Set([...Object.keys(ld), ...Object.keys(rd)])) { const v = b ? one(bd[k], ld[k], rd[k]) : rd[k] || ld[k]; if (v) dsh[k] = v; }
+  return { keep: b ? one(b.keep, l.keep, r.keep) : r.keep, kept, wish, share: b ? one(b.share, l.share, r.share) : r.share || l.share || '', dsh };
+}
 /** Cartes recherchées : ce qui manque aux decks (somme des decks − possédé) + la liste de souhaits (wish : clé → { n, q, i?, w?, l? }, exemplaires voulus en plus ;
  *  i/w/l : illustration retenue — image, « Extension · CODE 123 », langue). [{ k, n, q, d (manque aux decks), w (souhait), p? { i, w, l } }] triés par nom. */
 function tradeWant(coll, use, wish) {
@@ -11037,7 +11075,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
 // Nombres, pourcentages et « Afficher plus » écrits dans la langue de l'appli : exportés à part
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn, moneyIn, tradeMerge3 });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
@@ -11161,6 +11199,7 @@ async function natGoogleCred(m) {
 const SUM_ID = 'sommaire', SUM_V = 1, SUM_KEY = 'deckdeal:sum:v1', SUM_OUT = 'collection';      // SUM_OUT : document annexe hors du sommaire (écouté directement)
 /** Délais (ms, réglables par les tests) : vérification, écoutes d'avant après un écart, nouvel essai de création refusée, 2e essai de la vérification,
  *  fenêtre des écritures groupées ; each : au-delà, les decks sont relus d'une seule requête. */
+const SUB_RETRY = { first: 30e3, max: 30 * 60e3 };      // écoute Firestore en erreur (quota du jour, réseau) : relancée après 30 s, 1, 2, 4… min, 30 min au plus (makeSum › legacyOn)
 const SUM = { verify: 6 * 3600e3, legacy: 24 * 3600e3, denied: 24 * 3600e3, init: 3000, recheck: 1500, group: 30, each: 5 };
 /** État noté sur l'appareil, par compte : ok (sommaire permis), v (dernière vérification), den (création refusée), leg (écoutes d'avant jusqu'à). */
 const sumAll = () => { try { const o = JSON.parse(localStorage.getItem(SUM_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
@@ -11205,11 +11244,25 @@ function makeSum(m, db, col) {
   }
   function stopMan(E) { if (E.manOff) { const u = E.manOff; E.manOff = null; try { u(); } catch (e) { /* déjà arrêtée */ } } }
   function hotOff(E) { if (E.hot) { const u = E.hot; E.hot = null; try { u(); } catch (e) { /* déjà arrêtée */ } } }
+  /** Écoute directe d'un abonnement. Une écoute Firestore en erreur est morte (quota du jour dépassé, réseau coupé longtemps, règles) : l'abonné est prévenu,
+   *  puis elle est relancée après 30 s, 1, 2, 4… min (30 min au plus), plus tôt au retour du réseau ou de l'appli au premier plan (relance) ; données reçues : compteur remis à zéro. */
   function legacyOn(E, s) {
-    if (s.off || s.lu) return;
-    const err = e => s.onErr && s.onErr(e);
-    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => s.onData(snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites, snap.metadata.fromCache), err);
-    else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => s.onData(x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);
+    if (s.off || s.lu || E.stopped) return;
+    clearTimeout(s.rt); s.rt = 0;
+    const err = e => {
+      if (s.lu) { const u = s.lu; s.lu = null; try { u(); } catch (x) { /* déjà arrêtée */ } }
+      if (s.onErr) safe(s.onErr, e);
+      if (s.off || E.stopped) return;
+      s.retry = (s.retry || 0) + 1;
+      s.rt = setTimeout(() => { s.rt = 0; if (E.mode === 'legacy' || direct(s)) legacyOn(E, s); }, Math.min(SUB_RETRY.max, SUB_RETRY.first * 2 ** Math.min(8, s.retry - 1)));
+    };
+    const ok = (f, ...a) => { s.retry = 0; f(...a); };
+    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => ok(s.onData, snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites, snap.metadata.fromCache), err);
+    else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => ok(s.onData, x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);
+  }
+  /** Retour du réseau ou de l'appli au premier plan : les écoutes en attente de relance repartent tout de suite. */
+  function relance() {
+    for (const E of engines.values()) for (const s of E.subs) if (s.rt && !s.off && !E.stopped) { clearTimeout(s.rt); s.rt = 0; if (E.mode === 'legacy' || direct(s)) legacyOn(E, s); }
   }
   function toLegacy(E) {
     if (E.mode === 'legacy' || E.stopped) return;
@@ -11473,12 +11526,12 @@ function makeSum(m, db, col) {
     if (E.mode === 'legacy' || direct(s)) legacyOn(E, s);
     else { E.last.delete(s.kind === 'decks' ? 'decks' : 'p:' + s.id); resolve(E, s.kind === 'decks' ? 'decks' : 'p:' + s.id, E.mode !== 'sum'); }
     return () => {
-      s.off = true; E.subs.delete(s);
+      s.off = true; E.subs.delete(s); clearTimeout(s.rt); s.rt = 0;
       if (s.lu) { const u = s.lu; s.lu = null; try { u(); } catch (e) { /* déjà arrêtée */ } }
       if (!E.subs.size && engines.get(uid) === E) { E.stopped = true; clearTimeout(E.initT); stopMan(E); hotOff(E); engines.delete(uid); E.readyRes(); }
     };
   }
-  return { sub, put, tx, pull, manRef, metaRef, deckRef, state: uid => { const E = engines.get(uid); return E ? { mode: E.mode, canWrite: E.canWrite, hot: !!E.hot, plain: [...E.plain] } : null; } };
+  return { sub, put, tx, pull, relance, manRef, metaRef, deckRef, state: uid => { const E = engines.get(uid); return E ? { mode: E.mode, canWrite: E.canWrite, hot: !!E.hot, plain: [...E.plain] } : null; } };
 }
 
 /** Construit l'API cloud à partir des modules du SDK (injectables pour les tests). */
@@ -11518,6 +11571,8 @@ function makeCloud(m) {
     signOut: () => { const g = natGoogle(); if (g) Promise.resolve(g.signOut()).catch(() => {}); return m.auth.signOut(auth); },      // appli : oublie aussi le compte Google choisi (le sélecteur réapparaît)
     /** Decks de l'utilisateur en temps réel, du plus récent au plus ancien : onData([{ id, data }], écritureEnAttente). Par le sommaire (voir makeSum). */
     watch: (uid, onData, onErr) => sm.sub(uid, { kind: 'decks', onData, onErr }),
+    /** Écoutes arrêtées par une erreur (quota, réseau) : relancées tout de suite (retour du réseau, appli au premier plan). */
+    relance: () => sm.relance(),
     newId: uid => m.fs.doc(col(uid)).id,
     save: (uid, id, data) => sm.put(uid, [['d:' + id, stampOf(data)]], b => b.set(dref(uid, id), data), () => m.fs.setDoc(dref(uid, id), data)),
     remove: (uid, id) => sm.put(uid, [['d:' + id, null]], b => b.delete(dref(uid, id)), () => m.fs.deleteDoc(dref(uid, id))),
@@ -11625,7 +11680,7 @@ async function shareFetch(id, fetchFn) {
   if (!SHARE_ID_RE.test(String(id || ''))) throw Object.assign(new Error('lien invalide'), { code: 'bad' });
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents/shares/${id}?key=${FIREBASE_CONFIG.apiKey}`;
   let r;
-  try { r = await (fetchFn || fetch)(url, { cache: 'no-store', credentials: 'omit' }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
+  try { r = await (fetchFn || (typeof fetchT === 'function' ? fetchT : fetch))(url, { cache: 'no-store', credentials: 'omit' }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
   if (r.status === 404) throw Object.assign(new Error('partage introuvable'), { code: 'gone' });
   if (r.status === 403 || r.status === 401) throw Object.assign(new Error('accès refusé'), { code: 'denied' });
   if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { code: 'net' });
@@ -11636,7 +11691,7 @@ async function shareFetch(id, fetchFn) {
   return out;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { FIREBASE_CONFIG, authMessage, makeCloud, shareFetch, SHARE_ID_RE, cloudClearLocal, SUM, SUM_ID, sumMerge };
+if (typeof module !== 'undefined' && module.exports) module.exports = { FIREBASE_CONFIG, authMessage, makeCloud, makeSum, shareFetch, SHARE_ID_RE, cloudClearLocal, SUM, SUM_ID, SUB_RETRY, sumMerge };
 
 
 /* ── data.js : réseau (Scryfall, CardTrader), cache, pipelines live et démo ─────────────────── */
@@ -11701,7 +11756,21 @@ const setScryUntil = t => { try { localStorage.setItem(SCRY_KEY, String(Math.min
 const scryLeft = () => Math.max(0, Math.min(scryUntil() - Date.now(), BACKOFF.maxGate));
 
 /** Délai maximal d'une requête Scryfall, réponse comprise : sans lui, une requête pendue bloquait toute la file (une à la fois) sans erreur ni fin. Dépassé → erreur réseau : même ralentissement, mêmes nouveaux essais. Modifiable par les tests. */
-const HTTP_TIMEOUT = { scry: 20000 };
+const HTTP_TIMEOUT = { scry: 20000, srv: 15000 };      // srv : serveur Mana Orbit (fetchT)
+/** fetch vers le serveur Mana Orbit (échange en direct, amis, parties, Carte mystère, événements, historique des prix, noms du scan, partages) avec un délai maximal :
+ *  sans réponse au bout de ms (Wi-Fi faible en boutique), la requête est coupée et rejetée comme une coupure réseau (code 'net', name 'TimeoutError') ; l'appelant
+ *  affiche alors son message « hors ligne » et réessaie, au lieu d'attendre sans fin (relevé de l'échange figé, file du scan bloquée). Le délai court jusqu'aux en-têtes
+ *  de la réponse ; un signal de l'appelant reste suivi. */
+function fetchT(url, init = {}, ms = HTTP_TIMEOUT.srv) {
+  if (typeof AbortController === 'undefined') return fetch(url, init);
+  const ac = new AbortController(), up = init && init.signal, t = setTimeout(() => ac.abort(), ms);
+  if (up) { if (up.aborted) ac.abort(); else up.addEventListener('abort', () => ac.abort(), { once: true }); }
+  return fetch(url, { ...init, signal: ac.signal }).then(r => { clearTimeout(t); return r; }, e => {
+    clearTimeout(t);
+    if (ac.signal.aborted && !(up && up.aborted)) throw Object.assign(new Error('délai dépassé'), { code: 'net', name: 'TimeoutError' });
+    throw e;
+  });
+}
 /** Signal d'une tentative : suit celui de l'appelant, et coupe la requête si rien n'arrive dans les ms qui suivent arm() (départ de la requête, pas l'attente dans la file ; puis de nouveau pour lire la réponse). Sans AbortSignal.any (absent des WebView avant la 116). late : coupée par le délai. */
 function reqTimer(signal, ms) {
   if (!ms) return { late: false, arm: () => signal, end() {} };
@@ -13110,7 +13179,7 @@ function readOpts() {
   S.opts.foil = $('#segFoil')._v; S.opts.mode = $('#segMode')._v;
   S.opts.fallbackEn = $('#optFallback').checked;
   { const x = $('#optExactEd'); if (x) S.opts.exactEd = x.checked; }
-  const v = parseFloat(String($('#optShip').value || '0').replace(',', '.'));
+  const v = moneyIn($('#optShip').value);
   S.opts.ship = Math.max(0, Math.round((isNaN(v) ? 0 : v) * 100));
 }
 function syncShip() { $('#shipField').hidden = S.opts.mode !== 'direct'; }
@@ -14139,7 +14208,7 @@ function init() {
   syncCTX(); applyTheme();
 
   $('#optLang').value = S.opts.lang; $('#optCond').value = S.opts.cond; $('#optFallback').checked = !!S.opts.fallbackEn; if ($('#optExactEd')) $('#optExactEd').checked = !!S.opts.exactEd;
-  $('#optShip').value = (S.opts.ship / 100).toFixed(2).replace('.', ',');
+  $('#optShip').value = num(S.opts.ship / 100, 2);
   mountSeg($('#segFoil'), [{ v: 'no', label: T('Sans foil') }, { v: 'any', label: T('Peu importe') }, { v: 'yes', label: 'Foil' }], S.opts.foil, () => { readOpts(); saveStore(); });
   mountSeg($('#segMode'), [{ v: 'zero', label: 'CardTrader Zero' }, { v: 'direct', label: T('Direct vendeurs') }], S.opts.mode, () => { readOpts(); syncShip(); modeHint(); saveStore(); });
   mountSeg($('#segTab'), [{ v: 'cards', label: T('Cartes') }, { v: 'sellers', label: T('Vendeurs') }], 'cards', v => {
@@ -17927,12 +17996,12 @@ const D = {
 /* ── Stockage local ───────────────────────────────────────────────────────────────────────── */
 function localRead() {
   try {
-    const a = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+    const raw = localStorage.getItem(LOCAL_KEY) || '[]', a = JSON.parse(raw); D.disk = raw; D.diskIds = (Array.isArray(a) ? a : []).map(d => d && d.id).filter(Boolean);
     return (Array.isArray(a) ? a : []).filter(d => d && d.id).map(d => readDeck(d.id, d)).sort((x, y) => y.updatedAt - x.updatedAt);
   } catch (e) { return []; }
 }
 function localWrite(list) {
-  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(list)); return true; }
+  try { const raw = JSON.stringify(list); localStorage.setItem(LOCAL_KEY, raw); D.disk = raw; D.diskIds = list.map(d => d.id); return true; }
   catch (e) { toast(T('Stockage local indisponible : le deck ne sera pas conservé')); return false; }
 }
 const stripDeck = d => ({ name: d.name, text: d.text, opts: d.opts, cards: d.cards, history: d.history, createdAt: d.createdAt, updatedAt: d.updatedAt });   // les prix gardés (snap) restent dans snapsRead() pour les decks locaux
@@ -18046,7 +18115,7 @@ function updateHeroDelta() {
 function applyOpts(o) {
   Object.assign(S.opts, o, S.opts.langSet ? {} : { lang: S.opts.lang });      // langue jamais choisie : celle de l'utilisateur, pas celle enregistrée avec le deck (souvent l'ancien défaut, le français)
   $('#optLang').value = S.opts.lang; $('#optCond').value = o.cond; $('#optFallback').checked = !!o.fallbackEn;
-  $('#optShip').value = (o.ship / 100).toFixed(2).replace('.', ',');
+  $('#optShip').value = num(o.ship / 100, 2);
   $('#segFoil').setValue(o.foil); $('#segMode').setValue(o.mode);
   syncShip(); modeHint(); saveStore(); namesSync();      // langue du deck choisie à la main : le catalogue des noms suit
 }
@@ -18718,9 +18787,10 @@ function onUser(user) {
       renderDecks(); renderAccountBtn(); paintAccount(); refreshDeck();
       if (D.listSure && typeof engSweepSoon === 'function') engSweepSoon();      // decks supprimés sans être démontés : réservations et « Deck : … » rendues
     }, err => {
+      const again = !!D.listErr;      // écoute relancée seule (cloud.js › legacyOn) : un seul toast par panne
       D.listErr = err && err.code === 'permission-denied' ? T('Règles Firestore à publier') : T('Synchronisation impossible');
       console.error(err); renderDecks(); paintAccount();
-      toast(deckErr(err));
+      if (!again) toast(deckErr(err));
     });
   }
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
@@ -18747,8 +18817,24 @@ async function connectCloud() {
   D.cloud.onUser(onUser);
 }
 
+/** Autre onglet de l'appli : les decks de l'appareil (sans compte) viennent d'y changer. Fusion deck par deck : le plus récent l'emporte ; un deck créé ici et pas encore
+ *  vu là-bas reste ; un deck connu ici (dernier état lu ou écrit, D.diskIds) et absent là-bas a été supprimé dans l'autre onglet. */
+function decksStorage(e) {
+  if (e.key !== LOCAL_KEY || e.newValue == null || e.newValue === D.disk) return;
+  let a; try { a = JSON.parse(e.newValue); } catch (x) { return; }
+  if (!Array.isArray(a)) return;
+  const theirs = a.filter(d => d && d.id).map(d => readDeck(d.id, d)), known = new Set(D.diskIds || []), mine = new Map(D.localList.map(d => [d.id, d])), out = new Map();
+  for (const t of theirs) { const m = mine.get(t.id); out.set(t.id, m && (m.updatedAt || 0) > (t.updatedAt || 0) ? m : t); }
+  for (const m of D.localList) if (!out.has(m.id) && !known.has(m.id)) out.set(m.id, m);
+  D.disk = e.newValue; D.diskIds = theirs.map(d => d.id);
+  const before = D.localList; D.localList = [...out.values()].sort((x, y) => y.updatedAt - x.updatedAt);
+  const sig = l => JSON.stringify(l.map(d => [d.id, d.updatedAt]));
+  if (sig(D.localList) !== sig(theirs.slice().sort((x, y) => y.updatedAt - x.updatedAt))) localWrite(D.localList.map(d => ({ id: d.id, ...stripDeck(d) })));
+  if (sig(before) !== sig(D.localList) && !D.user) { renderDecks(); refreshDeck(); trSoon(); }
+}
 function initDecks() {
   D.localList = localRead();
+  window.addEventListener('storage', decksStorage);      // autre onglet de l'appli
   try { D.hint = JSON.parse(localStorage.getItem(ACCT_KEY) || 'null'); } catch (e) { D.hint = null; }
   if (D.hint && typeof D.hint.l !== 'string') D.hint = null;
   // Jeton d'identité envoyé au proxy. On attend (6 s max) que la session enregistrée soit restaurée, sinon une recherche lancée dès l'ouverture passerait pour « non connecté ».
@@ -19897,14 +19983,28 @@ function collRead() {
   try {
     const r = JSON.parse(localStorage.getItem(COLL_KEY) || 'null');
     if (r && typeof r.t === 'string') {
-      collDocSet(collDocFromText(r.t)); COLL.u = Number(r.u) || 0; COLL.s = typeof r.s === 'string' ? r.s : '';
+      COLL.disk = r.t; collDocSet(collDocFromText(r.t)); COLL.u = Number(r.u) || 0; COLL.s = typeof r.s === 'string' ? r.s : '';
       COLL.base = COLL.s && typeof r.b === 'string' ? collDocFromText(r.b) : null;                  // dernier état du compte connu de cet appareil (null : inconnu → fusion par union)
     }
   } catch (e) { /* illisible : on repart d'une collection vide */ }
 }
 function collWrite() {
-  try { localStorage.setItem(COLL_KEY, JSON.stringify({ t: collDocText(collDocNow()), u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collDocText(COLL.base) } : {}) })); return true; }
+  try { const t = collDocText(collDocNow()); localStorage.setItem(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collDocText(COLL.base) } : {}) })); COLL.disk = t; return true; }
   catch (e) { toast(T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil')); return false; }
+}
+/** Autre onglet de l'appli (PWA et navigateur, deux onglets) : la collection gardée sur l'appareil vient d'y changer. Fusion à trois avec ce qui est ici, d'après
+ *  le dernier état lu ou écrit par cet onglet (COLL.disk) : sans elle, le prochain enregistrement d'ici effaçait ce que l'autre onglet avait ajouté. Fusion différente
+ *  de la sienne : réécrite (l'autre onglet la reprend, sans aller-retour de plus : son dernier état est alors la base). */
+function collStorage(e) {
+  if (e.key !== COLL_KEY || e.newValue == null) return;
+  let r; try { r = JSON.parse(e.newValue); } catch (x) { return; }
+  if (!r || typeof r.t !== 'string' || r.t === COLL.disk) return;
+  const theirs = collDocFromText(r.t), before = collDocNow(), next = mergeDoc3(typeof COLL.disk === 'string' ? collDocFromText(COLL.disk) : null, before, theirs);
+  COLL.disk = r.t; COLL.u = Math.max(COLL.u || 0, Number(r.u) || 0);
+  if (typeof r.s === 'string' && r.s && (!COLL.s || r.s === COLL.s)) { COLL.s = r.s; if (typeof r.b === 'string') COLL.base = collDocFromText(r.b); }      // même compte : son dernier état du compte (envoi fait là-bas)
+  collDocSet(next);
+  if (!sameDoc(next, theirs)) collWrite();
+  if (!sameDoc(before, next)) { COLL.seq++; collPaint(); paintCollSection(); refreshDeck(); trSoon(); collEnrich(); homeSoon(); }
 }
 /* ── Collection d'un autre compte gardée sur l'appareil ──────────────────────────────────────────────────────────────
    La copie de l'appareil appartient au dernier compte synchronisé (COLL.s). Un autre compte qui s'y connecte (compte supprimé puis recréé avec la même
@@ -20475,7 +20575,7 @@ function collRemoteApplied(b0, a0, o = {}) {
   else if (add || del) toast(T('Autre appareil : {changes}', { changes: [add && '+' + plural(add), del && '−' + plural(del)].filter(Boolean).join(' · ') }));
 }
 /** Retour au premier plan / réseau revenu : on envoie ce qui attend et on relit le compte (les navigateurs mobiles endorment la connexion en arrière-plan). */
-function collWake() { if (cloudOn()) collSyncNow(); collEnrichResume(); }
+function collWake() { if (D.cloud && D.cloud.relance) D.cloud.relance(); if (cloudOn()) collSyncNow(); collEnrichResume(); }      // relance : écoutes du compte arrêtées par une erreur (quota du jour, réseau), sans attendre leur délai
 function collSleep() { if (typeof syncFlush === 'function') syncFlush(); else if (cloudOn() && COLL.pushT) collPush(); }       // on part : envoyer sans attendre le délai (collection, et les autres envois en attente)
 
 /* ── Prix réels : l'offre CardTrader la moins chère de chaque carte, lue avec le moteur de la recherche ───────────
@@ -20639,6 +20739,8 @@ function collCatalog() {
   if (!COLL.namesP) COLL.namesP = scryCatalogNames().then(list => { COLL.names = { list, idx: nameIndex(list), norm: list.map(n => normPart(n)) }; return COLL.names; }).catch(e => { COLL.namesP = null; throw e; });
   return COLL.namesP;
 }
+/** Message d'un catalogue des noms qui n'arrive pas (Ajouter des cartes, éditeur, recherches) : hors ligne, pause demandée par Scryfall, ou Scryfall injoignable. */
+const collCatErr = e => (typeof navigator !== 'undefined' && navigator.onLine === false ? T('Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.') : e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'));
 /* ── Noms imprimés de toutes les langues pour la saisie (« Ajouter des cartes », « Ajouter une carte ») : names-all.tsv (anglais, fr, de, es, it, pt), le fichier du scan.
    Gardé sur l'appareil (téléchargé par le scan, sinon ici à la première recherche qui en a besoin, hors réseau mobile) ; index construit par tranches, gardé en mémoire
    tant que l'appli est ouverte (≈ 150 000 noms : clés normalisées + renvoi à la ligne du fichier). Carte choisie par son nom italien (allemand…) : exemplaire dans cette langue. */
@@ -20729,6 +20831,7 @@ function collInit() {
   collRead(); pxRead(); paintCollSection(); collMetaLoad();
   document.addEventListener('visibilitychange', () => { if (document.hidden) collSleep(); else collWake(); });
   window.addEventListener('online', collWake);
+  window.addEventListener('storage', collStorage);      // autre onglet de l'appli
   window.addEventListener('offline', () => { if (cloudOn() && COLL.cloud !== 'error') { COLL.cloud = 'offline'; collPaintHead(); } });
   window.addEventListener('pagehide', collSleep);
   const sec = $('#collSec'); if (sec) sec.hidden = false;
@@ -21097,7 +21200,7 @@ function collStatsHtml(items) {
   const typeRows = TYPE_ORDER.map(t => [esc(T(t)), st.types[t], 'k-t']);
   const nums = `<div class="cs-tiles"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div class="cs-val" role="button" tabindex="0" data-act="pxsrc"${ctOff ? ' data-ctno="1"' : ''} aria-label="${ctOff ? T('Valeur de la collection, source Cardmarket : touche pour ajouter ton token CardTrader') : T('Valeur de la collection, source {a} : touche pour passer à {b}', { a: cm ? 'Cardmarket' : 'CardTrader', b: cm ? 'CardTrader' : 'Cardmarket' })}"><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${cm ? T('valeur · tendance Cardmarket') + (st.valued < st.known ? ' ' + TN(st.valued, '({n} carte)', '({n} cartes)') : '') : st.real ? (st.valued > st.real ? T('valeur · {n} au prix réel CardTrader, {m} estimées Cardmarket', { n: nf0(st.real), m: nf0(st.valued - st.real) }) : T('valeur · {n} au prix réel CardTrader', { n: nf0(st.real) })) : T('valeur ≈ tendance Cardmarket') + (st.valued && st.valued < st.known ? ' ' + TN(st.valued, '({n} carte)', '({n} cartes)') : '')}</span>${`<div class="cs-src"><div class="cs-sw" aria-hidden="true"><i${cm ? '' : ' class="on"'}>CT</i><i${cm ? ' class="on"' : ''}>CM</i></div><small>${ctOff ? T('CT : prix réels avec ton token CardTrader') : cm && !items.some(i => i.rp > 0) ? T('CT : aucun prix lu · touche pour changer') : st.alt.valued ? T('{src} : {v} · touche pour changer', { src: cm ? 'CT' : 'CM', v: esc(fmt(st.alt.value, mkCur())) }) : T('touche pour changer')}</small></div>`}</div></div>`;      // aucune offre CardTrader lue : le chiffre « CT » ne serait que l'estimation Cardmarket
   const note = miss ? `<p class="hint">${T('Stats sur {a} cartes lues ; {b} sans infos pour l\'instant.', { a: nf0(st.known), b: nf0(miss) })}</p>` : '';
-  const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : 'EUR');
+  const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : mkCur());      // prix réel CardTrader : sa devise ; estimation : devise du marché (dollars TCGplayer aux États-Unis), comme la tuile de valeur
   const top = list.length ? `<h3 class="cs-h">${T('Les plus chères')} <span class="cs-sw" role="group" aria-label="${T('Classer par')}"><button type="button" data-act="topby" data-v="lot" aria-pressed="${byLot}" class="${byLot ? 'on' : ''}">${T('Par lot')}</button><button type="button" data-act="topby" data-v="one" aria-pressed="${!byLot}" class="${byLot ? '' : 'on'}">${T('Par carte')}</button></span></h3><p class="hint cs-topnote">${byLot ? T('Classées par valeur du lot : prix × exemplaires.') : T('Classées par prix d\'un exemplaire.')}</p><div class="cs-top">${shown.map(i => `<div class="crow ro" data-k="${esc(i.k)}"><span class="thumb" style="--h:${hash32(i.k) % 360}"${zoomAt('coll', i.dn || i.n)}>${esc((i.n.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn || i.n)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}${i.rl ? '<span class="tag real">' + T('prix réel') + '</span>' : ''}</span></span><span class="row-price"><b>${esc(fmt(byLot ? i.lot : i.up, cur(i)))}</b>${i.q > 1 ? `<small>${byLot ? `${esc(fmt(i.up, cur(i)))} × ${nf0(i.q)}` : `× ${nf0(i.q)} = ${esc(fmt(i.lot, cur(i)))}`}</small>` : ''}</span></div>`).join('')}</div>${moreBtn(shown.length, list.length, 10, 'data-act="topmore"')}` : '';
   const share = st.unique ? `<div class="simg-coll"><button class="link-btn" type="button" data-act="simgcoll"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager en image')}</button></div>` : '';      // image de la collection (simg.js)
   // .cs-col : sans effet sur le téléphone (display:contents, css/stats.css) ; deux colonnes sur ordinateur (zz-desktop.css) : valeur et variations | le reste
@@ -21495,7 +21598,7 @@ function openCollAdd(o) {
     const onFr = () => { if (inp.isConnected) paint(); else FRN.on.delete(onFr); };      // index français arrivé pendant la saisie
     FRN.on.add(onFr);
     say(T('Chargement du catalogue (une seule fois)…'), false);
-    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false));
+    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(collCatErr(e), false));
     setTimeout(() => inp.focus(), 380);
   });
 }
@@ -24359,7 +24462,7 @@ function alDev() {
 const alAvail = () => !!(CTX.proxy && CTX.alerts && (pushNat() ? CTX.fcm : CTX.vapid) && !S.demo);
 /** Prix cible saisi (« 2,5 », « 2.50 € ») → centimes, 0 si vide ou illisible. */
 function alParseEuros(s) {
-  const n = parseFloat(String(s || '').replace(/[\s€]/g, '').replace(',', '.'));
+  const n = moneyIn(s);
   return Number.isFinite(n) && n > 0 && n < 10000 ? Math.round(n * 100) : 0;
 }
 
@@ -24768,7 +24871,7 @@ const CS_H_TTL = 6 * 3600e3;      // le serveur relit l'historique toutes les 6 
 async function csHist(k, n) {
   const key = 'ph1:' + k, hit = await Cache.get(key, CS_H_TTL); if (hit) return hit;
   if (!CTX.proxy || collOffline()) return null;
-  const r = await fetch('api/hist?' + new URLSearchParams({ n: String(n || k).slice(0, 150) }), { headers: { Accept: 'application/json' } });
+  const r = await fetchT('api/hist?' + new URLSearchParams({ n: String(n || k).slice(0, 150) }), { headers: { Accept: 'application/json' } });
   if (!r.ok) return null;
   const j = await r.json(), d = Date.parse(String(j && j.d) + 'T00:00:00Z'), col = mkUs() ? j && j.u : j && j.e; if (!Number.isFinite(d) || !Array.isArray(col)) return null;      // marché TCGplayer : relevés en dollars (u)
   const out = { d, e: col.slice(0, 400).map(v => (Number(v) > 0 ? Math.round(Number(v)) : null)) };
@@ -25734,7 +25837,7 @@ async function asiaMatch(lines, l) {
   if (!SC.el || Date.now() < OTH.off || !CTX.proxy || collOffline()) return null;
   try {
     const qs = [...new Set(ls.map(x => String(x.text).trim()))].slice(0, 4), skip = NAMES_ALL_LANGS.filter(x => x !== l).join(',');
-    const r = await fetch('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q.slice(0, 100)]), ['skip', skip]]), { headers: { Accept: 'application/json' } });
+    const r = await fetchT('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q.slice(0, 100)]), ['skip', skip]]), { headers: { Accept: 'application/json' } }, 8000);      // 8 s au plus : la file du scan attend cette réponse
     const h = r.ok ? (await r.json()).hit : null;
     if (!h || h.lang !== l || typeof h.name !== 'string' || !h.name || !(h.score >= 0.72 && h.score <= 1)) return null;
     const img = typeof h.img === 'string' && /^https:\/\/cards\.scryfall\.io\/[\w/.-]+$/.test(h.img) ? h.img : '', alts = h.amb && Array.isArray(h.alts) ? h.alts.filter(x => typeof x === 'string' && x).slice(0, 6) : [];
@@ -25753,7 +25856,7 @@ async function scanOther(lines, st) {
   if (!SC.el || Date.now() < OTH.off || !CTX.proxy || !(st.n < 2)) return null;
   st.n++; let hit = null;
   try {
-    const r = await fetch('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q]), ['skip', skip]]), { headers: { Accept: 'application/json' } });
+    const r = await fetchT('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q]), ['skip', skip]]), { headers: { Accept: 'application/json' } }, 8000);
     if (!r.ok && !r.headers.get('retry-after') && r.status !== 400) { OTH.off = Date.now() + 5 * 60e3; return null; }      // serveur sans cette recherche (ancienne version, coupée) : redemandé 5 min plus tard ; 429 / occupé : la carte suivante redemande
     if (!r.ok) return null;
     const h = (await r.json()).hit;
@@ -27534,7 +27637,7 @@ const scsPaLabel = () => fmt(SCS.pa, mkCur()).replace(/[,.]00(?=\D)/, '');
 const scsPaPlace = () => (SCS.pp && typeof COLL !== 'undefined' && COLL.places && COLL.places[SCS.pp] ? SCS.pp : '');
 /** Montant de l'alerte dans le champ (« 1,5 » → « 1,50 ») ; montant tapé → centimes (0 : vide ou illisible). */
 const scsPaInput = () => (SCS.pa / 100).toLocaleString(LOC(), { minimumFractionDigits: SCS.pa % 100 ? 2 : 0, maximumFractionDigits: 2 });
-const scsPaParse = v => { const n = Number(String(v || '').replace(/[\s€]/g, '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? Math.min(1e7, Math.round(n * 100)) : 0; };
+const scsPaParse = v => { const n = moneyIn(v); return Number.isFinite(n) && n > 0 ? Math.min(1e7, Math.round(n * 100)) : 0; };
 /** Cadrage ou éditions : la liste des choix, avec leur explication. */
 function scsChoose(k, done) {
   const [title, list] = k === 'frame' ? [T('Cadrage'), SCS_FRAMES] : [T('Éditions'), SCS_EDS];
@@ -28460,6 +28563,11 @@ function bdPaint() {
   bdHead(); $('#bdSum', el).innerHTML = bdSumHtml(); bdList();
 }
 /** Changement d'onglet : contrôles (nom · cible + recherche) puis liste. */
+/** Catalogue de toutes les cartes (2e partie des résultats de l'onglet Ajouter) : lu une fois ; échec : message (hors ligne, Scryfall), relu au retour du réseau. */
+function bdCatLoad() {
+  collCatalog().then(c => { BD.cat = c; BD.catErr = ''; if (BD.el && BD.tab === 'coll' && BD.q.trim().length >= 2) bdList(); })
+    .catch(e => { BD.catErr = collCatErr(e); if (BD.el && BD.tab === 'coll') bdList(); window.addEventListener('online', () => { if (BD.cat) return; BD.catErr = ''; if (BD.el && BD.tab === 'coll') bdList(); bdCatLoad(); }, { once: true }); });
+}
 function bdTab(v) {
   const el = BD.el; if (!el) return;
   BD.tab = v; BD.q = BD.f.q = ''; BD.shown = BD_PAGE; BD.fb = null; if (v !== 'coll') { BD.sel = null; bdSelPaint(); }
@@ -28474,7 +28582,7 @@ function bdTab(v) {
       <div id="bdPlc">${bdPlcHtml()}</div><div id="bdF"></div>`;      // rangement et filtres de la collection (bdadd.js)
     mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; if (t === 'cmdr') { BD.sel = null; bdSelPaint(); } bdList(); });
     bdFiltMount($('#bdF', ctl));
-    if (!BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'coll' && BD.q.trim().length >= 2) bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'coll') bdList(); });      // catalogue de toutes les cartes : lu une fois, pour la 2e partie des résultats
+    if (!BD.cat && !BD.catErr) bdCatLoad();      // catalogue de toutes les cartes : lu une fois, pour la 2e partie des résultats
     if (v === 'coll') { BD.idx = null; if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); }
   }
   bdList(); if (typeof dwBannerHtml === 'function' && dwOn()) $('#bdSum', el).innerHTML = bdSumHtml();      // bannière du coach : visible hors de l'onglet Coach
@@ -29736,7 +29844,7 @@ if (typeof document !== 'undefined') {      // personnalisation dans les réglag
 }
 if (typeof document !== 'undefined') document.addEventListener('change', e => {
   const t = e.target; if (!BD.el || !t || !BD.wiz) return;
-  if (t.id === 'dwBud') { const v = Math.max(0, Math.round(Number(String(t.value).replace(',', '.')) || 0)); BD.wiz.bud = v * 100; DW.changed = true; dwPersist(BD.id); bdList(); }
+  if (t.id === 'dwBud') { const v = Math.max(0, Math.round(moneyIn(t.value) || 0)); BD.wiz.bud = v * 100; DW.changed = true; dwPersist(BD.id); bdList(); }
   else if (t.id === 'dwOwn') { BD.wiz.own = t.checked; DW.changed = true; dwPersist(BD.id); bdList(); }
 });
 
@@ -30584,7 +30692,7 @@ function daSetFormBind(box, set, change) {
   });
   box.addEventListener('change', e => {
     const t = e.target;
-    if (t.matches('[data-ds-bud]')) { const v = String(t.value).trim(); if (!v && set.bv) return; delete set.bv; set.bud = Math.max(0, Math.round(Number(v.replace(',', '.')) || 0)) * 100; change('bud'); }
+    if (t.matches('[data-ds-bud]')) { const v = String(t.value).trim(); if (!v && set.bv) return; delete set.bv; set.bud = Math.max(0, Math.round(moneyIn(v) || 0)) * 100; change('bud'); }
     else if (t.matches('[data-ds-own]')) { set.own = t.checked; change('own'); }
   });
 }
@@ -31218,7 +31326,7 @@ async function dsBudAsk(cmd, go) {
   const take = v => { if (!BD.wiz) return; BD.wiz.bud = v; BD.wiz.budAck = v; dwPersist(BD.id); api.close(); haptic('tap'); setTimeout(go, 0); };
   api.body.addEventListener('click', e => {
     if (e.target.closest('[data-bud-99]')) take(tot);
-    else if (e.target.closest('[data-bud-new]')) { const v = Math.max(0, Math.round(Number(String($('#dsBudNew', api.body).value).replace(',', '.')) || 0)) * 100; take(v); }
+    else if (e.target.closest('[data-bud-new]')) { const v = Math.max(0, Math.round(moneyIn($('#dsBudNew', api.body).value) || 0)) * 100; take(v); }
   });
   return true;
 }
@@ -31666,7 +31774,7 @@ function ctWishSheet(o) {
 /* ── share.js : liste d'échange (doublons, cartes recherchées) et liens publics en lecture seule (liste d'échange, deck) ──────────
    · Onglet « Échange » de la collection : cartes à échanger (possédé − decks − réserve, terrains de base exclus), « Garder » carte par carte,
      cartes recherchées (manquantes des decks + souhaits ajoutés à la main), valeur estimée (même prix que « Pour toi »), tri par prix, « ≥ X € », lien public.
-     Réglages sur l'appareil (deckdeal:trade:v1) et dans le compte (users/{uid}/meta/trade : keep, kept, wish, share, dsh, updatedAt ; le plus récent l'emporte).
+     Réglages sur l'appareil (deckdeal:trade:v1) et dans le compte (users/{uid}/meta/trade : keep, kept, wish, share, dsh, updatedAt ; fusion à trois d'un appareil à l'autre, core.js › tradeMerge3).
    · Partages : shares/{id} { o (empreinte SHA-256 de l'UID du propriétaire), kind ('trade' | 'deck'), v, updatedAt, d (JSON) }. Lisibles par quiconque a le lien, jamais listables, modifiables
      seulement par leur propriétaire (règles Firestore). Tenus à jour par les appareils du propriétaire : collection, decks, souhaits, réserve.
      Un deck enregistré partagé suit ses modifications ; un deck EDHREC ou une liste en cours est partagé tel quel (figé).
@@ -31675,7 +31783,7 @@ function ctWishSheet(o) {
    · Doublons partagés : une carte par langue et par édition (e : « cmm/400 », image de cette impression exacte), foil en fo ; un partage d'avant (sans e) s'affiche comme avant. */
 const TR_KEY = 'deckdeal:trade:v1', TR_KEEPS = [0, 1, 2, 3, 4], TR_PAGE = 120, TR_MAX = 880000, TR_SHARE_MAX = 900000;      // TR_SHARE_MAX : champ d d'un partage (règles Firestore)
 const TR_REPORT = 'contact@manaorbit.app';      // « Signaler ce partage » : contact de la politique de confidentialité (pwa/privacy.html)
-const TR = { who: '', creating: false, st: null, dmBusy: false, keep: 1, kept: new Set(), wish: {}, share: '', dsh: {}, u: 0, sig: {}, sub: 'have', shown: TR_PAGE, err: '', busy: false, again: false, syncT: 0,
+const TR = { who: '', base: null, creating: false, st: null, dmBusy: false, keep: 1, kept: new Set(), wish: {}, share: '', dsh: {}, u: 0, sig: {}, sub: 'have', shown: TR_PAGE, err: '', busy: false, again: false, syncT: 0,
   doc: { unsub: null, uid: '', pushT: 0 }, pub: null, sort: 'name', min: 0, pxTry: 0 };      // sort, min : tri et prix minimal de l'onglet (cet écran seulement) ; pxTry : fichier de prix déjà demandé (1 sans serveur, 2 avec)
 const TR_MINS = [0, 100, 200, 500, 1000, 2000, 5000];      // filtre « ≥ X € » des doublons (centimes)
 
@@ -31690,19 +31798,35 @@ const trWishClean = w => {
   return out;
 };
 const trDshClean = o => { const out = {}; if (o && typeof o === 'object' && !Array.isArray(o)) for (const [k, v] of Object.entries(o).slice(0, 200)) if (typeof v === 'string' && SHARE_ID_RE.test(v)) out[k] = v; return out; };
+/** Réglages lus (appareil, compte), nettoyés : { keep, kept: [clés], wish, share, dsh, u }. */
+const trParse = j => ({ keep: TR_KEEPS.includes(j.keep) ? j.keep : 1, kept: Array.isArray(j.kept) ? j.kept.filter(k => typeof k === 'string' && k).slice(0, 5000) : [], wish: trWishClean(j.wish),
+  share: typeof j.share === 'string' && SHARE_ID_RE.test(j.share) ? j.share : '', dsh: trDshClean(j.dsh), u: Number(j.u || j.updatedAt) || 0 });
 function trApply(j) {
-  TR.keep = TR_KEEPS.includes(j.keep) ? j.keep : 1;
-  TR.kept = new Set(Array.isArray(j.kept) ? j.kept.filter(k => typeof k === 'string' && k).slice(0, 5000) : []);
-  TR.wish = trWishClean(j.wish);
-  TR.share = typeof j.share === 'string' && SHARE_ID_RE.test(j.share) ? j.share : '';
-  TR.dsh = trDshClean(j.dsh);
-  TR.u = Number(j.u || j.updatedAt) || 0;
+  const x = trParse(j || {});
+  TR.keep = x.keep; TR.kept = new Set(x.kept); TR.wish = x.wish; TR.share = x.share; TR.dsh = x.dsh; TR.u = x.u;
 }
 const trDoc = () => ({ keep: TR.keep, kept: [...TR.kept], wish: TR.wish, share: TR.share, dsh: TR.dsh, updatedAt: TR.u || Date.now() });
 function trRead() {
-  try { const j = JSON.parse(localStorage.getItem(TR_KEY) || '{}') || {}; trApply(j); TR.sig = j.sig && typeof j.sig === 'object' ? j.sig : {}; TR.who = typeof j.who === 'string' ? j.who : ''; } catch (e) { /* neuf */ }
+  try {
+    const raw = localStorage.getItem(TR_KEY) || '{}', j = JSON.parse(raw) || {}; TR.disk = raw; trApply(j); TR.sig = j.sig && typeof j.sig === 'object' ? j.sig : {}; TR.who = typeof j.who === 'string' ? j.who : '';
+    TR.base = j.b && typeof j.b === 'object' ? trParse(j.b) : null;      // dernier état commun avec le compte (fusion à trois, trUser)
+  } catch (e) { /* neuf */ }
 }
-function trWrite() { try { localStorage.setItem(TR_KEY, JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who })); } catch (e) { /* stockage indisponible */ } }
+function trWrite() { try { const raw = JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who, b: TR.base }); localStorage.setItem(TR_KEY, raw); TR.disk = raw; } catch (e) { /* stockage indisponible */ } }
+/** Autre onglet de l'appli : souhaits et réglages de l'échange changés là-bas. Fusion à trois (tradeMerge3) d'après le dernier état lu ou écrit ici ; autre compte : repris tel quel. */
+function trStorage(e) {
+  if (e.key !== TR_KEY || e.newValue == null || e.newValue === TR.disk) return;
+  let j; try { j = JSON.parse(e.newValue) || {}; } catch (x) { return; }
+  let base = null; try { base = TR.disk ? trParse(JSON.parse(TR.disk) || {}) : null; } catch (x) { /* illisible : union */ }
+  TR.disk = e.newValue;
+  if (typeof j.who === 'string' && j.who && j.who !== TR.who) { trRead(); trRepaint(); return; }
+  const rem = trParse(j), loc = { keep: TR.keep, kept: [...TR.kept], wish: TR.wish, share: TR.share, dsh: TR.dsh }, m = tradeMerge3(base, loc, rem);
+  const differs = JSON.stringify([m.keep, [...m.kept].sort(), m.wish, m.share, m.dsh]) !== JSON.stringify([rem.keep, [...rem.kept].sort(), rem.wish, rem.share, rem.dsh]);
+  const sig = j.sig && typeof j.sig === 'object' ? j.sig : TR.sig, rb = j.b && typeof j.b === 'object' ? trParse(j.b) : null;
+  trApply({ ...m, u: differs ? Math.max(Date.now(), rem.u + 1) : rem.u }); TR.sig = sig; if (rb && (!TR.base || rb.u >= TR.base.u)) TR.base = rb;
+  if (differs) { trWrite(); trPushSoon(); }
+  trRepaint();
+}
 const trOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 /** Les écritures Firestore attendent le serveur : hors ligne, on prévient au lieu de laisser le bouton sans réponse. */
 function trNeedNet() { if (!trOffline()) return true; toast(T('Hors ligne : réessaie une fois connecté')); return false; }
@@ -31715,15 +31839,20 @@ function trUser(user) {
   pubSoon();      // liste d'un autre joueur ouverte : ses correspondances suivent la connexion
   const d = TR.doc; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.uid = '';
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
-  if (TR.who && TR.who !== user.uid) { trApply({}); TR.sig = {}; }                // autre compte sur cet appareil : ses réglages et liens ne sont pas les nôtres
+  if (TR.who && TR.who !== user.uid) { trApply({}); TR.sig = {}; TR.base = null; }                // autre compte sur cet appareil : ses réglages et liens ne sont pas les nôtres
   TR.who = user.uid; trWrite();
   d.uid = user.uid;
   d.unsub = D.cloud.watchMeta(user.uid, 'trade', (data, pending, fromCache) => {
     if (pending || fromCache || D.uid !== user.uid) return;
     if (data) acctSaw('trade', user.uid); else if (acctLost('trade', user.uid)) return;      // vu ici puis disparu : compte supprimé ailleurs ? ni réglages ni liens renvoyés (decks.js vérifie)
     const ru = Number(data && data.updatedAt) || 0;
-    if (data && ru > TR.u) { const sig = TR.sig; trApply(data); TR.sig = sig; trWrite(); trRepaint(); trSoon(); }
-    else if (TR.u > ru) trPushSoon();
+    if (!data) { if (TR.u) trPushSoon(); return; }
+    if (TR.base && ru === TR.base.u) { if (TR.u !== ru) trPushSoon(); return; }      // rien de nouveau ailleurs depuis le dernier état commun : nos changements partent
+    // changé ailleurs (ou première synchro) : fusion à trois, rien de perdu d'un appareil à l'autre (l'heure de chaque appareil ne décide plus)
+    const rem = trParse(data), loc = { keep: TR.keep, kept: [...TR.kept], wish: TR.wish, share: TR.share, dsh: TR.dsh }, m = tradeMerge3(TR.base, loc, rem), sig = TR.sig;
+    const differs = JSON.stringify([m.keep, [...m.kept].sort(), m.wish, m.share, m.dsh]) !== JSON.stringify([rem.keep, [...rem.kept].sort(), rem.wish, rem.share, rem.dsh]);
+    trApply({ ...m, u: differs ? Math.max(Date.now(), ru + 1) : ru }); TR.sig = sig; TR.base = rem;
+    trWrite(); trRepaint(); trSoon(); if (differs) trPushSoon();
   }, err => { if (err && err.code === 'permission-denied') TR.err = 'rules'; trRepaint(); });
   trSoon(1500);
 }
@@ -31731,7 +31860,7 @@ function trPushSoon() { const d = TR.doc; if (!d.uid) return; clearTimeout(d.pus
 async function trPush() {
   const d = TR.doc; clearTimeout(d.pushT); d.pushT = 0;      // non nul : envoi en attente (syncFlush)
   if (!d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
-  try { await D.cloud.saveMeta(d.uid, 'trade', trDoc()); acctSaw('trade', d.uid); if (TR.err === 'rules') { TR.err = ''; trRepaint(); } }
+  try { const doc = trDoc(); await D.cloud.saveMeta(d.uid, 'trade', doc); if (d.uid === TR.who) { TR.base = trParse(doc); trWrite(); } acctSaw('trade', d.uid); if (TR.err === 'rules') { TR.err = ''; trRepaint(); } }
   catch (err) { if (err && err.code === 'permission-denied') { TR.err = 'rules'; trRepaint(); } }
 }
 
@@ -32116,12 +32245,12 @@ function openWishAdd() {
     list.onclick = e => {
       const b = e.target.closest('.ca-opt'); if (!b) return;
       const n = b.dataset.n, k = ownKey(n); if (BASIC_NAMES.has(k)) { toast(T('Les terrains de base ne sont pas listés')); return; }
-      TR.wish[k] = { n, q: Math.min(99, ((TR.wish[k] || {}).q || 0) + 1) }; trChanged(); haptic('ok');
+      TR.wish[k] = { ...(TR.wish[k] || {}), n: (TR.wish[k] || {}).n || n, q: Math.min(99, ((TR.wish[k] || {}).q || 0) + 1) }; trChanged(); haptic('ok');      // un exemplaire de plus : l'illustration, l'édition et la langue choisies restent
       $('i', b).textContent = '× ' + TR.wish[k].q; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); say(TN(TR.wish[k].q, '{name} · {n} recherchée', '{name} · {n} recherchées', { name: n }), true);
     };
     inp.oninput = paint;
     say(T('Chargement du catalogue (une seule fois)…'), false);
-    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false));
+    collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(collCatErr(e), false));
     setTimeout(() => inp.focus(), 380);
   });
 }
@@ -32367,7 +32496,7 @@ function pubRow(it) {
 }
 
 function trInit() {
-  trRead();
+  trRead(); window.addEventListener('storage', trStorage);      // autre onglet de l'appli
   let id = ''; try { id = new URLSearchParams(location.search).get('p') || ''; } catch (e) { /* ignore */ }
   if (id) setTimeout(() => openPublicLink(id), 0);
 }
@@ -33007,7 +33136,7 @@ function homeDeskPaint() {
   $('#hmDkHi').textContent = nm ? T(eve ? 'Bonsoir {name}' : 'Bonjour {name}', { name: nm }) : T(eve ? 'Bonsoir' : 'Bonjour');
   const n = collCount(), dl = days => { const h = histDelta(valHist(), days); return h && Math.abs(h.d) >= 100 ? `<b class="${valCls(h.d)}">${(h.d < 0 ? '−' : '+') + esc(hmEur(Math.abs(h.d)))}</b>` : '<b>—</b>'; };      // euros entiers, comme l'orbe
   const al = n ? valAlertN() : 0;
-  $('#hmDkKpi').innerHTML = `<div><b>${nf0(n)}</b><span>${TN(n, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${T('exemplaires')}</span></div>`
+  $('#hmDkKpi').innerHTML = `<div><b>${nf0(n)}</b><span>${TN(n, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${TN(collCopies(), 'exemplaire', 'exemplaires')}</span></div>`
     + `<div>${dl(7)}<span>${T('sur 7 jours')}</span></div><div>${dl(30)}<span>${T('sur 30 jours')}</span></div>`
     + (al ? `<button type="button" class="hm-dk-mv" data-hm="stats">${TN(al, '{n} prix a bougé', '{n} prix ont bougé')} ›</button>` : '');
   homeDeskChart();
@@ -33125,7 +33254,7 @@ async function amCall(path, { method = 'GET', body, params } = {}) {
   const go = async force => {
     let tok = ''; try { tok = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); }
     let r;
-    try { r = await fetch('api/friends' + path + (params ? '?' + new URLSearchParams(params) : ''), { method, cache: 'no-store', headers: { Accept: 'application/json', 'x-firebase-token': tok, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }); }
+    try { r = await fetchT('api/friends' + path + (params ? '?' + new URLSearchParams(params) : ''), { method, cache: 'no-store', headers: { Accept: 'application/json', 'x-firebase-token': tok, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }); }
     catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (!r.ok) throw Object.assign(new Error((j && j.message) || 'HTTP ' + r.status), { code: (j && j.error) || (r.status === 413 ? 'too_large' : 'http'), status: r.status });
@@ -35718,6 +35847,14 @@ function lotDrop(id) {
   lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
   toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: T('Annuler'), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
 }
+/** Catalogue des noms pour les suggestions : bandeau « Chargement… » tant qu'il n'est pas là, effacé à son arrivée ; échec : message (hors ligne, Scryfall), relancé au retour du réseau. */
+function lotCatLoad(wrap) {
+  const wait = T('Chargement du catalogue (une seule fois)…'), mine = t => { const s = $('#caStatus', wrap); return s && !s.hidden && $('span:last-child', s).textContent === t; };
+  let err = '';
+  collCatalog().then(cat => { LOT.cat = cat; if (LOT.el !== wrap) return; if (mine(wait)) lotSay(''); lotSuggest(); })
+    .catch(e => { if (LOT.el !== wrap) return; err = collCatErr(e); lotSay(err, false); window.addEventListener('online', () => { if (LOT.el === wrap && !LOT.cat) { if (mine(err)) lotSay(''); lotCatLoad(wrap); } }, { once: true }); });
+  if (!COLL.names && !LOT.cat) lotSay(wait, false);
+}
 const lotSay = (t, ok) => { const s = LOT.el && $('#caStatus', LOT.el); if (!s) return; s.hidden = !t; if (t) { $('span:last-child', s).textContent = t; s.dataset.ok = ok ? '1' : '0'; } };
 /** Total du lot : exemplaires et valeur (prix de l'édition, sinon de la carte). */
 function lotTotals() { let n = 0, v = 0; for (const x of LOT.list) { n += x.q; const u = collLineEu(x.k, x.g) ?? x.eu; if (u > 0) v += u * x.q; } return { n, v }; }
@@ -35851,8 +35988,7 @@ function openLot() {
   document.body.appendChild(wrap); holdApp(); lotPaintHead(); lotPaintList(); lotPaintCard();
   { const mb = $('.mob-pc', wrap); mb.hidden = !mobPcLike() && !MOB.pc; mobPaint(); }      // scan mobile : sur un ordinateur
   setIcLoad(() => { if (LOT.el === wrap) { lotPaintHead(); lotPaintList(); } });
-  collCatalog().then(cat => { LOT.cat = cat; if (LOT.el === wrap) lotSuggest(); }).catch(e => { if (LOT.el === wrap) lotSay(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false); });
-  if (!COLL.names) lotSay(T('Chargement du catalogue (une seule fois)…'), false);
+  lotCatLoad(wrap);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); }));
   setTimeout(() => { if (LOT.el === wrap) inp.focus(); }, 380);
   haptic('tap');
@@ -36844,7 +36980,7 @@ function swgOpen(o) {
     api.body.innerHTML = `<p class="swg-lead">${helpNb(T('Ta collection te suit : exporte-la en CSV depuis ManaBox, puis importe le fichier ici.'))}</p>
       <ol class="swg-steps">
         ${step(1, T('Dans ManaBox'), helpNb(T('Onglet <b>Collection</b> : menu en haut à droite › <b>Export</b>. Choisis <b>CSV</b> si l\'appli le demande, confirme avec <b>Export</b>, puis enregistre le fichier (Fichiers, Drive…) ou envoie-le-toi.')), helpNb(T('Un seul classeur ? Le même menu, depuis le classeur.')))}
-        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>Importer</b> (la flèche en haut) › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
+        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>Importer</b> (la flèche vers le bas, en haut de l\'écran) › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
         ${step(3, T('Vérifie et importe'), helpNb(T('L\'aperçu compte tes cartes et signale les noms inconnus. <b>Ajouter</b> ou <b>Remplacer ma collection</b>, puis <b>Importer</b> : images et prix arrivent tout seuls.')))}
       </ol>
       <h3 class="cs-h">${T('Ce qui est gardé')}</h3>
@@ -37988,8 +38124,7 @@ if (typeof HELP_QA !== 'undefined') {
 
 /** « 120 », « 89,90 € » → centimes ; null si vide ou illisible. */
 function opnbParse(s) {
-  const t = String(s == null ? '' : s).replace(/[\s€]/g, '').replace(',', '.'); if (!t) return null;
-  const n = parseFloat(t); return Number.isFinite(n) && n >= 0 && n < 1e6 ? Math.round(n * 100) : null;
+  const n = moneyIn(s); return Number.isFinite(n) && n >= 0 && n < 1e6 ? Math.round(n * 100) : null;
 }
 const opnbIn = (id, paid) => `<div class="field-in opnb-paid"><label class="label" for="${id}">${T('Prix payé (facultatif)')}</label><span class="opnb-eur"><input type="text" id="${id}" inputmode="decimal" autocomplete="off" placeholder="${esc(T('ex. {p}', { p: '120' }))}" value="${paid != null ? esc((paid / 100).toLocaleString(LOC(), { minimumFractionDigits: paid % 100 ? 2 : 0, maximumFractionDigits: 2, useGrouping: false })) : ''}"><i aria-hidden="true">€</i></span></div>`;
 /** Champ du prix payé dans « Commencer une session ». */
@@ -38112,7 +38247,7 @@ async function trocCall(path, { method = 'GET', body, auth } = {}) {
     if (auth) { const u = D.user; if (!u) throw Object.assign(new Error('déconnecté'), { code: 'auth_required' }); try { h['x-firebase-token'] = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); } }
     else if (TRC.key) h['x-troc-key'] = TRC.key;
     let r;
-    try { r = await fetch('api/troc' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); }
+    try { r = await fetchT('api/troc' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); }
     catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (!r.ok) throw Object.assign(new Error((j && j.message) || 'HTTP ' + r.status), { code: (j && j.error) || 'http', status: r.status, s: j && j.s });
@@ -39433,7 +39568,7 @@ function partieEnqueue(it) {
 /** Contexte de l'appli (navigateur) ; sous Node, tout vient de o : { fetch, user ({ uid, getIdToken(force) }), online, on (serveur qui annonce la partie), base (adresse du serveur) }. */
 function partieEnv(o = {}) {
   return {
-    fetch: o.fetch || (typeof fetch === 'function' ? (...x) => fetch(...x) : null),
+    fetch: o.fetch || (typeof fetchT === 'function' ? (...x) => fetchT(...x) : typeof fetch === 'function' ? (...x) => fetch(...x) : null),      // fetchT : délai maximal (data.js)
     user: 'user' in o ? o.user : (typeof D !== 'undefined' && D && D.user) || null,
     online: 'online' in o ? o.online : !(typeof navigator !== 'undefined' && navigator.onLine === false),
     on: 'on' in o ? o.on : !!(typeof CTX !== 'undefined' && CTX && CTX.proxy && CTX.partie),
@@ -41634,7 +41769,7 @@ async function dlyCall(path, { method = 'GET', body, base = 'api/daily' } = {}) 
   const go = async force => {
     const h = { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(DY.dev ? { 'x-daily-device': DY.dev } : {}) };
     if (u) { try { h['x-firebase-token'] = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); } }
-    let r; try { r = await fetch(base + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
+    let r; try { r = await fetchT(base + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (j && j.dev) dlyDevSave(j.dev);
     if (j && Number(j.now) > 0) DY.off = Number(j.now) - Date.now();
@@ -43306,7 +43441,7 @@ async function evCall(path, { method = 'GET', body } = {}) {
   const go = async force => {
     const h = { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(EV.dev ? { 'x-event-device': EV.dev } : {}), ...(EV.pv ? { 'x-event-preview': EV.pv } : {}) };
     if (u) { try { h['x-firebase-token'] = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); } }
-    let r; try { r = await fetch('api/event' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
+    let r; try { r = await fetchT('api/event' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (j && typeof j.dev === 'string' && /^[\w-]{22}\.[\w-]{16}$/.test(j.dev)) { EV.dev = j.dev; try { localStorage.setItem(EV_DEV, j.dev); } catch (e) { /* refusé */ } }
     if (!r.ok) throw Object.assign(new Error((j && j.message) || 'HTTP ' + r.status), { code: (j && j.error) || 'http', status: r.status, j });
@@ -43949,8 +44084,8 @@ function advRing(a) {
 }
 
 /* ── Ouverture d'un booster ──────────────────────────────────────────────────────────────────────────────────── */
-/** Nom affiché d'une carte : français si connu (catalogue des noms), sinon anglais. */
-const advName = c => { const k = String(c || '').toLowerCase(), fr = typeof frName === 'function' && frName(k, I18N.lang === 'fr' ? 'fr' : ''); return fr || (c.length > 24 && c.includes(' // ') ? c.split(' // ')[0] : c); };      // carte double au nom trop long : sa première face
+/** Nom affiché d'une carte : dans la langue de l'appli si connu (index de l'appli, sinon catalogue des cartes dans cette langue), sinon anglais. */
+const advName = c => { c = String(c || ''); const nm = (typeof cnOf === 'function' && cnOf(c)) || (typeof frName === 'function' && frName(ownKey(c), I18N.lang)); return nm || (c.length > 24 && c.includes(' // ') ? c.split(' // ')[0] : c); };      // carte double au nom trop long : sa première face
 /** Après une trouvaille (event.js › evTap) : une porte vient de s'ouvrir → son ouverture ; vrai si elle est montrée. j0 : jours avant la trouvaille. */
 function advAfterFind(j0, me) {
   const a = advNow(); if (!a) return false;
@@ -43962,7 +44097,7 @@ function advAfterFind(j0, me) {
 /** Plein écran : booster qui se déchire, carte du jour retournée, récompense. o.again : revue depuis l'accueil ; o.late : rattrapée ; o.then : à la fermeture. */
 function advReveal(a, i, o = {}) {
   if (document.querySelector('.adv-open')) return;
-  const it = a.cards[i - 1] || {}, r = a.p.advent.rw[i - 1] || {}, k = String(it.c || '').toLowerCase(), nm = advName(it.c), have = typeof collQty === 'function' ? collQty(k) : 0;
+  const it = a.cards[i - 1] || {}, r = a.p.advent.rw[i - 1] || {}, k = ownKey(it.c || ''), nm = advName(it.c), have = typeof collQty === 'function' ? collQty(k) : 0;
   const rw = [], rare = a.dr[i], covName = id => { const c = typeof BND_COVERS !== 'undefined' ? BND_COVERS.find(x => x[0] === id) : null; return T(c ? c[1] : id); };
   if (rare) rw.push(['rwCover', T('Couleur rare : « {c} »', { c: covName(rare) }), T('1 chance sur 100 par booster. Dans les réglages de ton classeur, section Échange.'), 'rare']);
   if (r.cover) { const c = typeof BND_COVERS !== 'undefined' ? BND_COVERS.find(x => x[0] === r.cover) : null; rw.push(['rwCover', T('Décoration de classeur « {c} »', { c: T(c ? c[1] : r.cover) }), T('Une guirlande qui s\'allume sur ton classeur. Dans ses réglages, section Échange.'), 'anim']); }

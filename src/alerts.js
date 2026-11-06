@@ -43,7 +43,7 @@ function alDev() {
 const alAvail = () => !!(CTX.proxy && CTX.alerts && (pushNat() ? CTX.fcm : CTX.vapid) && !S.demo);
 /** Prix cible saisi (« 2,5 », « 2.50 € ») → centimes, 0 si vide ou illisible. */
 function alParseEuros(s) {
-  const n = parseFloat(String(s || '').replace(/[\s€]/g, '').replace(',', '.'));
+  const n = moneyIn(s);
   return Number.isFinite(n) && n > 0 && n < 10000 ? Math.round(n * 100) : 0;
 }
 

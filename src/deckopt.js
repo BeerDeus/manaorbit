@@ -338,7 +338,7 @@ async function dsBudAsk(cmd, go) {
   const take = v => { if (!BD.wiz) return; BD.wiz.bud = v; BD.wiz.budAck = v; dwPersist(BD.id); api.close(); haptic('tap'); setTimeout(go, 0); };
   api.body.addEventListener('click', e => {
     if (e.target.closest('[data-bud-99]')) take(tot);
-    else if (e.target.closest('[data-bud-new]')) { const v = Math.max(0, Math.round(Number(String($('#dsBudNew', api.body).value).replace(',', '.')) || 0)) * 100; take(v); }
+    else if (e.target.closest('[data-bud-new]')) { const v = Math.max(0, Math.round(moneyIn($('#dsBudNew', api.body).value) || 0)) * 100; take(v); }
   });
   return true;
 }

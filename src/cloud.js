@@ -103,6 +103,7 @@ async function natGoogleCred(m) {
 const SUM_ID = 'sommaire', SUM_V = 1, SUM_KEY = 'deckdeal:sum:v1', SUM_OUT = 'collection';      // SUM_OUT : document annexe hors du sommaire (écouté directement)
 /** Délais (ms, réglables par les tests) : vérification, écoutes d'avant après un écart, nouvel essai de création refusée, 2e essai de la vérification,
  *  fenêtre des écritures groupées ; each : au-delà, les decks sont relus d'une seule requête. */
+const SUB_RETRY = { first: 30e3, max: 30 * 60e3 };      // écoute Firestore en erreur (quota du jour, réseau) : relancée après 30 s, 1, 2, 4… min, 30 min au plus (makeSum › legacyOn)
 const SUM = { verify: 6 * 3600e3, legacy: 24 * 3600e3, denied: 24 * 3600e3, init: 3000, recheck: 1500, group: 30, each: 5 };
 /** État noté sur l'appareil, par compte : ok (sommaire permis), v (dernière vérification), den (création refusée), leg (écoutes d'avant jusqu'à). */
 const sumAll = () => { try { const o = JSON.parse(localStorage.getItem(SUM_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
@@ -147,11 +148,25 @@ function makeSum(m, db, col) {
   }
   function stopMan(E) { if (E.manOff) { const u = E.manOff; E.manOff = null; try { u(); } catch (e) { /* déjà arrêtée */ } } }
   function hotOff(E) { if (E.hot) { const u = E.hot; E.hot = null; try { u(); } catch (e) { /* déjà arrêtée */ } } }
+  /** Écoute directe d'un abonnement. Une écoute Firestore en erreur est morte (quota du jour dépassé, réseau coupé longtemps, règles) : l'abonné est prévenu,
+   *  puis elle est relancée après 30 s, 1, 2, 4… min (30 min au plus), plus tôt au retour du réseau ou de l'appli au premier plan (relance) ; données reçues : compteur remis à zéro. */
   function legacyOn(E, s) {
-    if (s.off || s.lu) return;
-    const err = e => s.onErr && s.onErr(e);
-    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => s.onData(snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites, snap.metadata.fromCache), err);
-    else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => s.onData(x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);
+    if (s.off || s.lu || E.stopped) return;
+    clearTimeout(s.rt); s.rt = 0;
+    const err = e => {
+      if (s.lu) { const u = s.lu; s.lu = null; try { u(); } catch (x) { /* déjà arrêtée */ } }
+      if (s.onErr) safe(s.onErr, e);
+      if (s.off || E.stopped) return;
+      s.retry = (s.retry || 0) + 1;
+      s.rt = setTimeout(() => { s.rt = 0; if (E.mode === 'legacy' || direct(s)) legacyOn(E, s); }, Math.min(SUB_RETRY.max, SUB_RETRY.first * 2 ** Math.min(8, s.retry - 1)));
+    };
+    const ok = (f, ...a) => { s.retry = 0; f(...a); };
+    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => ok(s.onData, snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites, snap.metadata.fromCache), err);
+    else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => ok(s.onData, x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);
+  }
+  /** Retour du réseau ou de l'appli au premier plan : les écoutes en attente de relance repartent tout de suite. */
+  function relance() {
+    for (const E of engines.values()) for (const s of E.subs) if (s.rt && !s.off && !E.stopped) { clearTimeout(s.rt); s.rt = 0; if (E.mode === 'legacy' || direct(s)) legacyOn(E, s); }
   }
   function toLegacy(E) {
     if (E.mode === 'legacy' || E.stopped) return;
@@ -415,12 +430,12 @@ function makeSum(m, db, col) {
     if (E.mode === 'legacy' || direct(s)) legacyOn(E, s);
     else { E.last.delete(s.kind === 'decks' ? 'decks' : 'p:' + s.id); resolve(E, s.kind === 'decks' ? 'decks' : 'p:' + s.id, E.mode !== 'sum'); }
     return () => {
-      s.off = true; E.subs.delete(s);
+      s.off = true; E.subs.delete(s); clearTimeout(s.rt); s.rt = 0;
       if (s.lu) { const u = s.lu; s.lu = null; try { u(); } catch (e) { /* déjà arrêtée */ } }
       if (!E.subs.size && engines.get(uid) === E) { E.stopped = true; clearTimeout(E.initT); stopMan(E); hotOff(E); engines.delete(uid); E.readyRes(); }
     };
   }
-  return { sub, put, tx, pull, manRef, metaRef, deckRef, state: uid => { const E = engines.get(uid); return E ? { mode: E.mode, canWrite: E.canWrite, hot: !!E.hot, plain: [...E.plain] } : null; } };
+  return { sub, put, tx, pull, relance, manRef, metaRef, deckRef, state: uid => { const E = engines.get(uid); return E ? { mode: E.mode, canWrite: E.canWrite, hot: !!E.hot, plain: [...E.plain] } : null; } };
 }
 
 /** Construit l'API cloud à partir des modules du SDK (injectables pour les tests). */
@@ -460,6 +475,8 @@ function makeCloud(m) {
     signOut: () => { const g = natGoogle(); if (g) Promise.resolve(g.signOut()).catch(() => {}); return m.auth.signOut(auth); },      // appli : oublie aussi le compte Google choisi (le sélecteur réapparaît)
     /** Decks de l'utilisateur en temps réel, du plus récent au plus ancien : onData([{ id, data }], écritureEnAttente). Par le sommaire (voir makeSum). */
     watch: (uid, onData, onErr) => sm.sub(uid, { kind: 'decks', onData, onErr }),
+    /** Écoutes arrêtées par une erreur (quota, réseau) : relancées tout de suite (retour du réseau, appli au premier plan). */
+    relance: () => sm.relance(),
     newId: uid => m.fs.doc(col(uid)).id,
     save: (uid, id, data) => sm.put(uid, [['d:' + id, stampOf(data)]], b => b.set(dref(uid, id), data), () => m.fs.setDoc(dref(uid, id), data)),
     remove: (uid, id) => sm.put(uid, [['d:' + id, null]], b => b.delete(dref(uid, id)), () => m.fs.deleteDoc(dref(uid, id))),
@@ -567,7 +584,7 @@ async function shareFetch(id, fetchFn) {
   if (!SHARE_ID_RE.test(String(id || ''))) throw Object.assign(new Error('lien invalide'), { code: 'bad' });
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents/shares/${id}?key=${FIREBASE_CONFIG.apiKey}`;
   let r;
-  try { r = await (fetchFn || fetch)(url, { cache: 'no-store', credentials: 'omit' }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
+  try { r = await (fetchFn || (typeof fetchT === 'function' ? fetchT : fetch))(url, { cache: 'no-store', credentials: 'omit' }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
   if (r.status === 404) throw Object.assign(new Error('partage introuvable'), { code: 'gone' });
   if (r.status === 403 || r.status === 401) throw Object.assign(new Error('accès refusé'), { code: 'denied' });
   if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { code: 'net' });
@@ -578,4 +595,4 @@ async function shareFetch(id, fetchFn) {
   return out;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { FIREBASE_CONFIG, authMessage, makeCloud, shareFetch, SHARE_ID_RE, cloudClearLocal, SUM, SUM_ID, sumMerge };
+if (typeof module !== 'undefined' && module.exports) module.exports = { FIREBASE_CONFIG, authMessage, makeCloud, makeSum, shareFetch, SHARE_ID_RE, cloudClearLocal, SUM, SUM_ID, SUB_RETRY, sumMerge };

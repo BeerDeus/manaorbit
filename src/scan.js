@@ -696,7 +696,7 @@ async function asiaMatch(lines, l) {
   if (!SC.el || Date.now() < OTH.off || !CTX.proxy || collOffline()) return null;
   try {
     const qs = [...new Set(ls.map(x => String(x.text).trim()))].slice(0, 4), skip = NAMES_ALL_LANGS.filter(x => x !== l).join(',');
-    const r = await fetch('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q.slice(0, 100)]), ['skip', skip]]), { headers: { Accept: 'application/json' } });
+    const r = await fetchT('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q.slice(0, 100)]), ['skip', skip]]), { headers: { Accept: 'application/json' } }, 8000);      // 8 s au plus : la file du scan attend cette réponse
     const h = r.ok ? (await r.json()).hit : null;
     if (!h || h.lang !== l || typeof h.name !== 'string' || !h.name || !(h.score >= 0.72 && h.score <= 1)) return null;
     const img = typeof h.img === 'string' && /^https:\/\/cards\.scryfall\.io\/[\w/.-]+$/.test(h.img) ? h.img : '', alts = h.amb && Array.isArray(h.alts) ? h.alts.filter(x => typeof x === 'string' && x).slice(0, 6) : [];
@@ -715,7 +715,7 @@ async function scanOther(lines, st) {
   if (!SC.el || Date.now() < OTH.off || !CTX.proxy || !(st.n < 2)) return null;
   st.n++; let hit = null;
   try {
-    const r = await fetch('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q]), ['skip', skip]]), { headers: { Accept: 'application/json' } });
+    const r = await fetchT('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q]), ['skip', skip]]), { headers: { Accept: 'application/json' } }, 8000);
     if (!r.ok && !r.headers.get('retry-after') && r.status !== 400) { OTH.off = Date.now() + 5 * 60e3; return null; }      // serveur sans cette recherche (ancienne version, coupée) : redemandé 5 min plus tard ; 429 / occupé : la carte suivante redemande
     if (!r.ok) return null;
     const h = (await r.json()).hit;

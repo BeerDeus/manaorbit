@@ -101,6 +101,19 @@ function TN(n, one, many, v) {
 /** Nombre écrit dans la locale de l'appli (LOC) : num(1234) → « 1 234 » (français), « 1,234 » (anglais) ; num(3.125, 2) → « 3,13 » : d décimales toujours écrites
  *  (sans d : jusqu'à 3, comme toLocaleString). Jamais toFixed dans un texte (« 3.12 » en français). */
 const num = (v, d) => Number(v || 0).toLocaleString(LOC(), d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Montant tapé par l'utilisateur → nombre (unités : euros, dollars), NaN si vide ou illisible. Symboles et espaces ignorés (« 50 € », « 1 000 », « $1,234.50 ») ;
+ *  séparateurs lus selon la locale de l'appli (LOC) : « 4,90 » partout, « 1,000 » = mille en anglais, « 1.000 » = mille en allemand ; les deux présents : le dernier est la virgule décimale. */
+function moneyIn(s, loc) {
+  let t = String(s == null ? '' : s).replace(/[\s\u00a0\u202f€$£]|eur|usd/gi, ''); if (!t) return NaN;
+  const c = t.lastIndexOf(','), d = t.lastIndexOf('.');
+  if (c >= 0 && d >= 0) t = c > d ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  else if (c >= 0 || d >= 0) {
+    const sep = c >= 0 ? ',' : '.', grp = (new Intl.NumberFormat(loc || LOC()).formatToParts(1234.5).find(p => p.type === 'group') || {}).value;
+    const thousands = sep === grp && new RegExp('^\\d{1,3}(\\' + sep + '\\d{3})+$').test(t);
+    t = thousands ? t.split(sep).join('') : t.split(sep).length === 2 ? t.replace(sep, '.') : '';
+  }
+  return /^-?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
+}
 /** Pourcentage, v en points : pct(78) → « 78 % » (français, allemand, espagnol), « 78% » (anglais, italien, portugais) : clé '{n} %' des dictionnaires ; d : décimales (num).
  *  Jamais « + ' %' » hors de T. */
 const pct = (v, d) => T('{n} %', { n: num(v, d) });
@@ -1045,9 +1058,9 @@ function canCommand(m, x) {
 const canLead = m => canCommand(typeof m === 'string' || m == null ? { tl: m || '' } : m) === 1;
 
 /* ── Créateur de deck (Standard / Commander) ──────────────────────────────────────────────────── */
-const DK_FORMATS = {
-  standard: { label: T('Standard'), size: 60, copies: 4, side: 15, hint: T('60 cartes, 4 exemplaires d\'une même carte au maximum (terrains de base exclus), réserve de 15 facultative.') },
-  commander: { label: 'Commander', size: 100, copies: 1, side: 0, hint: T('100 cartes dont ton commandant, un seul exemplaire de chaque carte (terrains de base exclus).') },
+const DK_FORMATS = {      // libellé et aide lus à l'affichage (getters) : core.js est chargé avant le dictionnaire de la langue
+  standard: { get label() { return T('Standard'); }, size: 60, copies: 4, side: 15, get hint() { return T('60 cartes, 4 exemplaires d\'une même carte au maximum (terrains de base exclus), réserve de 15 facultative.'); } },
+  commander: { label: 'Commander', size: 100, copies: 1, side: 0, get hint() { return T('100 cartes dont ton commandant, un seul exemplaire de chaque carte (terrains de base exclus).'); } },
 };
 /** Cartes dont le texte Oracle lève la limite d'exemplaires : clé (ownKey) → maximum dans un deck, quel que soit le format. « A deck can have any number of cards named … » : sans limite ;
  *  « up to seven / nine » : Seven Dwarves, Nazgûl. Liste en dur (le texte Oracle n'est pas gardé dans les infos des cartes) : recherche Scryfall o:"deck can have" du 24 octobre 2026,
@@ -2602,6 +2615,30 @@ function tradeLists(coll, use, keep, kept, places, unsorted) {
   const byN = (a, b) => EN_CMP(a.n, b.n);
   return { have: have.sort(byN), held: held.sort(byN) };
 }
+/** Réglages de l'échange (souhaits, cartes gardées, réserve, lien, decks partagés) de deux appareils : fusion à trois d'après le dernier état commun (base, '' / null :
+ *  aucun, première synchro). Docs { keep, kept: [clés], wish: { clé → { n, q, i?, w?, l? } }, share, dsh: { id deck → id partage } }. Chaque souhait, chaque carte gardée,
+ *  chaque deck partagé : le côté qui a changé l'emporte ; souhait changé des deux côtés : quantités additionnées (base + ajouts de chacun), illustration de cet appareil ;
+ *  retiré d'un côté, changé de l'autre : gardé. Sans base : union (souhait : la plus grande quantité). Réserve et lien : le côté qui a changé, sinon l'autre appareil. */
+function tradeMerge3(base, local, remote) {
+  const b = base || null, l = local || {}, r = remote || {}, same = (x, y) => JSON.stringify(x == null ? null : x) === JSON.stringify(y == null ? null : y);
+  const one = (bv, lv, rv) => (same(lv, bv) ? rv : same(rv, bv) ? lv : rv);
+  const wish = {}, bw = (b && b.wish) || {}, lw = l.wish || {}, rw = r.wish || {};
+  for (const k of new Set([...Object.keys(lw), ...Object.keys(rw)])) {
+    const B = b ? bw[k] : undefined, L = lw[k], R = rw[k];
+    let v;
+    if (!b) v = L && R ? { ...R, ...L, q: Math.max(L.q || 1, R.q || 1) } : L || R;
+    else if (same(L, B)) v = R;
+    else if (same(R, B)) v = L;
+    else if (!L || !R) v = L || R;
+    else v = { ...R, ...L, q: Math.max(1, Math.min(99, (L.q || 1) + (R.q || 1) - ((B && B.q) || 0))) };
+    if (v) wish[k] = v;
+  }
+  const bk = new Set((b && b.kept) || []), lk = new Set(l.kept || []), rk = new Set(r.kept || []), kept = [];
+  for (const k of new Set([...lk, ...rk])) if (!b || (lk.has(k) && rk.has(k)) || (lk.has(k) && !bk.has(k)) || (rk.has(k) && !bk.has(k))) kept.push(k);
+  const dsh = {}, bd = (b && b.dsh) || {}, ld = l.dsh || {}, rd = r.dsh || {};
+  for (const k of new Set([...Object.keys(ld), ...Object.keys(rd)])) { const v = b ? one(bd[k], ld[k], rd[k]) : rd[k] || ld[k]; if (v) dsh[k] = v; }
+  return { keep: b ? one(b.keep, l.keep, r.keep) : r.keep, kept, wish, share: b ? one(b.share, l.share, r.share) : r.share || l.share || '', dsh };
+}
 /** Cartes recherchées : ce qui manque aux decks (somme des decks − possédé) + la liste de souhaits (wish : clé → { n, q, i?, w?, l? }, exemplaires voulus en plus ;
  *  i/w/l : illustration retenue — image, « Extension · CODE 123 », langue). [{ k, n, q, d (manque aux decks), w (souhait), p? { i, w, l } }] triés par nom. */
 function tradeWant(coll, use, wish) {
@@ -2786,7 +2823,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
 // Nombres, pourcentages et « Afficher plus » écrits dans la langue de l'appli : exportés à part
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn, moneyIn, tradeMerge3 });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient

@@ -153,6 +153,14 @@ function lotDrop(id) {
   lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
   toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: T('Annuler'), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
 }
+/** Catalogue des noms pour les suggestions : bandeau « Chargement… » tant qu'il n'est pas là, effacé à son arrivée ; échec : message (hors ligne, Scryfall), relancé au retour du réseau. */
+function lotCatLoad(wrap) {
+  const wait = T('Chargement du catalogue (une seule fois)…'), mine = t => { const s = $('#caStatus', wrap); return s && !s.hidden && $('span:last-child', s).textContent === t; };
+  let err = '';
+  collCatalog().then(cat => { LOT.cat = cat; if (LOT.el !== wrap) return; if (mine(wait)) lotSay(''); lotSuggest(); })
+    .catch(e => { if (LOT.el !== wrap) return; err = collCatErr(e); lotSay(err, false); window.addEventListener('online', () => { if (LOT.el === wrap && !LOT.cat) { if (mine(err)) lotSay(''); lotCatLoad(wrap); } }, { once: true }); });
+  if (!COLL.names && !LOT.cat) lotSay(wait, false);
+}
 const lotSay = (t, ok) => { const s = LOT.el && $('#caStatus', LOT.el); if (!s) return; s.hidden = !t; if (t) { $('span:last-child', s).textContent = t; s.dataset.ok = ok ? '1' : '0'; } };
 /** Total du lot : exemplaires et valeur (prix de l'édition, sinon de la carte). */
 function lotTotals() { let n = 0, v = 0; for (const x of LOT.list) { n += x.q; const u = collLineEu(x.k, x.g) ?? x.eu; if (u > 0) v += u * x.q; } return { n, v }; }
@@ -286,8 +294,7 @@ function openLot() {
   document.body.appendChild(wrap); holdApp(); lotPaintHead(); lotPaintList(); lotPaintCard();
   { const mb = $('.mob-pc', wrap); mb.hidden = !mobPcLike() && !MOB.pc; mobPaint(); }      // scan mobile : sur un ordinateur
   setIcLoad(() => { if (LOT.el === wrap) { lotPaintHead(); lotPaintList(); } });
-  collCatalog().then(cat => { LOT.cat = cat; if (LOT.el === wrap) lotSuggest(); }).catch(e => { if (LOT.el === wrap) lotSay(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false); });
-  if (!COLL.names) lotSay(T('Chargement du catalogue (une seule fois)…'), false);
+  lotCatLoad(wrap);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); }));
   setTimeout(() => { if (LOT.el === wrap) inp.focus(); }, 380);
   haptic('tap');

@@ -60,7 +60,21 @@ const setScryUntil = t => { try { localStorage.setItem(SCRY_KEY, String(Math.min
 const scryLeft = () => Math.max(0, Math.min(scryUntil() - Date.now(), BACKOFF.maxGate));
 
 /** Délai maximal d'une requête Scryfall, réponse comprise : sans lui, une requête pendue bloquait toute la file (une à la fois) sans erreur ni fin. Dépassé → erreur réseau : même ralentissement, mêmes nouveaux essais. Modifiable par les tests. */
-const HTTP_TIMEOUT = { scry: 20000 };
+const HTTP_TIMEOUT = { scry: 20000, srv: 15000 };      // srv : serveur Mana Orbit (fetchT)
+/** fetch vers le serveur Mana Orbit (échange en direct, amis, parties, Carte mystère, événements, historique des prix, noms du scan, partages) avec un délai maximal :
+ *  sans réponse au bout de ms (Wi-Fi faible en boutique), la requête est coupée et rejetée comme une coupure réseau (code 'net', name 'TimeoutError') ; l'appelant
+ *  affiche alors son message « hors ligne » et réessaie, au lieu d'attendre sans fin (relevé de l'échange figé, file du scan bloquée). Le délai court jusqu'aux en-têtes
+ *  de la réponse ; un signal de l'appelant reste suivi. */
+function fetchT(url, init = {}, ms = HTTP_TIMEOUT.srv) {
+  if (typeof AbortController === 'undefined') return fetch(url, init);
+  const ac = new AbortController(), up = init && init.signal, t = setTimeout(() => ac.abort(), ms);
+  if (up) { if (up.aborted) ac.abort(); else up.addEventListener('abort', () => ac.abort(), { once: true }); }
+  return fetch(url, { ...init, signal: ac.signal }).then(r => { clearTimeout(t); return r; }, e => {
+    clearTimeout(t);
+    if (ac.signal.aborted && !(up && up.aborted)) throw Object.assign(new Error('délai dépassé'), { code: 'net', name: 'TimeoutError' });
+    throw e;
+  });
+}
 /** Signal d'une tentative : suit celui de l'appelant, et coupe la requête si rien n'arrive dans les ms qui suivent arm() (départ de la requête, pas l'attente dans la file ; puis de nouveau pour lire la réponse). Sans AbortSignal.any (absent des WebView avant la 116). late : coupée par le délai. */
 function reqTimer(signal, ms) {
   if (!ms) return { late: false, arm: () => signal, end() {} };
