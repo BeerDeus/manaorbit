@@ -7,7 +7,8 @@ const Tasks = (() => {
   const host = () => (typeof document !== 'undefined' ? document.getElementById('tasks') : null);
   const NOOP = { set() {}, show() {}, finish() {}, remove() {}, label() {}, isShown: () => false, done: true };
 
-  /** label : titre ; o : {total, sub, hidden}. Retourne une poignée {set, show, finish, remove, label, isShown}. */
+  /** label : titre ; o : {total, sub, hidden, open}. open (facultatif) : un appui sur la pastille rouvre l'écran de la tâche (en cours ou terminée ; la croix ne fait que fermer).
+   *  Retourne une poignée {set, show, finish, remove, label, isShown}. */
   function start(label, o = {}) {
     const h = host(); if (!h) return NOOP;
     const el = document.createElement('div');
@@ -18,6 +19,7 @@ const Tasks = (() => {
       <span class="task-bar"><i></i></span>`;
     const t = el.querySelector('.task-t'), s = el.querySelector('.task-s'), arc = el.querySelector('.arc'), bar = el.querySelector('.task-bar i'), x = el.querySelector('.task-x');
     t.textContent = label; s.textContent = o.sub || '';
+    if (o.open) { el.classList.add('task-open'); el.title = T('Ouvrir'); el.onclick = () => o.open(); x.onclick = e => { e.stopPropagation(); api.remove(); }; }
     h.appendChild(el);
     let timer = 0, gone = false;
     const reveal = () => { void el.offsetWidth; requestAnimationFrame(() => el.classList.add('in')); };
@@ -43,7 +45,7 @@ const Tasks = (() => {
         api.done = true;
         if (el.classList.contains('hide')) return api.remove();
         el.classList.remove('indet'); el.classList.add(kind); t.textContent = msg; s.textContent = detail; x.hidden = false;
-        el.onclick = api.remove; clearTimeout(timer); timer = setTimeout(api.remove, kind === 'ok' ? 4500 : 9000);
+        el.onclick = o.open ? () => { api.remove(); o.open(); } : api.remove; clearTimeout(timer); timer = setTimeout(api.remove, kind === 'ok' ? 4500 : 9000);
       },
       remove() {
         if (gone) return; gone = true; clearTimeout(timer); api.done = true;

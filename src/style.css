@@ -395,6 +395,7 @@ button.sync:active{background:var(--surface-2)}
 .task{pointer-events:auto;position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:10px 10px 13px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);transform:translateX(calc(100% + 18px));opacity:0;transition:transform .4s cubic-bezier(.2,.9,.25,1),opacity .25s}
 .task.in{transform:none;opacity:1}
 .task.hide{display:none}
+.task.task-open{cursor:pointer}
 .task-ico{width:28px;height:28px;flex:none}
 .task-ico svg{width:100%;height:100%;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
 .task .trk{stroke:var(--surface-2)}

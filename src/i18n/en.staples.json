@@ -89,5 +89,6 @@
  "Le coach construit des decks complets pour chaque commandant (8 versions, environ 1 à 2 minutes chacun) ; avec les vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.": "The coach builds complete decks for each commander (8 versions, about 1 to 2 minutes each); together with real EDHREC and Archidekt decks, all rated by the coach, cards that come back in the best-rated decks come first.",
  "Des commandants de toutes les couleurs, les plus joués d'abord, jusqu'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.": "Commanders of every color, most played first, up to the chosen number of decks: their real EDHREC and Archidekt decks and one deck built by the coach for each, all rated by the coach; cards that come back in the best-rated decks come first.",
  "Decks à analyser": "Decks to analyze",
- "(plus de decks : plus long)": "(more decks: slower)"
+ "(plus de decks : plus long)": "(more decks: slower)",
+ "Analyse des decks…": "Analyzing decks…"
 }

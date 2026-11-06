@@ -226,7 +226,7 @@ async function stpVerify(R) {
   if (CTX.proxy && CTX.needsLogin && !(CTX.needsKey && CTX.appKey) && CTX.idToken && !(await CTX.idToken())) { R.note = T('Connecte-toi pour lire les prix CardTrader.'); return; }
   const run = STP.run = { ctrl: new AbortController(), done: 0, total: R.list.filter(x => x.ct === undefined).length, frac: 0, step: '' };
   const opts = { ...S.opts, fallbackEn: !!S.opts.lang && S.opts.lang !== 'en', skip: new Set(), fresh: false, push: null }, sig = pxSig(opts.lang, opts);
-  STP.task = floatTask(T('Chasse aux staples'), { total: run.total, sub: T('Vérification CardTrader…') }, () => !(STP.api && sheets[sheets.length - 1] === STP.api));
+  STP.task = floatTask(T('Chasse aux staples'), { total: run.total, sub: T('Vérification CardTrader…'), open: stpOpen }, stpTaskHid);      // appui : la fiche se rouvre
   const upd = () => { STP.task.set(run.done + run.frac, run.total, `${nf0(Math.floor(run.done + run.frac))} / ${nf0(run.total)}${R.rep ? ' · ' + TN(R.rep, '{n} remplacée', '{n} remplacées') : ''}`); stpPaintRun(); };
   upd();
   try {
@@ -309,6 +309,15 @@ async function stpDecksOf(c, x, o, ms, one, label) {
   return { decks: out, nr, nc: out.length - nr, notes };
 }
 
+/** Pastille flottante cachée tant que la fiche est au premier plan. */
+const stpTaskHid = () => !(STP.api && sheets[sheets.length - 1] === STP.api);
+/** Pastille de l'analyse approfondie (fiche fermée) : commandant en cours ; un appui rouvre la fiche. */
+function stpATask() {
+  const pg = STP.prog; if (!pg) return;
+  if (!STP.atask) STP.atask = floatTask(T('Chasse aux staples'), { total: pg.total, sub: T('Analyse des decks…'), open: stpOpen }, stpTaskHid);
+  STP.atask.set(pg.done + (pg.frac || 0), pg.total, T('Commandant {a} / {b}', { a: nf0(Math.min(pg.total, pg.done + 1)), b: nf0(pg.total) }));
+}
+
 /* ── Génération ───────────────────────────────────────────────────────────────────────────────────── */
 async function stpGo() {
   if (STP.run || STP.busy) return;
@@ -351,6 +360,7 @@ async function stpGo() {
       STP.U = U;
     }
     STP.prog = null;
+    if (STP.atask) { STP.atask.finish(T('Chasse aux staples'), STP.stop ? 'warn' : 'ok', TN(A.n, '{n} deck analysé', '{n} decks analysés')); STP.atask = null; }
     STP.busy = T('Classement des cartes…'); stpPaint();
     await new Promise(r => setTimeout(r, 30));
     const ranked = stpCands(o, { pop: stpPop(), cmds, U: !cmds.length && o.deep ? STP.U : null }), bal = cmds.length !== 1, order = cmds.length > 1 ? cmds.map(c => c.slug) : null;      // plusieurs commandants : parts égales entre eux ; un seul : classement pur ; aucun : par couleur
@@ -360,6 +370,7 @@ async function stpGo() {
     if (o.ct && R.list.length) { stpPaint(); await stpVerify(R); }
   } catch (e) {
     STP.busy = ''; STP.err = (e && e.message) || T('Échec de la génération.');
+    if (STP.atask) { STP.atask.finish(T('Chasse aux staples'), 'bad', STP.err); STP.atask = null; } STP.prog = null;
   } finally { STP.busy = ''; stpPaint(); haptic(STP.res ? 'ok' : 'bad'); }
 }
 /** Complète la liste jusqu'au nombre demandé (après des ✕), en respectant les quotas, puis vérifie les nouvelles cartes. */
@@ -458,8 +469,8 @@ function stpWhy(x, R) {
   return out.slice(0, 3).join(' · ');
 }
 function stpRowHtml(x, i, R) {
-  const nm = stpNm(x.name), en = nm !== x.name ? x.name : '', im = (typeof dmOf === 'function' && (dmOf(x.k) || {}).im) || zoomUrl(x.name, 'small'), ct = x.ct === undefined ? '' : x.ct == null ? `<small class="bad">${T('CT : aucune offre')}</small>` : `<small${stpCtOk(x.ct, R.o) ? '' : ' class="bad"'}>CT ${esc(stpEuro(x.ct))}</small>`;
-  return `<div class="stp-row" data-k="${esc(x.k)}" data-n="${esc(x.name)}"><span class="stp-i">${nf0(i + 1)}</span><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('stp', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(im)}"></span>
+  const nm = stpNm(x.name), en = nm !== x.name ? x.name : '', im = typeof dmOf === 'function' ? (dmOf(x.k) || {}).im || '' : '', ct = x.ct === undefined ? '' : x.ct == null ? `<small class="bad">${T('CT : aucune offre')}</small>` : `<small${stpCtOk(x.ct, R.o) ? '' : ' class="bad"'}>CT ${esc(stpEuro(x.ct))}</small>`;
+  return `<div class="stp-row" data-k="${esc(x.k)}" data-n="${esc(x.name)}"><span class="stp-i">${nf0(i + 1)}</span><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('stp', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span>
     <span class="stp-n"><b>${x.need > 1 ? `<em>${nf0(x.need)} ×</em> ` : ''}<span class="row-name">${esc(nm)}</span></b><small>${stpPipsHtml(x.ci)}<span>${esc(en || stpWhy(x, R))}</span></small>${en ? `<small class="stp-why"><span>${esc(stpWhy(x, R))}</span></small>` : ''}</span>
     <span class="stp-p">${esc(stpEuro(x.eur))}${ct}</span><button type="button" class="icon-btn stp-x" data-stp="x" data-v="${esc(x.k)}" aria-label="${esc(T('Retirer {name} de cette liste', { name: x.name }))}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
 }
@@ -484,13 +495,14 @@ function stpResHtml() {
   return html;
 }
 function stpPaint() {
+  stpATask();
   const api = STP.api; if (!api || sheets.indexOf(api) < 0) return;
   const y = api.body.scrollTop;
   if (STP.busy || STP.run) {
     api.body.innerHTML = (STP.res && STP.run ? stpRunHtml() + stpResHtml() : stpRunHtml());
     api.setFoot(STP.run ? `<button class="btn ghost block" type="button" data-stp="stop">${T('Arrêter la vérification')}</button>` : STP.prog ? `<button class="btn ghost block" type="button" data-stp="stopa"${STP.stop ? ' disabled' : ''}>${T('Arrêter l\'analyse')}</button>` : '');
   } else if (STP.res && !STP.edit) {
-    api.body.innerHTML = stpResHtml();
+    api.body.innerHTML = stpResHtml(); if (typeof thumbsReady === 'function') thumbsReady(api.body); stpMeta();
     const n = STP.res.list.length;
     api.setFoot(`<button class="btn ghost" type="button" data-stp="copy"${n ? '' : ' disabled'}>${T('Copier')}</button><button class="btn" type="button" data-stp="send"${n ? '' : ' disabled'}>${T('Envoyer dans Prix d\'une liste')}</button>`);
   } else {
@@ -499,8 +511,16 @@ function stpPaint() {
   }
   api.body.scrollTop = y;
 }
+/** Images des vignettes : fiches lues par lots (builder.js › dmFetch : /cards/collection, 75 cartes par requête ; images ensuite servies par cards.scryfall.io), jamais
+ *  une requête par carte à api.scryfall.com (limitée en débit : une rafale bloquait Scryfall, « Scryfall en pause » dans la recherche suivante). La lettre en attendant. */
+async function stpMeta() {
+  const R = STP.res; if (!R || typeof dmFetch !== 'function') return;
+  const sig = R.list.map(x => x.k).join('|'); if (STP.metaSig === sig) return; STP.metaSig = sig;
+  try { await dmLoad(); if (await dmFetch(R.list.map(x => ({ key: x.k, name: x.name })), false)) stpPaint(); } catch (e) { /* hors ligne, limite Scryfall : les lettres restent */ }
+}
 /** Seule la barre de progression bouge pendant la vérification (repeinte au plus une fois par image). */
 function stpPaintRun() {
+  stpATask();
   if (STP.raf) return;
   STP.raf = requestAnimationFrame(() => {
     STP.raf = 0; const api = STP.api; if (!api || sheets.indexOf(api) < 0) return;
@@ -564,6 +584,7 @@ function stpOpen() {
     if (!E0) edhLoad().then(() => { if (!STP.res || STP.edit) stpPaint(); }, () => stpPaint());      // commandants de Mes decks et recherche
     if (!DW.core) dwLoad().catch(() => {});
   });
+  if (typeof syncFloat === 'function') syncFloat();      // fiche au premier plan : sa pastille se cache (la règle lit STP.api, connu seulement maintenant)
 }
 /* Vignette d'une ligne → la carte en grand, précédente / suivante dans la liste (zoom.js). */
 if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.stp = th => {
