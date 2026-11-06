@@ -41,9 +41,10 @@ function obOpen() {
         <button class="link-btn ob-swg" type="button" data-ob="swg">${T('Tu viens de ManaBox ? Voir comment l\'exporter')}</button>
         <div class="ob-opts">
           <button class="ob-opt" type="button" data-ob="import"><svg class="i"><use href="#i-download"/></svg><b>${T('Importer un fichier')}</b><span>${T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».')}</span></button>
+          <button class="ob-opt" type="button" data-ob="add"><svg class="i"><use href="#i-plus"/></svg><b>${T('Ajouter une carte')}</b><span>${T('Tape son nom : elle rejoint ta collection.')}</span></button>
           <button class="ob-opt" type="button" data-ob="scan"><svg class="i"><use href="#i-camera"/></svg><b>${T('Scanner mes cartes')}</b><span>${nmT('L\'appareil photo lit le nom de la carte, en français ou en anglais.', 'L\'appareil photo lit le nom de la carte, en {lang} ou en anglais.', 'L\'appareil photo lit le nom de la carte.')}</span></button>
         </div>
-        <button class="btn ghost block" type="button" data-ob="next">${T('Plus tard')}</button>
+        <button class="btn ghost block" type="button" data-ob="next">${T('Continuer sans ajouter de cartes')}</button>
       </section>
       <section class="ob-s ob-save" aria-label="${T('Sauvegarde ta collection')}">
         <span class="ob-save-ic" aria-hidden="true"><svg class="i"><use href="#i-cloud"/></svg></span>
@@ -67,6 +68,7 @@ function obOpen() {
     else if (a === 'import') obClose(() => openCollImport());
     else if (a === 'swg') obClose(() => swgOpen({ from: 'onboard' }));      // guide « Passer de ManaBox » (switch.js)
     else if (a === 'scan') obClose(() => openScan());
+    else if (a === 'add') obClose(() => openLot());
     else if (a === 'done') { if (OB.i === 2 && obPushStep()) obGo(3); else { if (OB.i === 3 && typeof evpAskLater === 'function') evpAskLater(); obClose(); } }      // étape 3 → notifications (s'il y en a une) ; étape 4 « Plus tard » : jamais redemandé
     else if (a === 'push') obPush(b);
     else if (a === 'google') obGoogle(b);

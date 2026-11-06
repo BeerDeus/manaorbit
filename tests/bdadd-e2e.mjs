@@ -23,7 +23,7 @@ const decks = async p => { if (!(await p.$('.dks.on'))) { await toHome(p); await
 const newDeck = async (p, name, fmt) => {
   await decks(p); await p.click('#btnNewDeck'); await p.waitForSelector('#ndName');
   await p.fill('#ndName', name); await p.click(`#ndFmt .seg-opt[data-v="${fmt}"]`);
-  await p.click('#ndGo'); await p.click('.dw-start[data-v="have"]'); await p.click('.dw-start[data-v="hand"]'); await p.waitForSelector('.bd.on');
+  await p.click('.nd-go[data-v="hand"]'); await p.waitForSelector('.bd.on'); await p.click('#bdSeg .seg-opt[data-v="deck"]');      // feuille unique ; la suite part de l'onglet Deck
 };
 const leave = async p => { await p.click('.bd [data-act="close"]'); await p.waitForSelector('#bdLeave'); await p.click('#bdLeave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 }); };
 /** Appui long (souris : pointerdown, attente, pointerup) au milieu du nom d'une ligne ; dx : glissement pendant l'appui. */

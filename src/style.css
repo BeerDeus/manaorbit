@@ -1649,3 +1649,7 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 .bd-tools .bd-sort{flex:1;min-width:0}
 .bd-tools-sp{flex:1}
 .bd-vis{margin-top:4px}
+
+.le-x{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:18px 8px}.le-x .hint{margin:0}.le-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}.le-acts .btn{min-height:44px}      /* liste vide de la collection : de quoi en sortir (collNoMatchHtml) */
+.ca-row{display:flex;gap:8px;align-items:stretch}.ca-row .ca-opt{flex:1;min-width:0}.ca-qadd{flex:none;width:48px;min-height:48px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:var(--accent-soft);color:var(--accent)}.ca-qadd:active{transform:scale(.95)}      /* Ajouter des cartes : « + » d'une suggestion = ajout direct (lot.js) */
+.nd-opts .nd-go{display:flex;flex-direction:row;align-items:center;gap:12px;text-align:left}.nd-opts .nd-go>.i{width:22px;height:22px;flex:none;color:var(--accent)}.nd-opts .nd-go>span{display:flex;flex-direction:column;gap:2px;min-width:0}.nd-wiz{display:contents}.nd-wiz[hidden]{display:none}      /* Nouveau deck : départs en une feuille (builder.js › openDeckNew) */

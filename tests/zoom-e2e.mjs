@@ -159,7 +159,7 @@ ok('nom tapé en français : « Anneau solaire » en titre de la carte en grand 
 
 /* ── 9) Éditeur de deck ────────────────────────────────────────────────────────────────────── */
 await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('.dks.on'); await p.click('#btnNewDeck'); await p.waitForSelector('#ndName');
-await p.fill('#ndName', 'Zoom'); await p.click('#ndFmt .seg-opt[data-v="standard"]'); await p.click('#ndGo'); await p.click('.dw-start[data-v="have"]'); await p.click('.dw-start[data-v="hand"]'); await p.waitForSelector('.bd.on');
+await p.fill('#ndName', 'Zoom'); await p.click('#ndFmt .seg-opt[data-v="standard"]'); await p.click('.nd-go[data-v="hand"]'); await p.waitForSelector('.bd.on');
 await p.click('#bdSeg .seg-opt[data-v="coll"]');
 await p.waitForSelector('.bd-row[data-k="wrath of god"] .thumb[data-zoom]', { timeout: 8000 });
 v = await tap('.bd-row[data-k="wrath of god"] .thumb'); assert.equal(v.name, 'Wrath of God'); await closeV();

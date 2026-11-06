@@ -1,0 +1,18 @@
+{
+  "Aucune carte « {q} » avec ces filtres.": "No “{q}” card with these filters.",
+  "Aucune carte « {q} » dans ta collection.": "No “{q}” card in your collection.",
+  "Aucune carte ne correspond à ces filtres.": "No card matches these filters.",
+  "Effacer les filtres": "Clear filters",
+  "Effacer la recherche": "Clear search",
+  "Ajouter « {q} » à ma collection": "Add “{q}” to my collection",
+  "Hors ligne : les idées de decks reviendront dès que tu seras connecté.": "Offline: deck ideas will come back as soon as you're online.",
+  "Les decks EDHREC ne sont pas disponibles pour le moment. Réessaie dans quelques minutes.": "EDHREC decks aren't available right now. Try again in a few minutes.",
+  "Ajouter une carte": "Add a card",
+  "Tape son nom : elle rejoint ta collection.": "Type its name: it joins your collection.",
+  "Continuer sans ajouter de cartes": "Continue without adding cards",
+  "Ajouter 1 exemplaire de {name}": "Add 1 copy of {name}",
+  "Nom (facultatif)": "Name (optional)",
+  "Commencer par": "Start with",
+  "Assistant": "Assistant",
+  "Commandant choisi : ajoute maintenant les cartes du deck": "Commander chosen: now add the deck's cards"
+}

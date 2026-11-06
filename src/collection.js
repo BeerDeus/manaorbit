@@ -1337,6 +1337,13 @@ function collWinSync() {
 function collWinScroll() { if (COLL.win && !COLL.winRaf) COLL.winRaf = requestAnimationFrame(collWinSync); }
 
 /** Remplit la liste ou les stats selon l'onglet. keep : garder la position de défilement. */
+/** Liste vide après une recherche ou des filtres : ce qui la vide, et de quoi en sortir (effacer les filtres, la recherche ; ajouter la carte cherchée). Audit du 6 novembre (U4). */
+function collNoMatchHtml() {
+  const f = COLL.f, q = (f.q || '').trim(), flt = filterActive({ ...f, q: '' }) || collWhenOn();
+  const msg = q && flt ? T('Aucune carte « {q} » avec ces filtres.', { q }) : q ? T('Aucune carte « {q} » dans ta collection.', { q }) : T('Aucune carte ne correspond à ces filtres.');
+  const b = (act, t, cls) => `<button class="btn ${cls || 'ghost'}" type="button" data-act="${act}">${esc(t)}</button>`;
+  return `<div class="listempty le-x"><p class="hint">${esc(msg)}</p><div class="le-acts">${flt ? b('fclr', T('Effacer les filtres')) : ''}${q ? b('qclr', T('Effacer la recherche')) : ''}${q && COLL.mode === 'coll' ? b('qadd', T('Ajouter « {q} » à ma collection', { q: q.slice(0, 40) }), 'primary') : ''}</div></div>`;
+}
 function collPaintBody(keep) {
   const el = COLL.el; if (!el) return;
   clearTimeout(COLL.paintT); COLL.paintT = 0; COLL.paintAt = Date.now(); COLL.painted = null;
@@ -1365,7 +1372,7 @@ function collPaintBody(keep) {
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
-      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
+      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : collNoMatchHtml()}
       ${moreBtn(shown.length, sorted.length, COLL_PAGE, 'data-act="more"')}`);
     COLL.painted = sorted;
   }
@@ -1478,6 +1485,9 @@ function openCollection(tab) {
       else if (act === 'unknown') openCollUnknown();
       else if (act === 'nolang') collBulkLang(b.dataset.l);
       else if (act === 'prices') openCollPrices();
+      else if (act === 'fclr') { fltClear(COLL.f); COLL.when = { dir: '', t: 0 }; if (COLL.fb) COLL.fb.paint(); COLL.shown = COLL_PAGE; collPaintBody(); }      // liste vide : effacer les filtres (la recherche reste)
+      else if (act === 'qclr') { COLL.f.q = ''; const i = $('#collF input[type="search"]', COLL.el); if (i) i.value = ''; if (COLL.fb) COLL.fb.paint(); COLL.shown = COLL_PAGE; collPaintBody(); }
+      else if (act === 'qadd') { const q = (COLL.f.q || '').trim(); openLot(); const i = LOT.el && $('#caName', LOT.el); if (i && q) { i.value = q; i.dispatchEvent(new Event('input', { bubbles: true })); } }      // la carte cherchée, dans « Ajouter des cartes »
       else if (act === 'login') openAccount();
       else if (act === 'export') collExport();
       else if (act === 'syncinfo') { const si = collSyncInfo(); if (si && si.k !== 'ok' && typeof collSyncSheet === 'function') collSyncSheet(si); else if (si) toast(si.t); }      // à surveiller : la feuille (texte, Se connecter, Réessayer)

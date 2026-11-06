@@ -211,6 +211,8 @@ Limite à connaître : le cache et les tâches vivent en mémoire du processus. 
 
 ## Créer un deck dans l'app (bouton +)
 
+- **Nouveau deck, une seule feuille** (depuis le 6 novembre 2026, `builder.js` › `openDeckNew`) : nom (facultatif), Standard ou Commander, puis le départ en un appui : **À la main** (éditeur ouvert sur « Ajouter » ; Commander : cible Commandant, qui passe seule sur Deck une fois le commandant choisi), **Coller la liste**, **Scanner le deck**, **Assistant** (Commander). Avant : 3 feuilles et 15 appuis pour un deck de 3 cartes.
+
 Accueil › **Mes decks** (bouton, comme **Ma collection** ; ouvre l'écran des decks) › **+** : nom + **Standard** ou **Commander**, puis un éditeur plein écran.
 
 - **Standard** : 60 cartes minimum, 4 exemplaires d'une même carte au maximum (terrains de base exclus), **réserve facultative** de 15 cartes (réserve comprise dans les 4 exemplaires). **Commander** : 100 cartes **dont le commandant**, un seul exemplaire de chaque carte (terrains de base exclus), **commandant obligatoire** pour enregistrer (2 au maximum pour les partenaires) ; alerte quand une carte sort de l'identité de couleur du commandant (couleurs lues sur Scryfall, alerte absente tant qu'elles sont inconnues).
@@ -291,6 +293,8 @@ Toucher l'image d'une carte l'affiche en grand (précédent / suivant dans l'ord
 Toute vignette de carte (résultats CardTrader et Cardmarket, collection, Stats, échange, page publique, scan et fiche « Ajouter », éditeur, deck viewer, main de départ) s'ouvre en grand au toucher, ou avec Entrée / Espace ; précédente et suivante parcourent la liste affichée. Sans image, la carte est chargée par son nom, dans la langue voulue. Le reste de la ligne garde son action (offres, prix, +/−). Un mécanisme unique : `src/zoom.js`.
 
 ## Ma collection (cartes possédées)
+
+- **Ajouter une carte** (depuis le 6 novembre 2026) : sur l'accueil vide (« Pour commencer ») et à l'étape 2 de l'accueil de bienvenue ; dans « Ajouter des cartes », le **« + »** d'une suggestion ajoute un exemplaire tout de suite (sans édition, langue par défaut), le nom ouvre le détail (édition, quantité, foil, langue). **Liste vide** après une recherche ou des filtres : « Effacer les filtres », « Effacer la recherche », « Ajouter « xxx » à ma collection ».
 
 **Collection** dans la barre du bas (ou l'orbe de l'accueil). Les cartes possédées sont retirées de la recherche (« déjà possédée », aucune offre lue) et du panier ; l'option se coupe dans la liste. Sauvegarde sur l'appareil (`deckdeal:coll:v1`) et, connecté, dans Firestore (`users/<uid>/meta/collection`), **synchronisée en direct entre tes appareils** (voir « Plusieurs téléphones » ci-dessous). Les infos des cartes (coût, type, couleurs, image, prix de réf.) viennent de Scryfall, gardées sur l'appareil.
 

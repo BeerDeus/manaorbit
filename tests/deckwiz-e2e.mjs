@@ -54,11 +54,12 @@ ok('coach pour tout le monde, sans interrupteur');
 
 /* ── 2) « J'ai déjà ce deck » › « Coller la liste » ── */
 await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
-await p.fill('#ndName', 'Edgar collé'); await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo');
-await p.waitForSelector('.dw-start[data-v="have"]'); await one(p); await shot(p, 'nouveau'); assert.deepEqual(await p.$$eval('.dw-start b', b => b.map(x => x.textContent)), ['J\'ai déjà ce deck', 'Deck à construire']);
-await p.click('.dw-start[data-v="have"]'); await p.waitForSelector('.dw-start[data-v="paste"]'); await one(p);
-assert.deepEqual(await p.$$eval('.dw-start b', b => b.map(x => x.textContent)), ['Scanner le deck', 'Coller la liste', 'À la main']);
-await p.click('.dw-start[data-v="paste"]'); await p.waitForSelector('#dwPaste');
+await p.fill('#ndName', 'Edgar collé'); await p.click('#ndFmt .seg-opt[data-v="commander"]');
+await p.waitForSelector('.nd-go[data-v="wiz"]', { state: 'visible' }); await one(p); await shot(p, 'nouveau');
+assert.deepEqual(await p.$$eval('.nd-go', b => b.filter(x => x.offsetParent).map(x => x.querySelector('b').textContent)), ['À la main', 'Coller la liste', 'Scanner le deck', 'Assistant'], 'une feuille : nom, format, départ (assistant en Commander)');
+await p.click('#ndFmt .seg-opt[data-v="standard"]'); assert.equal(await p.$eval('.nd-go[data-v="wiz"]', b => !!b.offsetParent), false, 'Standard : pas d\'assistant');
+await p.click('#ndFmt .seg-opt[data-v="commander"]');
+await p.click('.nd-go[data-v="paste"]'); await p.waitForSelector('#dwPaste');
 await p.fill('#dwPaste', 'Commander\n1 Edgar Markov\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n10 Plains'); await p.click('#dwPasteGo'); await p.waitForSelector('.bd.on');
 assert.deepEqual(await p.evaluate(() => [BD.name, BD.fmt, BD.cmdr.map(c => c.name), BD.main.size, BD.dirty]), ['Edgar collé', 'commander', ['Edgar Markov'], 3, true]);
 assert.ok(await p.$('#bdSeg .seg-opt[data-v="coach"]'), 'onglet Coach');
@@ -67,8 +68,8 @@ ok('« J\'ai déjà ce deck » : coller la liste (commandant, cartes, à enregis
 
 /* ── 3) « Deck à construire » : assistant (commandant, thèmes, bracket, budget) ── */
 await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
-await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); await p.waitForSelector('.dw-start[data-v="build"]');
-await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ');
+await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.waitForSelector('.nd-go[data-v="wiz"]', { state: 'visible' });
+await p.click('.nd-go[data-v="wiz"]'); await p.waitForSelector('#dwzQ');
 await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]', { timeout: 15000 });
 await p.fill('#dwzQ', 'crater'); await p.waitForFunction(() => [...document.querySelectorAll('.dw-cmd')].map(b => b.dataset.slug).join() === 'craterhoof-behemoth');
 await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]');
@@ -121,8 +122,8 @@ ok('bracket (Game Changers, destruction de terrains, combo à 2 cartes), terrain
 
 /* ── 5 bis) Générer le deck : assistant avec génération, rôles jusqu'aux cibles puis plan puis terrains, couleurs, bracket, budget, annulable ── */
 await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
-await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); await p.waitForSelector('.dw-start[data-v="build"]'); await one(p);
-await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ'); await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
+await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.waitForSelector('.nd-go[data-v="wiz"]', { state: 'visible' }); await one(p);
+await p.click('.nd-go[data-v="wiz"]'); await p.waitForSelector('#dwzQ'); await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
 await p.waitForSelector('#dwzGo'); await p.click('[data-br="2"]'); await p.click('[data-bud="10000"]');
 // cartes fétiches et exclusions : le champ de recherche qui perd le focus (« change », au moment où l'on touche un résultat) ne redessine plus la liste sous le doigt
 // (la carte n'était ajoutée qu'au 2e appui) ; la frappe (« input ») la redessine (bloc testé ici sans la base classée par mécaniques, qui l'affiche)

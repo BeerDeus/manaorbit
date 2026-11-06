@@ -16,8 +16,9 @@ const decks = async p => { if (!(await p.$('.dks.on'))) { await toHome(p); await
 const newDeck = async (p, name, fmt) => {
   await decks(p); await p.click('#btnNewDeck'); await p.waitForSelector('#ndName');
   await p.fill('#ndName', name); await p.click(`#ndFmt .seg-opt[data-v="${fmt}"]`);
-  await p.click('#ndGo');      // le coach est pour tout le monde : « J'ai déjà ce deck » › « À la main » mène à l'éditeur vide
-  await p.click('.dw-start[data-v="have"]'); await p.click('.dw-start[data-v="hand"]'); await p.waitForSelector('.bd.on');
+  await p.click('.nd-go[data-v="hand"]'); await p.waitForSelector('.bd.on');      // une seule feuille (nom, format, départ) : « À la main » ouvre l'éditeur sur « Ajouter »
+  assert.deepEqual(await p.evaluate(() => [BD.tab, BD.tgt]), ['coll', fmt === 'commander' ? 'cmdr' : 'main'], 'À la main : onglet Ajouter, cible Commandant tant qu\'il n\'y en a pas');
+  await p.click('#bdSeg .seg-opt[data-v="deck"]');      // la suite des scénarios part de l'onglet Deck
 };
 
 const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *EN*\n1 Edgar Markov *FR*\n2 Arcane Signet *FR*\n1 Swords to Plowshares *EN*') }); errsOf.push(errs);
@@ -33,7 +34,8 @@ await p.click('[data-act="pick-cmdr"]'); await p.waitForSelector('#bdTgt');
 assert.equal(await p.$eval('#bdTgt', e => e._v), 'cmdr', 'cible : commandant');
 await p.waitForSelector('.bd-row[data-k="edgar markov"]', { timeout: 8000 });
 assert.deepEqual(await p.$$eval('.bd-row', r => r.map(x => x.dataset.k)), ['edgar markov'], 'seuls les commandants possibles de la collection (légendaires)');
-await step(p, 'edgar markov', 'cmdr', 1); assert.equal(await qty(p, 'edgar markov', 'cmdr'), 1);
+await step(p, 'edgar markov', 'cmdr', 1); assert.deepEqual(await p.evaluate(() => BD.cmdr.map(c => c.key)), ['edgar markov']);
+await p.waitForFunction(() => BD.tgt === 'main' && document.querySelector('#bdTgt') && document.querySelector('#bdTgt')._v === 'main'); assert.match(await txt(p, '#toast'), /Commandant choisi/, 'commandant choisi : la cible passe seule sur Deck (la carte suivante n\'est pas un 2e commandant)');
 assert.match(await txt(p, '#bdSub'), /1\/100/); assert.equal(await p.$eval('#bdSave', b => b.disabled), false);
 ok('Commander : + → nom/format, commandant obligatoire (collection filtrée sur les commandants possibles)');
 

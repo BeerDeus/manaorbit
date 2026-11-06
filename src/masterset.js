@@ -45,7 +45,7 @@ const msActive = () => MS.on && !!COLL.el && COLL.mode === 'coll' && COLL.tab ==
 const msNum = n => String(n || '').trim().toLowerCase().replace(/^0+(?=\d)/, '');
 const msEd = (code, num) => code + '|' + msNum(num);
 const MS_WARN = '<svg viewBox="0 0 24 22" aria-hidden="true"><path d="M12 1.5 23 20.5H1z" fill="#f2b441" stroke="#2a1c00" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8v6.2M12 16.8v.4" stroke="#2a1c00" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const MS_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6" opacity=".45"/></svg>';
+const MS_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" opacity=".3"/><path d="M12 3.5a8.5 8.5 0 1 1-8.5 8.5"/><path d="M8.6 12.3l2.3 2.3 4.5-4.7"/></svg>';      // anneau de progression et coche (extension à compléter) : plus jamais pris pour la vue en grille (4 carrés, juste à côté)
 /** Roue crantée des options (sprite i-gear) : 8 dents, anneau gravé (comme un symbole d'extension), moyeu évidé, et au centre l'étincelle à quatre branches du mana incolore. */
 const MS_GEAR = '<svg class="i ms-gear" aria-hidden="true"><use href="#i-gear"/></svg>';      // sprite (body.html › i-gear)
 

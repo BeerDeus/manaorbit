@@ -174,13 +174,14 @@ function edhLoad() {
     if (cached) edhRevalidate(rb);
     if (!mkUs() && !(PXT && PXT.map)) pxTable().then(t => { if (t && EDH.data === d) { edhEur(d); EDH.memo = null; if (COLL.el) collPaintBody(true); } }).catch(() => {});      // prix manquants complétés dès que le relevé du jour est lu
     return d;
-  })().catch(e => { if (e && e.message === 'off') throw e; EDH.err = e && e.message === 'absent' ? T('Données EDHREC indisponibles : le fichier edh.bin.gz n\'est pas encore généré ou le site est injoignable.') : T('Données EDHREC illisibles.'); throw e; })
+  })().catch(e => { if (e && e.message === 'off') throw e; EDH.err = typeof navigator !== 'undefined' && navigator.onLine === false ? T('Hors ligne : les idées de decks reviendront dès que tu seras connecté.') : T('Les decks EDHREC ne sont pas disponibles pour le moment. Réessaie dans quelques minutes.'); throw e; })
     .finally(() => { EDH.p = null; if (COLL.el) collPaintBody(true); });
   return EDH.p;
 }
 /** Lance le chargement s'il n'a pas déjà eu lieu ou échoué (un échec ne se relance qu'au toucher de « Réessayer »). */
 function edhEnsure() { if (!EDH.data && !EDH.p && !EDH.err) edhLoad().catch(() => {}); }
 const edhRetry = () => { EDH.err = ''; edhEnsure(); if (COLL.el) collPaintBody(true); };
+if (typeof window !== 'undefined') window.addEventListener('online', () => { if (EDH.err) edhRetry(); });      // hors ligne au chargement : relu seul au retour du réseau
 
 const edhDate = () => { const d = EDH.data && EDH.data.at ? new Date(EDH.data.at) : null; return d && !isNaN(d) ? d.toLocaleDateString(LOC()) : ''; };
 /** Décks classés selon la collection et les réglages de l'écran (mémorisés tant que rien ne change). */
