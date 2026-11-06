@@ -7,7 +7,6 @@
    Rien n'est classé ni montré à d'autres : tricher ne trompe que soi. Badges de la Carte mystère (daily.js › dailyBadges, vérifiés par le serveur) : ajoutés s'ils existent. */
 const PRG_KEY = 'deckdeal:prg', PRG_GOT = 'deckdeal:prg:got', PRG_SHOW = 'deckdeal:prg:show', PRG_MAX = 999, PRG_C_MAX = 140, PRG_SHOW_MAX = 3;
 const PRG = { c: null, t: 0, qt: 0, pend: new Set(), dly: null, doc: { uid: '', unsub: null, pushT: 0 }, u: 0 };      // pend : rubriques touchées ici depuis le dernier calcul (prgSoon)
-const PRG_TIERS = ['bronze', 'argent', 'or', 'diamant'];
 const prgTierName = i => [T('bronze'), T('argent'), T('or'), T('diamant')][i] || T('unique');
 
 /* ── Compteurs ─────────────────────────────────────────────────────────────────────────────────────────────── */

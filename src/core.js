@@ -1700,7 +1700,6 @@ function lnOwn(c, of) {
 
 /* ── Filtres : recherche texte, couleurs, famille, coût (viewer du deck et collection) ───────── */
 const BASIC_COLOR = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
-const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'];
 /** Couleurs d'une carte du viewer (« WU »), '' si incolore ; les terrains de base ont la couleur de leur mana. */
 const itemColors = i => (i.s === 'basic' ? BASIC_COLOR[String(i.k).replace(/^snow covered /, '')] || '' : i.cl || '');
 const itemType = i => (i.s === 'basic' ? 'Terrains' : typeBucket(i.tl));

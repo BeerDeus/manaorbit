@@ -104,7 +104,6 @@ async function ocrLinesWait(cv, lang, psm) {
 /** Moteur d'une autre écriture qui n'a pas lu à temps (OCR.wait, 20 s) : modèle introuvable ou pas téléchargé (Tesseract.js reste alors pendu, sans fin), réseau trop lent.
  *  Oublié (arrêté s'il finit par démarrer) et pas redemandé pendant 10 minutes : la file du scan ne reste jamais bloquée derrière lui. */
 function ocrDrop(lang) { const p = OCR.workers[lang]; delete OCR.workers[lang]; OCR.bad[lang] = Date.now() + 10 * 60e3; if (p) p.then(w => w.terminate(), () => {}); }
-async function ocrStop() { const ws = Object.values(OCR.workers); OCR.workers = {}; for (const p of ws) { try { (await p).terminate(); } catch (e) { /* ignore */ } } }
 
 /** Découpe une zone d'une source (vidéo, image, canvas), la met à largeur utile et la convertit en niveaux de gris contrastés
     (inversée si le fond est sombre ; pol : 1 = forcer l'inversion, 0 = ne pas inverser, absent = automatique). Le résultat porte .inv (choix fait). */
@@ -1112,7 +1111,6 @@ function scanCapture() {
   const full = scanFull();
   scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: !full, card: full, thumb: thumbOf(c, full ? cardNameBox(c.width, c.height) : null) });
 }
-function scanFail(msg) { scanHint(msg, 'bad'); }
 /** Pas d'aperçu : la vraie cause remplace le message générique au centre de la zone, et rien dans la bande d'aide (deux messages qui se contredisaient). */
 function scanNoCam(stage, msg) { stage.dataset.cam = 'no'; const p = $('.sc-nocam', stage); if (p) p.textContent = msg; scanHint('', ''); }
 /** Aperçu qui rame (caméra du navigateur qui s'essouffle) : on la redémarre (2 fois), puis 2 fois en qualité réduite (720p), puis conseil « Photos » (photo de la carte entière). Le compteur repart à zéro après 20 s d'aperçu fluide.

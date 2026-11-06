@@ -1467,11 +1467,6 @@ function evmPetal(bx, by, len, w, ang) {
   const a = ang * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), f = evoF, P = (u, v) => f(bx + dx * u - dy * v) + ' ' + f(by + dy * u + dx * v);
   return `M${P(0, 0)}C${P(len * .12, w * .7)} ${P(len * .55, w * 1.05)} ${P(len, 0)}C${P(len * .55, -w * 1.05)} ${P(len * .12, -w * .7)} ${P(0, 0)}Z`;
 }
-/** Nervure d'un pétale (même repère qu'evmPetal). */
-function evmRib(bx, by, len, ang, k = .84) {
-  const a = ang * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), f = evoF;
-  return `M${f(bx + dx * len * .14)} ${f(by + dy * len * .14)}L${f(bx + dx * len * k)} ${f(by + dy * len * k)}`;
-}
 /** Écriture manuscrite illisible (formules, notes du carnet) de x0 à x1 sur la ligne y : jambages, boucles, « = » et « + » ; graine fixe. */
 function evmScrawl(x0, x1, y, seed = 1, h = 1.1) {
   let s = seed * 7919 + 13, x = x0, d = `M${evoF(x)} ${evoF(y)}`;

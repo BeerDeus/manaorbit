@@ -533,18 +533,6 @@ function bdAddRow(k, name, label) {
   const tgt = BD.tgt, q = tgt === 'cmdr' ? (BD.cmdr.some(c => c.key === k) ? 1 : 0) : ((BD[tgt].get(k) || {}).qty || 0);
   return bdRow(k, name, q, tgt, 'coll', label || (COLL.map[k] ? '' : cnOf(name)));      // carte à acheter : son nom dans la langue de l'appli (l'anglais en petit)
 }
-function bdCollHtml() {
-  if (!collCount()) return `<div class="deck-empty">${T('Ta collection est vide. Utilise « Chercher » pour ajouter n\'importe quelle carte au deck.')}</div>`;
-  const words = normPart(BD.q).split(' ').filter(Boolean);
-  let items = bdIndex().filter(it => words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') items = items.filter(it => canCommand(COLL.meta[it.k]) === 1);      // règle unique (core.js › canCommand)
-  const shown = items.slice(0, BD.shown);
-  let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
-  h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
-  if (!items.length) h += `<p class="hint">${words.length ? T('Aucune carte de ta collection ne correspond.') : BD.tgt === 'cmdr' ? T('Aucun commandant possible dans ta collection (ou cartes pas encore lues).') : ''}</p>`;
-  h += moreBtn(shown.length, items.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
-  return h;
-}
 /** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
  *  qui correspondent et que tu n'as pas (à acheter). Sans recherche : ta collection. */
 function bdAddHtml() {

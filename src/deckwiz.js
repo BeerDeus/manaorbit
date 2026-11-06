@@ -631,11 +631,6 @@ function dwAuditParts(X) {
   if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
   return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };
 }
-/** Analyse d'un deck, en un bloc (titre, plan, points). */
-function dwAuditHtml(X) {
-  const a = dwAuditParts(X); if (!a) return '';
-  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${a.story}${a.rows}`;
-}
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
 const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;
 /** Résumé de l'équilibre : catégories dans la norme. */

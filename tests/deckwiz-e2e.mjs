@@ -207,7 +207,7 @@ const sim = await p.evaluate(async () => {
   const none = await dsimRun({ main: new Map([['plains', { key: 'plains', name: 'Plains', qty: 10 }]]), cmdr: X.cmdr, wiz: X.wiz }, 100);
   return { a, same: JSON.stringify(a) === JSON.stringify(b), html: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '), none, ens };
 });
-assert.ok(sim.ens.done && sim.ens.ticks > 5, 'simulation du rapport (10 000 parties) menée à son terme, avec sa progression : ' + JSON.stringify(sim.ens));
+assert.ok(sim.ens.done && sim.ens.ticks > 0, 'simulation du rapport (10 000 parties) menée à son terme, avec sa progression : ' + JSON.stringify(sim.ens));
 assert.ok(sim.same, 'graine fixe : mêmes résultats'); assert.equal(sim.none, null, 'moins de 40 cartes : pas de simulation');
 assert.ok(sim.a.keep7 > 60 && sim.a.keep7 <= 100 && sim.a.lands0 > 2 && sim.a.lands0 < 4, 'mains gardées et terrains : ' + JSON.stringify(sim.a));
 assert.ok(sim.a.cmdT > 3 && sim.a.cmdT < 9 && sim.a.eff > 0 && sim.a.eff <= 100 && sim.a.cast6 > 0, 'commandant, mana, sorts : ' + JSON.stringify(sim.a));

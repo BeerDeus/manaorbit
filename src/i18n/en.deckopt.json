@@ -112,6 +112,5 @@
  "Peu de cartes vues : un ou deux moteurs de pioche de plus.": "Few cards seen: one or two more draw engines.",
  "cartes vues au tour 6 (main, pioche, moteurs)": "cards seen by turn 6 (hand, draws, engines)",
  "des parties où le moteur du plan est en place avant le tour 11": "of games where the plan's engine is in place before turn 11",
- "des parties où un adversaire tombe avant le tour 11 (seul, sans interaction)": "of games where an opponent falls before turn 11 (solo, no interaction)",
  "Le coach a joué seul les 10 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant, puis le plan (attaques, jetons, drain, moteurs). Des règles simples et du hasard, sans adversaire.": "The coach played the first 10 turns alone with this deck, {n} times: opening hands, lands, colors, commander, then the plan (attacks, tokens, drain, engines). Simple rules and randomness, no opponent."
 }

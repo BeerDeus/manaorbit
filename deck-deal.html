@@ -8092,8 +8092,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '7b89df6c';
-const I18N_FILES = {"de":"i18n/de.2c0ffcb7.js","en":"i18n/en.74ce8aa6.js","es":"i18n/es.558b4760.js","it":"i18n/it.2507dea7.js","pt":"i18n/pt.86e22241.js"};
+const DD_BUILD = '72aa4e51';
+const I18N_FILES = {"de":"i18n/de.402df391.js","en":"i18n/en.3a8120cf.js","es":"i18n/es.4ca61341.js","it":"i18n/it.81841b53.js","pt":"i18n/pt.4bf8f30f.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -10023,7 +10023,6 @@ function lnOwn(c, of) {
 
 /* ── Filtres : recherche texte, couleurs, famille, coût (viewer du deck et collection) ───────── */
 const BASIC_COLOR = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
-const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'];
 /** Couleurs d'une carte du viewer (« WU »), '' si incolore ; les terrains de base ont la couleur de leur mana. */
 const itemColors = i => (i.s === 'basic' ? BASIC_COLOR[String(i.k).replace(/^snow covered /, '')] || '' : i.cl || '');
 const itemType = i => (i.s === 'basic' ? 'Terrains' : typeBucket(i.tl));
@@ -16651,11 +16650,6 @@ function evmBand(P, w, notch = 0) {
 function evmPetal(bx, by, len, w, ang) {
   const a = ang * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), f = evoF, P = (u, v) => f(bx + dx * u - dy * v) + ' ' + f(by + dy * u + dx * v);
   return `M${P(0, 0)}C${P(len * .12, w * .7)} ${P(len * .55, w * 1.05)} ${P(len, 0)}C${P(len * .55, -w * 1.05)} ${P(len * .12, -w * .7)} ${P(0, 0)}Z`;
-}
-/** Nervure d'un pétale (même repère qu'evmPetal). */
-function evmRib(bx, by, len, ang, k = .84) {
-  const a = ang * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), f = evoF;
-  return `M${f(bx + dx * len * .14)} ${f(by + dy * len * .14)}L${f(bx + dx * len * k)} ${f(by + dy * len * k)}`;
 }
 /** Écriture manuscrite illisible (formules, notes du carnet) de x0 à x1 sur la ligne y : jambages, boucles, « = » et « + » ; graine fixe. */
 function evmScrawl(x0, x1, y, seed = 1, h = 1.1) {
@@ -25538,7 +25532,6 @@ async function ocrLinesWait(cv, lang, psm) {
 /** Moteur d'une autre écriture qui n'a pas lu à temps (OCR.wait, 20 s) : modèle introuvable ou pas téléchargé (Tesseract.js reste alors pendu, sans fin), réseau trop lent.
  *  Oublié (arrêté s'il finit par démarrer) et pas redemandé pendant 10 minutes : la file du scan ne reste jamais bloquée derrière lui. */
 function ocrDrop(lang) { const p = OCR.workers[lang]; delete OCR.workers[lang]; OCR.bad[lang] = Date.now() + 10 * 60e3; if (p) p.then(w => w.terminate(), () => {}); }
-async function ocrStop() { const ws = Object.values(OCR.workers); OCR.workers = {}; for (const p of ws) { try { (await p).terminate(); } catch (e) { /* ignore */ } } }
 
 /** Découpe une zone d'une source (vidéo, image, canvas), la met à largeur utile et la convertit en niveaux de gris contrastés
     (inversée si le fond est sombre ; pol : 1 = forcer l'inversion, 0 = ne pas inverser, absent = automatique). Le résultat porte .inv (choix fait). */
@@ -26546,7 +26539,6 @@ function scanCapture() {
   const full = scanFull();
   scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: !full, card: full, thumb: thumbOf(c, full ? cardNameBox(c.width, c.height) : null) });
 }
-function scanFail(msg) { scanHint(msg, 'bad'); }
 /** Pas d'aperçu : la vraie cause remplace le message générique au centre de la zone, et rien dans la bande d'aide (deux messages qui se contredisaient). */
 function scanNoCam(stage, msg) { stage.dataset.cam = 'no'; const p = $('.sc-nocam', stage); if (p) p.textContent = msg; scanHint('', ''); }
 /** Aperçu qui rame (caméra du navigateur qui s'essouffle) : on la redémarre (2 fois), puis 2 fois en qualité réduite (720p), puis conseil « Photos » (photo de la carte entière). Le compteur repart à zéro après 20 s d'aperçu fluide.
@@ -28818,18 +28810,6 @@ function bdAddRow(k, name, label) {
   const tgt = BD.tgt, q = tgt === 'cmdr' ? (BD.cmdr.some(c => c.key === k) ? 1 : 0) : ((BD[tgt].get(k) || {}).qty || 0);
   return bdRow(k, name, q, tgt, 'coll', label || (COLL.map[k] ? '' : cnOf(name)));      // carte à acheter : son nom dans la langue de l'appli (l'anglais en petit)
 }
-function bdCollHtml() {
-  if (!collCount()) return `<div class="deck-empty">${T('Ta collection est vide. Utilise « Chercher » pour ajouter n\'importe quelle carte au deck.')}</div>`;
-  const words = normPart(BD.q).split(' ').filter(Boolean);
-  let items = bdIndex().filter(it => words.every(w => it.s.includes(w)));
-  if (BD.tgt === 'cmdr') items = items.filter(it => canCommand(COLL.meta[it.k]) === 1);      // règle unique (core.js › canCommand)
-  const shown = items.slice(0, BD.shown);
-  let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
-  h += shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
-  if (!items.length) h += `<p class="hint">${words.length ? T('Aucune carte de ta collection ne correspond.') : BD.tgt === 'cmdr' ? T('Aucun commandant possible dans ta collection (ou cartes pas encore lues).') : ''}</p>`;
-  h += moreBtn(shown.length, items.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
-  return h;
-}
 /** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
  *  qui correspondent et que tu n'as pas (à acheter). Sans recherche : ta collection. */
 function bdAddHtml() {
@@ -29857,11 +29837,6 @@ function dwAuditParts(X) {
   if (au.trapOk && au.trapOk.length) { rows.push(li('good', T('Gardées : elles marchent mal avec le commandant, mais servent avec une autre carte'), au.trapOk.slice(0, 4).map(t => t.kind === 'combo' ? T('{card} (combo avec {c})', { card: t.name, c: t.with.join(' + ') }) : T('{card} (moteur avec {c})', { card: t.name, c: t.with.slice(0, 2).join(', ') })))); good++; }
   if (au.loose.length) { rows.push(li('warn', T('Ne servent ni le plan ni un rôle'), au.loose)); warn++; }
   return { story: dwStoryHtml(au.story, { label: false }), rows: rows.length ? `<ul class="cb-pts dw-audit">${rows.join('')}</ul>` : '', warn, good };
-}
-/** Analyse d'un deck, en un bloc (titre, plan, points). */
-function dwAuditHtml(X) {
-  const a = dwAuditParts(X); if (!a) return '';
-  return `<div class="sec-title">${T('Ce que fait ton deck')}</div>${a.story}${a.rows}`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
 const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;
@@ -43520,7 +43495,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { badgeSvg
    Rien n'est classé ni montré à d'autres : tricher ne trompe que soi. Badges de la Carte mystère (daily.js › dailyBadges, vérifiés par le serveur) : ajoutés s'ils existent. */
 const PRG_KEY = 'deckdeal:prg', PRG_GOT = 'deckdeal:prg:got', PRG_SHOW = 'deckdeal:prg:show', PRG_MAX = 999, PRG_C_MAX = 140, PRG_SHOW_MAX = 3;
 const PRG = { c: null, t: 0, qt: 0, pend: new Set(), dly: null, doc: { uid: '', unsub: null, pushT: 0 }, u: 0 };      // pend : rubriques touchées ici depuis le dernier calcul (prgSoon)
-const PRG_TIERS = ['bronze', 'argent', 'or', 'diamant'];
 const prgTierName = i => [T('bronze'), T('argent'), T('or'), T('diamant')][i] || T('unique');
 
 /* ── Compteurs ─────────────────────────────────────────────────────────────────────────────────────────────── */
