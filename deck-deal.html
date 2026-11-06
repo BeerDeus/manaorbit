@@ -8090,7 +8090,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '8df8c876';
+const DD_BUILD = '7ebaa78b';
 const I18N_FILES = {"de":"i18n/de.08c2f2e1.js","en":"i18n/en.efdd5ee6.js","es":"i18n/es.0c4b6d05.js","it":"i18n/it.48581fe0.js","pt":"i18n/pt.b70f84b7.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -13123,12 +13123,6 @@ function tween(el, to) {
   };
   el._raf = requestAnimationFrame(step);
 }
-/* Menus « Trier » (.sortsel : libellé + menu déroulant) : toucher la pilule hors du mot choisi ouvre aussi le menu (zone de 44 px, audit U9). */
-document.addEventListener('click', e => {
-  const l = e.target && e.target.closest ? e.target.closest('.sortsel') : null; if (!l || e.target.tagName === 'SELECT') return;
-  const s = l.querySelector('select'); if (!s || s.disabled) return;
-  try { s.showPicker(); } catch (x) { s.focus(); }      // navigateur sans showPicker sur un menu : le menu prend le focus (clavier)
-});
 let toastT;
 /** Libellé du bouton d'un toast qui défait ce qui vient d'être fait : « Annuler » en français, mais sa propre clé (« Rückgängig » en allemand, « Undo » en anglais),
  *  distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen »). */
