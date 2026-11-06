@@ -803,11 +803,16 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .coll-sync[data-k="warn"]{background:var(--warn-soft);color:var(--warn)}.coll-sync[data-k="warn"] .sy-d{background:var(--warn)}
 .coll-sync[data-k="bad"]{background:var(--bad-soft);color:var(--bad)}.coll-sync[data-k="bad"] .sy-d{background:var(--bad)}
 /* point de la sauvegarde, à côté du titre (vert : dans ton compte ; orange, rouge : le bandeau dit pourquoi) ; touché : le texte en message */
-.coll-dot{position:relative;display:inline-block;width:9px;height:9px;margin:0 0 0 9px;padding:0;border:0;border-radius:50%;background:var(--ink-3);vertical-align:middle;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* État de la sauvegarde (audit U10) : pastille avec texte sous le titre, à la place du début du sous-titre (« Non sauvegardée » orange sans compte, « Erreur de synchro » rouge) */
+.dv.coll .dv-title{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center}
+.dv.coll .dv-title b{grid-column:1/-1}
+.dv.coll .dv-title span{grid-column:2}
+.coll-dot{position:relative;grid-column:1;display:inline-flex;align-items:center;gap:5px;height:22px;margin:1px 7px 1px 0;padding:0 9px 0 7px;border:0;border-radius:99px;font-size:12px;font-weight:650;line-height:1;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
 .coll-dot[hidden]{display:none}
-.coll-dot::before{content:"";position:absolute;inset:-12px}      /* zone de toucher */
-.coll-dot[data-k="ok"]{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
-.coll-dot[data-k="warn"]{background:var(--warn)}.coll-dot[data-k="bad"]{background:var(--bad)}
+.coll-dot::after{content:"";flex:none;order:-1;width:7px;height:7px;border-radius:50%;background:currentColor}
+.coll-dot::before{content:"";position:absolute;inset:-11px 0}      /* zone de toucher : 44 px de haut (hauteur seulement : un débord de côté gonflait la largeur mesurée du libellé, menus-e2e) */
+.coll-dot[data-k="bad"]{color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}
+.coll-dot[data-k="ok"]{color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)}
 .coll-dot:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .coll-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--accent-soft);color:var(--ink);font-size:13px;flex-wrap:wrap}
 .coll-status[hidden]{display:none}

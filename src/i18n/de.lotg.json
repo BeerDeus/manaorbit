@@ -2,5 +2,7 @@
   "Annuler (défaire)": "Rückgängig",
   "Deck créé · note {s}/100": "Deck erstellt · Note {s}/100",
   "Deck complété · note {s}/100": "Deck vervollständigt · Note {s}/100",
-  "Désactiver les alertes": "Preisalarme deaktivieren"
+  "Désactiver les alertes": "Preisalarme deaktivieren",
+  "Non sauvegardée": "Nicht gesichert",
+  "Erreur de synchro": "Sync-Fehler"
 }
