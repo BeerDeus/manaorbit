@@ -356,7 +356,7 @@ const DV_SORT_KEY = 'deckdeal:dv-sort';
 const DV = { anim: false, el: null, sort: 'mana', snap: null, deckId: null, name: '', live: false, adhoc: false, pub: false, prevFocus: null, flat: [], f: newFilter(), framed: null, fb: null, text: '', loading: false, sb: [], saveName: '', savedId: '', savedName: '' };
 try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type', 'role'].includes(v)) DV.sort = v; } catch (e) { /* stockage indisponible */ }
 
-/** Deck Commander (bloc « Commander » ou format noté) : bouton « Analyser » (deckana.js). */
+/** Deck Commander (bloc « Commander » ou format noté) : bouton « Coach » (deckana.js). */
 const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
 /** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {

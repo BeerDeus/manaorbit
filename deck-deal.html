@@ -8090,8 +8090,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '91096e11';
-const I18N_FILES = {"de":"i18n/de.44cbcb5f.js","en":"i18n/en.2d952f47.js","es":"i18n/es.9aab204f.js","it":"i18n/it.974c0ceb.js","pt":"i18n/pt.954424cc.js"};
+const DD_BUILD = '8f33aa77';
+const I18N_FILES = {"de":"i18n/de.b045b770.js","en":"i18n/en.c530e702.js","es":"i18n/es.c1983958.js","it":"i18n/it.d84043e0.js","pt":"i18n/pt.51dc6a29.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -19429,7 +19429,7 @@ const DV_SORT_KEY = 'deckdeal:dv-sort';
 const DV = { anim: false, el: null, sort: 'mana', snap: null, deckId: null, name: '', live: false, adhoc: false, pub: false, prevFocus: null, flat: [], f: newFilter(), framed: null, fb: null, text: '', loading: false, sb: [], saveName: '', savedId: '', savedName: '' };
 try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type', 'role'].includes(v)) DV.sort = v; } catch (e) { /* stockage indisponible */ }
 
-/** Deck Commander (bloc « Commander » ou format noté) : bouton « Analyser » (deckana.js). */
+/** Deck Commander (bloc « Commander » ou format noté) : bouton « Coach » (deckana.js). */
 const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
 /** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {
@@ -23401,7 +23401,7 @@ function openEdhDeck(r) {
       <p class="hint dk-tap">${T('Touche une carte pour la voir en grand.')}</p>${dk.k === 'comm' && dk.pid ? (PD.tag && D.user && PD.tagUid === D.user.uid && dk.pid.startsWith(PD.tag + '_') ? `<p class="hint pub-own">${T('C\'est ton deck : le retirer ou le mettre à jour depuis Mes decks › le deck › Publier.')}${typeof pdDscBtn === 'function' ? ' ' + pdDscBtn() : ''}</p>` : `<p class="pub-report"><button class="link-btn" type="button" data-act="dkrep">${T('Signaler ce deck')}</button></p>`) : ''}`;      // Communauté : contenu publié par un joueur (règles Google Play : signalement dans l'appli)
     const rep = $('[data-act="dkrep"]', api.body); if (rep) rep.onclick = () => openPubReport(dk.pid, () => api.close());
     const dsb = $('[data-act="dkdsc"]', api.body); if (dsb) dsb.onclick = () => pdDscShare(dk.pid);      // son deck : « Partager sur Discord » (pubdecks.js)
-    $('.ci-sum', api.body).insertAdjacentHTML('afterend', `<div class="tr-acts dk-acts"><button class="btn ghost" type="button" data-act="dkview"><svg class="i"><use href="#i-grid"/></svg>${T('Voir le deck')}</button>${typeof dwOn === 'function' && dwOn() ? `<button class="btn ghost" type="button" data-act="dkana"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Analyser')}</button>` : ''}<button class="btn ghost" type="button" data-act="dkshare"><svg class="i"><use href="#i-share"/></svg>${T('Partager')}</button></div><div class="dk-acts2" role="group" aria-label="${T('Ce deck')}"></div>`);
+    $('.ci-sum', api.body).insertAdjacentHTML('afterend', `<div class="tr-acts dk-acts"><button class="btn ghost" type="button" data-act="dkview"><svg class="i"><use href="#i-grid"/></svg>${T('Voir le deck')}</button>${typeof dwOn === 'function' && dwOn() ? `<button class="btn ghost" type="button" data-act="dkana"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}<button class="btn ghost" type="button" data-act="dkshare"><svg class="i"><use href="#i-share"/></svg>${T('Partager')}</button></div><div class="dk-acts2" role="group" aria-label="${T('Ce deck')}"></div>`);
     edhDeckActs(api, r, name);
     $('.dk-acts', api.body).onclick = e => {
       const b = e.target.closest('[data-act]'); if (!b) return; haptic('tap');
