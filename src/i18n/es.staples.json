@@ -60,5 +60,13 @@
  "Couleurs (fixing)": "Corrección de colores",
  "({n} vérifiée)": "({n} verificada)",
  "{n} candidate sous {p}": "{n} candidata por debajo de {p}",
- "{p} des decks du commandant": "{p} de los mazos del comandante"
+ "{p} des decks du commandant": "{p} de los mazos del comandante",
+ "Commandants": "Comandantes",
+ "(facultatif, {n} au plus)": "(opcional, {n} como máximo)",
+ "Tous mes decks": "Todos mis mazos",
+ "Couleurs de tes commandants : {pips}. Classement du coach pour chacun, liste répartie à parts égales entre eux ; une carte qui en sert plusieurs passe devant.": "Colores de tus comandantes: {pips}. Clasificación del coach para cada uno, lista repartida a partes iguales entre ellos; una carta que sirve a varios va primero.",
+ "{n} commandant au plus": "{n} comandante como máximo",
+ "{n} commandants au plus": "{n} comandantes como máximo",
+ "{p} des decks de {name}": "{p} de los mazos de {name}",
+ "aussi pour {names}": "también para {names}"
 }

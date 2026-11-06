@@ -197,6 +197,7 @@ function openDeckNew() {
 /* ── Ouverture ────────────────────────────────────────────────────────────────────────────────── */
 /** Ouvre l'éditeur : un nouveau deck { name, fmt } ou un deck enregistré { id }. Coach (deckwiz.js) : text (liste collée), cmdr ([{ key, name }]), wiz (réglages du coach), tab ('coach'). */
 function openBuilder(o) {
+  if (typeof stpBdHeld === 'function' && stpBdHeld()) { stpBdYield(() => openBuilder(o)); return; }      // éditeur prêté à la Chasse aux staples (staples.js) : l'analyse s'arrête, puis l'éditeur s'ouvre
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
   Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', f: newFilter(), fsig: '', fb: null, sel: null, shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), comp: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)

@@ -60,5 +60,13 @@
  "Couleurs (fixing)": "Farbfixing",
  "({n} vérifiée)": "({n} geprüft)",
  "{n} candidate sous {p}": "{n} Kandidat unter {p}",
- "{p} des decks du commandant": "{p} der Decks des Kommandeurs"
+ "{p} des decks du commandant": "{p} der Decks des Kommandeurs",
+ "Commandants": "Kommandeure",
+ "(facultatif, {n} au plus)": "(optional, höchstens {n})",
+ "Tous mes decks": "Alle meine Decks",
+ "Couleurs de tes commandants : {pips}. Classement du coach pour chacun, liste répartie à parts égales entre eux ; une carte qui en sert plusieurs passe devant.": "Farben deiner Kommandeure: {pips}. Coach-Rangliste für jeden, Liste gleichmäßig auf sie verteilt; eine Karte, die mehreren dient, kommt zuerst.",
+ "{n} commandant au plus": "höchstens {n} Kommandeur",
+ "{n} commandants au plus": "höchstens {n} Kommandeure",
+ "{p} des decks de {name}": "{p} der Decks von {name}",
+ "aussi pour {names}": "auch für {names}"
 }
