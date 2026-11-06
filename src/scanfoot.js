@@ -6,8 +6,8 @@
 
 /** Code de langue imprimé → langue des cartes de l'appli. */
 const FOOT_LANG = { EN: 'en', FR: 'fr', DE: 'de', ES: 'es', IT: 'it', PT: 'pt', JA: 'jp', JP: 'jp', KO: 'kr', KR: 'kr', RU: 'ru', CS: 'zh-CN', ZHS: 'zh-CN', CT: 'zh-TW', ZHT: 'zh-TW' };
-/** Langue Scryfall d'une impression (p.l) → langue de l'appli. */
-const FOOT_SL = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
+/** Langue Scryfall d'une impression (p.l : « ja », « zhs ») → langue de l'appli : la conversion unique de core.js (cardLang), aussi chargée seule par les tests Node. */
+const footSL = l => (typeof cardLang === 'function' ? cardLang : require('./core.js').cardLang)(l);
 /** Caractères que l'OCR confond : même classe = même caractère. */
 const FOOT_CLS = { 0: '0', O: '0', Q: '0', D: '0', 1: '1', I: '1', L: '1', '|': '1', '!': '1', 2: '2', Z: '2', 5: '5', S: '5', 6: '6', G: '6', 8: '8', B: '8', 7: '7', T: '7' };
 const footCls = ch => FOOT_CLS[ch] || ch;
@@ -94,7 +94,7 @@ function footMatch(lines, prints) {
   const numOk = p => f.nums.includes(pn(p));
   const pick = list => {      // à égalité : l'impression dans la langue lue, puis celle qui n'est pas une variante (promo, showcase…)
     if (list.length < 2) return list[0] || null;
-    const byLang = extra.lang ? list.filter(p => FOOT_SL[p.l || 'en'] === extra.lang) : [];
+    const byLang = extra.lang ? list.filter(p => footSL(p.l || 'en') === extra.lang) : [];
     const pool = byLang.length ? byLang : list;
     return pool.length === 1 ? pool[0] : null;
   };

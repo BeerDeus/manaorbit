@@ -179,17 +179,34 @@ const bdCmp = (a, b) => NAME_CMP(bdLabel(a.key, a.name), bdLabel(b.key, b.name))
 const bdFmtName = f => (DK_FORMATS[f] || DK_FORMATS.standard).label;
 
 /* ── Nouveau deck : nom + format ──────────────────────────────────────────────────────────────── */
+/** Une seule feuille (audit du 6 novembre, U3 : avant, 3 feuilles et 15 appuis pour 3 cartes) : nom (facultatif), format, puis le départ en un appui :
+ *  Scanner le deck · Coller la liste · À la main (éditeur ouvert sur « Ajouter », cible Commandant tant qu'il n'y en a pas) · Assistant (Commander, deckwiz.js). */
 function openDeckNew() {
   openSheet(T('Nouveau deck'), T('Standard ou Commander'), api => {
-    api.body.innerHTML = `<div class="field-in"><label class="label" for="ndName">${T('Nom')}</label><input type="text" id="ndName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" enterkeyhint="go"></div>
+    const opt = (v, ic, t, h) => `<button type="button" class="bd-sc-opt nd-go" data-v="${v}"><svg class="i" aria-hidden="true"><use href="#${ic}"/></svg><span><b>${t}</b><small>${h}</small></span></button>`;
+    api.body.innerHTML = `<div class="field-in"><label class="label" for="ndName">${T('Nom (facultatif)')}</label><input type="text" id="ndName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" enterkeyhint="done"></div>
       <div class="seg" id="ndFmt" role="radiogroup" aria-label="${T('Format')}"></div>
-      <p class="hint" id="ndHint"></p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" id="ndGo">${T('Créer')}</button>`);
-    const seg = $('#ndFmt', api.body), hint = $('#ndHint', api.body), name = $('#ndName', api.body);
-    const paint = () => { const f = DK_FORMATS[seg._v || 'standard']; hint.textContent = f.hint; };
+      <p class="hint" id="ndHint"></p>
+      <div class="sec-title">${T('Commencer par')}</div>
+      <div class="bd-sc-opts nd-opts">${opt('hand', 'i-plus', T('À la main'), T('Choisis les cartes dans ta collection ou dans la recherche.'))}
+        ${opt('paste', 'i-clip', T('Coller la liste'), T('Depuis Moxfield, Archidekt, MTGA… une carte par ligne.'))}
+        ${opt('scan', 'i-camera', T('Scanner le deck'), T('Tes cartes déjà dans ta collection sont réservées pour ce deck, les autres y sont ajoutées : rien en double.'))}
+        <span class="nd-wiz">${opt('wiz', 'i-bolt', T('Assistant'), T('Tu prévois de le monter : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.'))}</span></div>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
+    const seg = $('#ndFmt', api.body), hint = $('#ndHint', api.body), name = $('#ndName', api.body), wiz = $('.nd-wiz', api.body);
+    const paint = () => { const fmt = seg._v || 'standard'; hint.textContent = DK_FORMATS[fmt].hint; wiz.hidden = !(fmt === 'commander' && typeof dwOn === 'function' && dwOn() && typeof openDeckWiz === 'function'); };
     mountSeg(seg, [{ v: 'standard', label: T('Standard') }, { v: 'commander', label: 'Commander' }], 'standard', paint); paint();
-    const go = () => { const fmt = seg._v || 'standard', nm = name.value.trim(); api.close(); setTimeout(() => (typeof dwOn === 'function' && dwOn() ? openDeckStart(nm, fmt) : openBuilder({ name: nm, fmt })), 200); };      // fonctionnalité en test : « J'ai déjà ce deck » / « Deck à construire » (deckwiz.js)
-    $('#ndGo', api.foot).onclick = go; name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('.nd-go'); if (!b) return;
+      const fmt = seg._v || 'standard', nm = name.value.trim(), v = b.dataset.v; haptic('tap'); api.close();
+      setTimeout(() => {
+        if (v === 'paste') return typeof openDeckPaste === 'function' ? openDeckPaste(nm, fmt) : openBuilder({ name: nm, fmt });
+        if (v === 'wiz') return openDeckWiz(nm);
+        openBuilder({ name: nm, fmt, tab: v === 'hand' ? 'coll' : undefined, ...(v === 'hand' && fmt === 'commander' ? { tgt: 'cmdr' } : {}) });
+        if (v === 'scan') setTimeout(() => { if (BD.el) bdScan('main'); }, 450);
+      }, 200);
+    });
+    name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
     setTimeout(() => name.focus(), 380);
   });
 }
@@ -243,7 +260,8 @@ function openBuilder(o) {
   document.addEventListener('keydown', onKey, true);
   wrap.addEventListener('load', thumbLoad, true);
   wrap.addEventListener('error', thumbErr, true);
-  const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split ? 'coll' : 'deck';
+  const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split || o.tab === 'coll' ? 'coll' : 'deck';      // tab 'coll' : nouveau deck « À la main », ouvert sur Ajouter
+  if (o.tgt === 'cmdr' && BD.fmt === 'commander' && !BD.cmdr.length) BD.tgt = 'cmdr';
   BD.view = bdViewRead(); BD.sort = BD.sort || 'mana';
   mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Ajouter') }, ...(coach ? [{ v: 'coach', label: T('Coach') }] : [])], tab0, bdTab);      // « Ajouter » : collection et toutes les cartes dans une seule recherche
   wrap.addEventListener('click', bdClick);
@@ -301,6 +319,7 @@ function bdChange(tgt, k, name, d, batch) {
       if (i >= 0) return batch ? 'cmdr' : false;
       if (BD.cmdr.length >= 2) return no('cmdr', T('Deux commandants au maximum (partenaires)'));
       BD.cmdr.push({ key: k, name }); BD.main.delete(k);
+      if (!batch && BD.tgt === 'cmdr' && BD.el) setTimeout(() => { if (!BD.el || BD.tgt !== 'cmdr') return; BD.tgt = 'main'; if (BD.tab === 'coll') bdTab('coll'); toast(T('Commandant choisi : ajoute maintenant les cartes du deck')); }, 0);      // la carte suivante va dans le deck, plus comme 2e commandant
     } else if (i >= 0) BD.cmdr.splice(i, 1); else return false;
   } else {
     const m = BD[tgt], cur = m.get(k), q = cur ? cur.qty : 0;

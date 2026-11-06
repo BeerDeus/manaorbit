@@ -1678,6 +1678,10 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 .bd-tools-sp{flex:1}
 .bd-vis{margin-top:4px}
 
+.le-x{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:18px 8px}.le-x .hint{margin:0}.le-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}.le-acts .btn{min-height:44px}      /* liste vide de la collection : de quoi en sortir (collNoMatchHtml) */
+.ca-row{display:flex;gap:8px;align-items:stretch}.ca-row .ca-opt{flex:1;min-width:0}.ca-qadd{flex:none;width:48px;min-height:48px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:var(--accent-soft);color:var(--accent)}.ca-qadd:active{transform:scale(.95)}      /* Ajouter des cartes : « + » d'une suggestion = ajout direct (lot.js) */
+.nd-opts .nd-go{display:flex;flex-direction:row;align-items:center;gap:12px;text-align:left}.nd-opts .nd-go>.i{width:22px;height:22px;flex:none;color:var(--accent)}.nd-opts .nd-go>span{display:flex;flex-direction:column;gap:2px;min-width:0}.nd-wiz{display:contents}.nd-wiz[hidden]{display:none}      /* Nouveau deck : départs en une feuille (builder.js › openDeckNew) */
+
 /* ── ads.css : place du bandeau de pub (appli Android, ads.js) ──
    Le bandeau natif est posé SOUS l'en-tête (marge calculée par ads.js d'après le bas de l'en-tête), pleine largeur, fixe. html.ad-on et --ad-h
    (sa hauteur, en px CSS) réservent sa place : l'en-tête reste en haut, le contenu commence sous le bandeau, avec un écart au-dessus et
@@ -7864,6 +7868,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
         <div class="hm-go-h"><b id="hmStartT">Pour commencer</b><span>Ajoute tes cartes : Mana Orbit suit leur valeur et trouve les decks que tu peux monter.</span></div>
         <div class="hm-go-l">
           <button type="button" class="hm-go-a" data-hm="scan"><i aria-hidden="true"><svg class="i"><use href="#i-camera"/></svg></i><span><b>Scanner</b><small>Vise le nom de la carte : elle rejoint ta collection.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="hm-go-a" data-hm="add"><i aria-hidden="true"><svg class="i"><use href="#i-plus"/></svg></i><span><b>Ajouter une carte</b><small>Tape son nom : elle rejoint ta collection.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
           <button type="button" class="hm-go-a" data-hm="import"><i aria-hidden="true"><svg class="i"><use href="#i-download"/></svg></i><span><b>Importer</b><small>Fichier CSV de ManaBox, Moxfield… ou liste de cartes.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
           <button type="button" class="hm-go-a" data-hm="swg"><i aria-hidden="true"><svg class="i"><use href="#i-swap"/></svg></i><span><b>Je viens de ManaBox</b><small>Exporte ta collection et retrouve-la ici en 2 minutes.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
         </div>
@@ -8066,8 +8071,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '2eaee5f9';
-const I18N_FILES = {"de":"i18n/de.1ac8f59b.js","en":"i18n/en.2d231340.js","es":"i18n/es.679850ca.js","it":"i18n/it.d9590da3.js","pt":"i18n/pt.9e11f3ae.js"};
+const DD_BUILD = '1953cfe1';
+const I18N_FILES = {"de":"i18n/de.4a834e18.js","en":"i18n/en.afea12b9.js","es":"i18n/es.5e7257ea.js","it":"i18n/it.85640689.js","pt":"i18n/pt.b61fefc4.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9867,6 +9872,15 @@ const placesText = places => Object.keys(places || {}).sort().map(id => { const 
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
+/** Plafond du texte de la collection dans le compte (document Firestore ≤ 1 Mo, firestore.rules : 900 000 caractères ≈ 22 000 lignes) ; avertissement dès 80 %.
+ *  Objet (pas une constante) : les tests le baissent pour ne pas écrire 900 Ko. */
+const COLL_LIM = { max: 900000, warn: 0.8 };
+/** Taille du texte de la collection → '' (loin du plafond), 'warn' (80 % ou plus), 'over' (au-delà : plus d'envoi au compte). */
+const collSizeLevel = (len, lim = COLL_LIM) => (len > lim.max ? 'over' : len >= lim.max * lim.warn ? 'warn' : '');
+/** Part du plafond utilisée, en points (« 87 % ») ; jamais 100 tant que ça passe, jamais moins de 101 au-delà. */
+const collSizePct = (len, lim = COLL_LIM) => { const p = Math.round(100 * len / lim.max); return len > lim.max ? Math.max(101, p) : Math.min(99, p); };
+/** Envoi au compte retenu : au-delà du plafond, ou refusé à cette taille (compte + appareil trop gros) et pas encore réduit. big : taille refusée (0 : aucune). */
+const collSizeHold = (len, big, lim = COLL_LIM) => len > lim.max || (big > 0 && len >= big);
 function collDocFromText(text) {
   const main = [], px = [], places = {};
   for (const ln of String(text || '').split('\n')) {
@@ -10822,7 +10836,6 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
 const bestOf = (fr, en) => (fr && (!en || fr.score >= en.score) ? fr : en || null);
 /* ── Noms alternatifs (pwa/names-flavor.tsv, gen-flavor-names.mjs) : « Thrum of the Vestige » imprimé en gros au-dessus de « Lightning Bolt » (Secret Lair, Final Fantasy…).
    Lignes « nom alternatif \t nom anglais \t extension|numéro \t langue Scryfall ». */
-const FV_LANG = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
 /** Lignes → { idx (recherche floue), by (nom alternatif normalisé → impressions [{ en, e, l }]), n } ou null. */
 function fvCatalog(rows) {
   const by = new Map(), names = [];
@@ -10840,7 +10853,7 @@ function fvMatch(lines, c) {
   const hs = c.by.get(frontName(m.name)) || [], ens = [...new Set(hs.map(h => h.en))]; if (ens.length !== 1) return null;      // même nom alternatif pour deux cartes : rien de sûr
   const eds = hs.map(h => h.e).filter(e => /^[a-z0-9]+\|./i.test(e)), ls = [...new Set(hs.map(h => h.l))];
   const ft = eds.length ? { nums: [...new Set(eds.map(e => e.split('|')[1].toLowerCase().replace(/^0+(?=\d)/, '')))], codes: [...new Set(eds.map(e => e.split('|')[0].toUpperCase()))], lang: '', lsep: false, langs: [], foil: false, tots: [] } : null;
-  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? FV_LANG[ls[0]] || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
+  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? cardLang(ls[0]) || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
 }
 /** Rectangle d'écran (x, y, w, h) dans un conteneur cw×ch qui affiche une vidéo vw×vh en « object-fit: cover » → rectangle en pixels de la vidéo. */
 function coverMap(cw, ch, vw, vh, r) {
@@ -11141,6 +11154,8 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Filtres avancés de la collection (search.js) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STYLES, styOf, styIn });
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, LG_FMT, lgOf, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });
+// Plafond de la collection dans le compte (collection.js › collPush) : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COLL_LIM, collSizeLevel, collSizePct, collSizeHold });
 </script>
 <script>
 /* ── cloud.js : compte + decks (Firebase Auth / Firestore). Chargé à la demande, jamais bloquant. ──
@@ -12064,8 +12079,7 @@ async function scryPrintsFind(name, lang, q, signal) {
   const out = await scryPrintsIn(n, sl, signal, true, crit, 1), have = new Set(out.map(p => p.set + '/' + p.num));
   if (sl !== 'en') for (const p of await scryPrintsIn(n, 'en', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] }); }
   // impressions d'une seule autre langue (terrain plein art NEO 295 : japonais seulement) : toutes langues, marquées de leur langue (« JP »)
-  const back = Object.fromEntries(Object.entries(SCRY_LANG).map(([a, s]) => [s, a]));
-  for (const p of await scryPrintsIn(n, 'any', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, fx: [...p.fx, langCode(back[p.l] || p.l)] }); }
+  for (const p of await scryPrintsIn(n, 'any', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, fx: [...p.fx, langCode(cardLang(p.l) || p.l)] }); }
   return out;
 }
 async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0) {      // extra : critères en plus (scryPrintsFind : « (set:neo or cn:295) »)
@@ -18451,13 +18465,13 @@ function openDeckSheet(id) {
     dmLoad().then(() => dmFetch([dkCoverCard((findDeck(id) || d).text, dmOf)].filter(Boolean))).then(ok => ok && paintCover());
     engBindSwitch(id, $('#dkMount', api.body), $('#dkMountHint', api.body));
     const trk = $('#dkTrack', api.body), trkHint = $('#dkTrackHint', api.body);      // cartes manquantes dans « Je recherche » et les alertes de prix (core.js › dkTrack ; deck venu d'À monter : éteint d'office)
-    const paintTrack = () => { const cur = findDeck(id) || d; trk.checked = dkTrack(cur.text); trkHint.textContent = trk.checked ? T('Ses cartes manquantes sont dans « Je recherche » et tes alertes de prix.') : T('Ses cartes manquantes ne sont ni dans « Je recherche » ni dans tes alertes de prix.'); };
+    const paintTrack = on => { const cur = findDeck(id) || d; trk.checked = on === undefined ? dkTrack(cur.text) : on; trkHint.textContent = trk.checked ? T('Ses cartes manquantes sont dans « Je recherche » et tes alertes de prix.') : T('Ses cartes manquantes ne sont ni dans « Je recherche » ni dans tes alertes de prix.'); };
     paintTrack();
     trk.onchange = () => {
       const cur = findDeck(id); if (!cur) return; const text = dkSetTrack(cur.text, trk.checked);
       putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // le deck garde sa place
       if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
-      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack();
+      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack(dkTrack(text));      // l'état écrit, pas celui relu : avec un compte, le deck enregistré n'est relu qu'au retour de Firestore (l'interrupteur revenait en arrière)
     };
     const valEl = $('#dkVal', api.body);      // valeur estimée du deck (builder.js › dkEst : même chiffre que l'éditeur et le viewer), même monté : pas besoin de chercher des offres
     let fetched = false;
@@ -19214,7 +19228,7 @@ function openCardViewer(items, index) {
     const rows = [...pfBox.children], r = (pfRow.dataset.id && rows.find(x => x.dataset.id === pfRow.dataset.id)) || rows.find(x => x.dataset.k && x.dataset.k === pfRow.dataset.k);
     return r ? (pfCls ? $('.' + CSS.escape(pfCls), r) : r) : null;
   };
-  const lk = l => ({ ja: 'jp', ko: 'kr', zhs: 'zh-CN', zht: 'zh-TW' }[l] || l);
+  const lk = l => cardLang(l) || l;      // code Scryfall (« ja » d'une impression lue) ou de l'appli (« jp ») → langue de l'appli
   /** Note « version anglaise » dans la langue voulue l (texte français inchangé ; allemand, espagnol… nommés) ; miss : Scryfall n'a pas cette langue (sinon : image en échec). */
   const noImg = (l, miss) => { const c = lk(l); return c === 'fr' || !c ? T(miss ? 'Pas d\'image française sur Scryfall : version anglaise' : 'Image française indisponible : version anglaise') : T(miss ? 'Pas d\'image en {lang} sur Scryfall : version anglaise' : 'Image en {lang} indisponible : version anglaise', { lang: LANGS[c] ? T(LANGS[c]) : c }); };
   let hideT = 0, fitRO = null, vl = 'en', idx = Math.max(0, Math.min(items.length - 1, index | 0)), ctrl = null, urls = [], face = 0, it = null, lang = 'en', enBig = '', where = '', shown = 'en', vars = [], canSave = false, wantOpen = false, varT = 0, pickAt = -1;
@@ -20055,7 +20069,7 @@ if (typeof document !== 'undefined') {
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, big: 0, tooBig: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct' && !mkUs()) COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }      // marché TCGplayer : jamais CardTrader
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -20558,6 +20572,8 @@ const collDocClone = d => collDoc(collClone(d.map), collClone(d.prox), collClone
 /** Cet appareil a-t-il des changements pas encore dans le compte ? */
 const collUnsynced = () => !COLL.base || !sameDoc(collDocNow(), COLL.base);
 const collOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+/** Taille du texte de la collection (plafond du compte, core.js › COLL_LIM) : celui gardé sur l'appareil (collWrite), sans tout réécrire à chaque « + ». */
+const collLen = () => (typeof COLL.disk === 'string' ? COLL.disk : collDocText(collDocNow())).length;
 /** Envoi groupé. Un envoi = une transaction : 1 lecture + 1 écriture, et 1 lecture de plus pour chaque appareil qui suit le compte (quota Firestore).
  *  Changement isolé : parti 0,7 s après le dernier. Rafale (n changements en win ms : scan mobile reçu sur le PC, page « Ajouter des cartes ») :
  *  au plus un envoi toutes les burst ms, chacun emportant tout ce qui s'est accumulé. Jamais perdu : tout est déjà sur l'appareil (collWrite),
@@ -20585,6 +20601,8 @@ async function collPush() {
   if (!cloudOn() || !D.cloud.txColl || acctHeld(D.user.uid)) return;                  // compte en cours de suppression (ici ou ailleurs) : rien ne part
   if (COLL.pushing) { COLL.again = true; return; }
   if (collOffline()) { COLL.cloud = 'offline'; collPaintHead(); return; }
+  const len = collLen();
+  if (collSizeHold(len, COLL.big)) { COLL.cloud = 'error'; COLL.tooBig = len > COLL_LIM.max ? len : COLL.tooBig || len; COLL.err = T('Collection trop grosse pour le compte'); collPaintHead(); return; }      // trop grosse : ni lecture du compte ni analyse de 900 Ko à chaque « + » ; repart dès qu'elle a baissé
   const uid = D.user.uid, id = ++COLL.runId;
   let used = null, merged = null, wrote = null, had = false;
   COLL.pushing = id; COLL.pushAt = Date.now(); COLL.again = false; COLL.cloud = 'sync'; COLL.err = ''; collPaintHead();
@@ -20597,14 +20615,14 @@ async function collPush() {
       merged = mergeDoc3(rdoc && COLL.s === uid ? COLL.base : null, used, remote);
       if (rdoc ? sameDoc(merged, remote) : sameDoc(merged, collDoc())) { wrote = null; return null; }              // le compte a déjà tout
       wrote = { text: collDocText(merged), count: Object.keys(merged.map).length, updatedAt: Math.max(Date.now(), (Number(rdoc && rdoc.updatedAt) || 0) + 1) };      // count : cartes, sans les proxys
-      if (wrote.text.length > 900000) throw Object.assign(new Error('Collection trop grosse'), { code: 'too-big' });
+      if (collSizeLevel(wrote.text.length) === 'over') throw Object.assign(new Error('Collection trop grosse'), { code: 'too-big', len: wrote.text.length });      // firestore.rules : 900 000 caractères
       return wrote;
     });
     if (D.uid !== uid) return;
     if (had || wrote) acctSaw('collection', uid);
     if (wrote) COLL.ru = Math.max(COLL.ru, wrote.updatedAt);
     const before = collDocNow(), next = mergeDoc3(used, before, merged);                                                // + ce qui a été touché ici pendant l'envoi
-    COLL.s = uid; COLL.base = merged; collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.live = true; collWrite();
+    COLL.s = uid; COLL.base = merged; collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.big = COLL.tooBig = 0; COLL.live = true; collWrite();
     if (!sameDoc(before, next)) collRemoteApplied(before, next);
     if (collUnsynced()) COLL.again = true;
     collAsideSoon();
@@ -20613,7 +20631,7 @@ async function collPush() {
     const c = err && err.code;
     if (c === 'held') return;                                             // decks.js vérifie le compte, puis déconnecte ou relance la synchro
     if (c === 'permission-denied') { COLL.cloud = 'error'; COLL.err = T('Règles Firestore à publier pour la collection'); }
-    else if (c === 'too-big') { COLL.cloud = 'error'; COLL.err = T('Collection trop grosse pour le compte'); }
+    else if (c === 'too-big') { COLL.cloud = 'error'; COLL.err = T('Collection trop grosse pour le compte'); COLL.big = collLen(); COLL.tooBig = err.len || COLL.big; }      // plus d'envoi tant qu'elle n'a pas baissé (collSizeHold)
     else if (c === 'unavailable' || collOffline()) { COLL.cloud = 'offline'; collRetry(COLL_RETRY.off); }
     else { COLL.cloud = 'error'; COLL.err = T('Synchronisation impossible'); collRetry(COLL_RETRY.err); }
   } finally {
@@ -20637,7 +20655,7 @@ const collSyncNow = () => { collPull(); if (collUnsynced() || COLL.cloud !== 'ok
 function collUser(user) {
   if (COLL.unsub) { try { COLL.unsub(); } catch (e) { /* ignore */ } COLL.unsub = null; }
   clearTimeout(COLL.retryT); clearTimeout(COLL.liveT); clearTimeout(COLL.pushT); COLL.runId++; COLL.pushing = 0; COLL.deferred = null; COLL.again = false;
-  COLL.cloud = 'off'; COLL.err = ''; COLL.live = false; COLL.ru = 0;
+  COLL.cloud = 'off'; COLL.err = ''; COLL.live = false; COLL.ru = 0; COLL.big = COLL.tooBig = 0;
   if (!user || !D.cloud || !D.cloud.watchColl) { collPaintHead(); return; }
   if (COLL.s && COLL.s !== user.uid && collAside(COLL.s)) { collPaint(); paintCollSection(); }      // copie d'un autre compte : mise de côté, jamais envoyée d'office (voir collAside)
   COLL.cloud = 'sync';
@@ -21175,6 +21193,7 @@ function crowHtml(it) {
 function collSyncInfo() {
   if (!collCount()) return null;
   if (D.user) {
+    const big = collBigInfo(); if (big && (big.k === 'bad' || COLL.cloud === 'ok')) return big;
     if (COLL.cloud === 'ok') return { k: 'ok', t: T('Sauvegardée dans ton compte'), acts: [] };
     if (COLL.cloud === 'offline') return { k: 'warn', t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')]] };
     if (COLL.cloud === 'error') return { k: 'bad', t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')]] };
@@ -21183,6 +21202,13 @@ function collSyncInfo() {
   if (D.state === 'unavailable') return { k: 'bad', t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [] };
   if (!D.authReady) return null;
   return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
+}
+/** Collection près du plafond du compte (80 %) ou au-delà : bandeau qui dit quoi faire (big : affiché même en simple avertissement) ; null : loin du plafond. */
+function collBigInfo() {
+  const acts = [['export', T('Exporter')]];
+  if (COLL.cloud === 'error' && COLL.tooBig) return { k: 'bad', big: true, acts, t: T('Pas sauvegardée dans ton compte : ta collection est trop grosse ({p} de la place permise). Elle reste sur cet appareil ; retire des cartes pour qu\'elle reparte, ou exporte-la pour en garder une copie.', { p: pct(collSizePct(COLL.tooBig)) }) };
+  const len = collLen(); if (collSizeLevel(len) !== 'warn') return null;
+  return { k: 'warn', big: true, acts, t: T('Collection presque trop grosse pour ton compte ({p} de la place permise) : au-delà, elle ne sera plus sauvegardée. Retire des cartes ou exporte-la pour en garder une copie.', { p: pct(collSizePct(len)) }) };
 }
 /** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
  *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
@@ -21259,7 +21285,7 @@ function collPaintHead(tick) {
   if (!tick) $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul ; tick : cartes, exemplaires et valeur inchangés
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
   if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
-  if (!si || si.k === 'ok' || !(si.k === 'bad' && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
+  if (!si || si.k === 'ok' || !((si.k === 'bad' || si.big) && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
   if (GLANCE.api) paintGlance();
   const stt = $('.coll-status', el), e = COLL.enrich;
@@ -21388,6 +21414,13 @@ function collWinSync() {
 function collWinScroll() { if (COLL.win && !COLL.winRaf) COLL.winRaf = requestAnimationFrame(collWinSync); }
 
 /** Remplit la liste ou les stats selon l'onglet. keep : garder la position de défilement. */
+/** Liste vide après une recherche ou des filtres : ce qui la vide, et de quoi en sortir (effacer les filtres, la recherche ; ajouter la carte cherchée). Audit du 6 novembre (U4). */
+function collNoMatchHtml() {
+  const f = COLL.f, q = (f.q || '').trim(), flt = filterActive({ ...f, q: '' }) || collWhenOn();
+  const msg = q && flt ? T('Aucune carte « {q} » avec ces filtres.', { q }) : q ? T('Aucune carte « {q} » dans ta collection.', { q }) : T('Aucune carte ne correspond à ces filtres.');
+  const b = (act, t, cls) => `<button class="btn ${cls || 'ghost'}" type="button" data-act="${act}">${esc(t)}</button>`;
+  return `<div class="listempty le-x"><p class="hint">${esc(msg)}</p><div class="le-acts">${flt ? b('fclr', T('Effacer les filtres')) : ''}${q ? b('qclr', T('Effacer la recherche')) : ''}${q && COLL.mode === 'coll' ? b('qadd', T('Ajouter « {q} » à ma collection', { q: q.slice(0, 40) }), 'primary') : ''}</div></div>`;
+}
 function collPaintBody(keep) {
   const el = COLL.el; if (!el) return;
   clearTimeout(COLL.paintT); COLL.paintT = 0; COLL.paintAt = Date.now(); COLL.painted = null;
@@ -21416,7 +21449,7 @@ function collPaintBody(keep) {
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
-      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
+      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : collNoMatchHtml()}
       ${moreBtn(shown.length, sorted.length, COLL_PAGE, 'data-act="more"')}`);
     COLL.painted = sorted;
   }
@@ -21529,6 +21562,9 @@ function openCollection(tab) {
       else if (act === 'unknown') openCollUnknown();
       else if (act === 'nolang') collBulkLang(b.dataset.l);
       else if (act === 'prices') openCollPrices();
+      else if (act === 'fclr') { fltClear(COLL.f); COLL.when = { dir: '', t: 0 }; if (COLL.fb) COLL.fb.paint(); COLL.shown = COLL_PAGE; collPaintBody(); }      // liste vide : effacer les filtres (la recherche reste)
+      else if (act === 'qclr') { COLL.f.q = ''; const i = $('#collF input[type="search"]', COLL.el); if (i) i.value = ''; if (COLL.fb) COLL.fb.paint(); COLL.shown = COLL_PAGE; collPaintBody(); }
+      else if (act === 'qadd') { const q = (COLL.f.q || '').trim(); openLot(); const i = LOT.el && $('#caName', LOT.el); if (i && q) { i.value = q; i.dispatchEvent(new Event('input', { bubbles: true })); } }      // la carte cherchée, dans « Ajouter des cartes »
       else if (act === 'login') openAccount();
       else if (act === 'export') collExport();
       else if (act === 'syncinfo') { const si = collSyncInfo(); if (si && si.k !== 'ok' && typeof collSyncSheet === 'function') collSyncSheet(si); else if (si) toast(si.t); }      // à surveiller : la feuille (texte, Se connecter, Réessayer)
@@ -21780,10 +21816,19 @@ function openCollImport(initial) {
       a.body.innerHTML = html; a.setFoot(foot);
       a.wrap.addEventListener('click', e => { const b = e.target.closest('[data-ci]'); if (b) { a.close(); on(b.dataset.ci); } });
     });
+    /** Taille de la collection après cet import, quand elle passerait au-delà du plafond du compte (connecté, pas déjà au-delà) ; 0 sinon. */
+    const bigAfter = (p, m) => { if (!D.user || collSizeLevel(collLen()) === 'over') return 0; const n = collDocText(collDoc(mergeColl(COLL.map, p.items, m), COLL.prox, COLL.places)).length; return collSizeLevel(n) === 'over' ? n : 0; };
+    /** Import, après avoir prévenu s'il rend la collection trop grosse pour le compte ; later : une autre fiche vient de se fermer. */
+    const runChecked = (p, m, later) => {
+      const n = bigAfter(p, m); if (!n) { run(p, m); return; }
+      const open = () => { haptic('tap'); ask(T('Collection trop grosse pour ton compte'), `<p class="cf-msg"><span>${T('Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.', { p: pct(collSizePct(n)) })}</span><span>${T('Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.')}</span></p>`,
+        `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ci="go">${T('Importer quand même')}</button>`, c => { if (c === 'go') run(p, m); }); };
+      if (later) setTimeout(open, reduceMotion() ? 0 : 300); else open();
+    };
     // « Remplacer ma collection » : jamais sans le dire, avec le nombre de cartes qui partent
     const askReplace = p => { const had = collCount(); haptic('tap');
       ask(T('Remplacer ta collection ?'), `<p class="cf-msg"><span>${TN(had, 'Ta collection compte <b>{n}</b> carte différente.', 'Ta collection compte <b>{n}</b> cartes différentes.')} ${TN(p.items.length, 'Elle sera remplacée par l\'unique carte de ce fichier.', 'Elle sera remplacée par les {n} cartes de ce fichier.')}</span><span>${T('Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.')}</span></p>`,
-        `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ci="replace">${T('Remplacer')}</button>`, () => run(p, 'replace')); };
+        `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ci="replace">${T('Remplacer')}</button>`, () => runChecked(p, 'replace', true)); };
     go.onclick = () => {
       if (!parsed || !parsed.items.length) return;
       const p = parsed, m = mode();
@@ -21792,10 +21837,10 @@ function openCollImport(initial) {
         haptic('tap');
         ask(T('Déjà dans ta collection ?'), `<p class="cf-msg"><span>${TN(collAlready(p.items), '<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l\'ajouter le compterait deux fois.', '<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.', { t: nf0(p.copies) })}</span><span>${T('Tu as déjà importé ce fichier ? Remplace plutôt ta collection par son contenu.')}</span></p><button class="link-btn ci-rep" type="button" data-ci="replace">${T('Remplacer ma collection…')}</button>`,
           `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ci="add">${T('Ajouter quand même')}</button>`,
-          c => { if (c === 'add') run(p, 'add'); else setTimeout(() => askReplace(p), reduceMotion() ? 0 : 300); });
+          c => { if (c === 'add') runChecked(p, 'add', true); else setTimeout(() => askReplace(p), reduceMotion() ? 0 : 300); });
         return;
       }
-      run(p, m);
+      runChecked(p, m);
     };
     if (initial) { ta.value = initial; paint(); }
   });
@@ -21836,8 +21881,8 @@ function paintGlance() {
   if (eg === 'off') { /* EDHREC coupé par le serveur : pas de ligne « Decks EDHREC » */ }
   else if (eg !== 'ok') dk = `<div class="gl-edh"><span>${T('<b>Decks EDHREC</b> à finir avec tes cartes : réservés aux comptes')}</span><button class="btn ghost small" type="button" data-g="decks">${T('Voir')}</button></div>`;
   else if (EDH.data && !reading) {
-    const sig = COLL.seq + '|' + EDH.at;
-    if (!GLANCE.edh || GLANCE.edh.sig !== sig) GLANCE.edh = { sig, n: edhRank(EDH.data, collQty, { budget: GLANCE_BUDGET, sort: 'have' }).filter(r => r.have >= r.total * 0.3).length };      // au moins 30 % du deck déjà là : un vrai deck « à finir »
+    const sig = COLL.seq + '|' + EDH.at + '|' + EDH.engOwn + '|' + engSig();
+    if (!GLANCE.edh || GLANCE.edh.sig !== sig) GLANCE.edh = { sig, n: edhRank(EDH.data, collQty, { budget: GLANCE_BUDGET, sort: 'have', held: edhHeld() }).filter(r => r.have >= r.total * 0.3).length };      // au moins 30 % du deck déjà là : un vrai deck « à finir »
     const nd = GLANCE.edh.n;
     if (nd) dk = `<div class="gl-edh"><span>${TN(nd, '<b>{n}</b> deck EDHREC à moins de {v} de finir', '<b>{n}</b> decks EDHREC à moins de {v} de finir', { v: esc(new Intl.NumberFormat(LOC(), { style: 'currency', currency: mkCur(), minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(GLANCE_BUDGET / 100)) })}</span><button class="btn ghost small" type="button" data-g="decks">${T('Voir ces decks')}</button></div>`;
   } else if (EDH.p || reading) dk = `<p class="hint gl-edh-wait">${T('Decks EDHREC à finir : calcul après la lecture des prix…')}</p>`;
@@ -22925,7 +22970,14 @@ const edhInfoHtml = x => { const i = x.indexOf(' Ex. : '); return i < 0 ? esc(T(
 /** Nom court d'un type de deck, traduit ('' si inconnu). */
 const edhKindName = k => (EDH_KIND_NAMES[k] ? T(EDH_KIND_NAMES[k]) : '');
 const EDH_BUDGETS = [[0, 'Budget illimité'], [3000, '≤ 30 €'], [6000, '≤ 60 €'], [10000, '≤ 100 €'], [20000, '≤ 200 €']];
-const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), colsEq: false, tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
+/** « Compter les cartes engagées dans mes autres decks comme possédées » (feuille Filtres, éteint par défaut, gardé sur l'appareil). Éteint : règle R2 (extras.js › ownFor) :
+ *  un exemplaire réservé par un deck monté est à acheter pour un deck d'À monter (coût, tri, budget, « À acheter », Je recherche, alertes). Allumé : il compte comme possédé. */
+const EDH_ENG_KEY = 'deckdeal:edh:engown';
+const edhEngRead = () => { try { return localStorage.getItem(EDH_ENG_KEY) === '1'; } catch (e) { return false; } };
+const edhEngWrite = on => { try { if (on) localStorage.setItem(EDH_ENG_KEY, '1'); else localStorage.removeItem(EDH_ENG_KEY); } catch (e) { /* stockage indisponible : réglage de la session */ } };
+/** Réservations des decks montés pour edhRank (held), ou null quand l'interrupteur les compte comme possédées. */
+const edhHeld = () => (EDH.engOwn ? null : k => engTotal(XS.eng, k));
+const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', engOwn: edhEngRead(), then: '', kinds: new Set(), cols: new Set(), colsEq: false, tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
 
 /** Fichier du site (null hors http, ou s'il manque) : { buf, etag }. same : ETag déjà connu ; si le site répond avec le même, le corps n'est pas lu → { same: true }. */
 async function edhGet(file, same) {
@@ -23006,22 +23058,23 @@ function edhLoad() {
     if (cached) edhRevalidate(rb);
     if (!mkUs() && !(PXT && PXT.map)) pxTable().then(t => { if (t && EDH.data === d) { edhEur(d); EDH.memo = null; if (COLL.el) collPaintBody(true); } }).catch(() => {});      // prix manquants complétés dès que le relevé du jour est lu
     return d;
-  })().catch(e => { if (e && e.message === 'off') throw e; EDH.err = e && e.message === 'absent' ? T('Données EDHREC indisponibles : le fichier edh.bin.gz n\'est pas encore généré ou le site est injoignable.') : T('Données EDHREC illisibles.'); throw e; })
+  })().catch(e => { if (e && e.message === 'off') throw e; EDH.err = typeof navigator !== 'undefined' && navigator.onLine === false ? T('Hors ligne : les idées de decks reviendront dès que tu seras connecté.') : T('Les decks EDHREC ne sont pas disponibles pour le moment. Réessaie dans quelques minutes.'); throw e; })
     .finally(() => { EDH.p = null; if (COLL.el) collPaintBody(true); });
   return EDH.p;
 }
 /** Lance le chargement s'il n'a pas déjà eu lieu ou échoué (un échec ne se relance qu'au toucher de « Réessayer »). */
 function edhEnsure() { if (!EDH.data && !EDH.p && !EDH.err) edhLoad().catch(() => {}); }
 const edhRetry = () => { EDH.err = ''; edhEnsure(); if (COLL.el) collPaintBody(true); };
+if (typeof window !== 'undefined') window.addEventListener('online', () => { if (EDH.err) edhRetry(); });      // hors ligne au chargement : relu seul au retour du réseau
 
 const edhDate = () => { const d = EDH.data && EDH.data.at ? new Date(EDH.data.at) : null; return d && !isNaN(d) ? d.toLocaleDateString(LOC()) : ''; };
 /** Décks classés selon la collection et les réglages de l'écran (mémorisés tant que rien ne change). */
 function edhRows() {
   if (!EDH.data) return [];
   for (const t of [...EDH.themes]) if (!EDH.data.themeIx.has(t)) EDH.themes.delete(t);      // un thème absent du fichier chargé (version plus ancienne ou plus récente) ne filtre plus rien
-  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join('') + (EDH.colsEq ? '=' : ''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? CN.v + FRX.l : ''].join('|');
+  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join('') + (EDH.colsEq ? '=' : ''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.engOwn, EDH.budget, q, EDH.qm, alt ? CN.v + FRX.l : ''].join('|');
   if (EDH.memo && EDH.memo.sig === sig) return EDH.memo.rows;
-  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, colsEq: EDH.colsEq, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
+  const rows = edhRank(EDH.data, collQty, { held: edhHeld(), cols: EDH.cols, colsEq: EDH.colsEq, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
   EDH.memo = { sig, rows }; return rows;
 }
 /* ── Recherche dans la langue de l'appli et dans celle des cartes (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés des index chargés (cardnames.js › cnIx,
@@ -23163,6 +23216,8 @@ function edhFiltersHtml() {
     ${h(T('Budget maximum à acheter'))}<div class="fopts" role="radiogroup" aria-label="${T('Budget maximum à acheter')}">${EDH_BUD_SHORT.map(([v, l]) => `<button type="button" class="fopt" role="radio" data-act="dbudget" data-v="${v}" aria-checked="${EDH.budget === v}" aria-pressed="${EDH.budget === v}">${v ? l : T(l)}</button>`).join('')}</div>
     ${(e.themeOrder || []).length ? h(T('Thèmes')) + edhThemesHtml() : ''}
     <button type="button" class="dkf-sw" role="switch" data-act="dmine" aria-checked="${EDH.mine}" aria-pressed="${EDH.mine}"><span>${T('J\'ai le commandant')}${mineN ? ` <small>${nf0(mineN)}</small>` : ''}</span><span class="switch" aria-hidden="true"><i></i></span></button>
+    <button type="button" class="dkf-sw" role="switch" data-act="deng" aria-checked="${EDH.engOwn}" aria-pressed="${EDH.engOwn}"><span>${T('Compter les cartes engagées dans mes autres decks comme possédées')}</span><span class="switch" aria-hidden="true"><i></i></span></button>
+    <p class="hint dkf-rule">${EDH.engOwn ? T('Une carte réservée par un de tes decks montés compte comme possédée : rien à acheter pour elle.') : T('Une carte réservée par un de tes decks montés est à acheter pour ce deck (coût, budget, cartes à acheter).')}</p>
     ${h(T('Puis par') + ` <small>${esc(T('(après « {s} »)', { s: edhSortLabel(EDH.sort, '') }))}</small>`)}<div class="fopts dk-then" role="group" aria-label="${T('Puis par')}">${EDH_SORTS.filter(([v]) => v !== EDH.sort).map(([v, l]) => `<button type="button" class="fopt" data-act="dthen" data-v="${v}" aria-pressed="${EDH.then === v}">${T(l)}</button>`).join('')}</div></div>`;
 }
 function openEdhFilters() {
@@ -23377,6 +23432,7 @@ function edhClick(e) {
   else if (act === 'dth') { const t = b.dataset.s; if (EDH.themes.has(t)) EDH.themes.delete(t); else EDH.themes.add(t); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dthall') { haptic('tap'); if (EDH.fclose) { EDH.fclose(); EDH.fclose = null; } openEdhThemes(); }      // depuis la feuille « Filtres » : elle laisse la place à la liste complète des thèmes
   else if (act === 'dmine') { EDH.mine = !EDH.mine; EDH.shown = 30; haptic('tap'); collPaintBody(true); }
+  else if (act === 'deng') { EDH.engOwn = !EDH.engOwn; edhEngWrite(EDH.engOwn); EDH.shown = 30; haptic('tap'); collPaintBody(true); }      // réglage de comptage, pas un filtre : ni pastille ni « Tout effacer »
   else if (act === 'dbudget') { const v = Number(b.dataset.v) || 0; if (EDH.budget !== v) { EDH.budget = v; EDH.shown = 30; haptic('tap'); collPaintBody(true); } }
   else if (act === 'dfilt') { haptic('tap'); openEdhFilters(); }
   else if (act === 'dpx') { const g = b.dataset.g; if (g === 'budget') EDH.budget = 0; else if (g === 'mine') EDH.mine = false; else if (g === 'cols') { EDH.cols.clear(); EDH.colsEq = false; } else if (EDH[g] && EDH[g].clear) EDH[g].clear(); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
@@ -24604,9 +24660,14 @@ function alItems() {
     }
   }
   // Tailles alignées sur le serveur (nom 150, deck 40, envoi ≤ 64 Ko) : trop de decks aux noms longs → un seul deck par carte, puis moins de cartes.
-  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.u) o.u = 1; if (x.hand) o.h = 1; return o; });      // u : hausse ET baisse (proxy.mjs › alEval)
+  // dn : nom affiché (collection.js › cardName : possédée → langue de tes exemplaires, sinon langue de l'appli), repris par le serveur dans la notification et le MP Discord ; n reste anglais (relevé, liens)
+  const dnOf = x => { const d = typeof cardName === 'function' ? String(cardName(x.k, x.n) || '').trim().slice(0, 150) : ''; return d && d !== x.n ? d : ''; };
+  if (cnLang() && !cnIx(true)) CN.on.add(alSoon);      // index des noms de l'appli pas encore là : renvoyée à son arrivée, avec les noms traduits
+  if (FRX.l && !FRX.ix) FRN.on.add(alSoon);      // de même pour la langue de tes cartes (exemplaires possédés)
+  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }, dn = dnOf(x); if (dn) o.dn = dn; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.u) o.u = 1; if (x.hand) o.h = 1; return o; });      // u : hausse ET baisse (proxy.mjs › alEval)
   const size = () => new TextEncoder().encode(JSON.stringify(items)).length;
   if (size() > AL_BODY_MAX) items.forEach(o => { if (o.d) o.d = o.d.slice(0, 1); });
+  if (size() > AL_BODY_MAX) items.forEach(o => { delete o.dn; });      // puis sans les noms affichés (anglais dans la notification) avant de retirer des cartes
   while (items.length && size() > AL_BODY_MAX) items.splice(-Math.max(1, items.length >> 4));
   return items;
 }
@@ -25444,7 +25505,7 @@ function scanAltPick(it, name) {
 }
 /** Carte du scan pour la visionneuse (appui sur sa miniature) : image dans sa langue si Scryfall l'a donnée, sinon anglaise ; photo prise au scan si la carte est « à vérifier ». */
 function scanViewItem(e) {
-  const l = e.l || 'en', u = scanThumb(e), pk = e.pk, lang = pk ? ({ ja: 'jp', zhs: 'zh-CN' }[pk.l] || pk.l || 'en') : l !== 'en' && COLL.li[liKey(l, e.key)] ? l : 'en', rn = scanReadNote(e, !!(e.raw && e.score < 0.97));
+  const l = e.l || 'en', u = scanThumb(e), pk = e.pk, lang = pk ? (cardLang(pk.l) || pk.l || 'en') : l !== 'en' && COLL.li[liKey(l, e.key)] ? l : 'en', rn = scanReadNote(e, !!(e.raw && e.score < 0.97));
   return { key: e.key, lid: e.id || e.key, name: scanShown(e), ln: e.name, wl: l !== 'en' && lang === 'en' ? l : '', small: u, big: pk ? pk.urls[0] || pk.th : lang === 'en' ? 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(e.name) + '&format=image&version=large' : '', lang, plain: true, shot: e.maybe ? e.shot || '' : '',
     extra: TN(e.q, '{n} exemplaire', '{n} exemplaires') + (e.e ? ' · ' + [(pk && pk.sn) || setName(edSet(e.e)), edLabel(e.e)].filter(Boolean).join(' ') : '') + (e.maybe ? ' · ' + T('à vérifier') : '') + (l !== 'en' && lang === 'en' ? ' · ' + T('image anglaise (pas encore d\'image {lang})', { lang: LANGS[l] || l }) : '') + (rn ? ' · ' + rn : '') };
 }
@@ -26165,7 +26226,7 @@ async function footIdentify(m, src, box) {
     if (r) break;
   }
   if (!r || !SC.el) return m;
-  const l = (typeof FOOT_SL !== 'undefined' && FOOT_SL[r.lang]) || 'en';
+  const l = cardLang(r.lang) || 'en';
   let sim = nameSimilar(raw, r.printed || r.name), araw = '';
   const fl = TESS_OF[l];
   if (sim < 0.6 && r.printed && fl && NAT_SCRIPT[fl] !== 'latin' && src && SC.el) {      // nom russe, japonais, coréen, chinois : illisible pour le moteur latin, relu avec celui de la langue lue en bas (le russe restait « à vérifier »)
@@ -26692,8 +26753,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && SC.
 
 /** Code de langue imprimé → langue des cartes de l'appli. */
 const FOOT_LANG = { EN: 'en', FR: 'fr', DE: 'de', ES: 'es', IT: 'it', PT: 'pt', JA: 'jp', JP: 'jp', KO: 'kr', KR: 'kr', RU: 'ru', CS: 'zh-CN', ZHS: 'zh-CN', CT: 'zh-TW', ZHT: 'zh-TW' };
-/** Langue Scryfall d'une impression (p.l) → langue de l'appli. */
-const FOOT_SL = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
+/** Langue Scryfall d'une impression (p.l : « ja », « zhs ») → langue de l'appli : la conversion unique de core.js (cardLang), aussi chargée seule par les tests Node. */
+const footSL = l => (typeof cardLang === 'function' ? cardLang : require('./core.js').cardLang)(l);
 /** Caractères que l'OCR confond : même classe = même caractère. */
 const FOOT_CLS = { 0: '0', O: '0', Q: '0', D: '0', 1: '1', I: '1', L: '1', '|': '1', '!': '1', 2: '2', Z: '2', 5: '5', S: '5', 6: '6', G: '6', 8: '8', B: '8', 7: '7', T: '7' };
 const footCls = ch => FOOT_CLS[ch] || ch;
@@ -26780,7 +26841,7 @@ function footMatch(lines, prints) {
   const numOk = p => f.nums.includes(pn(p));
   const pick = list => {      // à égalité : l'impression dans la langue lue, puis celle qui n'est pas une variante (promo, showcase…)
     if (list.length < 2) return list[0] || null;
-    const byLang = extra.lang ? list.filter(p => FOOT_SL[p.l || 'en'] === extra.lang) : [];
+    const byLang = extra.lang ? list.filter(p => footSL(p.l || 'en') === extra.lang) : [];
     const pool = byLang.length ? byLang : list;
     return pool.length === 1 ? pool[0] : null;
   };
@@ -28284,17 +28345,34 @@ const bdCmp = (a, b) => NAME_CMP(bdLabel(a.key, a.name), bdLabel(b.key, b.name))
 const bdFmtName = f => (DK_FORMATS[f] || DK_FORMATS.standard).label;
 
 /* ── Nouveau deck : nom + format ──────────────────────────────────────────────────────────────── */
+/** Une seule feuille (audit du 6 novembre, U3 : avant, 3 feuilles et 15 appuis pour 3 cartes) : nom (facultatif), format, puis le départ en un appui :
+ *  Scanner le deck · Coller la liste · À la main (éditeur ouvert sur « Ajouter », cible Commandant tant qu'il n'y en a pas) · Assistant (Commander, deckwiz.js). */
 function openDeckNew() {
   openSheet(T('Nouveau deck'), T('Standard ou Commander'), api => {
-    api.body.innerHTML = `<div class="field-in"><label class="label" for="ndName">${T('Nom')}</label><input type="text" id="ndName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" enterkeyhint="go"></div>
+    const opt = (v, ic, t, h) => `<button type="button" class="bd-sc-opt nd-go" data-v="${v}"><svg class="i" aria-hidden="true"><use href="#${ic}"/></svg><span><b>${t}</b><small>${h}</small></span></button>`;
+    api.body.innerHTML = `<div class="field-in"><label class="label" for="ndName">${T('Nom (facultatif)')}</label><input type="text" id="ndName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" enterkeyhint="done"></div>
       <div class="seg" id="ndFmt" role="radiogroup" aria-label="${T('Format')}"></div>
-      <p class="hint" id="ndHint"></p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" id="ndGo">${T('Créer')}</button>`);
-    const seg = $('#ndFmt', api.body), hint = $('#ndHint', api.body), name = $('#ndName', api.body);
-    const paint = () => { const f = DK_FORMATS[seg._v || 'standard']; hint.textContent = f.hint; };
+      <p class="hint" id="ndHint"></p>
+      <div class="sec-title">${T('Commencer par')}</div>
+      <div class="bd-sc-opts nd-opts">${opt('hand', 'i-plus', T('À la main'), T('Choisis les cartes dans ta collection ou dans la recherche.'))}
+        ${opt('paste', 'i-clip', T('Coller la liste'), T('Depuis Moxfield, Archidekt, MTGA… une carte par ligne.'))}
+        ${opt('scan', 'i-camera', T('Scanner le deck'), T('Tes cartes déjà dans ta collection sont réservées pour ce deck, les autres y sont ajoutées : rien en double.'))}
+        <span class="nd-wiz">${opt('wiz', 'i-bolt', T('Assistant'), T('Tu prévois de le monter : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.'))}</span></div>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
+    const seg = $('#ndFmt', api.body), hint = $('#ndHint', api.body), name = $('#ndName', api.body), wiz = $('.nd-wiz', api.body);
+    const paint = () => { const fmt = seg._v || 'standard'; hint.textContent = DK_FORMATS[fmt].hint; wiz.hidden = !(fmt === 'commander' && typeof dwOn === 'function' && dwOn() && typeof openDeckWiz === 'function'); };
     mountSeg(seg, [{ v: 'standard', label: T('Standard') }, { v: 'commander', label: 'Commander' }], 'standard', paint); paint();
-    const go = () => { const fmt = seg._v || 'standard', nm = name.value.trim(); api.close(); setTimeout(() => (typeof dwOn === 'function' && dwOn() ? openDeckStart(nm, fmt) : openBuilder({ name: nm, fmt })), 200); };      // fonctionnalité en test : « J'ai déjà ce deck » / « Deck à construire » (deckwiz.js)
-    $('#ndGo', api.foot).onclick = go; name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('.nd-go'); if (!b) return;
+      const fmt = seg._v || 'standard', nm = name.value.trim(), v = b.dataset.v; haptic('tap'); api.close();
+      setTimeout(() => {
+        if (v === 'paste') return typeof openDeckPaste === 'function' ? openDeckPaste(nm, fmt) : openBuilder({ name: nm, fmt });
+        if (v === 'wiz') return openDeckWiz(nm);
+        openBuilder({ name: nm, fmt, tab: v === 'hand' ? 'coll' : undefined, ...(v === 'hand' && fmt === 'commander' ? { tgt: 'cmdr' } : {}) });
+        if (v === 'scan') setTimeout(() => { if (BD.el) bdScan('main'); }, 450);
+      }, 200);
+    });
+    name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
     setTimeout(() => name.focus(), 380);
   });
 }
@@ -28348,7 +28426,8 @@ function openBuilder(o) {
   document.addEventListener('keydown', onKey, true);
   wrap.addEventListener('load', thumbLoad, true);
   wrap.addEventListener('error', thumbErr, true);
-  const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split ? 'coll' : 'deck';
+  const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split || o.tab === 'coll' ? 'coll' : 'deck';      // tab 'coll' : nouveau deck « À la main », ouvert sur Ajouter
+  if (o.tgt === 'cmdr' && BD.fmt === 'commander' && !BD.cmdr.length) BD.tgt = 'cmdr';
   BD.view = bdViewRead(); BD.sort = BD.sort || 'mana';
   mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Ajouter') }, ...(coach ? [{ v: 'coach', label: T('Coach') }] : [])], tab0, bdTab);      // « Ajouter » : collection et toutes les cartes dans une seule recherche
   wrap.addEventListener('click', bdClick);
@@ -28406,6 +28485,7 @@ function bdChange(tgt, k, name, d, batch) {
       if (i >= 0) return batch ? 'cmdr' : false;
       if (BD.cmdr.length >= 2) return no('cmdr', T('Deux commandants au maximum (partenaires)'));
       BD.cmdr.push({ key: k, name }); BD.main.delete(k);
+      if (!batch && BD.tgt === 'cmdr' && BD.el) setTimeout(() => { if (!BD.el || BD.tgt !== 'cmdr') return; BD.tgt = 'main'; if (BD.tab === 'coll') bdTab('coll'); toast(T('Commandant choisi : ajoute maintenant les cartes du deck')); }, 0);      // la carte suivante va dans le deck, plus comme 2e commandant
     } else if (i >= 0) BD.cmdr.splice(i, 1); else return false;
   } else {
     const m = BD[tgt], cur = m.get(k), q = cur ? cur.qty : 0;
@@ -29963,34 +30043,7 @@ if (typeof document !== 'undefined') document.addEventListener('change', e => {
   else if (t.id === 'dwOwn') { BD.wiz.own = t.checked; DW.changed = true; dwPersist(BD.id); bdList(); }
 });
 
-/* ── Nouveau deck : « J'ai déjà ce deck » ou « Deck à construire » ─────────────────────────────────── */
-function openDeckStart(name, fmt) {
-  openSheet(T('Nouveau deck'), fmt === 'commander' ? 'Commander' : T('Standard'), api => {
-    const opt = (v, t, h) => `<button type="button" class="bd-sc-opt dw-start" data-v="${v}"><b>${t}</b><small>${h}</small></button>`;
-    api.body.innerHTML = `<div class="bd-sc-opts">${opt('have', T('J\'ai déjà ce deck'), T('Il existe en vrai : scanne-le, colle sa liste ou ajoute ses cartes à la main.'))}
-      ${opt('build', T('Deck à construire'), fmt === 'commander' ? T('Tu prévois de le monter : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.') : T('Tu prévois de le monter : ajoute les cartes depuis ta collection ou la recherche.'))}</div>`;
-    api.body.addEventListener('click', e => {
-      const b = e.target.closest('.dw-start'); if (!b) return; haptic('tap'); api.close();
-      setTimeout(() => { if (b.dataset.v === 'have') openDeckHave(name, fmt); else if (fmt === 'commander') openDeckWiz(name); else openBuilder({ name, fmt }); }, 200);
-    });
-  });
-}
-function openDeckHave(name, fmt) {
-  openSheet(T('J\'ai déjà ce deck'), name || null, api => {
-    const opt = (v, t, h) => `<button type="button" class="bd-sc-opt dw-start" data-v="${v}"><b>${t}</b><small>${h}</small></button>`;
-    api.body.innerHTML = `<div class="bd-sc-opts">${opt('scan', T('Scanner le deck'), T('Tes cartes déjà dans ta collection sont réservées pour ce deck, les autres y sont ajoutées : rien en double.'))}
-      ${opt('paste', T('Coller la liste'), T('Depuis Moxfield, Archidekt, MTGA… une carte par ligne.'))}
-      ${opt('hand', T('À la main'), T('Choisis les cartes dans ta collection ou dans la recherche.'))}</div>`;
-    api.body.addEventListener('click', e => {
-      const b = e.target.closest('.dw-start'); if (!b) return; haptic('tap'); api.close();
-      setTimeout(() => {
-        if (b.dataset.v === 'paste') return openDeckPaste(name, fmt);
-        openBuilder({ name, fmt });
-        if (b.dataset.v === 'scan') setTimeout(() => { if (BD.el) bdScan('main'); }, 450);
-      }, 200);
-    });
-  });
-}
+/* ── Nouveau deck : « Coller la liste » (départ de la feuille Nouveau deck, builder.js › openDeckNew) ─────────────────────────────────── */
 function openDeckPaste(name, fmt) {
   openSheet(T('Coller la liste'), name || null, api => {
     api.body.innerHTML = `<div class="field-in"><label class="label" for="dwPaste">${T('Liste du deck')}</label><textarea id="dwPaste" rows="10" autocomplete="off" spellcheck="false" placeholder="${esc('Commander\n1 Atraxa, Praetors\' Voice\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n…')}"></textarea></div>
@@ -32896,7 +32949,7 @@ function trPanelHtml() {
     ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
-      : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
+      : act && filterActive(f) ? collNoMatchHtml() : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
     ${bv ? '' : moreBtn(shown.length, list.length, TR_PAGE, 'data-act="trmore"')}
     ${!want && held.length ? `<details class="tr-held"><summary>${T('Gardées à la main ({n})', { n: nf0(held.length) })}</summary><div class="coll-list">${held.map(x => `<div class="crow tr-row" data-k="${esc(x.k)}"><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta"><span class="tag">${T('{n} en trop', { n: x.q })}</span></span></span><span class="tr-q"><button class="link-btn" type="button" data-act="tunkeep">${T('Remettre')}</button></span></div>`).join('')}</div></details>` : ''}`;
 }
@@ -33722,7 +33775,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { bndArran
 /* ── home.js : page d'accueil (section Accueil de la barre du bas, nav.js) ─────────────────────────────────────────────────────────────────
    · Orbe « Ma collection » : valeur (prix tendance Cardmarket), cartes, variation sur 7 jours ; les 5 terrains de base tournent autour
      (illustration de ceux de la collection s'ils y sont, sinon la fiche Scryfall, lue une fois), sur une orbite en pointillés.
-   · Collection vide (hors mode streamer) : carte « Pour commencer » sous l'orbe (Scanner, Importer, « Je viens de ManaBox » : guide de switch.js) à la place
+   · Collection vide (hors mode streamer) : carte « Pour commencer » sous l'orbe (Scanner, Ajouter une carte, Importer, « Je viens de ManaBox » : guide de switch.js) à la place
      de la ligne #collSub ; sur ordinateur, elle prend la case de la courbe de valeur (rien à tracer).
    · Carte « Échange » : doublons, cartes recherchées, lien en direct ; QR code et Partager (le lien est créé au besoin), remplacés par une phrase tant que
      la collection est vide (ni carte recherchée, ni lien déjà créé) ;
@@ -33916,6 +33969,7 @@ function homeInit() {
     const a = b.dataset.hm; if (a === 'scan') { navGo('scan'); return; }
     haptic('tap');
     if (a === 'import') openCollImport();
+    else if (a === 'add') openLot();      // « Ajouter une carte » (accueil vide) : la saisie par le nom, sans passer par la collection
     else if (a === 'swg') swgOpen({ from: 'home' });      // « Je viens de ManaBox » (switch.js)
     else if (a === 'stats') navOpen(() => openCollection('stats'));
     else if (a === 'price' || a === 'build') dkTabGo(a);
@@ -34504,9 +34558,10 @@ function obOpen() {
         <button class="link-btn ob-swg" type="button" data-ob="swg">${T('Tu viens de ManaBox ? Voir comment l\'exporter')}</button>
         <div class="ob-opts">
           <button class="ob-opt" type="button" data-ob="import"><svg class="i"><use href="#i-download"/></svg><b>${T('Importer un fichier')}</b><span>${T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».')}</span></button>
+          <button class="ob-opt" type="button" data-ob="add"><svg class="i"><use href="#i-plus"/></svg><b>${T('Ajouter une carte')}</b><span>${T('Tape son nom : elle rejoint ta collection.')}</span></button>
           <button class="ob-opt" type="button" data-ob="scan"><svg class="i"><use href="#i-camera"/></svg><b>${T('Scanner mes cartes')}</b><span>${nmT('L\'appareil photo lit le nom de la carte, en français ou en anglais.', 'L\'appareil photo lit le nom de la carte, en {lang} ou en anglais.', 'L\'appareil photo lit le nom de la carte.')}</span></button>
         </div>
-        <button class="btn ghost block" type="button" data-ob="next">${T('Plus tard')}</button>
+        <button class="btn ghost block" type="button" data-ob="next">${T('Continuer sans ajouter de cartes')}</button>
       </section>
       <section class="ob-s ob-save" aria-label="${T('Sauvegarde ta collection')}">
         <span class="ob-save-ic" aria-hidden="true"><svg class="i"><use href="#i-cloud"/></svg></span>
@@ -34530,6 +34585,7 @@ function obOpen() {
     else if (a === 'import') obClose(() => openCollImport());
     else if (a === 'swg') obClose(() => swgOpen({ from: 'onboard' }));      // guide « Passer de ManaBox » (switch.js)
     else if (a === 'scan') obClose(() => openScan());
+    else if (a === 'add') obClose(() => openLot());
     else if (a === 'done') { if (OB.i === 2 && obPushStep()) obGo(3); else { if (OB.i === 3 && typeof evpAskLater === 'function') evpAskLater(); obClose(); } }      // étape 3 → notifications (s'il y en a une) ; étape 4 « Plus tard » : jamais redemandé
     else if (a === 'push') obPush(b);
     else if (a === 'google') obGoogle(b);
@@ -34813,7 +34869,7 @@ async function adsStep() {
   const P = natPlugin('AdMob'); if (!P) return;
   const now = Date.now(), busy = adsBusy();
   if (busy) AD.calm = 0; else if (!AD.calm) AD.calm = now;
-  if (CTX.serverOk === true || AD.no || (typeof streamOn === 'function' && streamOn())) {  // compte autorisé, pub refusée, ou mode streamer (opening.js, html.streamer : réévalué au changement) : bandeau détruit
+  if (CTX.serverOk === true || AD.no || (typeof streamOn === 'function' && streamOn()) || (typeof evAdmOn === 'function' && evAdmOn())) {  // compte autorisé, pub refusée, mode streamer (opening.js, html.streamer : réévalué au changement) ou compte de l'éditeur (event.js › evAdmOn) : bandeau détruit
     if (AD.st !== 'off') { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); }
     return;
   }
@@ -35529,7 +35585,7 @@ function setvLocal(list, sl) {
   const by = new Map();
   for (const c of list) {
     const f0 = (c.card_faces && c.card_faces[0]) || {}, iu = c.image_uris || f0.image_uris || {}, dn = String(c.printed_name || f0.printed_name || '').trim();
-    if (c.collector_number && !by.has(c.collector_number)) by.set(c.collector_number, { dn: dn.slice(0, 160), iml: SETV_IMG_RE.test(iu.normal || '') ? iu.normal : '', il: sl });
+    if (c.collector_number && !by.has(c.collector_number)) by.set(c.collector_number, { dn: dn.slice(0, 160), iml: SETV_IMG_RE.test(iu.normal || '') ? iu.normal : '', il: cardLang(sl) || sl });      // il : langue de l'appli (« jp », « zh-CN »), pas le code Scryfall (« ja », « zhs ») : le viewer et les souhaits la lisent
   }
   return by;
 }
@@ -35544,11 +35600,13 @@ async function setvSearch(q, signal) {
   }
   return out;
 }
+/** Copie d'avant le 6 novembre : il gardait le code Scryfall (« ja ») ; relue avec le code de l'appli (« jp »). */
+const setvIl = cards => { for (const x of cards) if (x && x.il) x.il = cardLang(x.il) || x.il; return cards; };
 /** Cartes de l'extension : copie de l'appareil si elle est fraîche, sinon Scryfall (et la copie ancienne en secours). */
 async function setvLoad(row, signal) {
   const sl = SCRY_LANG[userLang()] || 'en', key = SETV_KEY + row.code + ':' + sl, fresh = row.d >= 0 ? SETV_FRESH : SETV_OLD;
   const hit = await Cache.get(key, 30 * DAY).catch(() => null);
-  if (hit && Array.isArray(hit.cards) && hit.fin && hit.sty && Date.now() - hit.at < fresh) return hit.cards;      // fin, sty : copie avec les finitions (setvFin) et les styles (styOf) ; plus ancienne, relue (et gardée hors ligne)
+  if (hit && Array.isArray(hit.cards) && hit.fin && hit.sty && Date.now() - hit.at < fresh) return setvIl(hit.cards);      // fin, sty : copie avec les finitions (setvFin) et les styles (styOf) ; plus ancienne, relue (et gardée hors ligne)
   try {
     if ((typeof navigator !== 'undefined' && navigator.onLine === false) || scryLeft() > 0) throw Object.assign(new Error('pause'), { code: navigator.onLine === false ? 'network' : 'rate' });
     const cards = (await setvSearch('e:' + row.code, signal)).map(setvCard);
@@ -35560,7 +35618,7 @@ async function setvLoad(row, signal) {
     return cards;
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    if (hit && Array.isArray(hit.cards)) return hit.cards;      // hors ligne, Scryfall en pause : la copie plus ancienne
+    if (hit && Array.isArray(hit.cards)) return setvIl(hit.cards);      // hors ligne, Scryfall en pause : la copie plus ancienne
     throw e;
   }
 }
@@ -35757,7 +35815,7 @@ const msActive = () => MS.on && !!COLL.el && COLL.mode === 'coll' && COLL.tab ==
 const msNum = n => String(n || '').trim().toLowerCase().replace(/^0+(?=\d)/, '');
 const msEd = (code, num) => code + '|' + msNum(num);
 const MS_WARN = '<svg viewBox="0 0 24 22" aria-hidden="true"><path d="M12 1.5 23 20.5H1z" fill="#f2b441" stroke="#2a1c00" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8v6.2M12 16.8v.4" stroke="#2a1c00" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const MS_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6" opacity=".45"/></svg>';
+const MS_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" opacity=".3"/><path d="M12 3.5a8.5 8.5 0 1 1-8.5 8.5"/><path d="M8.6 12.3l2.3 2.3 4.5-4.7"/></svg>';      // anneau de progression et coche (extension à compléter) : plus jamais pris pour la vue en grille (4 carrés, juste à côté)
 /** Roue crantée des options (sprite i-gear) : 8 dents, anneau gravé (comme un symbole d'extension), moyeu évidé, et au centre l'étincelle à quatre branches du mana incolore. */
 const MS_GEAR = '<svg class="i ms-gear" aria-hidden="true"><use href="#i-gear"/></svg>';      // sprite (body.html › i-gear)
 
@@ -36009,7 +36067,7 @@ function msActDone(it, label, extra) {
   const x = $('.imgv-extra', v); if (x && extra != null) { x.textContent = extra; x.hidden = !extra; }
 }
 /** Infos de l'impression pour la ligne qui la reçoit (prix, extension, rareté, petites images : anglaise, et dans la langue l si Scryfall l'a). */
-const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && SCRY_LANG[l] === x.il ? { li: scrySmall(x.iml) } : {}) });
+const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && l === x.il ? { li: scrySmall(x.iml) } : {}) });
 /** « C'est celle-ci » : n exemplaires sans édition reçoivent cette édition, pris dans les lignes sans édition (langue des options, finition de la case),
  *  la plus fournie d'abord ; « Annuler » les remet. */
 function msAssign(code, x, it, n = 1, fin = '') {
@@ -36551,7 +36609,7 @@ function lotEdSheet() {
       const b = e.target.closest('.lot-ev'); if (!b) return;
       const i = Number(b.dataset.i), p = i >= 0 ? c.prints[i] : null; haptic('tap');
       c.pick = p; c.e = p ? edKey(p.set, p.num) : ''; c.auto = false;
-      const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? Object.keys(SCRY_LANG).find(k => SCRY_LANG[k] === p.l) : '';
+      const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? cardLang(p.l) : '';
       if (pl && (typeof CARD_LANG_LIST === 'undefined' || CARD_LANG_LIST.includes(pl))) c.l = pl;      // impression d'une seule langue (NEO 295 : japonais) : cette carte passe dans cette langue (les suivantes gardent la leur)
       if (p) LOT.set = p.set;      // choisie à la main : l'extension devient collante pour les cartes suivantes
       lotSave(); api.close(); lotPaintCard(); lotPaintHead();
@@ -36626,7 +36684,7 @@ function lotSuggest() {
   const inp = $('#caName', el), list = $('#caList', el), q = inp.value.trim(), c = LOT.cur;
   if (!LOT.cat || (document.activeElement !== inp && !q) || (c && q === (c.p || c.n))) { list.innerHTML = ''; return; }      // nom de la carte choisie (après « Ajouter ») : pas de suggestions par-dessus
   const sug = collSuggestX(LOT.cat, q, 12, () => { if (LOT.el === el) lotSuggest(); });      // autres langues arrivées : la liste se repeint
-  list.innerHTML = sug.map(x => { const have = collQty(ownKey(x.n)); return `<button type="button" class="ca-opt" role="option" data-n="${esc(x.n)}"${x.p ? ` data-p="${esc(x.p)}"` : ''}${x.l ? ` data-l="${esc(x.l)}"` : ''}><span>${sugHtml(x.n, q, x.p || '', x.l)}</span><i>${have ? `× ${have}` : '+'}</i></button>`; }).join('')
+  list.innerHTML = sug.map(x => { const have = collQty(ownKey(x.n)); return `<div class="ca-row"><button type="button" class="ca-opt" role="option" data-n="${esc(x.n)}"${x.p ? ` data-p="${esc(x.p)}"` : ''}${x.l ? ` data-l="${esc(x.l)}"` : ''}><span>${sugHtml(x.n, q, x.p || '', x.l)}</span>${have ? `<i>× ${have}</i>` : ''}</button><button type="button" class="ca-qadd" data-n="${esc(x.n)}"${x.p ? ` data-p="${esc(x.p)}"` : ''}${x.l ? ` data-l="${esc(x.l)}"` : ''} aria-label="${esc(T('Ajouter 1 exemplaire de {name}', { name: x.p || x.n }))}"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></button></div>`; }).join('')
     || (q.length >= 2 && NMX.p ? '<p class="hint">' + T('Recherche dans les autres langues…') + '</p>' : q.length >= 2 ? '<p class="hint">' + (cnHas() ? T('Aucune carte de ce nom. Vérifie l\'orthographe.') : cnT('Aucune carte de ce nom. Vérifie l\'orthographe (les noms français arrivent dès que leur liste est chargée).', 'Aucune carte de ce nom. Vérifie l\'orthographe (les noms en {lang} arrivent dès que leur liste est chargée).')) + '</p>' : '');
 }
 /** Cartes du scan (« Ajouter » du récapitulatif, scan ouvert depuis le lot ; scan mobile) : chacune rejoint la collection et le lot.
@@ -36689,6 +36747,11 @@ function openLot() {
   const onFr = () => { if (LOT.el === wrap) { lotSuggest(); lotPaintHead(); } };      // index des noms imprimés arrivé pendant la saisie
   FRN.on.add(onFr);
   list.addEventListener('click', e => {
+    const qa = e.target.closest('.ca-qadd');
+    if (qa) {      // « + » d'une suggestion : 1 exemplaire ajouté tout de suite (sans édition, langue par défaut) ; le nom ouvre le détail (édition, quantité, foil, langue)
+      LOT.edit = ''; list.innerHTML = ''; inp.value = qa.dataset.p || qa.dataset.n; lotSay('');
+      lotPick(qa.dataset.n, qa.dataset.p || '', qa.dataset.l && !LOT.lang ? { l: qa.dataset.l } : {}); lotAdd(); return;
+    }
     const b = e.target.closest('.ca-opt'); if (!b) return;
     haptic('tap'); LOT.edit = ''; list.innerHTML = ''; inp.value = b.dataset.p || b.dataset.n; inp.blur(); lotSay('');
     lotPick(b.dataset.n, b.dataset.p || '', b.dataset.l && !LOT.lang ? { l: b.dataset.l } : {});      // nom italien (allemand…) choisi : carte dans cette langue, sauf langue choisie
@@ -36709,7 +36772,7 @@ function openLot() {
     else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
-    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
+    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? cardLang(c.pick.l) || c.pick.l : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
     else if (act === 'mobgo') mobStart();
     else if (act === 'mobstop') { haptic('tap'); mobStop(); }
     else if (act === 'unstick') { LOT.set = ''; lotSave(); haptic('tap'); lotPaintHead(); }
@@ -44558,6 +44621,7 @@ async function evAdmChk(user) {
     const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(m)))].map(b => b.toString(16).padStart(2, '0')).join('');
     if (h !== EV_ADM || EV.uid !== user.uid) return;
     EV.adm = user.uid; if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
+    if (typeof adsRefresh === 'function') adsRefresh();      // compte de l'éditeur : pas de bandeau de pub (ads.js › adsStep)
   } catch (e) { /* pas de WebCrypto : pas d'aperçu */ }
 }
 const evAdmOn = () => !!EV.adm && EV.adm === EV.uid;

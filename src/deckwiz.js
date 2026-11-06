@@ -944,34 +944,7 @@ if (typeof document !== 'undefined') document.addEventListener('change', e => {
   else if (t.id === 'dwOwn') { BD.wiz.own = t.checked; DW.changed = true; dwPersist(BD.id); bdList(); }
 });
 
-/* ── Nouveau deck : « J'ai déjà ce deck » ou « Deck à construire » ─────────────────────────────────── */
-function openDeckStart(name, fmt) {
-  openSheet(T('Nouveau deck'), fmt === 'commander' ? 'Commander' : T('Standard'), api => {
-    const opt = (v, t, h) => `<button type="button" class="bd-sc-opt dw-start" data-v="${v}"><b>${t}</b><small>${h}</small></button>`;
-    api.body.innerHTML = `<div class="bd-sc-opts">${opt('have', T('J\'ai déjà ce deck'), T('Il existe en vrai : scanne-le, colle sa liste ou ajoute ses cartes à la main.'))}
-      ${opt('build', T('Deck à construire'), fmt === 'commander' ? T('Tu prévois de le monter : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.') : T('Tu prévois de le monter : ajoute les cartes depuis ta collection ou la recherche.'))}</div>`;
-    api.body.addEventListener('click', e => {
-      const b = e.target.closest('.dw-start'); if (!b) return; haptic('tap'); api.close();
-      setTimeout(() => { if (b.dataset.v === 'have') openDeckHave(name, fmt); else if (fmt === 'commander') openDeckWiz(name); else openBuilder({ name, fmt }); }, 200);
-    });
-  });
-}
-function openDeckHave(name, fmt) {
-  openSheet(T('J\'ai déjà ce deck'), name || null, api => {
-    const opt = (v, t, h) => `<button type="button" class="bd-sc-opt dw-start" data-v="${v}"><b>${t}</b><small>${h}</small></button>`;
-    api.body.innerHTML = `<div class="bd-sc-opts">${opt('scan', T('Scanner le deck'), T('Tes cartes déjà dans ta collection sont réservées pour ce deck, les autres y sont ajoutées : rien en double.'))}
-      ${opt('paste', T('Coller la liste'), T('Depuis Moxfield, Archidekt, MTGA… une carte par ligne.'))}
-      ${opt('hand', T('À la main'), T('Choisis les cartes dans ta collection ou dans la recherche.'))}</div>`;
-    api.body.addEventListener('click', e => {
-      const b = e.target.closest('.dw-start'); if (!b) return; haptic('tap'); api.close();
-      setTimeout(() => {
-        if (b.dataset.v === 'paste') return openDeckPaste(name, fmt);
-        openBuilder({ name, fmt });
-        if (b.dataset.v === 'scan') setTimeout(() => { if (BD.el) bdScan('main'); }, 450);
-      }, 200);
-    });
-  });
-}
+/* ── Nouveau deck : « Coller la liste » (départ de la feuille Nouveau deck, builder.js › openDeckNew) ─────────────────────────────────── */
 function openDeckPaste(name, fmt) {
   openSheet(T('Coller la liste'), name || null, api => {
     api.body.innerHTML = `<div class="field-in"><label class="label" for="dwPaste">${T('Liste du deck')}</label><textarea id="dwPaste" rows="10" autocomplete="off" spellcheck="false" placeholder="${esc('Commander\n1 Atraxa, Praetors\' Voice\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n…')}"></textarea></div>

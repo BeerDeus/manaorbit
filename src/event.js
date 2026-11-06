@@ -672,6 +672,7 @@ async function evAdmChk(user) {
     const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(m)))].map(b => b.toString(16).padStart(2, '0')).join('');
     if (h !== EV_ADM || EV.uid !== user.uid) return;
     EV.adm = user.uid; if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
+    if (typeof adsRefresh === 'function') adsRefresh();      // compte de l'éditeur : pas de bandeau de pub (ads.js › adsStep)
   } catch (e) { /* pas de WebCrypto : pas d'aperçu */ }
 }
 const evAdmOn = () => !!EV.adm && EV.adm === EV.uid;

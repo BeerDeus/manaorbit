@@ -177,7 +177,7 @@ function openCardViewer(items, index) {
     const rows = [...pfBox.children], r = (pfRow.dataset.id && rows.find(x => x.dataset.id === pfRow.dataset.id)) || rows.find(x => x.dataset.k && x.dataset.k === pfRow.dataset.k);
     return r ? (pfCls ? $('.' + CSS.escape(pfCls), r) : r) : null;
   };
-  const lk = l => ({ ja: 'jp', ko: 'kr', zhs: 'zh-CN', zht: 'zh-TW' }[l] || l);
+  const lk = l => cardLang(l) || l;      // code Scryfall (« ja » d'une impression lue) ou de l'appli (« jp ») → langue de l'appli
   /** Note « version anglaise » dans la langue voulue l (texte français inchangé ; allemand, espagnol… nommés) ; miss : Scryfall n'a pas cette langue (sinon : image en échec). */
   const noImg = (l, miss) => { const c = lk(l); return c === 'fr' || !c ? T(miss ? 'Pas d\'image française sur Scryfall : version anglaise' : 'Image française indisponible : version anglaise') : T(miss ? 'Pas d\'image en {lang} sur Scryfall : version anglaise' : 'Image en {lang} indisponible : version anglaise', { lang: LANGS[c] ? T(LANGS[c]) : c }); };
   let hideT = 0, fitRO = null, vl = 'en', idx = Math.max(0, Math.min(items.length - 1, index | 0)), ctrl = null, urls = [], face = 0, it = null, lang = 'en', enBig = '', where = '', shown = 'en', vars = [], canSave = false, wantOpen = false, varT = 0, pickAt = -1;

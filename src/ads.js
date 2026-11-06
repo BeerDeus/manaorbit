@@ -108,7 +108,7 @@ async function adsStep() {
   const P = natPlugin('AdMob'); if (!P) return;
   const now = Date.now(), busy = adsBusy();
   if (busy) AD.calm = 0; else if (!AD.calm) AD.calm = now;
-  if (CTX.serverOk === true || AD.no || (typeof streamOn === 'function' && streamOn())) {  // compte autorisé, pub refusée, ou mode streamer (opening.js, html.streamer : réévalué au changement) : bandeau détruit
+  if (CTX.serverOk === true || AD.no || (typeof streamOn === 'function' && streamOn()) || (typeof evAdmOn === 'function' && evAdmOn())) {  // compte autorisé, pub refusée, mode streamer (opening.js, html.streamer : réévalué au changement) ou compte de l'éditeur (event.js › evAdmOn) : bandeau détruit
     if (AD.st !== 'off') { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); }
     return;
   }

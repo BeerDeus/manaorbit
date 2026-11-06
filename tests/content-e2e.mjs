@@ -265,6 +265,47 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.deepEqual(pg.errs, []); await ctx.close();
   ok('extension sans carte révélée : message ; rouverte : copie gardée ; 360 px sans débordement');
 }
+/* ── 1 ter) cartes en japonais (téléphone japonais, appli en anglais) : la langue passée à la carte en grand et aux souhaits est celle de l'appli (« jp »),
+   pas le code Scryfall (« ja ») : carte à deux faces lue en japonais une fois agrandie (avant : SCRY_LANG['ja'] introuvable → image anglaise) ─── */
+{
+  const IMG = (n, l = 'en') => `https://cards.scryfall.io/normal/front/a/a/aaa-${n}${l === 'en' ? '' : '-' + l}.jpg`;
+  const card = (num, name, o = {}) => ({ object: 'card', id: 'id-' + num, name, collector_number: String(num), rarity: 'common', set: 'aaa', set_name: 'Alpha Future', lang: 'en', cmc: 2,
+    mana_cost: '{1}{G}', type_line: 'Instant', colors: ['G'], image_uris: { normal: IMG(num) }, prices: { eur: null }, border_color: 'black', frame_effects: [], ...o });
+  const faces = l => [{ name: 'Twin Door', mana_cost: '{1}{B}', colors: ['B'], ...(l ? { printed_name: '双子の扉' } : {}), image_uris: { normal: IMG(2, l || 'en') } }, { name: 'Twin Room', mana_cost: '{3}{B}', colors: ['B'], image_uris: { normal: IMG('2b', l || 'en') } }];
+  const AAA = [card(1, 'Zap Bolt'), card(2, 'Twin Door // Twin Room', { image_uris: undefined, colors: undefined, card_faces: faces('') })];
+  const JA = [{ ...AAA[0], lang: 'ja', printed_name: 'ザップ・ボルト', image_uris: { normal: IMG(1, 'ja') } }, { ...AAA[1], lang: 'ja', card_faces: faces('ja') }];
+  const pg = await page({ sets: 'ok', path: '?lang=en', ctx: { locale: 'ja-JP' } });
+  const { p, ctx } = pg, searches = [], one = [];
+  await p.route(/^https:\/\/api\.scryfall\.com\/cards\/search\?/, route => {
+    const q = new URL(route.request().url()).searchParams.get('q') || '', h = { 'access-control-allow-origin': '*' };
+    if (!/^e:/.test(q)) return route.fallback();
+    searches.push(q);
+    const data = q === 'e:aaa' ? AAA : q === 'e:aaa lang:ja' ? JA : [];
+    route.fulfill(data.length ? { status: 200, headers: h, json: { object: 'list', has_more: false, data } } : { status: 404, headers: h, json: { object: 'error', code: 'not_found' } });
+  });
+  await p.route(/^https:\/\/api\.scryfall\.com\/cards\/aaa\/2(\/[a-z]+)?(\?|$)/, route => {      // carte en grand (scryImage) : /cards/aaa/2/ja en japonais, /cards/aaa/2 en anglais
+    const u = new URL(route.request().url()), l = u.pathname.split('/')[4] || 'en'; one.push(u.pathname);
+    route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, json: { object: 'card', lang: l, card_faces: [{ image_uris: { large: IMG(2, l).replace('/normal/', '/large/') } }, { image_uris: { large: IMG('2b', l).replace('/normal/', '/large/') } }] } });
+  });
+  assert.equal(await p.evaluate(() => [userLang(), SCRY_LANG[userLang()]].join()), 'jp,ja', 'téléphone japonais, appli en anglais : cartes en japonais');
+  await p.waitForSelector('#hmSets:not([hidden]) .hm-set', { timeout: 9000 });
+  await p.click('#hmSetsList .hm-set-a[data-set="aaa"]'); await p.waitForSelector('.setv.on');
+  await p.waitForFunction(() => document.querySelectorAll('.setv-c').length === 2, null, { timeout: 8000 });
+  assert.deepEqual(searches, ['e:aaa', 'e:aaa lang:ja'], 'les mêmes cartes en japonais (code Scryfall « ja » pour la recherche)');
+  assert.deepEqual(await p.evaluate(() => SETV.cards.map(x => x.il)), ['jp', 'jp'], 'langue de chaque carte : code de l\'appli');
+  assert.deepEqual(await p.evaluate(() => setvItems(SETV.cards).map(x => x.lang)), ['jp', 'jp'], 'langue passée à la carte en grand : « jp »');
+  await p.click('.setv-c[data-i="0"] .setv-star');
+  assert.equal(await p.evaluate(() => TR.wish['zap bolt'].l), 'jp', 'souhait : langue de l\'appli (drapeau, offres CardTrader), pas « ja »');
+  await p.click('.setv-c[data-i="1"] .setv-open'); await p.waitForSelector('.imgv');
+  await p.waitForFunction(() => /\/aaa-2-ja\.jpg$/.test(document.querySelector('.imgv-img').getAttribute('src') || ''), null, { timeout: 6000 });
+  assert.deepEqual(one, ['/cards/aaa/2/ja'], 'carte à deux faces agrandie : lue en japonais sur Scryfall');
+  assert.match(await txt(p, '.imgv-lang'), /Japanese/, 'légende : japonais');
+  await p.evaluate(() => closeCardImage()); await p.evaluate(() => closeSetView()); await p.waitForFunction(() => !document.querySelector('.setv'));
+  // copie de l'appareil d'avant la correction (il : « ja ») : relue avec le code de l'appli
+  assert.equal(await p.evaluate(async () => { await Cache.set('setv:v1:old:ja', { at: Date.now(), cards: [{ n: 'Zap Bolt', k: 'zap bolt', num: '1', il: 'ja', iml: 'x' }], fin: 1, sty: 1 }); return (await setvLoad({ code: 'old', d: -1 }))[0].il; }), 'jp', 'ancienne copie relue en « jp »');
+  assert.deepEqual(pg.errs, []); await ctx.close();
+  ok('cartes en japonais : langue de l\'appli (« jp ») pour la carte en grand (deux faces lues en japonais) et les souhaits ; ancienne copie relue');
+}
 
 
 /* ── 2) Réglages › Aide et avis ; feuille d'aide ; avis par e-mail ──────────────────────────────────────────────── */

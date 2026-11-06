@@ -18,7 +18,7 @@ const serverSet = text => { server.doc = { text, count: text ? text.split('\n').
 async function phone(name, opts = {}) {
   const { p, ctx, errs } = await newPage(browser, world, { goto: false });
   await p.route('https://www.gstatic.com/**', r => r.abort());                 // pas de vrai SDK : on injecte le faux cloud
-  await p.exposeFunction('__fsRead', async () => { await sleep(server.lat); if (server.off.has(name)) return { err: 1 }; await sleep(server.txDelay); return { data: server.doc, ver: server.ver }; });
+  await p.exposeFunction('__fsRead', async () => { server.reads = (server.reads || 0) + 1; await sleep(server.lat); if (server.off.has(name)) return { err: 1 }; await sleep(server.txDelay); return { data: server.doc, ver: server.ver }; });
   await p.exposeFunction('__fsCommit', async (ver, doc) => {
     await sleep(server.lat); if (server.off.has(name)) return { err: 1 };
     if (ver !== server.ver) { server.conflicts++; return { conflict: 1 }; }
@@ -238,6 +238,50 @@ ok('aucune erreur JS, synchro stable (plus aucune écriture une fois les télép
   await quiet();
 }
 ok('prix du jour partagés : relus par A, appliqués sur B (même valeur), relevé plus ancien ignoré');
+
+/* 13 ter) collection près du plafond du compte (core.js › COLL_LIM, baissé ici pour ne pas écrire 900 Ko) : avertissement dès 80 % ; au-delà, ni lecture
+   du compte ni envoi à chaque « + », message qui dit quoi faire (Exporter) ; des cartes retirées : l'envoi repart ; import qui le dépasserait : prévenu */
+{
+  const TOP = '#sheetRoot > .sheet-wrap.open:last-child';
+  const len = await A.p.evaluate(() => collLen());
+  await A.p.evaluate(m => { COLL_LIM.max = m; openCollection(); }, Math.ceil(len / 0.85));
+  await A.p.waitForSelector('.coll.on .coll-sync:not([hidden])', { timeout: 5000 });
+  let si = await A.p.evaluate(() => collSyncInfo());
+  assert.equal(si.k, 'warn'); assert.match(si.t, /^Collection presque trop grosse pour ton compte \(85 % de la place permise\) : au-delà, elle ne sera plus sauvegardée/); assert.deepEqual(si.acts.map(a => a[0]), ['export']);
+  assert.match(await txt(A.p, '.coll-sync'), /presque trop grosse.*Exporter$/, 'bandeau de synchro : avertissement et « Exporter »');
+  assert.equal(await cloudState(A), 'ok', 'avertissement seulement : la synchro continue');
+  // au-delà du plafond
+  await A.p.evaluate(m => { COLL_LIM.max = m; }, len + 5);
+  const r0 = server.reads, w0 = server.writes;
+  await add(A, 'Lightning Bolt', 1);
+  await A.p.waitForFunction(() => COLL.cloud === 'error', null, { timeout: 5000 });
+  si = await A.p.evaluate(() => collSyncInfo());
+  assert.equal(si.k, 'bad'); assert.match(si.t, /^Pas sauvegardée dans ton compte : ta collection est trop grosse \(1\d\d % de la place permise\)\. Elle reste sur cet appareil ; retire des cartes pour qu'elle reparte, ou exporte-la pour en garder une copie\.$/);
+  assert.deepEqual(si.acts.map(a => a[0]), ['export'], 'pas de « Réessayer » sans issue : Exporter');
+  for (let i = 0; i < 3; i++) { await bump(A, 'Lightning Bolt', 1); await sleep(900); }
+  assert.equal(server.reads, r0, 'au-delà du plafond : aucune lecture du compte (ni analyse du texte) à chaque « + »'); assert.equal(server.writes, w0, 'rien d\'écrit');
+  assert.match(await txt(A.p, '.coll-sync'), /trop grosse.*Exporter$/);
+  // des cartes retirées : sous le plafond, l'envoi repart tout seul
+  await bump(A, 'Lightning Bolt', -4);
+  await A.p.waitForFunction(() => COLL.cloud === 'ok', null, { timeout: 6000 });
+  assert.ok(server.reads > r0, 'revenue sous le plafond : envoi repris'); assert.equal((await mapOf(A))['lightning bolt'], undefined);
+  // import qui ferait dépasser le plafond : prévenu avant, Annuler ne touche à rien, « Importer quand même » importe (gardé sur l'appareil)
+  await A.p.evaluate(m => { COLL_LIM.max = m; }, len + 60);
+  await A.p.evaluate(() => openCollImport()); await A.p.waitForSelector('#ciText'); await A.p.fill('#ciText', '1 Mox Sapphire\n1 Mox Jet\n1 Mox Emerald\n1 Timetwister'); await A.p.waitForTimeout(150);
+  await A.p.click('#ciGo'); await A.p.waitForSelector(TOP + ' [data-ci="go"]');
+  assert.match(await A.p.$eval(TOP + ' .sheet', s => s.getAttribute('aria-label') + ' | ' + s.querySelector('.sheet-body').innerText.replace(/\s+/g, ' ')), /^Collection trop grosse pour ton compte \| Avec ce fichier, ta collection dépasserait la place permise dans ton compte \(1\d\d %\) : elle ne serait plus sauvegardée/);
+  await A.p.click(TOP + ' .sheet-foot [data-close]'); await A.p.waitForFunction(() => sheets.length === 1 && document.querySelector('#ciText'));
+  assert.equal((await mapOf(A))['mox jet'], undefined, 'Annuler : rien d\'importé');
+  await A.p.click('#ciGo'); await A.p.waitForSelector(TOP + ' [data-ci="go"]'); await A.p.click(TOP + ' [data-ci="go"]');
+  await A.p.waitForFunction(() => COLL.map['mox jet'] && COLL.cloud === 'error', null, { timeout: 5000 });
+  // plafond remis : tout repart
+  await A.p.evaluate(() => { COLL_LIM.max = 900000; collPushSoon(); });
+  await A.p.waitForFunction(() => COLL.cloud === 'ok', null, { timeout: 6000 });
+  await Promise.all([expectMap(B, await mapOf(A), 'B reçoit l\'import une fois la place revenue')]);
+  await A.p.evaluate(() => { for (const k of ['mox sapphire', 'mox jet', 'mox emerald', 'timetwister']) collBump(k, k, -1); });
+  await Promise.all([expectMap(B, await mapOf(A), 'retirées partout')]); await quiet();
+}
+ok('collection près du plafond du compte : avertie à 80 %, au-delà ni lecture ni envoi à chaque « + » (message, Exporter), repart sous le plafond ; import qui le dépasserait : prévenu');
 
 /* 14) compte supprimé depuis A pendant que B et C restent connectés : rien n'est recréé (collection, decks complets, échange), B et C sont déconnectés */
 await B.p.evaluate(() => { TR.wish = { ...TR.wish, 'time walk': { n: 'Time Walk', q: 1 } }; trChanged(); });
