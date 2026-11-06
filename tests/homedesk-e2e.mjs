@@ -89,7 +89,7 @@ for (const vp of [{ width: 393, height: 852 }, { width: 360, height: 780 }]) {
   assert.deepEqual(await homeOrder(q), ['hm-hero', 'hmStart', 'hmTrade', 'hmPartie', 'hmDiscord', 'btnHelp'], tag + ' : orbe, « Pour commencer », Échange, compteur de vie, puis Discord');
   assert.equal(await q.$eval('#collSub', x => x.hidden), true, tag + ' : plus la phrase « déduites du panier »');
   assert.match(await txt(q, '#hmStart'), /^Pour commencer Ajoute tes cartes : Mana Orbit suit leur valeur/);
-  assert.deepEqual(await q.$$eval('#hmStart .hm-go-a', l => l.map(b => [b.dataset.hm, b.querySelector('b').textContent])), [['scan', 'Scanner'], ['import', 'Importer'], ['swg', 'Je viens de ManaBox']]);
+  assert.deepEqual(await q.$$eval('#hmStart .hm-go-a', l => l.map(b => [b.dataset.hm, b.querySelector('b').textContent])), [['scan', 'Scanner'], ['add', 'Ajouter une carte'], ['import', 'Importer'], ['swg', 'Je viens de ManaBox']]);
   assert.ok((await q.$$eval('#hmStart .hm-go-a', l => l.map(b => b.getBoundingClientRect().height))).every(h => h >= 44), tag + ' : cibles de 44 px au moins');
   assert.equal(await q.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, tag + ' : rien ne dépasse sur le côté');
   assert.deepEqual(await q.evaluate(() => [document.querySelector('#hmTrade .hm-tr-acts').hidden, hmTradeNote.hidden]), [true, false], tag + ' : ni QR code ni Partager à vide');
