@@ -1570,6 +1570,15 @@ const placesText = places => Object.keys(places || {}).sort().map(id => { const 
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
+/** Plafond du texte de la collection dans le compte (document Firestore ≤ 1 Mo, firestore.rules : 900 000 caractères ≈ 22 000 lignes) ; avertissement dès 80 %.
+ *  Objet (pas une constante) : les tests le baissent pour ne pas écrire 900 Ko. */
+const COLL_LIM = { max: 900000, warn: 0.8 };
+/** Taille du texte de la collection → '' (loin du plafond), 'warn' (80 % ou plus), 'over' (au-delà : plus d'envoi au compte). */
+const collSizeLevel = (len, lim = COLL_LIM) => (len > lim.max ? 'over' : len >= lim.max * lim.warn ? 'warn' : '');
+/** Part du plafond utilisée, en points (« 87 % ») ; jamais 100 tant que ça passe, jamais moins de 101 au-delà. */
+const collSizePct = (len, lim = COLL_LIM) => { const p = Math.round(100 * len / lim.max); return len > lim.max ? Math.max(101, p) : Math.min(99, p); };
+/** Envoi au compte retenu : au-delà du plafond, ou refusé à cette taille (compte + appareil trop gros) et pas encore réduit. big : taille refusée (0 : aucune). */
+const collSizeHold = (len, big, lim = COLL_LIM) => len > lim.max || (big > 0 && len >= big);
 function collDocFromText(text) {
   const main = [], px = [], places = {};
   for (const ln of String(text || '').split('\n')) {
@@ -2525,7 +2534,6 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
 const bestOf = (fr, en) => (fr && (!en || fr.score >= en.score) ? fr : en || null);
 /* ── Noms alternatifs (pwa/names-flavor.tsv, gen-flavor-names.mjs) : « Thrum of the Vestige » imprimé en gros au-dessus de « Lightning Bolt » (Secret Lair, Final Fantasy…).
    Lignes « nom alternatif \t nom anglais \t extension|numéro \t langue Scryfall ». */
-const FV_LANG = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
 /** Lignes → { idx (recherche floue), by (nom alternatif normalisé → impressions [{ en, e, l }]), n } ou null. */
 function fvCatalog(rows) {
   const by = new Map(), names = [];
@@ -2543,7 +2551,7 @@ function fvMatch(lines, c) {
   const hs = c.by.get(frontName(m.name)) || [], ens = [...new Set(hs.map(h => h.en))]; if (ens.length !== 1) return null;      // même nom alternatif pour deux cartes : rien de sûr
   const eds = hs.map(h => h.e).filter(e => /^[a-z0-9]+\|./i.test(e)), ls = [...new Set(hs.map(h => h.l))];
   const ft = eds.length ? { nums: [...new Set(eds.map(e => e.split('|')[1].toLowerCase().replace(/^0+(?=\d)/, '')))], codes: [...new Set(eds.map(e => e.split('|')[0].toUpperCase()))], lang: '', lsep: false, langs: [], foil: false, tots: [] } : null;
-  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? FV_LANG[ls[0]] || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
+  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? cardLang(ls[0]) || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
 }
 /** Rectangle d'écran (x, y, w, h) dans un conteneur cw×ch qui affiche une vidéo vw×vh en « object-fit: cover » → rectangle en pixels de la vidéo. */
 function coverMap(cw, ch, vw, vh, r) {
@@ -2844,3 +2852,5 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Filtres avancés de la collection (search.js) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STYLES, styOf, styIn });
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, LG_FMT, lgOf, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });
+// Plafond de la collection dans le compte (collection.js › collPush) : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COLL_LIM, collSizeLevel, collSizePct, collSizeHold });

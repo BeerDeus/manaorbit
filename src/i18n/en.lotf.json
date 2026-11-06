@@ -1,0 +1,11 @@
+{
+  "Pas sauvegardée dans ton compte : ta collection est trop grosse ({p} de la place permise). Elle reste sur cet appareil ; retire des cartes pour qu'elle reparte, ou exporte-la pour en garder une copie.": "Not saved to your account: your collection is too large ({p} of the allowed space). It stays on this device; remove cards so it syncs again, or export it to keep a copy.",
+  "Collection presque trop grosse pour ton compte ({p} de la place permise) : au-delà, elle ne sera plus sauvegardée. Retire des cartes ou exporte-la pour en garder une copie.": "Collection almost too large for your account ({p} of the allowed space): beyond that, it will no longer be saved. Remove cards or export it to keep a copy.",
+  "Collection trop grosse pour ton compte": "Collection too large for your account",
+  "Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.": "With this file, your collection would exceed the space allowed in your account ({p}): it would no longer be saved, only kept on this device.",
+  "Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.": "Import part of the file, or remove cards from your collection first. Exporting your collection keeps a copy.",
+  "Importer quand même": "Import anyway",
+  "Compter les cartes engagées dans mes autres decks comme possédées": "Count cards committed to my other decks as owned",
+  "Une carte réservée par un de tes decks montés compte comme possédée : rien à acheter pour elle.": "A card reserved by one of your built decks counts as owned: nothing to buy for it.",
+  "Une carte réservée par un de tes decks montés est à acheter pour ce deck (coût, budget, cartes à acheter).": "A card reserved by one of your built decks has to be bought for this deck (cost, budget, cards to buy)."
+}

@@ -134,6 +134,20 @@ assert.equal((await J('/__ping')).o.discordLink, true);
   ok('« Les deux » : MP + notification ; canal privé ouvert une fois ; embed (prix habituel → actuel, cible, deck, Cardmarket, lien de l\'appli), allowed_mentions vide, Markdown neutralisé ; résumé et règles inchangés');
 }
 
+/* ── 1 bis) nom affiché (dn, envoyé par l'appli) : titre et champ du MP avec ce nom ; lien Cardmarket au nom anglais ───────────────── */
+{
+  const F = browser('devDnDm');
+  setPx({ 'Lightning Bolt': '2.00' });
+  const r = await put({ sub: F.sub, thr: 30, lang: 'fr', dm: 'both', items: [{ k: 'lightning bolt', n: 'Lightning Bolt', dn: 'Foudre' }] }, JWT('jeanne'));
+  assert.equal(r.s, 200); const ID = r.o.id, n0 = dmsTo(DU.jeanne).length; await sleep(500);
+  await drop(ID, { 'Lightning Bolt': '1.00' });
+  const b = dmsTo(DU.jeanne)[n0].body, e = b.embeds[0];
+  assert.equal(b.content, '📉 **Foudre : −50 %**'); assert.equal(e.fields[0].name, 'Foudre : −50 %');
+  assert.equal(e.fields[0].value, '2,00 € → 1,00 € \\(tendance Cardmarket\\).\n[Voir sur Cardmarket](https://www.cardmarket.com/fr/Magic/Products/Search?searchString=Lightning%20Bolt)', 'lien : nom anglais');
+  assert.equal(decrypt(pushesFor(F)[0].body, F).title, 'Foudre : −50 %', 'notification aussi');
+  ok('nom affiché (dn) : MP « Foudre : −50 % » (contenu et champ), lien Cardmarket au nom anglais, notification au même nom');
+}
+
 /* ── 2) 'only' : MP seul (anglais) ; MP refusés (50007) → notification, dmErr ; rouverts → MP, dmErr effacé ─────────────────── */
 {
   const B = browser('devB');

@@ -297,7 +297,7 @@ function msActDone(it, label, extra) {
   const x = $('.imgv-extra', v); if (x && extra != null) { x.textContent = extra; x.hidden = !extra; }
 }
 /** Infos de l'impression pour la ligne qui la reçoit (prix, extension, rareté, petites images : anglaise, et dans la langue l si Scryfall l'a). */
-const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && SCRY_LANG[l] === x.il ? { li: scrySmall(x.iml) } : {}) });
+const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && l === x.il ? { li: scrySmall(x.iml) } : {}) });
 /** « C'est celle-ci » : n exemplaires sans édition reçoivent cette édition, pris dans les lignes sans édition (langue des options, finition de la case),
  *  la plus fournie d'abord ; « Annuler » les remet. */
 function msAssign(code, x, it, n = 1, fin = '') {

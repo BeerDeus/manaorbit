@@ -1,0 +1,11 @@
+{
+  "Pas sauvegardée dans ton compte : ta collection est trop grosse ({p} de la place permise). Elle reste sur cet appareil ; retire des cartes pour qu'elle reparte, ou exporte-la pour en garder une copie.": "No guardada en tu cuenta: tu colección es demasiado grande ({p} del espacio permitido). Se queda en este dispositivo; quita cartas para que vuelva a sincronizarse o expórtala para guardar una copia.",
+  "Collection presque trop grosse pour ton compte ({p} de la place permise) : au-delà, elle ne sera plus sauvegardée. Retire des cartes ou exporte-la pour en garder une copie.": "Colección casi demasiado grande para tu cuenta ({p} del espacio permitido): por encima, ya no se guardará. Quita cartas o expórtala para guardar una copia.",
+  "Collection trop grosse pour ton compte": "Colección demasiado grande para tu cuenta",
+  "Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.": "Con este archivo, tu colección superaría el espacio permitido en tu cuenta ({p}): ya no se guardaría, solo se conservaría en este dispositivo.",
+  "Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.": "Importa una parte del archivo o quita antes cartas de tu colección. Exportar tu colección guarda una copia.",
+  "Importer quand même": "Importar de todos modos",
+  "Compter les cartes engagées dans mes autres decks comme possédées": "Contar como poseídas las cartas ya usadas en mis otros mazos",
+  "Une carte réservée par un de tes decks montés compte comme possédée : rien à acheter pour elle.": "Una carta reservada por uno de tus mazos montados cuenta como poseída: no hay que comprarla.",
+  "Une carte réservée par un de tes decks montés est à acheter pour ce deck (coût, budget, cartes à acheter).": "Una carta reservada por uno de tus mazos montados hay que comprarla para este mazo (coste, presupuesto, cartas por comprar)."
+}

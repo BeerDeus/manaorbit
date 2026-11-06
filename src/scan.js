@@ -190,7 +190,7 @@ function scanAltPick(it, name) {
 }
 /** Carte du scan pour la visionneuse (appui sur sa miniature) : image dans sa langue si Scryfall l'a donnée, sinon anglaise ; photo prise au scan si la carte est « à vérifier ». */
 function scanViewItem(e) {
-  const l = e.l || 'en', u = scanThumb(e), pk = e.pk, lang = pk ? ({ ja: 'jp', zhs: 'zh-CN' }[pk.l] || pk.l || 'en') : l !== 'en' && COLL.li[liKey(l, e.key)] ? l : 'en', rn = scanReadNote(e, !!(e.raw && e.score < 0.97));
+  const l = e.l || 'en', u = scanThumb(e), pk = e.pk, lang = pk ? (cardLang(pk.l) || pk.l || 'en') : l !== 'en' && COLL.li[liKey(l, e.key)] ? l : 'en', rn = scanReadNote(e, !!(e.raw && e.score < 0.97));
   return { key: e.key, lid: e.id || e.key, name: scanShown(e), ln: e.name, wl: l !== 'en' && lang === 'en' ? l : '', small: u, big: pk ? pk.urls[0] || pk.th : lang === 'en' ? 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(e.name) + '&format=image&version=large' : '', lang, plain: true, shot: e.maybe ? e.shot || '' : '',
     extra: TN(e.q, '{n} exemplaire', '{n} exemplaires') + (e.e ? ' · ' + [(pk && pk.sn) || setName(edSet(e.e)), edLabel(e.e)].filter(Boolean).join(' ') : '') + (e.maybe ? ' · ' + T('à vérifier') : '') + (l !== 'en' && lang === 'en' ? ' · ' + T('image anglaise (pas encore d\'image {lang})', { lang: LANGS[l] || l }) : '') + (rn ? ' · ' + rn : '') };
 }
@@ -911,7 +911,7 @@ async function footIdentify(m, src, box) {
     if (r) break;
   }
   if (!r || !SC.el) return m;
-  const l = (typeof FOOT_SL !== 'undefined' && FOOT_SL[r.lang]) || 'en';
+  const l = cardLang(r.lang) || 'en';
   let sim = nameSimilar(raw, r.printed || r.name), araw = '';
   const fl = TESS_OF[l];
   if (sim < 0.6 && r.printed && fl && NAT_SCRIPT[fl] !== 'latin' && src && SC.el) {      // nom russe, japonais, coréen, chinois : illisible pour le moteur latin, relu avec celui de la langue lue en bas (le russe restait « à vérifier »)

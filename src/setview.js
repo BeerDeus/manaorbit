@@ -35,7 +35,7 @@ function setvLocal(list, sl) {
   const by = new Map();
   for (const c of list) {
     const f0 = (c.card_faces && c.card_faces[0]) || {}, iu = c.image_uris || f0.image_uris || {}, dn = String(c.printed_name || f0.printed_name || '').trim();
-    if (c.collector_number && !by.has(c.collector_number)) by.set(c.collector_number, { dn: dn.slice(0, 160), iml: SETV_IMG_RE.test(iu.normal || '') ? iu.normal : '', il: sl });
+    if (c.collector_number && !by.has(c.collector_number)) by.set(c.collector_number, { dn: dn.slice(0, 160), iml: SETV_IMG_RE.test(iu.normal || '') ? iu.normal : '', il: cardLang(sl) || sl });      // il : langue de l'appli (« jp », « zh-CN »), pas le code Scryfall (« ja », « zhs ») : le viewer et les souhaits la lisent
   }
   return by;
 }
@@ -50,11 +50,13 @@ async function setvSearch(q, signal) {
   }
   return out;
 }
+/** Copie d'avant le 6 novembre : il gardait le code Scryfall (« ja ») ; relue avec le code de l'appli (« jp »). */
+const setvIl = cards => { for (const x of cards) if (x && x.il) x.il = cardLang(x.il) || x.il; return cards; };
 /** Cartes de l'extension : copie de l'appareil si elle est fraîche, sinon Scryfall (et la copie ancienne en secours). */
 async function setvLoad(row, signal) {
   const sl = SCRY_LANG[userLang()] || 'en', key = SETV_KEY + row.code + ':' + sl, fresh = row.d >= 0 ? SETV_FRESH : SETV_OLD;
   const hit = await Cache.get(key, 30 * DAY).catch(() => null);
-  if (hit && Array.isArray(hit.cards) && hit.fin && hit.sty && Date.now() - hit.at < fresh) return hit.cards;      // fin, sty : copie avec les finitions (setvFin) et les styles (styOf) ; plus ancienne, relue (et gardée hors ligne)
+  if (hit && Array.isArray(hit.cards) && hit.fin && hit.sty && Date.now() - hit.at < fresh) return setvIl(hit.cards);      // fin, sty : copie avec les finitions (setvFin) et les styles (styOf) ; plus ancienne, relue (et gardée hors ligne)
   try {
     if ((typeof navigator !== 'undefined' && navigator.onLine === false) || scryLeft() > 0) throw Object.assign(new Error('pause'), { code: navigator.onLine === false ? 'network' : 'rate' });
     const cards = (await setvSearch('e:' + row.code, signal)).map(setvCard);
@@ -66,7 +68,7 @@ async function setvLoad(row, signal) {
     return cards;
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    if (hit && Array.isArray(hit.cards)) return hit.cards;      // hors ligne, Scryfall en pause : la copie plus ancienne
+    if (hit && Array.isArray(hit.cards)) return setvIl(hit.cards);      // hors ligne, Scryfall en pause : la copie plus ancienne
     throw e;
   }
 }

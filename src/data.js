@@ -319,8 +319,7 @@ async function scryPrintsFind(name, lang, q, signal) {
   const out = await scryPrintsIn(n, sl, signal, true, crit, 1), have = new Set(out.map(p => p.set + '/' + p.num));
   if (sl !== 'en') for (const p of await scryPrintsIn(n, 'en', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] }); }
   // impressions d'une seule autre langue (terrain plein art NEO 295 : japonais seulement) : toutes langues, marquées de leur langue (« JP »)
-  const back = Object.fromEntries(Object.entries(SCRY_LANG).map(([a, s]) => [s, a]));
-  for (const p of await scryPrintsIn(n, 'any', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, fx: [...p.fx, langCode(back[p.l] || p.l)] }); }
+  for (const p of await scryPrintsIn(n, 'any', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, fx: [...p.fx, langCode(cardLang(p.l) || p.l)] }); }
   return out;
 }
 async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0) {      // extra : critères en plus (scryPrintsFind : « (set:neo or cn:295) »)
