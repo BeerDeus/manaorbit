@@ -206,7 +206,11 @@ ok('réf. Cardmarket par carte : bon prix / correct / cher (+ %), absente sur un
 /* ── 7) enregistrer, viewer : commandant, possédées, filtres, réf. totale ────────────────────── */
 await p.click('#btnSave2'); await p.waitForSelector('#svName'); await p.fill('#svName', 'Edgar'); await p.click('#svGo'); await p.waitForTimeout(500);
 await p.click('#btnViewer'); await p.waitForSelector('.dv.on .dv-g');
-assert.equal(await p.$$eval('.dv-cmd', c => c.length), 1); assert.match(await txt(p, '.dv-cmd'), /commandant edgar markov legendary creature — vampire knight .*5,00 €.*réf\. cardmarket 5,00 €/i);
+{      // texte lu dès qu'il est mis en page : viewer tout juste ouvert, parfois pas encore rendu (innerText = textContent, sans espaces) ; instable avant le 6 novembre (2 échecs sur 4)
+  const re = 'commandant edgar markov legendary creature — vampire knight .*5,00 €.*réf\\. cardmarket 5,00 €';
+  const t = await (await p.waitForFunction(r => { const e = document.querySelector('.dv-cmd'), x = e ? e.innerText.replace(/\s+/g, ' ').trim() : ''; return new RegExp(r, 'i').test(x) ? x : false; }, re, { timeout: 8000 }).catch(() => null))?.jsonValue();
+  assert.equal(await p.$$eval('.dv-cmd', c => c.length), 1); assert.match(t || await txt(p, '.dv-cmd'), new RegExp(re, 'i'));
+}
 assert.equal(await p.$eval('.dv-body', b => b.firstElementChild.classList.contains('dv-side') && b.firstElementChild.nextElementSibling.firstElementChild.id), 'dvCmd', 'le commandant ouvre la colonne des cartes, juste après la colonne du résumé');
 assert.deepEqual(await p.$$eval('.dv-g .dvc', t => t.map(x => x.getAttribute('aria-label')).filter(l => /Edgar/.test(l))), [], 'le commandant n\'est pas répété dans les colonnes');
 assert.match(await txt(p, '.dv-g[data-g="m1"] .dvc[data-s="own"]'), /possédée/i); assert.match(await txt(p, '.dv-title span'), /· 1 possédée/);
