@@ -8,7 +8,7 @@
  "Affichage de la liste": "List view",
  "Gardé sur cet appareil": "Kept on this device",
  "Une ligne par carte : nom, prix, quantité": "One line per card: name, price, quantity",
- "Familles, coût, édition et − / + sur la ligne": "Types, cost, edition and − / + on the line",
+ "Familles, coût, édition et − / + sur la ligne": "Types, cost, printing and − / + on the line",
  "Les images, 3 par ligne": "The images, 3 per row",
  "Trier : {by}": "Sort: {by}",
  "Affichage : {v}": "View: {v}",
@@ -25,5 +25,5 @@
  "Garde {n} ex.": "Keep {n}",
  "{n} règle de rangement": "{n} storage rule",
  "{n} règles de rangement": "{n} storage rules",
- "{n} ex.": "{n} cop."
+ "{n} ex.": "{n} copies"
 }

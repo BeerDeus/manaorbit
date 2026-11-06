@@ -41,7 +41,7 @@ function mountFilters(root, f, onChange, opts = {}) {
       <div class="fgrp"><span class="fgl">${T('Coût de mana')}</span><div class="fopts cmcs" role="group" aria-label="${T('Coût converti')}">${[0, 1, 2, 3, 4, 5, 6, 7].map(m => `<button type="button" class="fopt" data-m="${m}" aria-pressed="false">${m === 7 ? '7+' : m}</button>`).join('')}</div></div>
       ${opts.sets ? `<div class="fgrp"><span class="fgl">${T('Extension')}</span><button type="button" class="sortsel fset" aria-haspopup="dialog"><span class="fset-ic"></span><b></b></button></div>` : ''}
       ${ext ? `<button type="button" class="fmore" aria-expanded="false" aria-controls="${ext.id}"><span>${T('Plus de filtres')}</span><b hidden></b><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button><div class="fmore-box" id="${ext.id}" hidden></div>` : ''}
-      <button class="link-btn link-inline freset" type="button">${T('Effacer les filtres')}</button></div>${ext ? '<div class="fext"></div>' : ''}`;
+      <div class="fpanel-foot"><button class="link-btn link-inline freset" type="button">${T('Effacer les filtres')}</button>${opts.see ? `<button class="btn small fsee" type="button">${T('Voir les cartes')}</button>` : ''}</div></div>${ext ? '<div class="fext"></div>' : ''}`;      // opts.see : « Voir N cartes » ferme le panneau (collection : le nombre suit, api.count)
   const inp = root.querySelector('input'), clr = root.querySelector('.fclear'), btn = root.querySelector('.fbtn'), panel = root.querySelector('.fpanel'), badge = btn.querySelector('b'), sel = root.querySelector('.fset');
   const more = root.querySelector('.fmore'), mbox = root.querySelector('.fmore-box'), xbox = root.querySelector('.fext');
   let msig = null, icH = null;
@@ -98,12 +98,14 @@ function mountFilters(root, f, onChange, opts = {}) {
     }
     else if (b === more) { moreSet(mbox.hidden); haptic('tap'); return; }
     else if (b.classList.contains('freset')) fltClear(f, true);
+    else if (b.classList.contains('fsee')) { btn.onclick(); btn.scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
     else return;
     haptic('tap'); fire();
   });
   inp.value = f.q || '';      // écran rouvert : la recherche en cours reste écrite (elle filtre toujours la liste)
   if (ext && ext.moreOpen && ext.moreOpen()) moreSet(true);      // « Plus de filtres » ouvert la dernière fois : il le reste
-  const api = { paint, fire, reset() { f.q = ''; fltClear(f); inp.value = ''; paint(); } };
+  const see = root.querySelector('.fsee');
+  const api = { paint, fire, reset() { f.q = ''; fltClear(f); inp.value = ''; paint(); }, count(n) { if (see) see.textContent = TN(n, 'Voir {n} carte', 'Voir {n} cartes'); } };
   paint();
   fltWarmSoon(root, panel);
   return api;

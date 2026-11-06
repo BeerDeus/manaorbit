@@ -14,5 +14,16 @@
   "Nom (facultatif)": "Nombre (opcional)",
   "Commencer par": "Empezar con",
   "Assistant": "Asistente",
-  "Commandant choisi : ajoute maintenant les cartes du deck": "Comandante elegido: ahora añade las cartas del mazo"
+  "Commandant choisi : ajoute maintenant les cartes du deck": "Comandante elegido: ahora añade las cartas del mazo",
+  "Décontracté": "Casual",
+  "Préconstruit": "Precon",
+  "Amélioré": "Mejorado",
+  "Optimisé": "Optimizado",
+  "Compétitif": "Competitivo",
+  "Exporte ta collection en CSV depuis ton appli (ManaBox, Moxfield…), puis choisis le fichier.": "Exporta tu colección en CSV desde tu app (ManaBox, Moxfield…) y luego elige el archivo.",
+  "Voir le texte": "Ver el texto",
+  "Retirer le fichier": "Quitar el archivo",
+  "Voir les cartes": "Ver las cartas",
+  "Voir {n} carte": "Ver {n} carta",
+  "Voir {n} cartes": "Ver {n} cartas"
 }

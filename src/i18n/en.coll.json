@@ -221,7 +221,7 @@
  "Nom anglais ou français déjà connu de Scryfall": "English or French name known to Scryfall",
  "Nom de la carte": "Card name",
  "Langue des exemplaires ajoutés": "Language of the added copies",
- "Celle de la carte (sinon non précisée)": "The card's own (otherwise not specified)",
+ "Celle de la carte (sinon non précisée)": "Card's language (otherwise unknown)",
  "Suggestions": "Suggestions",
  "Aucune carte de ce nom. Vérifie l'orthographe (nom anglais).": "No card by that name. Check the spelling (English name).",
  "{name} · {q} dans ta collection": "{name} · {q} in your collection",

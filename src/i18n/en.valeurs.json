@@ -1,7 +1,7 @@
 {
-  "Cardmarket : prix de cette édition": "Cardmarket: price of this edition",
+  "Cardmarket : prix de cette édition": "Cardmarket: price of this printing",
   "Cardmarket : valeur estimée (impression la moins chère)": "Cardmarket: estimated value (cheapest printing)",
-  "prix de cette édition {v}": "price of this edition {v}",
-  "prix foil de cette édition {v}": "foil price of this edition {v}",
-  "prix de cette édition": "price of this edition"
+  "prix de cette édition {v}": "price of this printing {v}",
+  "prix foil de cette édition {v}": "foil price of this printing {v}",
+  "prix de cette édition": "price of this printing"
 }

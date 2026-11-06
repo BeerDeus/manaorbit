@@ -14,5 +14,16 @@
   "Nom (facultatif)": "Name (optional)",
   "Commencer par": "Start with",
   "Assistant": "Assistant",
-  "Commandant choisi : ajoute maintenant les cartes du deck": "Commander chosen: now add the deck's cards"
+  "Commandant choisi : ajoute maintenant les cartes du deck": "Commander chosen: now add the deck's cards",
+  "Décontracté": "Casual",
+  "Préconstruit": "Precon",
+  "Amélioré": "Upgraded",
+  "Optimisé": "Optimized",
+  "Compétitif": "Competitive",
+  "Exporte ta collection en CSV depuis ton appli (ManaBox, Moxfield…), puis choisis le fichier.": "Export your collection as CSV from your app (ManaBox, Moxfield…), then choose the file.",
+  "Voir le texte": "Show the text",
+  "Retirer le fichier": "Remove the file",
+  "Voir les cartes": "Show cards",
+  "Voir {n} carte": "Show {n} card",
+  "Voir {n} cartes": "Show {n} cards"
 }

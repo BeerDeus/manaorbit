@@ -241,7 +241,7 @@ const EDGAR = n => 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian A
 await p.evaluate(t => putDeck('dk-half', deckDoc({ name: 'Edgar à compléter', text: t, opts: { ...S.opts } })), EDGAR(30));
 await p.evaluate(() => openDeckViewer({ id: 'dk-half' })); await p.waitForSelector('.dv.on .dv-ana');
 await p.click('.dv-ana'); await p.waitForSelector('.cb-build', { timeout: 15000 });
-assert.match(await txt(p, '.cb-build'), /^35 \/100 cartes Il manque 65 cartes Bracket 2 · Core · estimé/);
+assert.match(await txt(p, '.cb-build'), /^35 \/100 cartes Il manque 65 cartes Bracket 2 · Préconstruit · estimé/);
 assert.equal(await txt(p, '#daGo'), 'Compléter le deck'); assert.equal(await p.$('.da-sw'), null, 'pas d\'échanges sur un deck incomplet');
 assert.equal(await p.$eval('[data-ds-br="auto"]', b => b.getAttribute('aria-pressed')), 'true', 'bracket automatique (estimé)'); assert.match(await txt(p, '[data-ds-br="auto"]'), /Auto · 2/);
 await shot(p, 'coach-completer');
@@ -257,7 +257,7 @@ ok('coach d\'un deck incomplet : « Compléter le deck », réglages courts pré
 await p.evaluate(t => putDeck('dk-ana', deckDoc({ name: 'Edgar à analyser', text: t, opts: { ...S.opts } })), EDGAR(95));
 await p.evaluate(() => openDeckViewer({ id: 'dk-ana' })); await p.waitForSelector('.dv.on .dv-ana');
 await p.click('.dv-ana'); await p.waitForSelector('.cb-head .cb-n', { timeout: 15000 });
-assert.match(await txt(p, '.cb-head'), /^\d+ \/100 .+ Bracket 2 · Core · estimé [\d\s,]+ €$/, 'note, phrase, bracket estimé, valeur');
+assert.match(await txt(p, '.cb-head'), /^\d+ \/100 .+ Bracket 2 · Préconstruit · estimé [\d\s,]+ €$/, 'note, phrase, bracket estimé, valeur');
 assert.equal(await p.$('[data-ds-br]'), null, 'aucune question : réglages repliés'); assert.equal(await p.$('.da-sws'), null, 'échanges repliés');
 const acts = await p.$$eval('.cb-act', a => a.map(x => x.querySelector('b').textContent));
 assert.ok(acts.length >= 1 && acts.length <= 3, '1 à 3 actions prioritaires : ' + acts.join(' | ')); assert.ok(acts.includes('Échanger Weak One → Arcane Signet'), 'la rampe manque : l\'échange conseillé la comble, à la place de « Ajouter de la rampe » : ' + acts.join(' | '));

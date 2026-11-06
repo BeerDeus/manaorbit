@@ -1689,6 +1689,8 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 .le-x{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:18px 8px}.le-x .hint{margin:0}.le-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}.le-acts .btn{min-height:44px}      /* liste vide de la collection : de quoi en sortir (collNoMatchHtml) */
 .ca-row{display:flex;gap:8px;align-items:stretch}.ca-row .ca-opt{flex:1;min-width:0}.ca-qadd{flex:none;width:48px;min-height:48px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:var(--accent-soft);color:var(--accent)}.ca-qadd:active{transform:scale(.95)}      /* Ajouter des cartes : « + » d'une suggestion = ajout direct (lot.js) */
 .nd-opts .nd-go{display:flex;flex-direction:row;align-items:center;gap:12px;text-align:left}.nd-opts .nd-go>.i{width:22px;height:22px;flex:none;color:var(--accent)}.nd-opts .nd-go>span{display:flex;flex-direction:column;gap:2px;min-width:0}.nd-wiz{display:contents}.nd-wiz[hidden]{display:none}      /* Nouveau deck : départs en une feuille (builder.js › openDeckNew) */
+.ci-chip{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-3)}.ci-chip b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.ci-chip .link-btn{min-height:44px}      /* Importer : fichier choisi (nom), texte brut replié */
+.fpanel-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.fpanel-foot .fsee{margin-left:auto;min-height:44px}      /* panneau des filtres : Effacer · Voir N cartes (filters.js) */
 
 /* ── ads.css : place du bandeau de pub (appli Android, ads.js) ──
    Le bandeau natif est posé SOUS l'en-tête (marge calculée par ads.js d'après le bas de l'en-tête), pleine largeur, fixe. html.ad-on et --ad-h
@@ -8090,8 +8092,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '7ebaa78b';
-const I18N_FILES = {"de":"i18n/de.08c2f2e1.js","en":"i18n/en.efdd5ee6.js","es":"i18n/es.0c4b6d05.js","it":"i18n/it.48581fe0.js","pt":"i18n/pt.b70f84b7.js"};
+const DD_BUILD = '333c560d';
+const I18N_FILES = {"de":"i18n/de.144d558e.js","en":"i18n/en.293bb992.js","es":"i18n/es.d4eebe09.js","it":"i18n/it.018bea76.js","pt":"i18n/pt.93120542.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -17976,7 +17978,7 @@ function mountFilters(root, f, onChange, opts = {}) {
       <div class="fgrp"><span class="fgl">${T('Coût de mana')}</span><div class="fopts cmcs" role="group" aria-label="${T('Coût converti')}">${[0, 1, 2, 3, 4, 5, 6, 7].map(m => `<button type="button" class="fopt" data-m="${m}" aria-pressed="false">${m === 7 ? '7+' : m}</button>`).join('')}</div></div>
       ${opts.sets ? `<div class="fgrp"><span class="fgl">${T('Extension')}</span><button type="button" class="sortsel fset" aria-haspopup="dialog"><span class="fset-ic"></span><b></b></button></div>` : ''}
       ${ext ? `<button type="button" class="fmore" aria-expanded="false" aria-controls="${ext.id}"><span>${T('Plus de filtres')}</span><b hidden></b><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button><div class="fmore-box" id="${ext.id}" hidden></div>` : ''}
-      <button class="link-btn link-inline freset" type="button">${T('Effacer les filtres')}</button></div>${ext ? '<div class="fext"></div>' : ''}`;
+      <div class="fpanel-foot"><button class="link-btn link-inline freset" type="button">${T('Effacer les filtres')}</button>${opts.see ? `<button class="btn small fsee" type="button">${T('Voir les cartes')}</button>` : ''}</div></div>${ext ? '<div class="fext"></div>' : ''}`;      // opts.see : « Voir N cartes » ferme le panneau (collection : le nombre suit, api.count)
   const inp = root.querySelector('input'), clr = root.querySelector('.fclear'), btn = root.querySelector('.fbtn'), panel = root.querySelector('.fpanel'), badge = btn.querySelector('b'), sel = root.querySelector('.fset');
   const more = root.querySelector('.fmore'), mbox = root.querySelector('.fmore-box'), xbox = root.querySelector('.fext');
   let msig = null, icH = null;
@@ -18033,12 +18035,14 @@ function mountFilters(root, f, onChange, opts = {}) {
     }
     else if (b === more) { moreSet(mbox.hidden); haptic('tap'); return; }
     else if (b.classList.contains('freset')) fltClear(f, true);
+    else if (b.classList.contains('fsee')) { btn.onclick(); btn.scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
     else return;
     haptic('tap'); fire();
   });
   inp.value = f.q || '';      // écran rouvert : la recherche en cours reste écrite (elle filtre toujours la liste)
   if (ext && ext.moreOpen && ext.moreOpen()) moreSet(true);      // « Plus de filtres » ouvert la dernière fois : il le reste
-  const api = { paint, fire, reset() { f.q = ''; fltClear(f); inp.value = ''; paint(); } };
+  const see = root.querySelector('.fsee');
+  const api = { paint, fire, reset() { f.q = ''; fltClear(f); inp.value = ''; paint(); }, count(n) { if (see) see.textContent = TN(n, 'Voir {n} carte', 'Voir {n} cartes'); } };
   paint();
   fltWarmSoon(root, panel);
   return api;
@@ -21473,7 +21477,7 @@ function collPaintBody(keep) {
     imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
       ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : collNoMatchHtml()}
       ${moreBtn(shown.length, sorted.length, COLL_PAGE, 'data-act="more"')}`);
-    COLL.painted = sorted;
+    COLL.painted = sorted; if (COLL.fb && COLL.fb.count) COLL.fb.count(filtered.length);      // « Voir N cartes » du panneau des filtres
   }
   if (COLL.win && COLL.tab === 'list') { const lst = $('.coll-list', host); if (lst) collWinMark(COLL.win, lst); else COLL.win = null; } else COLL.win = null;
   if (sc && COLL.win && !sc.__win) { sc.__win = true; sc.addEventListener('scroll', collWinScroll, { passive: true }); }      // fenêtre glissante : une écoute par écran
@@ -21538,7 +21542,7 @@ function openCollection(tab) {
   if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
-  }, { placeholder: T('Rechercher'), commander: true, sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
+  }, { placeholder: T('Rechercher'), commander: true, see: md === 'coll', sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
     : filterActive({ ...COLL.f, set: '' }) ? TN(n, '{n} extension parmi les cartes affichées', '{n} extensions parmi les cartes affichées') : TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection')) });
   COLL.cmdrSeen = COLL.f.cmdr;
   if (typeof cvwMount === 'function') cvwMount(wrap, md);      // tri, masterset, vue : boutons-icônes dans la rangée de la recherche ; titre resserré au défilement (densite.js)
@@ -21787,22 +21791,25 @@ function openCollImport(initial) {
   frLoad();      // noms français reconnus dès que l'index est là (aperçu repeint à son arrivée)
   openSheet(T('Importer ma collection'), T('ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield… ou une liste « 3 Sol Ring »'), api => {
     const opt = (v, t, on) => `<option value="${v}"${on ? ' selected' : ''}>${esc(t)}</option>`, LN = l => { const s = T(LANGS[l]); return s[0].toUpperCase() + s.slice(1); }, l0 = collImportLang();
-    api.body.innerHTML = `<p class="hint">${T('Le plus simple pour beaucoup de cartes : exporte ta collection en CSV depuis l\'appli que tu utilises, puis choisis le fichier. Les quantités d\'une même carte (éditions différentes) s\'additionnent ; une ligne par langue si le fichier la donne.')}</p>
+    api.body.innerHTML = `<p class="hint">${T('Exporte ta collection en CSV depuis ton appli (ManaBox, Moxfield…), puis choisis le fichier.')}</p>
       <p class="ci-swg"><span>${T('Tu viens de ManaBox ou d\'une autre appli ?')}</span> <button class="link-btn" type="button" data-swg="open">${T('Le guide en 2 minutes')}</button></p>
-      <label class="btn ghost small ci-file"><svg class="i"><use href="#i-download"/></svg>${T('Choisir un fichier')}<input type="file" id="ciFile" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label>
-      <div class="field-in"><label class="label" for="ciText">${T('ou colle le texte')}</label><textarea id="ciText" class="ci-text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="3 Sol Ring&#10;1 ${esc(nmExample(true))}"></textarea></div>
+      <label class="btn block ci-file"><svg class="i"><use href="#i-download"/></svg>${T('Choisir un fichier')}<input type="file" id="ciFile" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label>
+      <div class="ci-chip" id="ciChip" hidden><svg class="i" aria-hidden="true"><use href="#i-clip"/></svg><b></b><button class="link-btn" type="button" data-ci="text">${T('Voir le texte')}</button><button class="icon-btn" type="button" data-ci="clear" aria-label="${T('Retirer le fichier')}"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <div class="field-in ci-tf"><label class="label" for="ciText">${T('ou colle le texte')}</label><textarea id="ciText" class="ci-text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="3 Sol Ring&#10;1 ${esc(nmExample(true))}"></textarea></div>
       <div class="ci-sum" id="ciSum" hidden></div>
       <div class="ci-flag" id="ciFlag" hidden></div>
-      <div class="field-in"><label class="label" for="ciLang">${T('Langue de ces cartes')}</label><div class="sel"><select id="ciLang">${CARD_LANG_LIST.map(l => opt(l, LN(l), l === l0)).join('')}${opt('', T('Non précisée'), false)}</select></div>
+      <div class="field-in ci-lf"><label class="label" for="ciLang">${T('Langue de ces cartes')}</label><div class="sel"><select id="ciLang">${CARD_LANG_LIST.map(l => opt(l, LN(l), l === l0)).join('')}${opt('', T('Non précisée'), false)}</select></div>
         <p class="hint ci-lhint">${nmT('Pour les lignes qui ne la donnent pas : une colonne « Language » ou « *EN* » en fin de ligne l\'emporte, et un nom français compte comme une carte française.', 'Pour les lignes qui ne la donnent pas : une colonne « Language » ou « *EN* » en fin de ligne l\'emporte, et un nom en {lang} compte comme une carte en {lang}.', 'Pour les lignes qui ne la donnent pas : une colonne « Language » ou « *EN* » en fin de ligne l\'emporte.')}</p></div>
       <div class="seg" id="ciMode" role="radiogroup" aria-label="${T('Mode d\'import')}"></div>`;
     mountSeg($('#ciMode', api.body), [{ v: 'add', label: T('Ajouter') }, { v: 'replace', label: T('Remplacer ma collection') }], collCount() ? 'add' : 'replace', () => paint());
+    $('#ciMode', api.body).hidden = !collCount();      // collection vide : ajouter = remplacer, le choix ne ferait que peur
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" id="ciGo" disabled>${T('Importer')}</button>`);
     const ta = $('#ciText', api.body), sum = $('#ciSum', api.body), flag = $('#ciFlag', api.body), lang = $('#ciLang', api.body), go = $('#ciGo', api.foot), mode = () => $('#ciMode', api.body)._v || 'add';
     let parsed = null, catAsked = false;
     const paint = () => {
       const t = ta.value; parsed = t.trim() ? parseCollection(t, { fr: true, lang: lang.value }) : null;
       sum.hidden = !parsed; flag.hidden = true;
+      $('.ci-lf', api.body).hidden = !!(parsed && parsed.items.length && parsed.items.every(x => collLines(x).every(([g]) => lineLang(g))));      // le fichier donne la langue de chaque ligne : le choix ne servirait à rien
       go.disabled = !parsed || !parsed.items.length;
       if (!parsed) { go.textContent = T('Importer'); return; }
       if (!parsed.items.length) { sum.className = 'ci-sum bad'; sum.textContent = parsed.format === 'csv' ? T('Aucune carte lue dans ce CSV : il faut une colonne « Name » (ou « Nom »).') : T('Aucune ligne reconnue. Une carte par ligne : « 3 Sol Ring ».'); return; }
@@ -21823,8 +21830,14 @@ function openCollImport(initial) {
     $('#ciFile', api.body).onchange = async e => {
       const f = e.target.files && e.target.files[0]; if (!f) return;
       if (f.size > 8 * 1024 * 1024) { toast(T('Fichier trop gros (8 Mo maximum)')); return; }
-      try { ta.value = await f.text(); paint(); haptic('tap'); } catch (err) { toast(T('Fichier illisible')); }
+      try { ta.value = await f.text(); fileOn(f.name); paint(); haptic('tap'); } catch (err) { toast(T('Fichier illisible')); }
     };
+    const chip = $('#ciChip', api.body), tf = $('.ci-tf', api.body), fileOn = nm => { chip.hidden = !nm; tf.hidden = !!nm; if (nm) $('b', chip).textContent = nm; };      // fichier choisi : son nom, le texte brut replié (« Voir le texte »)
+    chip.addEventListener('click', e => {
+      const b = e.target.closest('[data-ci]'); if (!b) return; haptic('tap');
+      if (b.dataset.ci === 'text') { tf.hidden = false; b.hidden = true; }
+      else { ta.value = ''; $('#ciFile', api.body).value = ''; fileOn(''); $('[data-ci="text"]', chip).hidden = false; paint(); }
+    });
     const run = (parsed, m) => {
       const before = COLL.map, pl0 = COLL.places, n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
       collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
@@ -29185,14 +29198,14 @@ const DW_ARCH = {
 const DW_ARCH_MECH = { 'group-hug': 'group-hug', politics: 'politics', pillowfort: 'pillow-fort', enchantments: 'enchantress', attack: 'aggro', voltron: 'voltron', spells: 'spellslinger', landfall: 'landfall', 'tokens-creature': 'tokens', sacrifice: 'aristocrats', 'dies-trigger': 'aristocrats' };
 /** Règles du bracket des réglages (brackets.js) : globales dans l'appli et les vm du banc d'essai, require dans Node. */
 const DWB = typeof module !== 'undefined' && module.exports ? require('./brackets.js') : { brRule, bracketEstimate, bracketBreaks };
-/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis (texte), Game Changers permis (99 : sans limite ; lu dans brackets.js › BRACKET_RULES,
+/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom traduit (anglais officiel : Exhibition, Core, Upgraded, Optimized, cEDH), ce qui est permis (texte), Game Changers permis (99 : sans limite ; lu dans brackets.js › BRACKET_RULES,
  *  comme les autres règles : brRule). Tuteurs : plus de limite depuis octobre 2025. */
 const DW_BRACKETS = [
-  [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', Math.min(99, DWB.brRule(1).gc)],
-  [2, 'Core', 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(2).gc)],
-  [3, 'Upgraded', 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(3).gc)],
-  [4, 'Optimized', 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', Math.min(99, DWB.brRule(4).gc)],
-  [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', Math.min(99, DWB.brRule(5).gc)],
+  [1, T('Décontracté'), 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', Math.min(99, DWB.brRule(1).gc)],
+  [2, T('Préconstruit'), 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(2).gc)],
+  [3, T('Amélioré'), 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(3).gc)],
+  [4, T('Optimisé'), 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', Math.min(99, DWB.brRule(4).gc)],
+  [5, T('Compétitif'), 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', Math.min(99, DWB.brRule(5).gc)],
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = 3 * 3600e3;      // copie de l'appareil gardée 3 h sans redemander (au-delà : ETag, 304 si la base n'a pas changé)

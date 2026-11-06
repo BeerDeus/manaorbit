@@ -53,14 +53,14 @@ const DW_ARCH = {
 const DW_ARCH_MECH = { 'group-hug': 'group-hug', politics: 'politics', pillowfort: 'pillow-fort', enchantments: 'enchantress', attack: 'aggro', voltron: 'voltron', spells: 'spellslinger', landfall: 'landfall', 'tokens-creature': 'tokens', sacrifice: 'aristocrats', 'dies-trigger': 'aristocrats' };
 /** Règles du bracket des réglages (brackets.js) : globales dans l'appli et les vm du banc d'essai, require dans Node. */
 const DWB = typeof module !== 'undefined' && module.exports ? require('./brackets.js') : { brRule, bracketEstimate, bracketBreaks };
-/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis (texte), Game Changers permis (99 : sans limite ; lu dans brackets.js › BRACKET_RULES,
+/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom traduit (anglais officiel : Exhibition, Core, Upgraded, Optimized, cEDH), ce qui est permis (texte), Game Changers permis (99 : sans limite ; lu dans brackets.js › BRACKET_RULES,
  *  comme les autres règles : brRule). Tuteurs : plus de limite depuis octobre 2025. */
 const DW_BRACKETS = [
-  [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', Math.min(99, DWB.brRule(1).gc)],
-  [2, 'Core', 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(2).gc)],
-  [3, 'Upgraded', 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(3).gc)],
-  [4, 'Optimized', 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', Math.min(99, DWB.brRule(4).gc)],
-  [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', Math.min(99, DWB.brRule(5).gc)],
+  [1, T('Décontracté'), 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', Math.min(99, DWB.brRule(1).gc)],
+  [2, T('Préconstruit'), 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(2).gc)],
+  [3, T('Amélioré'), 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', Math.min(99, DWB.brRule(3).gc)],
+  [4, T('Optimisé'), 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', Math.min(99, DWB.brRule(4).gc)],
+  [5, T('Compétitif'), 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', Math.min(99, DWB.brRule(5).gc)],
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = 3 * 3600e3;      // copie de l'appareil gardée 3 h sans redemander (au-delà : ETag, 304 si la base n'a pas changé)

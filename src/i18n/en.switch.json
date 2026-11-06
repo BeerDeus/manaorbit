@@ -10,8 +10,8 @@
   "Vérifie et importe": "Check and import",
   "L'aperçu compte tes cartes et signale les noms inconnus. <b>Ajouter</b> ou <b>Remplacer ma collection</b>, puis <b>Importer</b> : images et prix arrivent tout seuls.": "The preview counts your cards and flags unknown names. <b>Add</b> or <b>Replace my collection</b>, then <b>Import</b>: images and prices load by themselves.",
   "Ce qui est gardé": "What's kept",
-  "Les quantités : une carte présente dans plusieurs éditions s'additionne": "Quantities: a card owned in several editions adds up",
-  "Les éditions : code d'extension et numéro de collection": "Editions: set code and collector number",
+  "Les quantités : une carte présente dans plusieurs éditions s'additionne": "Quantities: a card owned in several printings adds up",
+  "Les éditions : code d'extension et numéro de collection": "Printings: set code and collector number",
   "La langue de chaque exemplaire": "The language of each copy",
   "Le foil et l'état : pas encore (la valeur suit le prix tendance)": "Foil and condition: not yet (the value follows the trend price)",
   "Les classeurs et les prix d'achat ; les listes ManaBox (souhaits) ne sont pas importées": "Binders and purchase prices; ManaBox lists (wishlists) are not imported",
@@ -24,11 +24,11 @@
   "Ce guide existe aussi en page web, à envoyer à un ami : {link}": "This guide is also a web page you can send to a friend: {link}",
   "Choisir mon fichier": "Choose my file",
   "Importer mon fichier": "Import my file",
-  "Sur le site : <b>Collection</b> › <b>More</b> › <b>Export CSV</b>. Quantités, éditions et langues suivent.": "On the website: <b>Collection</b> › <b>More</b> › <b>Export CSV</b>. Quantities, editions and languages come along.",
+  "Sur le site : <b>Collection</b> › <b>More</b> › <b>Export CSV</b>. Quantités, éditions et langues suivent.": "On the website: <b>Collection</b> › <b>More</b> › <b>Export CSV</b>. Quantities, printings and languages come along.",
   "Sur le site : ta collection › <b>Export</b> › CSV. Garde au moins les colonnes de la quantité, du nom, du code d'extension, du numéro de collection et de la langue.": "On the website: your collection › <b>Export</b> › CSV. Keep at least the quantity, name, set code, collector number and language columns.",
-  "Sur le site : ton <b>Inventory</b> › <b>Export</b> (CSV). Deckbox écrit le nom de l'extension, pas son code : quantités et langues suivent, l'édition se choisit ensuite si tu y tiens.": "On the website: your <b>Inventory</b> › <b>Export</b> (CSV). Deckbox writes the set name, not its code: quantities and languages come along, and you can pick the edition afterwards if you care.",
+  "Sur le site : ton <b>Inventory</b> › <b>Export</b> (CSV). Deckbox écrit le nom de l'extension, pas son code : quantités et langues suivent, l'édition se choisit ensuite si tu y tiens.": "On the website: your <b>Inventory</b> › <b>Export</b> (CSV). Deckbox writes the set name, not its code: quantities and languages come along, and you can pick the printing afterwards if you care.",
   "Dans l'appli : ouvre un dossier (ou toute la collection), puis son menu › <b>Export</b> › <b>CSV</b>, et enregistre ou partage le fichier. Les dossiers d'un même fichier s'additionnent.": "In the app: open a folder (or the whole collection), then its menu › <b>Export</b> › <b>CSV</b>, and save or share the file. Folders in the same file add up.",
-  "Ouvre la liste, icône <b>Export</b> en haut › <b>Create CSV file</b> › <b>Download</b> : le fichier arrive dans Téléchargements. Pour les éditions et les langues, ajoute aussi les colonnes du code d'extension, du numéro de collection et de la langue.": "Open the list, <b>Export</b> icon at the top › <b>Create CSV file</b> › <b>Download</b>: the file lands in Downloads. For editions and languages, also add the set code, collector number and language columns.",
+  "Ouvre la liste, icône <b>Export</b> en haut › <b>Create CSV file</b> › <b>Download</b> : le fichier arrive dans Téléchargements. Pour les éditions et les langues, ajoute aussi les colonnes du code d'extension, du numéro de collection et de la langue.": "Open the list, <b>Export</b> icon at the top › <b>Create CSV file</b> › <b>Download</b>: the file lands in Downloads. For printings and languages, also add the set code, collector number and language columns.",
   "Tu viens de ManaBox ? Le guide en 2 minutes": "Coming from ManaBox? The 2-minute guide",
   "Tu viens de ManaBox ou d'une autre appli ?": "Coming from ManaBox or another app?",
   "Le guide en 2 minutes": "The 2-minute guide",
@@ -36,5 +36,5 @@
   "{n} cartes de listes ManaBox (souhaits) laissées de côté": "{n} cards from ManaBox lists (wishlists) left out",
   "Tu viens de ManaBox ? Voir comment l'exporter": "Coming from ManaBox? See how to export it",
   "Je viens de ManaBox (ou Moxfield…) : comment tout récupérer ?": "I'm coming from ManaBox (or Moxfield…): how do I bring everything over?",
-  "Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Le guide pas à pas</button>": "Export your collection as CSV from your old app (ManaBox: Collection tab › top-right menu › <b>Export</b>), then <b>Collection</b> › <b>Import</b> › <b>Choose a file</b>: quantities, editions and languages come along. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Step-by-step guide</button>"
+  "Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Le guide pas à pas</button>": "Export your collection as CSV from your old app (ManaBox: Collection tab › top-right menu › <b>Export</b>), then <b>Collection</b> › <b>Import</b> › <b>Choose a file</b>: quantities, printings and languages come along. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Step-by-step guide</button>"
 }

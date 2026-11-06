@@ -1386,7 +1386,7 @@ function collPaintBody(keep) {
     imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
       ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : collNoMatchHtml()}
       ${moreBtn(shown.length, sorted.length, COLL_PAGE, 'data-act="more"')}`);
-    COLL.painted = sorted;
+    COLL.painted = sorted; if (COLL.fb && COLL.fb.count) COLL.fb.count(filtered.length);      // « Voir N cartes » du panneau des filtres
   }
   if (COLL.win && COLL.tab === 'list') { const lst = $('.coll-list', host); if (lst) collWinMark(COLL.win, lst); else COLL.win = null; } else COLL.win = null;
   if (sc && COLL.win && !sc.__win) { sc.__win = true; sc.addEventListener('scroll', collWinScroll, { passive: true }); }      // fenêtre glissante : une écoute par écran
@@ -1451,7 +1451,7 @@ function openCollection(tab) {
   if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
-  }, { placeholder: T('Rechercher'), commander: true, sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
+  }, { placeholder: T('Rechercher'), commander: true, see: md === 'coll', sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
     : filterActive({ ...COLL.f, set: '' }) ? TN(n, '{n} extension parmi les cartes affichées', '{n} extensions parmi les cartes affichées') : TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection')) });
   COLL.cmdrSeen = COLL.f.cmdr;
   if (typeof cvwMount === 'function') cvwMount(wrap, md);      // tri, masterset, vue : boutons-icônes dans la rangée de la recherche ; titre resserré au défilement (densite.js)
@@ -1700,22 +1700,25 @@ function openCollImport(initial) {
   frLoad();      // noms français reconnus dès que l'index est là (aperçu repeint à son arrivée)
   openSheet(T('Importer ma collection'), T('ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield… ou une liste « 3 Sol Ring »'), api => {
     const opt = (v, t, on) => `<option value="${v}"${on ? ' selected' : ''}>${esc(t)}</option>`, LN = l => { const s = T(LANGS[l]); return s[0].toUpperCase() + s.slice(1); }, l0 = collImportLang();
-    api.body.innerHTML = `<p class="hint">${T('Le plus simple pour beaucoup de cartes : exporte ta collection en CSV depuis l\'appli que tu utilises, puis choisis le fichier. Les quantités d\'une même carte (éditions différentes) s\'additionnent ; une ligne par langue si le fichier la donne.')}</p>
+    api.body.innerHTML = `<p class="hint">${T('Exporte ta collection en CSV depuis ton appli (ManaBox, Moxfield…), puis choisis le fichier.')}</p>
       <p class="ci-swg"><span>${T('Tu viens de ManaBox ou d\'une autre appli ?')}</span> <button class="link-btn" type="button" data-swg="open">${T('Le guide en 2 minutes')}</button></p>
-      <label class="btn ghost small ci-file"><svg class="i"><use href="#i-download"/></svg>${T('Choisir un fichier')}<input type="file" id="ciFile" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label>
-      <div class="field-in"><label class="label" for="ciText">${T('ou colle le texte')}</label><textarea id="ciText" class="ci-text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="3 Sol Ring&#10;1 ${esc(nmExample(true))}"></textarea></div>
+      <label class="btn block ci-file"><svg class="i"><use href="#i-download"/></svg>${T('Choisir un fichier')}<input type="file" id="ciFile" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label>
+      <div class="ci-chip" id="ciChip" hidden><svg class="i" aria-hidden="true"><use href="#i-clip"/></svg><b></b><button class="link-btn" type="button" data-ci="text">${T('Voir le texte')}</button><button class="icon-btn" type="button" data-ci="clear" aria-label="${T('Retirer le fichier')}"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <div class="field-in ci-tf"><label class="label" for="ciText">${T('ou colle le texte')}</label><textarea id="ciText" class="ci-text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="3 Sol Ring&#10;1 ${esc(nmExample(true))}"></textarea></div>
       <div class="ci-sum" id="ciSum" hidden></div>
       <div class="ci-flag" id="ciFlag" hidden></div>
-      <div class="field-in"><label class="label" for="ciLang">${T('Langue de ces cartes')}</label><div class="sel"><select id="ciLang">${CARD_LANG_LIST.map(l => opt(l, LN(l), l === l0)).join('')}${opt('', T('Non précisée'), false)}</select></div>
+      <div class="field-in ci-lf"><label class="label" for="ciLang">${T('Langue de ces cartes')}</label><div class="sel"><select id="ciLang">${CARD_LANG_LIST.map(l => opt(l, LN(l), l === l0)).join('')}${opt('', T('Non précisée'), false)}</select></div>
         <p class="hint ci-lhint">${nmT('Pour les lignes qui ne la donnent pas : une colonne « Language » ou « *EN* » en fin de ligne l\'emporte, et un nom français compte comme une carte française.', 'Pour les lignes qui ne la donnent pas : une colonne « Language » ou « *EN* » en fin de ligne l\'emporte, et un nom en {lang} compte comme une carte en {lang}.', 'Pour les lignes qui ne la donnent pas : une colonne « Language » ou « *EN* » en fin de ligne l\'emporte.')}</p></div>
       <div class="seg" id="ciMode" role="radiogroup" aria-label="${T('Mode d\'import')}"></div>`;
     mountSeg($('#ciMode', api.body), [{ v: 'add', label: T('Ajouter') }, { v: 'replace', label: T('Remplacer ma collection') }], collCount() ? 'add' : 'replace', () => paint());
+    $('#ciMode', api.body).hidden = !collCount();      // collection vide : ajouter = remplacer, le choix ne ferait que peur
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" id="ciGo" disabled>${T('Importer')}</button>`);
     const ta = $('#ciText', api.body), sum = $('#ciSum', api.body), flag = $('#ciFlag', api.body), lang = $('#ciLang', api.body), go = $('#ciGo', api.foot), mode = () => $('#ciMode', api.body)._v || 'add';
     let parsed = null, catAsked = false;
     const paint = () => {
       const t = ta.value; parsed = t.trim() ? parseCollection(t, { fr: true, lang: lang.value }) : null;
       sum.hidden = !parsed; flag.hidden = true;
+      $('.ci-lf', api.body).hidden = !!(parsed && parsed.items.length && parsed.items.every(x => collLines(x).every(([g]) => lineLang(g))));      // le fichier donne la langue de chaque ligne : le choix ne servirait à rien
       go.disabled = !parsed || !parsed.items.length;
       if (!parsed) { go.textContent = T('Importer'); return; }
       if (!parsed.items.length) { sum.className = 'ci-sum bad'; sum.textContent = parsed.format === 'csv' ? T('Aucune carte lue dans ce CSV : il faut une colonne « Name » (ou « Nom »).') : T('Aucune ligne reconnue. Une carte par ligne : « 3 Sol Ring ».'); return; }
@@ -1736,8 +1739,14 @@ function openCollImport(initial) {
     $('#ciFile', api.body).onchange = async e => {
       const f = e.target.files && e.target.files[0]; if (!f) return;
       if (f.size > 8 * 1024 * 1024) { toast(T('Fichier trop gros (8 Mo maximum)')); return; }
-      try { ta.value = await f.text(); paint(); haptic('tap'); } catch (err) { toast(T('Fichier illisible')); }
+      try { ta.value = await f.text(); fileOn(f.name); paint(); haptic('tap'); } catch (err) { toast(T('Fichier illisible')); }
     };
+    const chip = $('#ciChip', api.body), tf = $('.ci-tf', api.body), fileOn = nm => { chip.hidden = !nm; tf.hidden = !!nm; if (nm) $('b', chip).textContent = nm; };      // fichier choisi : son nom, le texte brut replié (« Voir le texte »)
+    chip.addEventListener('click', e => {
+      const b = e.target.closest('[data-ci]'); if (!b) return; haptic('tap');
+      if (b.dataset.ci === 'text') { tf.hidden = false; b.hidden = true; }
+      else { ta.value = ''; $('#ciFile', api.body).value = ''; fileOn(''); $('[data-ci="text"]', chip).hidden = false; paint(); }
+    });
     const run = (parsed, m) => {
       const before = COLL.map, pl0 = COLL.places, n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
       collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
