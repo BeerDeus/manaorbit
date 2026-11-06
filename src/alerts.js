@@ -3,8 +3,8 @@
    notification quand l'une chute d'au moins N % (et 0,50 €) ou passe sous un prix cible. Cette page fournit la liste à surveiller :
    · automatiquement : cartes qu'il manque pour chaque deck enregistré (liste du deck − collection libre) ;
    · à la main : n'importe quelle carte, avec ou sans prix cible (fiche d'une carte, ou saisie dans la feuille « Alertes de prix ») ; depuis la fiche d'une carte
-     (cardsheet.js › « Suivre le prix »), en hausse ET en baisse (champ u, ignoré par un serveur plus ancien) ;
-     depuis la feuille d'un deck EDHREC (« Surveiller leurs prix »), ses cartes manquantes, avec le nom du deck, jusqu'à ce qu'elles soient dans la collection.
+     (cardsheet.js › « Alerte de prix »), en hausse ET en baisse (champ u, ignoré par un serveur plus ancien) ;
+     depuis la feuille d'un deck EDHREC (« Alerte de prix »), ses cartes manquantes, avec le nom du deck, jusqu'à ce qu'elles soient dans la collection.
    La liste part avec l'abonnement push de CET appareil (PUT /api/alerts) à chaque changement (différé de 3 s) et au plus toutes les 12 h ;
    dans l'appli Android, avec son jeton FCM ({ fcm }) à la place de l'abonnement (voir push.js).
    Les cartes suivies à la main et les réglages restent sur l'appareil (deckdeal:alert:v1).
@@ -63,7 +63,7 @@ function alItems() {
   }
   if (AC.deck) {
     for (const d of allDecks()) {
-      if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
+      if (!dkTrack(d.text)) continue;      // « Mettre dans Je recherche » éteint sur ce deck (feuille du deck, decks.js)
       for (const c of [...parseDeck(d.text).cards, ...dkSideCards(d.text)]) {      // réserve comprise (et compagnon), comme « Je recherche » (décision du 6 novembre 2026)
         const k = ownKey(c.key || c.name); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
@@ -247,12 +247,12 @@ async function openAlertSheet(o = {}) {
         <div class="switch-row"><span class="t"><b>${T('Cartes manquantes de mes decks')}</b><span class="hint">${T('Toutes les cartes qu\'il te reste à acheter pour tes decks enregistrés.')}</span></span><label class="switch"><input type="checkbox" id="alDeck" ${AC.deck ? 'checked' : ''}><i></i></label></div>
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
         ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
-        <div class="sec-title">${T('Suivre une carte')}</div>
-        <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" data-cn="1" placeholder="${esc(cnPh())}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Suivre')}</button></form>
+        <div class="sec-title">${T('Ajouter une alerte de prix')}</div>
+        <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" data-cn="1" placeholder="${esc(cnPh())}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Ajouter')}</button></form>
         <div class="ca-list al-sug" id="alSug" role="listbox" aria-label="${T('Suggestions')}"></div>
         <p class="hint" id="alAddMsg" hidden></p>
         <div class="sec-title">${TN(rows.length, '{n} carte surveillée', '{n} cartes surveillées')}</div>
-        ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${TN(rows.length - AL_ROWS, '{n} autre carte surveillée, non listée ici.', '{n} autres cartes surveillées, non listées ici.')}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou suis une carte à la main.')}</p>`}
+        ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${TN(rows.length - AL_ROWS, '{n} autre carte surveillée, non listée ici.', '{n} autres cartes surveillées, non listées ici.')}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.')}</p>`}
         ${muted ? `<p class="hint">${TN(muted, '{n} carte exclue de la surveillance', '{n} cartes exclues de la surveillance')} · <button class="link-btn link-inline" type="button" id="alUnmute">${T('Rétablir')}</button></p>` : ''}
         <p class="hint">${esc(last)}</p>`;
       api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Désactiver les alertes')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);

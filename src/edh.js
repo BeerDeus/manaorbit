@@ -446,13 +446,13 @@ function edhDeckActs(api, r, name) {
     const d = edhSavedDeck(text), sv = saved || (d && d.name) || '', wish = r.miss ? edhWishTodo(r) : [], wq = wish.reduce((a, x) => a + x.q, 0);
     const watch = alAvail() ? edhWatchCards(r) : [], wTodo = watch.length ? edhWatchCards(r, true) : [];
     el.innerHTML = row('dksave', '<svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>', sv ? T('Dans mes decks') : T('Enregistrer dans mes decks'), sv ? T('Enregistré sous « {name} »', { name: sv }) : dkCountText(text), !!sv)
-      + (r.miss ? row('dkwish', '<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>', wq ? T('Ajouter les manquantes à Je recherche') : T('Manquantes dans Je recherche'), wq ? TN(wq, '{n} carte', '{n} cartes') + ' · ' + T('liste d\'échange') : T('Ta liste d\'échange les recherche déjà'), !wq) : '')
-      + (watch.length ? row('dkwatch', EDH_BELL, wTodo.length ? T('Surveiller leurs prix') : T('Prix surveillés'), wTodo.length ? TN(wTodo.length, '{n} carte à 1 € ou plus', '{n} cartes à 1 € ou plus') + (AC.on ? '' : ' · ' + T('active les alertes')) : T('Une notification en cas de forte baisse'), !wTodo.length) : '');
+      + (r.miss ? row('dkwish', '<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>', wq ? T('Mettre dans Je recherche') : T('Manquantes dans Je recherche'), wq ? TN(wq, '{n} carte', '{n} cartes') + ' · ' + T('liste d\'échange') : T('Ta liste d\'échange les recherche déjà'), !wq) : '')
+      + (watch.length ? row('dkwatch', EDH_BELL, wTodo.length ? T('Alerte de prix') : T('Alerte de prix active'), wTodo.length ? TN(wTodo.length, '{n} carte à 1 € ou plus', '{n} cartes à 1 € ou plus') + (AC.on ? '' : ' · ' + T('active les alertes')) : T('Une notification en cas de forte baisse'), !wTodo.length) : '');
   };
   el.onclick = async e => {
     const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return; const act = b.dataset.act;
     if (act === 'dksave') {
-      const nm = edhSaveName(r), id = newIdFor(), doc = deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } }); putDeck(id, doc); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
+      const nm = edhSaveName(r), id = newIdFor(), doc = deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } }); putDeck(id, doc); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Mettre dans Je recherche »
       if (added.size && dkTrack(doc.text)) {      // (deck suivi seulement) le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
         for (const [k, q] of added) { const cur = TR.wish[k]; if (!cur) continue; if (cur.q > q) TR.wish[k] = { ...cur, q: cur.q - q }; else delete TR.wish[k]; }
         added.clear(); trChanged();
@@ -502,7 +502,7 @@ function openEdhDeck(r) {
       <p class="hint dk-tap">${T('Touche une carte pour la voir en grand.')}</p>${dk.k === 'comm' && dk.pid ? (PD.tag && D.user && PD.tagUid === D.user.uid && dk.pid.startsWith(PD.tag + '_') ? `<p class="hint pub-own">${T('C\'est ton deck : le retirer ou le mettre à jour depuis Mes decks › le deck › Publier.')}${typeof pdDscBtn === 'function' ? ' ' + pdDscBtn() : ''}</p>` : `<p class="pub-report"><button class="link-btn" type="button" data-act="dkrep">${T('Signaler ce deck')}</button></p>`) : ''}`;      // Communauté : contenu publié par un joueur (règles Google Play : signalement dans l'appli)
     const rep = $('[data-act="dkrep"]', api.body); if (rep) rep.onclick = () => openPubReport(dk.pid, () => api.close());
     const dsb = $('[data-act="dkdsc"]', api.body); if (dsb) dsb.onclick = () => pdDscShare(dk.pid);      // son deck : « Partager sur Discord » (pubdecks.js)
-    $('.ci-sum', api.body).insertAdjacentHTML('afterend', `<div class="tr-acts dk-acts"><button class="btn ghost" type="button" data-act="dkview"><svg class="i"><use href="#i-grid"/></svg>${T('Voir le deck')}</button>${typeof dwOn === 'function' && dwOn() ? `<button class="btn ghost" type="button" data-act="dkana"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Analyser')}</button>` : ''}<button class="btn ghost" type="button" data-act="dkshare"><svg class="i"><use href="#i-share"/></svg>${T('Partager')}</button></div><div class="dk-acts2" role="group" aria-label="${T('Ce deck')}"></div>`);
+    $('.ci-sum', api.body).insertAdjacentHTML('afterend', `<div class="tr-acts dk-acts"><button class="btn ghost" type="button" data-act="dkview"><svg class="i"><use href="#i-grid"/></svg>${T('Voir le deck')}</button>${typeof dwOn === 'function' && dwOn() ? `<button class="btn ghost" type="button" data-act="dkana"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}<button class="btn ghost" type="button" data-act="dkshare"><svg class="i"><use href="#i-share"/></svg>${T('Partager')}</button></div><div class="dk-acts2" role="group" aria-label="${T('Ce deck')}"></div>`);
     edhDeckActs(api, r, name);
     $('.dk-acts', api.body).onclick = e => {
       const b = e.target.closest('[data-act]'); if (!b) return; haptic('tap');
@@ -531,7 +531,7 @@ function openEdhDeck(r) {
     };
     api.body.addEventListener('click', e => { const rw = e.target.closest('.crow[data-ik]'); if (rw) open(rw); });
     api.body.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.crow[data-ik]')) { e.preventDefault(); open(e.target); } });
-    api.setFoot(`${url ? `<a class="btn ghost" href="${esc(edhRef(url))}" target="_blank" rel="noopener">${r.deck.src === 'edhrec' ? 'EDHREC' : 'Archidekt'} ↗</a>` : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`}<button class="btn" type="button" id="dkGo">${r.miss ? T('Chercher les manquantes') : T('Charger le deck')}</button>`);
+    api.setFoot(`${url ? `<a class="btn ghost" href="${esc(edhRef(url))}" target="_blank" rel="noopener">${r.deck.src === 'edhrec' ? 'EDHREC' : 'Archidekt'} ↗</a>` : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`}<button class="btn" type="button" id="dkGo">${r.miss ? T('Chercher les offres') : T('Charger le deck')}</button>`);
     $('#dkGo', api.foot).onclick = () => { api.close(); edhUseDeck(r); };
   });
 }

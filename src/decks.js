@@ -364,10 +364,10 @@ function openDeckSheet(id) {
       const when = new Date(e.at).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
       return `<span class="d">${esc(when)} · ${e.mode === 'cm' ? 'Cardmarket' : e.mode === 'us' ? 'TCGplayer' : e.mode === 'zero' ? 'Zero' : 'Direct'}</span><span class="delta ${df == null || df === 0 ? 'flat' : df < 0 ? 'down' : 'up'}">${df == null || df === 0 ? '' : (df < 0 ? '−' : '+') + fmt(Math.abs(df), modeCur(e.mode))}</span><span class="t">${fmt(e.total, modeCur(e.mode))}</span>`;
     }).join('');
-    api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Modifier le deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+    api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Infos du deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
-      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
-      ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
+      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Mettre dans Je recherche')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
+      ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
       ${series.length >= 2 ? chartSvg(series, Math.max(220, (api.body.clientWidth || 376) - 36)) + `<div class="chart-cap"><span>${esc(dateShort(same[0].at))}</span><span>${T('{n} relevés · de {min} à {max}', { n: series.length, min: esc(fmt(Math.min(...series))), max: esc(fmt(Math.max(...series))) })}</span><span>${esc(dateShort(lastE.at))}</span></div>` : ''}
@@ -377,7 +377,7 @@ function openDeckSheet(id) {
     api.setFoot(`<button class="btn ghost-danger" type="button" id="dkDel">${T('Supprimer')}</button><button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
     $('#dkOpen', api.foot).onclick = () => { api.close(); loadDeck(id); };
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
-    const paintCover = () => {      // « Modifier le deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
+    const paintCover = () => {      // « Infos du deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/'), fk = deckFmt(cur), tg = dkTags(cur.text);
       imgKeep($('.cover-th', api.body), im ? `<img alt="" ${cardImgA(cv.key, cv.name, im)}>` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
       $('#dkEditSub', api.body).textContent = [T('Nom, image, format, tags'), fk ? DK_FORMATS[fk].label : '', ...tg].filter(Boolean).join(' · ');
@@ -393,7 +393,7 @@ function openDeckSheet(id) {
       const cur = findDeck(id); if (!cur) return; const text = dkSetTrack(cur.text, trk.checked);
       putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // le deck garde sa place
       if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
-      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack(dkTrack(text));      // l'état écrit, pas celui relu : avec un compte, le deck enregistré n'est relu qu'au retour de Firestore (l'interrupteur revenait en arrière)
+      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes dans Je recherche') : T('Cartes manquantes retirées de Je recherche')); paintTrack(dkTrack(text));      // l'état écrit, pas celui relu : avec un compte, le deck enregistré n'est relu qu'au retour de Firestore (l'interrupteur revenait en arrière)
     };
     const valEl = $('#dkVal', api.body);      // valeur estimée du deck (builder.js › dkEst : même chiffre que l'éditeur et le viewer), même monté : pas besoin de chercher des offres
     let fetched = false;
@@ -435,7 +435,7 @@ function openDeckSheet(id) {
   });
 }
 
-/* ── Feuille : « Modifier le deck » (feuille ⋯ d'un deck) : nom, image, format, tags ; Commander : réglages du coach (deckana.js › daSetFormHtml) ─────── */
+/* ── Feuille : « Infos du deck » (feuille ⋯ d'un deck) : nom, image, format, tags ; Commander : réglages du coach (deckana.js › daSetFormHtml) ─────── */
 /** Tags déjà donnés à mes autres decks (proposés en un toucher), les plus fréquents d'abord. */
 function dkTagPool(except) {
   const n = new Map();
@@ -447,7 +447,7 @@ function openDeckEdit(id, done) {
   let fmt = deckFmt(d0) || 'standard', tags = dkTags(d0.text), wizOn = false;
   const fmt0 = fmt, wiz = typeof dwSettingsFor === 'function' ? dwSettingsFor(id) : null;
   if (wiz && typeof daSaved === 'function' && !daSaved(id)) { wiz.ba = 1; wiz.bv = 1; }      // jamais réglé : bracket estimé, budget = valeur actuelle (deckana.js)
-  openSheet(T('Modifier le deck'), null, api => {
+  openSheet(T('Infos du deck'), null, api => {
     api.wrap.classList.add('dke-sheet');
     api.body.innerHTML = `<div class="field-in"><label class="label" for="dkName">${T('Nom')}</label><input type="text" id="dkName" maxlength="120" autocomplete="off" value="${esc(d0.name)}"></div>
       <button class="coll-open dk-cover" type="button" id="dkCover"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Image du deck')}</b><span id="dkCoverSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>

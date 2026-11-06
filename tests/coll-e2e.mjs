@@ -16,7 +16,7 @@ const flush = ms => p.waitForTimeout(ms);
 assert.match(await txt(p, '#collSub'), /Ajoute tes cartes/); assert.equal(await p.$eval('#btnColl', b => b.dataset.empty), '1'); ok('page de saisie : section collection vide');
 await p.screenshot({ path: 'shots/coll-0-saisie.png' });
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-assert.match(await txt(p, '.coll .dv-empty'), /Pas encore de cartes pour l'instant/); assert.equal(await p.$eval('#collSeg', e => !!e.offsetParent), true, 'onglets visibles sans carte'); assert.equal(await p.$eval('#app', a => a.inert), true);
+assert.match(await txt(p, '.coll .dv-empty'), /Pas encore de cartes Scanne/); assert.equal(await p.$eval('#collSeg', e => !!e.offsetParent), true, 'onglets visibles sans carte'); assert.equal(await p.$eval('#app', a => a.inert), true);
 await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
 // sans « Collector number » : pas d'édition, les impressions d'une même carte s'additionnent (éditions gardées : edition-e2e.mjs)
 const CSV = `Name,Set code,Set name,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency

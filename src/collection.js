@@ -1284,10 +1284,10 @@ function collStatsHtml(items) {
 }
 /** Onglet « Cartes » sans aucune carte : le scan d'abord (le plus rapide pour débuter), import et saisie à côté. */
 function collEmptyHtml() {
-  return `<div class="dv-empty coll-empty"><div class="empty-art" aria-hidden="true"><i></i><i></i><i></i></div><b>${T('Pas encore de cartes pour l\'instant')}</b><p>${T('Scanne tes cartes pour débuter.')}</p>
-    <div class="coll-cta"><button class="btn" type="button" data-act="scan"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${T('Scanner')}</button><div class="coll-cta2"><button class="btn ghost" type="button" data-act="import">${T('Importer')}</button><button class="btn ghost" type="button" data-act="add">${T('Ajouter à la main')}</button></div></div>
+  return `<div class="dv-empty coll-empty"><div class="empty-art" aria-hidden="true"><i></i><i></i><i></i></div><b>${T('Pas encore de cartes')}</b><p>${T('Scanne tes cartes pour débuter.')}</p>
+    <div class="coll-cta"><button class="btn" type="button" data-act="scan"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${T('Scanner des cartes')}</button><div class="coll-cta2"><button class="btn ghost" type="button" data-act="import">${T('Importer un fichier')}</button><button class="btn ghost" type="button" data-act="add">${T('Ajouter des cartes')}</button></div></div>
     <p class="hint">${T('Pour 1 000 cartes ou plus : exporte-les en CSV depuis ManaBox, Moxfield, Archidekt, Deckbox ou Dragon Shield, puis importe le fichier.')}</p>
-    <button class="link-btn coll-swg" type="button" data-act="swg">${T('Tu viens de ManaBox ? Le guide en 2 minutes')}</button></div>`;
+    <button class="link-btn coll-swg" type="button" data-act="swg">${T('Venir de ManaBox')}</button></div>`;
 }
 /** Onglet « Stats » sans aucune carte. */
 const collStatsEmptyHtml = () => `<div class="dv-empty coll-empty"><b>${T('Pas encore de stats')}</b><p>${T('Valeur, courbe de mana et couleurs apparaissent dès tes premières cartes.')}</p>
@@ -1424,7 +1424,7 @@ function openCollection(tab) {
   const md = COLL.mode, title = md === 'trade' ? T('Échange') : md === 'decks' ? T('Decks') : T('Ma collection');
   const wrap = document.createElement('div'); wrap.className = `dv coll sec m-${md}${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', title);
   const tools = md === 'coll' ? `<button class="icon-btn" type="button" data-act="add" aria-label="${T('Ajouter des cartes')}" title="${T('Ajouter des cartes')}"><svg class="i"><use href="#i-plus"/></svg></button>
-        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier ou du texte')}" title="${T('Importer')}"><svg class="i"><use href="#i-download"/></svg></button>
+        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier')}" title="${T('Importer un fichier')}"><svg class="i"><use href="#i-download"/></svg></button>
         <button class="icon-btn" type="button" data-act="export" aria-label="${T('Exporter ma collection')}" title="${T('Exporter')}"><svg class="i"><use href="#i-upload"/></svg></button>`
     : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
@@ -1491,7 +1491,7 @@ function openCollection(tab) {
       else if (act === 'dnew') openDeckNew();
       else if (act === 'valtab') { if (COLL.tab !== 'stats') { haptic('tap'); COLL.tab = COLL.ctab = 'stats'; const sg = $('#collSeg', wrap); if (sg && sg.setValue) sg.setValue('stats'); COLL.shown = COLL_PAGE; collPaintBody(false); } }
       else if (act === 'import') openCollImport();
-      else if (act === 'swg') swgOpen({ from: 'empty' });      // collection vide : « Tu viens de ManaBox ? » (switch.js)
+      else if (act === 'swg') swgOpen({ from: 'empty' });      // collection vide : « Venir de ManaBox » (switch.js)
       else if (act === 'simgcoll') simgColl();      // Stats : « Partager en image » (simg.js)
       else if (act === 'enrich') { COLL.enrichErr = ''; collEnrich(); }
       else if (act === 'unknown') openCollUnknown();
@@ -1698,10 +1698,10 @@ const collAlready = items => items.reduce((a, x) => a + Math.min(x.q, collQty(x.
 const collReimport = p => p.items.length >= REIMPORT_MIN && collAlready(p.items) >= p.copies * 0.9;
 function openCollImport(initial) {
   frLoad();      // noms français reconnus dès que l'index est là (aperçu repeint à son arrivée)
-  openSheet(T('Importer ma collection'), T('ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield… ou une liste « 3 Sol Ring »'), api => {
+  openSheet(T('Importer un fichier'), T('ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield… ou une liste « 3 Sol Ring »'), api => {
     const opt = (v, t, on) => `<option value="${v}"${on ? ' selected' : ''}>${esc(t)}</option>`, LN = l => { const s = T(LANGS[l]); return s[0].toUpperCase() + s.slice(1); }, l0 = collImportLang();
     api.body.innerHTML = `<p class="hint">${T('Exporte ta collection en CSV depuis ton appli (ManaBox, Moxfield…), puis choisis le fichier.')}</p>
-      <p class="ci-swg"><span>${T('Tu viens de ManaBox ou d\'une autre appli ?')}</span> <button class="link-btn" type="button" data-swg="open">${T('Le guide en 2 minutes')}</button></p>
+      <p class="ci-swg"><span>${T('Ta collection est dans une autre appli ?')}</span> <button class="link-btn" type="button" data-swg="open">${T('Venir de ManaBox')}</button></p>
       <label class="btn block ci-file"><svg class="i"><use href="#i-download"/></svg>${T('Choisir un fichier')}<input type="file" id="ciFile" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label>
       <div class="ci-chip" id="ciChip" hidden><svg class="i" aria-hidden="true"><use href="#i-clip"/></svg><b></b><button class="link-btn" type="button" data-ci="text">${T('Voir le texte')}</button><button class="icon-btn" type="button" data-ci="clear" aria-label="${T('Retirer le fichier')}"><svg class="i"><use href="#i-close"/></svg></button></div>
       <div class="field-in ci-tf"><label class="label" for="ciText">${T('ou colle le texte')}</label><textarea id="ciText" class="ci-text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="3 Sol Ring&#10;1 ${esc(nmExample(true))}"></textarea></div>
@@ -1733,7 +1733,7 @@ function openCollImport(initial) {
       flag.hidden = false; flag.innerHTML = `<svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span>${TN(unk.length, '{n} nom inconnu de Scryfall : {list}. Tu pourras le corriger après l\'import.', '{n} noms inconnus de Scryfall : {list}. Tu pourras les corriger après l\'import.', { list: show })}</span>`;
     };
     ta.oninput = paint; lang.onchange = () => { haptic('tap'); paint(); };
-    $('[data-swg="open"]', api.body).onclick = () => { haptic('tap'); swgOpen({ from: 'import' }); };      // guide « Passer de ManaBox » (switch.js), par-dessus
+    $('[data-swg="open"]', api.body).onclick = () => { haptic('tap'); swgOpen({ from: 'import' }); };      // guide « Venir de ManaBox » (switch.js), par-dessus
     const onFr = () => { if (ta.isConnected) { if (ta.value.trim()) paint(); } else FRN.on.delete(onFr); };
     FRN.on.add(onFr);
     $('#ciFile', api.body).onchange = async e => {

@@ -136,9 +136,9 @@ const EV_HIDE = {
   friends: () => evSheetCls('am-sheet', '.sheet-body') || evSheet('Amis'), 'partie-hist': () => evSheet('Mes parties'), 'open-hist': () => evSheet('Mes ouvertures'),
   'card-text': () => evSheetCls('cs-sheet', '.cs-sec:last-of-type'), 'viewer-find': () => evSheetCls('fetch-sheet', '.sheet-body') || evSheet('Où trouver mes cartes'), 'set-page': () => evDv('setv', '.dv-body') || evDv('setv', '.dv-head'),
   'home-value': () => vis(evHome('.hm-dk-val')), 'coll-places': () => evColl('coll', 'places', '.coll-main'), 'coll-value': () => vis(evColl('coll', 'stats', '.vl-box')),
-  'price-list': () => vis(evView('input', '.panel')), 'viewer-sum': () => vis(evDv('dvw', '.dv-sum')), 'badge-sheet': () => evSheetCls('prg-bs', '.sheet-body'), 'deck-sheet': () => evSheetHas('#dkCover'),
+  'price-list': () => vis(evView('input', '.panel')), 'viewer-sum': () => vis(evDv('dvw', '.dv-sum')), 'badge-sheet': () => evSheetCls('prg-bs', '.sheet-body'), 'deck-sheet': () => evSheetHas('#dkEdit'),
   'deck-cover': () => evSheet('Image du deck'), 'viewer-hand': () => evSheet('Main de départ'), 'deck-share': () => evSheet('Partager le deck'), 'deck-build': () => evDv('bd', '.bd-sum') || evDv('bd', '.dv-head'),
-  'coll-import': () => evSheet('Importer ma collection'), 'help-switch': () => evSheetCls('swg-sheet', '.sheet-body'), 'card-add': () => evSheetCls('cs-addw', '.sheet-body'), 'card-deck': () => evSheetCls('cs-pickw', '.sheet-body'),
+  'coll-import': () => evSheet('Importer un fichier'), 'help-switch': () => evSheetCls('swg-sheet', '.sheet-body'), 'card-add': () => evSheetCls('cs-addw', '.sheet-body'), 'card-deck': () => evSheetCls('cs-pickw', '.sheet-body'),
   'card-ed': () => evSheetCls('ced-sheet', '.sheet-body'), 'card-copy': () => evSheetCls('cex', '.sheet-body'), 'filt-set': () => evSheetCls('fset-sheet', '.sheet-body'), 'coll-image': () => evSheetCls('simg-sheet', '.sheet-body'),
   'coll-prices': () => evSheet('Prix réels'),
 };

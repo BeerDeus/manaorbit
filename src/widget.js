@@ -167,7 +167,7 @@ function widgetSettings(el) {      // dans sa fiche « Widget » (Compte et rég
     <div class="seg" id="segWidgetBtn" role="radiogroup" aria-label="${esc(T('Bouton du widget'))}"></div>
     <p class="hint" id="widgetBgHint"${WGT.bg ? '' : ' hidden'}>${T('Appli fermée, le widget estime la valeur chaque jour d\'après les prix Cardmarket (Wi-Fi de préférence) : « ≈ » et « estimée » jusqu\'à ta prochaine visite.')}</p>
     ${WGT.qr ? `<p class="hint" id="widgetQrHint">${T('Autre widget, « QR code d\'échange » : le QR code de ton lien d\'échange, à faire scanner depuis l\'écran d\'accueil.')}</p>` : ''}`;
-  mountSeg($('#segWidgetBtn', el), [{ v: 'scan', label: T('Scanner'), sub: T('ajouter des cartes') }, { v: 'quick', label: T('Prix rapide'), sub: T('sans les ajouter') }], widgetBtn(), v => {
+  mountSeg($('#segWidgetBtn', el), [{ v: 'scan', label: T('Scanner des cartes'), sub: T('dans ta collection') }, { v: 'quick', label: T('Prix rapide'), sub: T('sans les ajouter') }], widgetBtn(), v => {
     WGT.btn = v === 'quick' ? 'quick' : 'scan';
     try { localStorage.setItem(WGT_BTN_KEY, WGT.btn); } catch (e) { /* stockage indisponible : choix gardé pour cette session */ }
     widgetSoon(0);

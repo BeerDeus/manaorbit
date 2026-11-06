@@ -1,6 +1,6 @@
 /* ── nav.js : barre du bas (Accueil · Collection · Scanner · Échange · Decks) et onglets de la section Decks ───────────────────────────────
    Sections : l'accueil (vue « home »), « Ma collection » (écran coll, onglets Cartes · Stats), « Échange » (même écran, liste d'échange seule),
-   « Decks » : Mes decks (écran dks) · À monter (écran coll, decks EDHREC) · Prix d'une liste (vue « input », l'ancien « Nouveau panier »).
+   « Decks » : Mes decks (écran dks) · Idées de decks (écran coll, decks EDHREC) · Prix d'une liste (vue « input », l'ancien « Nouveau panier »).
    La barre se montre sur l'accueil, la saisie et ces écrans ; elle se cache dès qu'un autre écran passe devant (scan, viewer, éditeur, page
    d'une extension, ajout de cartes, liste publique), pendant le premier lancement et sur les résultats d'une recherche. Le scan s'ouvre par le
    bouton foil du milieu. Passer d'une section à l'autre ne rejoue pas l'animation d'ouverture (classe .inst) et ferme la section quittée. */
@@ -73,7 +73,7 @@ function navGo(t) {
 /* ── Onglets de la section Decks ─────────────────────────────────────────────────────────────────── */
 function dkTabsHtml(cur) {
   const n = typeof allDecks === 'function' ? allDecks().length : 0;
-  return `<nav class="dk-tabs" aria-label="${T('Decks')}">${[['mine', T('Mes decks'), n], ['build', T('À monter'), 0], ['price', T('Prix d\'une liste'), 0]].map(([v, l, c]) => `<button type="button" class="dk-tab" data-dtab="${v}"${v === cur ? ' aria-current="page"' : ''}>${esc(l)}${c ? ` <em>${nf0(c)}</em>` : ''}</button>`).join('')}</nav>`;
+  return `<nav class="dk-tabs" aria-label="${T('Decks')}">${[['mine', T('Mes decks'), n], ['build', T('Idées de decks'), 0], ['price', T('Prix d\'une liste'), 0]].map(([v, l, c]) => `<button type="button" class="dk-tab" data-dtab="${v}"${v === cur ? ' aria-current="page"' : ''}>${esc(l)}${c ? ` <em>${nf0(c)}</em>` : ''}</button>`).join('')}</nav>`;
 }
 function dkTabGo(v) {
   haptic('tap');

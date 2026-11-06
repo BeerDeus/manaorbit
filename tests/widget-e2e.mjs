@@ -107,7 +107,7 @@ const errsAll = [];
   // Réglages › Widget en anglais
   await openMe(p, 'widget'); await p.waitForSelector('#segWidgetBtn .seg-opt');
   assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Widget');
-  assert.deepEqual(await p.$$eval('#segWidgetBtn .seg-opt', l => l.map(b => b.innerText.replace(/\s+/g, ' ').trim())), ['Scan add cards', 'Quick price without adding them']);
+  assert.deepEqual(await p.$$eval('#segWidgetBtn .seg-opt', l => l.map(b => b.innerText.replace(/\s+/g, ' ').trim())), ['Scan cards in your collection', 'Quick price without adding them']);
   await p.context().close();
   // APK dont info() échoue : la ligne de diagnostic reste celle des plugins, sans erreur
   const r = await newPage(browser, world, { init: seed() + shell().replace("info: async () => ({ firebase: true, version: '1.0', build: 1 })", "info: async () => { throw new Error('refusé'); }") }); errsAll.push(r.errs);
@@ -144,7 +144,7 @@ const errsAll = [];
   await openMe(p, 'widget'); await p.waitForSelector('#segWidgetBtn .seg-opt');
   assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Widget');
   assert.deepEqual(await p.$$eval('#segWidgetBtn .seg-opt', l => l.map(b => [b.dataset.v, b.getAttribute('aria-checked'), b.innerText.replace(/\s+/g, ' ').trim()])),
-    [['scan', 'true', 'Scanner ajouter des cartes'], ['quick', 'false', 'Prix rapide sans les ajouter']]);
+    [['scan', 'true', 'Scanner des cartes dans ta collection'], ['quick', 'false', 'Prix rapide sans les ajouter']]);
   assert.equal(await p.$eval('#widgetBgHint', e => e.hidden), true, 'coque sans estimation appli fermée : pas de mention');
   await p.click('#segWidgetBtn [data-v="quick"]');
   await p.waitForFunction(() => window.__mo.calls.length >= 2, null, { timeout: 3000 });

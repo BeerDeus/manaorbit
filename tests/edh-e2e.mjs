@@ -197,18 +197,18 @@ assert.equal(await p.$eval('.sheet-foot a', a => a.href), 'https://edhrec.com/av
 await p.screenshot({ path: 'shots/edh-3-feuille.png' });
 /* ── 4a) actions de la feuille : « Je recherche » (sans doublon, annulable), enregistrer dans Mes decks ; pas d'alertes sans serveur de notifications ── */
 const acts = () => p.$$eval('.dk-acts2 .dk-act', b => b.map(x => [x.dataset.act, x.querySelector('b').textContent, (x.querySelector('small') || { textContent: '' }).textContent, x.disabled]));
-assert.deepEqual(await acts(), [['dksave', 'Enregistrer dans mes decks', '34/100 cartes', false], ['dkwish', 'Ajouter les manquantes à Je recherche', '23 cartes · liste d\'échange', false]], 'exemplaires (8 Plains compris), « /100 » ; pas de « Surveiller leurs prix » : alertes indisponibles ici');
+assert.deepEqual(await acts(), [['dksave', 'Enregistrer dans mes decks', '34/100 cartes', false], ['dkwish', 'Mettre dans Je recherche', '23 cartes · liste d\'échange', false]], 'exemplaires (8 Plains compris), « /100 » ; pas de « Surveiller leurs prix » : alertes indisponibles ici');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
 await p.evaluate(() => { TR.wish = { 'swords to plowshares': { n: 'Swords to Plowshares', q: 1 }, 'mana crypt': { n: 'Mana Crypt', q: 2 } }; trChanged(); });      // Swords déjà recherchée
 await p.click('.crow.dk >> nth=1'); await p.waitForSelector('.dk-acts2 .dk-act');
-assert.deepEqual((await acts())[1], ['dkwish', 'Ajouter les manquantes à Je recherche', '22 cartes · liste d\'échange', false], 'Swords déjà dans « Je recherche » : pas comptée');
+assert.deepEqual((await acts())[1], ['dkwish', 'Mettre dans Je recherche', '22 cartes · liste d\'échange', false], 'Swords déjà dans « Je recherche » : pas comptée');
 await p.click('.dk-act[data-act="dkwish"]'); assert.equal(await txt(p, '#toast'), '22 cartes ajoutées à Je recherche Annuler');
 let wish = await p.evaluate(() => TR.wish);
 assert.equal(Object.keys(wish).length, 24); assert.equal(wish['swords to plowshares'].q, 1, 'pas en double'); assert.equal(wish['mana crypt'].q, 2, 'souhait sans rapport : intact'); assert.deepEqual(wish['command tower'], { n: 'Command Tower', q: 1 }); assert.equal(wish['filler 19'].n, 'Filler 19');
 assert.deepEqual((await acts())[1], ['dkwish', 'Manquantes dans Je recherche', 'Ta liste d\'échange les recherche déjà', true], 'fait : coché, inactif');
 assert.equal(await p.evaluate(() => trState().want.filter(x => /^filler /.test(x.k)).length), 20, '« Je recherche » de l\'onglet Échange : les 20 fillers y sont');
 await p.click('#toast .toast-act'); assert.deepEqual(Object.keys(await p.evaluate(() => TR.wish)).sort(), ['mana crypt', 'swords to plowshares'], 'Annuler : liste d\'avant'); assert.equal((await acts())[1][3], false);
-// ajoutées puis deck enregistré : venu d'À monter, le deck ne suit pas ses manquantes (« Suivre les cartes manquantes » éteint) : les souhaits ajoutés par la feuille restent
+// ajoutées puis deck enregistré : venu d'À monter, le deck ne suit pas ses manquantes (« Mettre dans Je recherche » éteint) : les souhaits ajoutés par la feuille restent
 await p.click('.dk-act[data-act="dkwish"]'); await p.click('.dk-act[data-act="dksave"]'); assert.equal(await txt(p, '#toast'), '« Edgar Markov » ajouté à Mes decks Voir');
 const saved = await p.evaluate(() => allDecks().map(d => ({ name: d.name, text: d.text, n: dkCountText(d.text), eng: engIsOn(d.id) })));
 assert.equal(saved.length, 1); assert.equal(saved[0].name, 'Edgar Markov'); assert.match(saved[0].text, /^\/\/ Deck Deal from : edh\nCommander\n1 Edgar Markov\n\n1 Sol Ring\n/); assert.equal(saved[0].n, '34/100 cartes'); assert.equal(saved[0].eng, false, 'pas monté : ses cartes ne sont pas réservées');
@@ -223,7 +223,7 @@ await p.evaluate(() => closeDecks()); await p.waitForFunction(() => !document.qu
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk');
 await p.click('.crow.dk >> nth=1'); await p.waitForSelector('.dk-acts2 .dk-act'); assert.deepEqual((await acts())[0], ['dksave', 'Dans mes decks', 'Enregistré sous « Edgar Markov »', true], 'reconnu à la réouverture (même liste)');
 await p.evaluate(() => { TR.wish = {}; trChanged(); });
-ok('feuille d\'un deck : « Ajouter les manquantes à Je recherche » (22 + Swords déjà là, sans doublon, Annuler), « Enregistrer dans mes decks » (34/100, non monté, souhaits de la feuille repris par le deck), état gardé');
+ok('feuille d\'un deck : « Mettre dans Je recherche » (22 + Swords déjà là, sans doublon, Annuler), « Enregistrer dans mes decks » (34/100, non monté, souhaits de la feuille repris par le deck), état gardé');
 // « Voir le deck » : la fiche se ferme, le viewer s'ouvre (images, courbe, main de départ)
 await p.click('.sheet [data-act="dkview"]'); await p.waitForSelector('.dv.on[aria-label="Deck viewer · Edgar Markov"]');
 await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
@@ -256,7 +256,7 @@ ok('feuille : commandant(s) toujours en tête (Tymna + Thrasios), prix ou ✓ / 
 await p.click('#dkGo'); await p.waitForSelector('#deckText', { state: 'visible' }); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 4000 });
 const text = await p.inputValue('#deckText'); assert.match(text, /^Commander\n1 Edgar Markov\n\n1 Sol Ring\n/); assert.match(text, /\n8 Plains\n/);
 assert.equal(await p.$eval('#optColl', c => c.checked), true, 'collection déduite'); assert.match(await txt(p, '#collHint'), /3 cartes de cette liste sont dans ta collection/);
-ok('feuille : 23 cartes à acheter (la plus chère d\'abord), lien EDHREC sûr ; « Chercher les manquantes » charge le deck, collection déduite');
+ok('feuille : 23 cartes à acheter (la plus chère d\'abord), lien EDHREC sûr ; « Chercher les offres » charge le deck, collection déduite');
 
 /* ── 5) cache : une 2e ouverture ne retélécharge pas ; fichier absent → message + repli ─────── */
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk'); assert.equal(hits, 1, 'copie locale (moins de 6 jours)');

@@ -135,7 +135,7 @@ async function openPubSheet(deckId) {
     const paint = () => {
       const cur = mine && mine.get(d.id), used = mine ? mine.size : 0, sig = ci != null && chk.cmd.length ? pdDocSig({ by: PROF.name, cmd: chk.pub.cmd, ci, cards: chk.pub.cards }) : 0;
       const badName = !!PROF.name && !!pubBad(PROF.name), can = !chk.why.length && !!PROF.name && !badName && ci != null && unk !== undefined && !(unk && unk.length) && mine && (cur || used < PUB_MAX) && CTX.pub !== false;
-      b.innerHTML = `<p class="hint pub-intro">${T('Ton deck apparaît dans Decks › À monter, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l\'enregistrer. C\'est une copie : « Mettre à jour » envoie la liste du moment.')}</p>
+      b.innerHTML = `<p class="hint pub-intro">${T('Ton deck apparaît dans Decks › Idées de decks, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l\'enregistrer. C\'est une copie : « Mettre à jour » envoie la liste du moment.')}</p>
         <ul class="pub-checks">
           ${li(chk.cmd.length > 0 && ci !== null, chk.cmd.length ? T('Commandant : {name}', { name: esc(chk.cmd.map(c => c.name).join(' + ')) }) + (ci === undefined ? ' · ' + T('couleurs…') : ci === null ? ' · ' + T('couleurs inconnues (hors ligne ?)') : ci ? ' · ' + esc(ci) : ' · ' + T('incolore')) : esc(chk.why[0]))}
           ${li(chk.pub.n === PUB_SIZE, chk.pub.n === PUB_SIZE ? T('100 cartes, commandant compris') : T('Il faut 100 cartes pile, commandant compris : ce deck en a {n}.', { n: nf0(chk.pub.n) }))}
@@ -144,7 +144,7 @@ async function openPubSheet(deckId) {
           ${chk.long ? li(false, T('Liste trop longue.')) : ''}${chk.bad ? li(false, T('Nom refusé dans la liste : « {name} »', { name: esc(chk.bad) })) : ''}
           ${li(!mine || !!cur || used < PUB_MAX, mine ? T('{n} / {max} decks publiés', { n: nf0(used), max: PUB_MAX }) + (!cur && used >= PUB_MAX ? ' · ' + T('retire-en un pour publier celui-ci') : '') : T('Lecture de tes decks publiés…'))}
         </ul>
-        ${CTX.pub === false ? `<p class="hint pub-off">${T('Ce serveur ne relaie pas encore les decks publics : ils n\'apparaîtront pas dans À monter.')}</p>` : ''}
+        ${CTX.pub === false ? `<p class="hint pub-off">${T('Ce serveur ne relaie pas encore les decks publics : ils n\'apparaîtront pas dans Idées de decks.')}</p>` : ''}
         ${cur ? `<p class="hint pub-state">${T('Publié le {date}', { date: esc(new Date(cur.at).toLocaleDateString(LOC())) })}${cur.sig !== sig && sig ? ' · ' + T('la liste a changé depuis') : ''}</p>` : ''}
         ${cur ? (b => (b ? `<p class="pub-dsc">${b}</p>` : ''))(pdDscBtn('btn ghost', 'data-pub="dsc"')) : ''}
         <p class="hint pub-rules">${T('Pas de contenu offensant dans le pseudo ou le nom : un deck signalé plusieurs fois est retiré.')}</p>
@@ -168,7 +168,7 @@ async function openPubSheet(deckId) {
           const id = cur ? cur.id : pdSlot(tag, mine); if (!id) { busy = false; say(T('{max} decks publiés au plus : retire-en un pour publier celui-ci.', { max: PUB_MAX })); return; }
           const data = { o: tag, by: PROF.name, deck: d.id, name: String(d.name || '').slice(0, 120), cmd: chk.pub.cmd, ci, cards: chk.pub.cards, updatedAt: Date.now(), v: 1 };
           await D.cloud.pubSave(id, data); mine.set(d.id, { id, at: data.updatedAt, sig: pdDocSig(data) }); haptic('ok'); if (typeof prgSoon === 'function') prgSoon('deck');
-          msg = cur ? T('Deck mis à jour : visible dans À monter d\'ici quelques minutes') : T('Deck publié : visible dans À monter d\'ici quelques minutes');
+          msg = cur ? T('Deck mis à jour : visible dans Idées de decks d\'ici quelques minutes') : T('Deck publié : visible dans Idées de decks d\'ici quelques minutes');
         }
         pdFetch(true).then(list => { if (list) pdApply(pdShown(list)); });
         dvPubPaint();
@@ -230,7 +230,7 @@ function pdListSheet() {
           : `<div class="me-row"><span class="me-t">${T('Deck supprimé de Mes decks')}</span><button type="button" class="link-btn" data-pdrop="${esc(deckId)}">${T('Retirer')}</button></div>`;
       });
       b.innerHTML = `<p class="hint">${T('{n} / {max} decks publiés', { n: nf0(m.size), max: PUB_MAX })}</p>${rows.length ? `<div class="me-g">${rows.join('')}</div>` : ''}
-        <p class="hint">${T('Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › À monter, type « Communauté ».')}</p>`;
+        <p class="hint">${T('Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › Idées de decks, type « Communauté ».')}</p>`;
     };
     b.innerHTML = `<p class="hint">${T('Lecture de tes decks publiés…')}</p>`;
     pdMine(true).then(paint, () => { b.innerHTML = `<p class="hint">${T('Tes decks publiés sont illisibles : réessaie en ligne.')}</p>`; });

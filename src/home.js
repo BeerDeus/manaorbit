@@ -1,7 +1,7 @@
 /* ── home.js : page d'accueil (section Accueil de la barre du bas, nav.js) ─────────────────────────────────────────────────────────────────
    · Orbe « Ma collection » : valeur (prix tendance Cardmarket), cartes, variation sur 7 jours ; les 5 terrains de base tournent autour
      (illustration de ceux de la collection s'ils y sont, sinon la fiche Scryfall, lue une fois), sur une orbite en pointillés.
-   · Collection vide (hors mode streamer) : carte « Pour commencer » sous l'orbe (Scanner, Ajouter une carte, Importer, « Je viens de ManaBox » : guide de switch.js) à la place
+   · Collection vide (hors mode streamer) : carte « Pour commencer » sous l'orbe (Scanner des cartes, Ajouter des cartes, Importer un fichier, « Venir de ManaBox » : guide de switch.js) à la place
      de la ligne #collSub ; sur ordinateur, elle prend la case de la courbe de valeur (rien à tracer).
    · Carte « Échange » : doublons, cartes recherchées, lien en direct ; QR code et Partager (le lien est créé au besoin), remplacés par une phrase tant que
      la collection est vide (ni carte recherchée, ni lien déjà créé) ;
@@ -195,8 +195,8 @@ function homeInit() {
     const a = b.dataset.hm; if (a === 'scan') { navGo('scan'); return; }
     haptic('tap');
     if (a === 'import') openCollImport();
-    else if (a === 'add') openLot();      // « Ajouter une carte » (accueil vide) : la saisie par le nom, sans passer par la collection
-    else if (a === 'swg') swgOpen({ from: 'home' });      // « Je viens de ManaBox » (switch.js)
+    else if (a === 'add') openLot();      // « Ajouter des cartes » (accueil vide) : la saisie par le nom, sans passer par la collection
+    else if (a === 'swg') swgOpen({ from: 'home' });      // « Venir de ManaBox » (switch.js)
     else if (a === 'stats') navOpen(() => openCollection('stats'));
     else if (a === 'price' || a === 'build') dkTabGo(a);
   });

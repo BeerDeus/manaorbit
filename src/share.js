@@ -93,7 +93,7 @@ async function trPush() {
 
 /* ── Listes ────────────────────────────────────────────────────────────────────────────────────── */
 const trDeckTexts = () => allDecks().map(d => d.text || '');
-/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Suivre les cartes manquantes » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
+/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Mettre dans Je recherche » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
 const trWantTexts = () => allDecks().filter(d => dkTrack(d.text)).map(d => d.text || '');
 function trState() {
   const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places);
@@ -666,8 +666,8 @@ function pubMatchHtml(P) {
   let top = '';
   if (!D.user) top = `<div class="tr-box pub-cta"><b>${T('Ce que vous pouvez échanger')}</b>
       <p class="hint">${empty ? T('Ajoute ta collection pour voir ce que vous pouvez échanger : tes doublons et les cartes que tu cherches sont comparés à cette liste.') : T('Calculé avec la collection de cet appareil. Connecte-toi pour utiliser celle de ton compte.')}</p>
-      <button class="btn block" type="button" data-act="login">${T('Se connecter pour voir vos correspondances')}</button>${empty ? `<button class="btn ghost block" type="button" data-act="import">${T('Importer ma collection')}</button>` : ''}</div>`;
-  else if (empty) top = `<div class="tr-box pub-cta"><b>${T('Ce que vous pouvez échanger')}</b><p class="hint">${T('Ajoute ta collection pour voir ce que vous pouvez échanger.')}</p><button class="btn block" type="button" data-act="import">${T('Importer ma collection')}</button></div>`;
+      <button class="btn block" type="button" data-act="login">${T('Se connecter pour voir vos correspondances')}</button>${empty ? `<button class="btn ghost block" type="button" data-act="import">${T('Importer un fichier')}</button>` : ''}</div>`;
+  else if (empty) top = `<div class="tr-box pub-cta"><b>${T('Ce que vous pouvez échanger')}</b><p class="hint">${T('Ajoute ta collection pour voir ce que vous pouvez échanger.')}</p><button class="btn block" type="button" data-act="import">${T('Importer un fichier')}</button></div>`;
   if (empty) return top;
   const block = side => {
     const list = m[side], s = m.sum[side];

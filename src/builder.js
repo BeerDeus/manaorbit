@@ -1,7 +1,7 @@
 /* ── builder.js : créer un deck dans l'app (Standard ou Commander) ────────────────────────────────
    Écran plein format : onglets Deck · Collection (ajout en priorité) · Chercher (n'importe quelle carte).
    Règles : Standard 60 cartes, 4 exemplaires max (réserve de 15 facultative) ; Commander 100 cartes, une seule de chaque, un commandant.
-   Le deck est enregistré comme les autres (texte), puis monté : ses cartes possédées sont réservées. */
+   Le deck est enregistré comme les autres (texte), sans réservation : le toast propose « Réserver mes N cartes » (deck monté) ; un deck déjà monté suit sa liste. */
 /** Infos Scryfall des cartes de decks qui ne sont pas dans la collection : la fiche entière de data.js › scryCollection ({ eu, ef, ci, cd, im, cm, mc, tl, cl, ar, rr,
  *  lg (formats où elle est légale), la (jour de cette lecture), gc (Game Changer d'après Scryfall) }), gardée sur l'appareil (prix du deck, couleurs, images, légalité, viewer).
  *  Fiches d'avant le 5 novembre (sans lg) : gardées telles quelles, complétées à la prochaine lecture de leur deck (dmMissing). */
@@ -192,7 +192,7 @@ function openDeckNew() {
       <div class="bd-sc-opts nd-opts">${opt('hand', 'i-plus', T('À la main'), T('Choisis les cartes dans ta collection ou dans la recherche.'))}
         ${opt('paste', 'i-clip', T('Coller la liste'), T('Depuis Moxfield, Archidekt, MTGA… une carte par ligne.'))}
         ${opt('scan', 'i-camera', T('Scanner le deck'), T('Tes cartes déjà dans ta collection sont réservées pour ce deck, les autres y sont ajoutées : rien en double.'))}
-        <span class="nd-wiz">${opt('wiz', 'i-bolt', T('Assistant'), T('Tu prévois de le monter : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.'))}</span></div>`;
+        <span class="nd-wiz">${opt('wiz', 'i-bolt', T('Assistant'), T('Pour un nouveau deck : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.'))}</span></div>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
     const seg = $('#ndFmt', api.body), hint = $('#ndHint', api.body), name = $('#ndName', api.body), wiz = $('.nd-wiz', api.body);
     const paint = () => { const fmt = seg._v || 'standard'; hint.textContent = DK_FORMATS[fmt].hint; wiz.hidden = !(fmt === 'commander' && typeof dwOn === 'function' && dwOn() && typeof openDeckWiz === 'function'); };
@@ -587,7 +587,7 @@ function bdList() {
 /** Ordinateur : écran large et souris (même requête que zz-desktop.css et la barre latérale, nav.js). */
 const bdSplit = () => { try { return matchMedia('(min-width:1100px) and (hover:hover) and (pointer:fine)').matches; } catch (e) { return false; } };
 /** Nom du deck et « Scanner des cartes » (onglet Deck ; sur ordinateur, au-dessus de la liste du deck, et le scan va alors dans le deck). */
-const bdNameCtl = () => `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div><button class="btn ghost block bd-scan" type="button" data-act="scan"${BD.split ? ' data-tgt="main"' : ''} aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg><span>${T('Scanner des cartes')}</span></button>`;
+const bdNameCtl = () => `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div><button class="btn ghost block bd-scan" type="button" data-act="scan"${BD.split ? ' data-tgt="main"' : ''} aria-label="${T('Scanner le deck')}" title="${T('Scanner le deck')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg><span>${T('Scanner le deck')}</span></button>`;
 function bdPaint() {
   const el = BD.el; if (!el) return;
   bdHead(); $('#bdSum', el).innerHTML = bdSumHtml(); bdList();
@@ -602,7 +602,7 @@ function bdTab(v) {
   const el = BD.el; if (!el) return;
   BD.tab = v; BD.q = BD.f.q = ''; BD.shown = BD_PAGE; BD.fb = null; if (v !== 'coll') { BD.sel = null; bdSelPaint(); }
   const ctl = $('#bdCtl', el); $('#bdSeg', el).setValue(v);
-  const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
+  const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner le deck')}" title="${T('Scanner le deck')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
   if (v === 'deck') ctl.innerHTML = bdNameCtl();
   else if (v === 'coach') ctl.innerHTML = '';
   else {
@@ -661,7 +661,7 @@ function bdClick(e) {
   else if (act === 'pick-cmdr') { BD.tgt = 'cmdr'; $('#bdSeg', BD.el).setValue('coll'); bdTab('coll'); haptic('tap'); }
 }
 
-/* ── Enregistrement : comme un deck normal, puis monté ────────────────────────────────────────── */
+/* ── Enregistrement : comme un deck normal, réservation proposée ────────────────────────────────────────── */
 function bdSave() {
   const ck = bdCheck();
   if (!ck.n) { toast(T('Ajoute d\'abord des cartes')); return; }
@@ -675,7 +675,7 @@ function bdSave() {
   if (typeof dwSaved === 'function') dwSaved(id);      // réglages du coach (thèmes, bracket, budget) gardés avec le deck
   let reserved = 0;
   if (prev) engRefresh(id, name, text);                                   // deck déjà monté : ses cartes réservées suivent la liste
-  else { const q = engSnapshot(text, collQty); reserved = Object.values(q).reduce((a, x) => a + x, 0); if (reserved) engSet(id, name, text); }      // nouveau deck : monté automatiquement
+  else reserved = Object.values(engSnapshot(text, collQty)).reduce((a, x) => a + x, 0);      // nouveau deck : rien de réservé d'office, le toast le propose
   let ranged = 0, place = '';
   if (BD.scanPref && BD.scanPref.size && typeof plcMount === 'function' && Object.values(engSnapshot(text, collQty)).some(q => q > 0)) {      // deck scanné : monté et rangé dans « Deck : … »
     if (!engIsOn(id)) engSet(id, name, text);
@@ -685,7 +685,14 @@ function bdSave() {
   if (S.deckId === id) { $('#deckText').value = text; refreshDeck(); updateSaveButtons(); }
   const nb = ck.issues.filter(i => i.lv === 'bad' || i.lv === 'warn').length;
   bdClose(true); haptic('ok');
-  const msg = (prev ? T('Deck mis à jour') : T('Deck créé') + (reserved && !ranged ? ' · ' + TN(reserved, '{n} carte réservée de ta collection', '{n} cartes réservées de ta collection') : ''))
-    + (ranged ? ' · ' + TN(ranged, '{n} carte rangée dans « {place} »', '{n} cartes rangées dans « {place} »', { place }) : '');
-  toast(nb && !prev ? msg + ' · ' + T('incomplet') : msg, { label: T('Ouvrir'), fn: () => loadDeck(id) });
+  const msg = (prev ? T('Deck mis à jour') : T('Deck créé')) + (ranged ? ' · ' + TN(ranged, '{n} carte rangée dans « {place} »', '{n} cartes rangées dans « {place} »', { place }) : '');
+  const reserve = reserved && !engIsOn(id) ? { label: TN(reserved, 'Réserver ma carte', 'Réserver mes {n} cartes'), fn: () => bdReserve(id, name, text) } : null;      // le joueur choisit (avant : monté sans le demander)
+  toast(nb && !prev ? msg + ' · ' + T('incomplet') : msg, reserve || { label: T('Ouvrir'), fn: () => loadDeck(id) });
+}
+/** Action du toast d'enregistrement : monte le deck (cartes possédées réservées, extras.js › engSet) ; name, text : ceux enregistrés (deck du compte pas encore relu). */
+function bdReserve(id, name, text) {
+  if (engIsOn(id)) return;
+  const d = findDeck(id) || { name, text };
+  if (!Object.keys(engSnapshot(d.text, collQty)).length) { toast(T('Aucune carte de ce deck n\'est dans ta collection')); return; }
+  engSet(id, d.name, d.text); haptic('ok'); toast(T('Deck monté : cartes réservées'));
 }

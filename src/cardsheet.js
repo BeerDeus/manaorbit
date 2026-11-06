@@ -232,7 +232,7 @@ function csDecksHtml(k) {
 function csTrade(k, x) {
   if (BASIC_NAMES.has(k) || typeof TR === 'undefined') return null;
   const use = deckUse(trDeckTexts()), one = x ? { [k]: x } : {}, tl = tradeLists(one, use, TR.keep, TR.kept, COLL.places);
-  const wu = typeof trWantTexts === 'function' ? deckUse(trWantTexts()) : use, w = tradeWant(one, new Map(wu.has(k) ? [[k, wu.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;      // decks suivis seulement (« Suivre les cartes manquantes »)
+  const wu = typeof trWantTexts === 'function' ? deckUse(trWantTexts()) : use, w = tradeWant(one, new Map(wu.has(k) ? [[k, wu.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;      // decks suivis seulement (« Mettre dans Je recherche »)
   return { have: tl.have[0] || null, held: tl.held[0] || null, kept: TR.kept.has(k), want: w };
 }
 function csTradeHtml(k, x) {
@@ -248,14 +248,14 @@ function csTradeHtml(k, x) {
 }
 function csActsHtml(k, x) {
   const al = alAvail(), w = AC.watch[k];
-  const watch = al ? `<button type="button" class="btn ghost small${w ? ' on' : ''}" data-cs="watch" aria-pressed="${!!w}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg>${esc(w ? (w.u ? T('Prix suivi : hausse et baisse') : T('Prix suivi : baisse')) : T('Suivre le prix'))}</button>` : '';
+  const watch = al ? `<button type="button" class="btn ghost small${w ? ' on' : ''}" data-cs="watch" aria-pressed="${!!w}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg>${esc(w ? (w.u ? T('Alerte de prix : hausse et baisse') : T('Alerte de prix : baisse')) : T('Alerte de prix'))}</button>` : '';
   const px = COLL.px[k], bp = px && px.b > 0 ? px.b : 0;
   return `<section class="cs-sec"><h3 class="cs-h">${T('Actions')}</h3><div class="cs-acts">${watch}
     <button type="button" class="btn ghost small" data-cs="adddeck"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg>${T('Ajouter à un deck')}</button>
     <a class="btn ghost small" href="${esc(mkUrl(CS.n, userLang()))}" target="_blank" rel="noopener noreferrer">${mkName()} ↗</a>
     ${bp ? `<a class="btn ghost small" href="${esc(ctCardUrl(bp))}" target="_blank" rel="noopener noreferrer">CardTrader ↗</a>` : ''}
     <button type="button" class="btn ghost small" data-cs="share"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager')}</button></div>
-    ${!al ? `<p class="hint">${esc(S.demo ? T('Suivre le prix : indisponible en mode démo.') : T('Suivre le prix : il faut le serveur Mana Orbit et les notifications.'))}</p>` : ''}</section>`;
+    ${!al ? `<p class="hint">${esc(S.demo ? T('Alerte de prix : indisponible en mode démo.') : T('Alerte de prix : il faut le serveur Mana Orbit et les notifications.'))}</p>` : ''}</section>`;
 }
 function csPaint() {
   if (!csOpen()) return;
@@ -318,7 +318,7 @@ function csZoom(k) {
   const wl = l ? (l !== 'en' ? l : '') : wantLang();      // langue non précisée : celle de l'appli (anglaise si Scryfall ne l'a pas)
   openCardViewer([m && m.im ? { key: k, name: frName(k, l) || CS.n, ln: CS.n, wl, small: m.im, lang: 'en', plain: true, extra: '' } : zoomNamed(k, frName(k, l) || CS.n, CS.n, wl)], 0);
 }
-/** « Suivre le prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
+/** « Alerte de prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
 async function csWatch(k, b) {
   const w = AC.watch[k];
   if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: T('Annuler'), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }

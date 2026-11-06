@@ -1,10 +1,6 @@
 {
-  "Scanner tes cartes": "Scansiona le tue carte",
   "Ta liste d'échange": "La tua lista di scambi",
   "« + » ouvre « Ajouter des cartes » : active le scan mobile, puis scanne avec ton téléphone connecté au même compte. Chaque carte arrive ici.": "«+» apre «Aggiungi carte»: attiva la scansione mobile, poi scansiona col telefono collegato allo stesso account. Ogni carta arriva qui.",
-  "Decks › À monter": "Mazzi › Da costruire",
-  "Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "I mazzi Commander che la tua collezione quasi completa, con le carte mancanti e il loro prezzo. E Comunità: i mazzi pubblicati dai giocatori.",
-  "Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix.": "I mazzi Commander che la tua collezione quasi completa, con le carte mancanti e il loro prezzo.",
   "Il faut un compte.": "Serve un account.",
   "Colle une decklist (EDHREC, Moxfield, Archidekt…) : le prix de chaque carte, sans celles que tu as déjà, ou le panier CardTrader le moins cher.": "Incolla una lista (EDHREC, Moxfield, Archidekt…): il prezzo di ogni carta, senza quelle che hai già, o il carrello CardTrader più economico.",
   "Stats, deck, liste d'échange, bilan d'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.": "Stats, mazzo, lista di scambi, bilancio di apertura: «Condividi come immagine» ne fa una bella immagine da inviare o pubblicare.",
@@ -38,7 +34,6 @@
   "Astuce": "Suggerimento",
   "Touche ce rond et vise le nom de la carte : elle rejoint ta collection. Ses réglages (édition, mode Auto) sont en haut du scan.": "Tocca questo cerchio e inquadra il nome della carta: entra nella tua collezione. Le impostazioni (edizione, modalità Auto) sono in alto nella scansione.",
   "Tu ouvres des boosters ? Lance une session ici : prix payé, mode streamer, puis le bilan (gain ou perte, meilleures cartes) à partager.": "Apri buste? Avvia qui una sessione: prezzo pagato, modalità streamer, poi il bilancio (guadagno o perdita, carte migliori) da condividere.",
-  "Importer ta collection": "Importa la tua collezione",
   "Ta collection est déjà ailleurs (ManaBox, Moxfield, un tableur) ? Importe son fichier CSV : tout arrive d'un coup.": "La tua collezione è già altrove (ManaBox, Moxfield, un foglio di calcolo)? Importa il suo file CSV: arriva tutto in una volta.",
   "Ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches, toujours à jour.": "Il tuo link pubblico e il suo codice QR: un altro giocatore vede i tuoi doppioni e le carte che cerchi, sempre aggiornati.",
   "Avec un compte, ton lien public et son QR code montrent tes doublons et les cartes que tu cherches.": "Con un account, il tuo link pubblico e il suo codice QR mostrano i tuoi doppioni e le carte che cerchi.",
