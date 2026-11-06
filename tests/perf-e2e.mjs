@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import { chromium } from './e2e-world.mjs';
 
 const N = 5000, CPU = 4, URL0 = 'file://' + process.cwd() + '/deck-deal.html';
+const PLUS_MAX = 450;      // « + » d'une carte (mesuré ~115 – 165 ms, CPU ×4)
 const A = ['Æther', 'Élan', 'elan', 'Bol', 'Cra', 'Dre', 'Écume', 'Fyr', 'Gor', 'Hal', 'Ith', 'Jun', 'Kor', 'Lum', 'Mor', 'Nex', 'Œil', 'Pyr', 'Qua', 'Rav', 'Sol', 'Tir', 'Umb', 'Vex', 'Wyr', 'Zéphyr'];
 const names = Array.from({ length: N }, (_, i) => `${A[i % 26]}${A[(i * 7 + 3) % 26].toLowerCase()} ${i % 97} of ${A[(i * 11) % 26]}${A[(i * 5 + 1) % 26].toLowerCase()} ${i}`);
 const LANGS = ['FR', 'EN', 'DE', '', 'FR', 'IT'];
@@ -57,6 +58,15 @@ const timed = (p, src) => p.evaluate(async s => { const t = performance.now(); a
   assert.ok(Math.max(...more) < 400, `« Afficher plus » : ${more.join(', ')} ms (budget 400)`);
   assert.ok(more1200 < 500, `« Afficher plus » à 1 200 lignes : ${more1200} ms (budget 500)`);
   await p.evaluate(() => { COLL.shown = COLL_PAGE; collPaintBody(true); }); await p.waitForTimeout(400);
+  // « + » d'une ligne (vue détaillée ; collBump → collChanged) : un enregistrement sur l'appareil, sans refaire le texte de la base (collection déjà synchronisée :
+  // base = la collection), valeur de la collection calculée une fois pour l'en-tête et l'accueil (collValue, COLL.seq). 6 nov. 2026, CPU ×4 : ~160 → ~125 ms.
+  await p.evaluate(() => { CVW.v = 'detail'; COLL.base = collDocClone(collDocNow()); COLL.s = 'perf'; collPaintBody(true); }); await p.waitForTimeout(600);
+  const plus = []; for (let i = 0; i < 4; i++) { plus.push(await timed(p, `() => document.querySelector('.coll-list .crow .qstep button[data-d="1"]').click()`)); await p.waitForTimeout(300); }
+  const plusQ = await p.evaluate(() => { const r = document.querySelector('.coll-list .crow'); return { q: COLL.map[r.dataset.k].q, disk: JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t.length > 0 }; });
+  console.log(JSON.stringify({ plus, plusQ }));
+  assert.ok(plusQ.q >= 5 && plusQ.disk, `« + » : 4 exemplaires ajoutés et enregistrés (${JSON.stringify(plusQ)})`);
+  assert.ok(Math.max(...plus) < PLUS_MAX, `« + » d'une carte : ${plus.join(', ')} ms (budget ${PLUS_MAX})`);
+  await p.evaluate(() => { CVW.v = 'compact'; COLL.base = null; COLL.s = ''; collPaintBody(true); }); await p.waitForTimeout(400);
   // panneau des filtres (filters.js) : 1re ouverture (style et mise en page préparés au repos : fltWarmSoon ; symboles de mana en SVG), pastilles (liste triée gardée : collSortIn), fermeture
   const fopen = await p.evaluate(() => new Promise(res => { const b = document.querySelector('.coll .fbtn'), t0 = performance.now(); b.click(); document.body.offsetHeight; const t1 = performance.now();
     requestAnimationFrame(() => setTimeout(() => res({ sync: Math.round(t1 - t0), frame: Math.round(performance.now() - t0), open: !document.querySelector('.coll .fpanel').hidden }), 0)); }));

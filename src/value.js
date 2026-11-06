@@ -53,7 +53,7 @@ function prcApply(data) {
 }
 /** Prix partagés pour une carte (k) ou une édition (ed) lue après eux sur cet appareil : ceux du relevé du compte, pas ceux du moment. */
 function prcOver(k, ed) {
-  const s = VAL.shared; if (!s) return;
+  const s = VAL.shared; if (!s) return; COLL.pv++;
   const num = v => (Number.isFinite(v) && v > 0 ? Math.round(v) : null), pair = v => Array.isArray(v) && v.length === 2;
   if (k && COLL.meta[k] && pair(s.p[k])) COLL.meta[k] = { ...COLL.meta[k], eu: num(s.p[k][0]), ef: num(s.p[k][1]) };
   if (ed && COLL.ed[ed] && !COLL.ed[ed].none && pair(s.e[ed])) COLL.ed[ed] = { ...COLL.ed[ed], eu: num(s.e[ed][0]), ef: num(s.e[ed][1]) };

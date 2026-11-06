@@ -173,7 +173,20 @@ const before4 = await p.evaluate(() => JSON.stringify(COLL.map));
 await p.evaluate(() => { COLL.base = collDocClone(collDocNow()); COLL.cloud = 'ok'; collFromCloud('u1', { text: '2 Sol Ring', count: 1, updatedAt: Date.now() + 5000 }, false, false); });
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 1); assert.match(await txt(p, '#toast'), /Autre appareil : −3 cartes/);
 assert.equal((await rows())[0].q, 2, 'quantité du compte'); assert.equal(await p.evaluate(() => sameDoc(COLL.base, collDocFromText('2 Sol Ring'))), true, 'base = dernier état du compte');
+// texte du compte gardé avec la base (enregistrement sans le refaire) ; écho du même texte : la base reprise telle quelle, sans relire le texte
+assert.deepEqual(await p.evaluate(() => { const b0 = COLL.base, r = JSON.parse(localStorage.getItem('deckdeal:coll:v1')).b; collFromCloud('u1', { text: '2 Sol Ring', count: 1, updatedAt: Date.now() + 6000 }, false, false); return [r, COLL.base === b0, collUnsynced()]; }), ['2 Sol Ring', true, false], 'texte de la base gardé, écho sans nouvelle lecture');
 await p.evaluate(m => { COLL.map = JSON.parse(m); collChanged({ push: false }); }, before4); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4);
+// plusieurs cartes d'un coup (scan, scan mobile) : un seul enregistrement ; valeur de la collection gardée tant que rien ne change, recalculée après un « + » ou un prix
+const bat = await p.evaluate(() => {
+  const set0 = Storage.prototype.setItem; let n = 0; Storage.prototype.setItem = function (k, v) { if (k === 'deckdeal:coll:v1') n++; return set0.call(this, k, v); };
+  const v0 = collValue(), m0 = COLL.valMemo, kept = collValue() === v0 && COLL.valMemo === m0;
+  try { collBatch(() => { collBump('zz perf test', 'ZZ Perf Test', 1, { paint: false, push: false }); collBump('zz perf test', 'ZZ Perf Test', 2, { paint: false, push: false }); collBump('sol ring', 'Sol Ring', 1, { push: false }); }); } finally { Storage.prototype.setItem = set0; }
+  const v1 = collValue(), fresh = COLL.valMemo !== m0 && COLL.valMemo.seq === COLL.seq;
+  COLL.meta['zz perf test'] = { ...(COLL.meta['zz perf test'] || {}), eu: 123456 }; collMetaSave();
+  return { n, kept, fresh, q: collQty('zz perf test'), priced: collValue() - v1 >= 3 * 123456 - 1 };
+});
+assert.deepEqual(bat, { n: 1, kept: true, fresh: true, q: 3, priced: true }, 'collBatch : un enregistrement ; collValue gardée puis suivie');
+await p.evaluate(m => { COLL.map = JSON.parse(m); delete COLL.meta['zz perf test']; collChanged({ push: false }); }, before4); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4);
 ok('sauvegarde : bandeau clair (appareil / compte / erreur), export .txt réimportable, changements d\'un autre appareil appliqués carte par carte');
 await p.evaluate(() => { D.user = null; D.uid = null; COLL.cloud = 'off'; COLL.s = ''; collPaintHead(); });
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
