@@ -1,5 +1,23 @@
 {
   "Infos du deck": "Deck-Infos",
   "Éditer le deck": "Deck bearbeiten",
-  "Revenir à la liste": "Zurück zur Liste"
+  "Revenir à la liste": "Zurück zur Liste",
+  "Idées de decks": "Deck-Ideen",
+  "Quels decks puis-je construire avec ma collection ?": "Welche Decks kann ich mit meiner Sammlung bauen?",
+  "Ajoute tes cartes : Mana Orbit suit leur valeur et te propose des idées de decks.": "Füge deine Karten hinzu: Mana Orbit verfolgt ihren Wert und schlägt dir Deck-Ideen vor.",
+  "Réserver ma carte": "Meine Karte reservieren",
+  "Réserver mes {n} cartes": "Meine {n} Karten reservieren",
+  "<b>Decks</b> › Idées de decks compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).": "<b>Decks</b> › Deck-Ideen vergleicht deine Sammlung mit den Decks der meistgespielten Kommandeure: EDHREC-Durchschnittsdeck und neue Archidekt-Decks (Budget, Premium, cEDH). Du siehst, welchen Anteil du schon hast, welche Karten du kaufen musst und was sie kosten. Ein Deck gebaut? Markiere es als „Gebautes Deck“: Seine Karten werden dafür reserviert. Du brauchst ein Konto (Google oder eine per Link bestätigte E-Mail).",
+  "Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › Idées de decks, type « Communauté ».": "Veröffentliche ein Commander-Deck aus seinem Viewer: Meine Decks › das Deck › Veröffentlichen. Es erscheint unter Decks › Deck-Ideen, Typ „Community“.",
+  "Publier ce deck dans la communauté (Decks › Idées de decks)": "Dieses Deck in der Community veröffentlichen (Decks › Deck-Ideen)",
+  "Ce serveur ne relaie pas encore les decks publics : ils n'apparaîtront pas dans Idées de decks.": "Dieser Server leitet öffentliche Decks noch nicht weiter: Sie erscheinen nicht unter „Deck-Ideen“.",
+  "Deck mis à jour : visible dans Idées de decks d'ici quelques minutes": "Deck aktualisiert: in wenigen Minuten unter „Deck-Ideen“ sichtbar",
+  "Deck publié : visible dans Idées de decks d'ici quelques minutes": "Deck veröffentlicht: in wenigen Minuten unter „Deck-Ideen“ sichtbar",
+  "Ton deck apparaît dans Decks › Idées de decks, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l'enregistrer. C'est une copie : « Mettre à jour » envoie la liste du moment.": "Dein Deck erscheint unter Decks › Deck-Ideen, Typ „Community“, mit deinem Spitznamen. Jeder kann es mit seiner Sammlung vergleichen und speichern. Es ist eine Kopie: „Aktualisieren“ sendet die aktuelle Liste.",
+  "Ouvre ton deck dans <b>Mes decks</b> et touche <b>Publier</b> : un deck Commander de 100 cartes pile, commandant compris, sous ton pseudo (compte vérifié, 10 decks au plus). Il apparaît pour tous dans <b>Decks</b> › Idées de decks, type <b>Communauté</b>, d'ici quelques minutes. <b>Mettre à jour</b> envoie ta liste du moment, <b>Retirer</b> l'enlève (supprimer le deck aussi). Un deck choquant ? <b>Signaler ce deck</b>, dans sa feuille : il disparaît de ton appli, et de la communauté après plusieurs signalements.": "Öffne dein Deck unter <b>Meine Decks</b> und tippe auf <b>Veröffentlichen</b>: ein Commander-Deck mit genau 100 Karten inklusive Commander, unter deinem Spitznamen (bestätigtes Konto, höchstens 10 Decks). Es erscheint in wenigen Minuten für alle unter <b>Decks</b> › Deck-Ideen, Typ <b>Community</b>. <b>Aktualisieren</b> sendet deine aktuelle Liste, <b>Entfernen</b> nimmt es heraus (das Löschen des Decks auch). Ein anstößiges Deck? <b>Dieses Deck melden</b>, in seinem Blatt: Es verschwindet aus deiner App und nach mehreren Meldungen aus der Community.",
+  "Decks › Idées de decks": "Decks › Deck-Ideen",
+  "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "Die Karten dieses Decks, die du hast, Ort für Ort; seine Karten reservieren",
+  "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "Für ein neues Deck: Der Assistent hilft (Kommandeur, Themen, Bracket, Budget) und der Coach balanciert das Deck.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "Die Commander-Decks, die deine Sammlung fast baut, mit den fehlenden Karten und ihrem Preis. Dazu Community: von Spielern veröffentlichte Decks.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Die Commander-Decks, die deine Sammlung fast baut, mit den fehlenden Karten und ihrem Preis."
 }

@@ -5,10 +5,10 @@
    Étapes, regroupées par écran (le moins d'allers-retours) : Accueil (Scanner, Session d'ouverture dans les réglages du scan ouverts en feuille,
    Importer si la collection est vide, liste d'échange, compteur de vie, Carte mystère, Compte et réglages : niveau, badges et amis) · Échange
    (classeur, échange en direct avec un compte) · Collection (Importer s'il y a peu de cartes, masterset, scan mobile sur ordinateur, rangement,
-   partager en image) · Decks (À monter, prix d'une liste). La dernière étape ajoute l'appli sur le téléphone (Android : widgets et raccourcis ;
+   partager en image) · Decks (Idées de decks, prix d'une liste). La dernière étape ajoute l'appli sur le téléphone (Android : widgets et raccourcis ;
    web : l'installer). Étape sans objet (fonction coupée par le serveur, déconnecté, collection vide, APK ancienne, web) : texte adapté, ou sautée.
    Deux temps (TOUR_FEW) : un nouvel utilisateur (moins de 30 cartes) qui accepte l'offre de la fin du premier lancement reçoit l'essentiel
-   (étapes base : Scanner, Importer, liste d'échange, compteur de vie, À monter, prix d'une liste) ; « la suite » (les autres étapes) lui est
+   (étapes base : Scanner, Importer, liste d'échange, compteur de vie, Idées de decks, prix d'une liste) ; « la suite » (les autres étapes) lui est
    proposée une fois par la pastille « Prêt pour la suite ? », dès 30 cartes ou 5 jours après. Depuis l'aide : toujours toute la visite.
    À la fin, l'écran d'où l'on venait est remis (vue, section ouverte et son onglet, défilement) ; les feuilles ouvertes au départ restent fermées.
    Versions (TOUR_VER, v des étapes) : 1 = 13 octobre, 2 = 19 octobre (Carte mystère, partie, rangement, masterset, scan mobile), 3 = 25 octobre
@@ -114,9 +114,9 @@ const TOUR_STEPS = [
     x: () => T(collCount() ? 'Stats, deck, liste d\'échange, bilan d\'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.'
       : 'Collection › Stats, deck, liste d\'échange, bilan d\'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.') },
   { id: 'build', base: true, at: 'input', el: () => $('#inTabs .dk-tab[data-dtab="build"]'),
-    t: () => T('Decks › À monter'),
-    x: () => (CTX.pub ? T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.')
-      : T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix.')) + (D.user ? '' : ' ' + T('Il faut un compte.')) },
+    t: () => T('Decks › Idées de decks'),
+    x: () => (CTX.pub ? T('Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.')
+      : T('Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.')) + (D.user ? '' : ' ' + T('Il faut un compte.')) },
   { id: 'price', base: true, at: 'input', maxH: 132, el: () => [$('#viewInput .field-head'), $('#deckText')],
     t: () => T('Prix d\'une liste'),
     x: () => T('Colle une decklist (EDHREC, Moxfield, Archidekt…) : le prix de chaque carte, sans celles que tu as déjà, ou le panier CardTrader le moins cher.') },

@@ -62,12 +62,15 @@ assert.match(await txt(p, '#bdSub'), /Commander · 8\/100/, 'commandant + Sol Ri
 assert.match(await txt(p, '#bdSum'), /Il manque 92 cartes/);
 await p.fill('#bdName', 'Vampires Boros v1'); assert.equal(await txt(p, '#bdTitle'), 'Vampires Boros v1');
 await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
-assert.match(await txt(p, '#toast'), /Deck créé · 3 cartes réservées de ta collection · incomplet/, 'monté automatiquement : Edgar + Sol Ring + Signet');
+assert.equal(await p.$eval('#toast', t => t.firstChild.textContent), 'Deck créé · incomplet', 'rien de réservé d\'office');
+assert.equal(await txt(p, '#toast .toast-act'), 'Réserver mes 3 cartes', 'le toast propose de réserver : Edgar + Sol Ring + Signet');
+assert.equal(await p.evaluate(() => engIsOn(allDecks()[0].id)), false, 'deck enregistré sans réservation');
+await p.click('#toast .toast-act'); await p.waitForFunction(() => /Deck monté : cartes réservées/.test(document.querySelector('#toast').textContent));
 const dk = await p.evaluate(() => { const d = allDecks()[0]; return { id: d.id, name: d.name, text: d.text, cards: d.cards, eng: XS.eng[d.id] && XS.eng[d.id].q }; });
 assert.equal(dk.name, 'Vampires Boros v1'); assert.match(dk.text, /^\/\/ Deck Deal : commander\nCommander\n1 Edgar Markov\n\nDeck\n/); assert.deepEqual(dk.eng, { 'edgar markov': 1, 'sol ring': 1, 'arcane signet': 1 });
 assert.equal(dk.cards, 5, 'Edgar + Sol Ring + Signet + Craterhoof + Wrath (terrains de base à part)');
 assert.match(await txt(p, '#deckList'), /Vampires Boros v1/); assert.match(await txt(p, '#deckList'), /8\/100 cartes · .* · monté/, 'exemplaires comptés comme le viewer (5 cartes + 3 terrains de base), « monté »');
-ok('Commander : enregistré (texte lisible par l\'app), monté automatiquement, incomplet autorisé');
+ok('Commander : enregistré (texte lisible par l\'app) sans réservation, « Réserver mes 3 cartes » dans le toast (deck monté), incomplet autorisé');
 
 /* ── B) Standard : 4 exemplaires, réserve facultative, cartes engagées ailleurs ───────────── */
 await newDeck(p, 'Burn', 'standard');
@@ -87,6 +90,7 @@ assert.ok(await p.$('.bd-row[data-k="swords to plowshares"][data-t="side"]'), 'l
 await p.click('.bd [data-act="close"]'); await p.waitForSelector('#bdLeave'); assert.match(await txt(p, '.sheet'), /Les changements de ce deck seront perdus/);
 await p.click('.sheet [data-close].btn'); await p.waitForTimeout(500); assert.ok(await p.$('.bd'), 'Continuer : on reste dans l\'éditeur');
 await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
+assert.equal(await txt(p, '#toast .toast-act'), 'Réserver mes 3 cartes'); await p.click('#toast .toast-act');      // Signet × 2 + Swords (réserve comprise)
 const bn = await p.evaluate(() => { const d = allDecks().find(x => x.name === 'Burn'); return { text: d.text, cards: d.cards, eng: XS.eng[d.id].q }; });
 assert.match(bn.text, /\n4 Arcane Signet\n20 Mountain\n\nSB: 1 Swords to Plowshares$/); assert.equal(bn.cards, 1, 'la réserve n\'est pas comptée parmi les cartes à chercher');
 assert.deepEqual(bn.eng, { 'arcane signet': 2, 'swords to plowshares': 1 }, 'réserve incluse dans les cartes mises de côté (Signet : 2 possédées)');

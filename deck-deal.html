@@ -7884,7 +7884,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
       </div>
 
       <section class="hm-start" id="hmStart" aria-labelledby="hmStartT" hidden>
-        <div class="hm-go-h"><b id="hmStartT">Pour commencer</b><span>Ajoute tes cartes : Mana Orbit suit leur valeur et trouve les decks que tu peux monter.</span></div>
+        <div class="hm-go-h"><b id="hmStartT">Pour commencer</b><span>Ajoute tes cartes : Mana Orbit suit leur valeur et te propose des idées de decks.</span></div>
         <div class="hm-go-l">
           <button type="button" class="hm-go-a" data-hm="scan"><i aria-hidden="true"><svg class="i"><use href="#i-camera"/></svg></i><span><b>Scanner</b><small>Vise le nom de la carte : elle rejoint ta collection.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
           <button type="button" class="hm-go-a" data-hm="add"><i aria-hidden="true"><svg class="i"><use href="#i-plus"/></svg></i><span><b>Ajouter une carte</b><small>Tape son nom : elle rejoint ta collection.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
@@ -7902,7 +7902,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
         <button type="button" class="hm-dk-a" data-hm="scan"><i aria-hidden="true"><svg class="i"><use href="#i-camera"/></svg></i><span><b>Scanner</b><small>Webcam ou appareil photo</small></span></button>
         <button type="button" class="hm-dk-a" data-hm="import"><i aria-hidden="true"><svg class="i"><use href="#i-download"/></svg></i><span><b>Importer</b><small>ManaBox, Moxfield, CSV…</small></span></button>
         <button type="button" class="hm-dk-a" data-hm="price"><i aria-hidden="true"><svg class="i"><use href="#i-cart"/></svg></i><span><b>Prix d'une liste</b><small>Cardmarket ou CardTrader</small></span></button>
-        <button type="button" class="hm-dk-a" data-hm="build"><i aria-hidden="true"><svg class="i"><use href="#i-layers"/></svg></i><span><b>Decks à monter</b><small>D'après ta collection</small></span></button>
+        <button type="button" class="hm-dk-a" data-hm="build"><i aria-hidden="true"><svg class="i"><use href="#i-layers"/></svg></i><span><b>Idées de decks</b><small>D'après ta collection</small></span></button>
       </nav>
 
       <section class="hm-trade" id="hmTrade" aria-labelledby="hmTradeT">
@@ -8090,8 +8090,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '12da046e';
-const I18N_FILES = {"de":"i18n/de.8497a716.js","en":"i18n/en.5395b4d1.js","es":"i18n/es.64695911.js","it":"i18n/it.2cab50fb.js","pt":"i18n/pt.63f94a94.js"};
+const DD_BUILD = 'dce56d6f';
+const I18N_FILES = {"de":"i18n/de.fcf82052.js","en":"i18n/en.954886f1.js","es":"i18n/es.7fe35865.js","it":"i18n/it.b2c02c41.js","pt":"i18n/pt.de8ee7e4.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -18467,7 +18467,7 @@ function openDeckSheet(id) {
     api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Infos du deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
       <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
-      ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
+      ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
       ${series.length >= 2 ? chartSvg(series, Math.max(220, (api.body.clientWidth || 376) - 36)) + `<div class="chart-cap"><span>${esc(dateShort(same[0].at))}</span><span>${T('{n} relevés · de {min} à {max}', { n: series.length, min: esc(fmt(Math.min(...series))), max: esc(fmt(Math.max(...series))) })}</span><span>${esc(dateShort(lastE.at))}</span></div>` : ''}
@@ -19685,7 +19685,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
-      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Éditer le deck')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
+      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Éditer le deck')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › Idées de decks)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
     <div class="dv-main"><div id="dvCmd"></div>
     <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
@@ -23717,7 +23717,7 @@ async function openPubSheet(deckId) {
     const paint = () => {
       const cur = mine && mine.get(d.id), used = mine ? mine.size : 0, sig = ci != null && chk.cmd.length ? pdDocSig({ by: PROF.name, cmd: chk.pub.cmd, ci, cards: chk.pub.cards }) : 0;
       const badName = !!PROF.name && !!pubBad(PROF.name), can = !chk.why.length && !!PROF.name && !badName && ci != null && unk !== undefined && !(unk && unk.length) && mine && (cur || used < PUB_MAX) && CTX.pub !== false;
-      b.innerHTML = `<p class="hint pub-intro">${T('Ton deck apparaît dans Decks › À monter, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l\'enregistrer. C\'est une copie : « Mettre à jour » envoie la liste du moment.')}</p>
+      b.innerHTML = `<p class="hint pub-intro">${T('Ton deck apparaît dans Decks › Idées de decks, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l\'enregistrer. C\'est une copie : « Mettre à jour » envoie la liste du moment.')}</p>
         <ul class="pub-checks">
           ${li(chk.cmd.length > 0 && ci !== null, chk.cmd.length ? T('Commandant : {name}', { name: esc(chk.cmd.map(c => c.name).join(' + ')) }) + (ci === undefined ? ' · ' + T('couleurs…') : ci === null ? ' · ' + T('couleurs inconnues (hors ligne ?)') : ci ? ' · ' + esc(ci) : ' · ' + T('incolore')) : esc(chk.why[0]))}
           ${li(chk.pub.n === PUB_SIZE, chk.pub.n === PUB_SIZE ? T('100 cartes, commandant compris') : T('Il faut 100 cartes pile, commandant compris : ce deck en a {n}.', { n: nf0(chk.pub.n) }))}
@@ -23726,7 +23726,7 @@ async function openPubSheet(deckId) {
           ${chk.long ? li(false, T('Liste trop longue.')) : ''}${chk.bad ? li(false, T('Nom refusé dans la liste : « {name} »', { name: esc(chk.bad) })) : ''}
           ${li(!mine || !!cur || used < PUB_MAX, mine ? T('{n} / {max} decks publiés', { n: nf0(used), max: PUB_MAX }) + (!cur && used >= PUB_MAX ? ' · ' + T('retire-en un pour publier celui-ci') : '') : T('Lecture de tes decks publiés…'))}
         </ul>
-        ${CTX.pub === false ? `<p class="hint pub-off">${T('Ce serveur ne relaie pas encore les decks publics : ils n\'apparaîtront pas dans À monter.')}</p>` : ''}
+        ${CTX.pub === false ? `<p class="hint pub-off">${T('Ce serveur ne relaie pas encore les decks publics : ils n\'apparaîtront pas dans Idées de decks.')}</p>` : ''}
         ${cur ? `<p class="hint pub-state">${T('Publié le {date}', { date: esc(new Date(cur.at).toLocaleDateString(LOC())) })}${cur.sig !== sig && sig ? ' · ' + T('la liste a changé depuis') : ''}</p>` : ''}
         ${cur ? (b => (b ? `<p class="pub-dsc">${b}</p>` : ''))(pdDscBtn('btn ghost', 'data-pub="dsc"')) : ''}
         <p class="hint pub-rules">${T('Pas de contenu offensant dans le pseudo ou le nom : un deck signalé plusieurs fois est retiré.')}</p>
@@ -23750,7 +23750,7 @@ async function openPubSheet(deckId) {
           const id = cur ? cur.id : pdSlot(tag, mine); if (!id) { busy = false; say(T('{max} decks publiés au plus : retire-en un pour publier celui-ci.', { max: PUB_MAX })); return; }
           const data = { o: tag, by: PROF.name, deck: d.id, name: String(d.name || '').slice(0, 120), cmd: chk.pub.cmd, ci, cards: chk.pub.cards, updatedAt: Date.now(), v: 1 };
           await D.cloud.pubSave(id, data); mine.set(d.id, { id, at: data.updatedAt, sig: pdDocSig(data) }); haptic('ok'); if (typeof prgSoon === 'function') prgSoon('deck');
-          msg = cur ? T('Deck mis à jour : visible dans À monter d\'ici quelques minutes') : T('Deck publié : visible dans À monter d\'ici quelques minutes');
+          msg = cur ? T('Deck mis à jour : visible dans Idées de decks d\'ici quelques minutes') : T('Deck publié : visible dans Idées de decks d\'ici quelques minutes');
         }
         pdFetch(true).then(list => { if (list) pdApply(pdShown(list)); });
         dvPubPaint();
@@ -23812,7 +23812,7 @@ function pdListSheet() {
           : `<div class="me-row"><span class="me-t">${T('Deck supprimé de Mes decks')}</span><button type="button" class="link-btn" data-pdrop="${esc(deckId)}">${T('Retirer')}</button></div>`;
       });
       b.innerHTML = `<p class="hint">${T('{n} / {max} decks publiés', { n: nf0(m.size), max: PUB_MAX })}</p>${rows.length ? `<div class="me-g">${rows.join('')}</div>` : ''}
-        <p class="hint">${T('Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › À monter, type « Communauté ».')}</p>`;
+        <p class="hint">${T('Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › Idées de decks, type « Communauté ».')}</p>`;
     };
     b.innerHTML = `<p class="hint">${T('Lecture de tes decks publiés…')}</p>`;
     pdMine(true).then(paint, () => { b.innerHTML = `<p class="hint">${T('Tes decks publiés sont illisibles : réessaie en ligne.')}</p>`; });
@@ -28199,7 +28199,7 @@ if (typeof document !== 'undefined') {
 /* ── builder.js : créer un deck dans l'app (Standard ou Commander) ────────────────────────────────
    Écran plein format : onglets Deck · Collection (ajout en priorité) · Chercher (n'importe quelle carte).
    Règles : Standard 60 cartes, 4 exemplaires max (réserve de 15 facultative) ; Commander 100 cartes, une seule de chaque, un commandant.
-   Le deck est enregistré comme les autres (texte), puis monté : ses cartes possédées sont réservées. */
+   Le deck est enregistré comme les autres (texte), sans réservation : le toast propose « Réserver mes N cartes » (deck monté) ; un deck déjà monté suit sa liste. */
 /** Infos Scryfall des cartes de decks qui ne sont pas dans la collection : la fiche entière de data.js › scryCollection ({ eu, ef, ci, cd, im, cm, mc, tl, cl, ar, rr,
  *  lg (formats où elle est légale), la (jour de cette lecture), gc (Game Changer d'après Scryfall) }), gardée sur l'appareil (prix du deck, couleurs, images, légalité, viewer).
  *  Fiches d'avant le 5 novembre (sans lg) : gardées telles quelles, complétées à la prochaine lecture de leur deck (dmMissing). */
@@ -28390,7 +28390,7 @@ function openDeckNew() {
       <div class="bd-sc-opts nd-opts">${opt('hand', 'i-plus', T('À la main'), T('Choisis les cartes dans ta collection ou dans la recherche.'))}
         ${opt('paste', 'i-clip', T('Coller la liste'), T('Depuis Moxfield, Archidekt, MTGA… une carte par ligne.'))}
         ${opt('scan', 'i-camera', T('Scanner le deck'), T('Tes cartes déjà dans ta collection sont réservées pour ce deck, les autres y sont ajoutées : rien en double.'))}
-        <span class="nd-wiz">${opt('wiz', 'i-bolt', T('Assistant'), T('Tu prévois de le monter : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.'))}</span></div>`;
+        <span class="nd-wiz">${opt('wiz', 'i-bolt', T('Assistant'), T('Pour un nouveau deck : l\'assistant t\'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.'))}</span></div>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
     const seg = $('#ndFmt', api.body), hint = $('#ndHint', api.body), name = $('#ndName', api.body), wiz = $('.nd-wiz', api.body);
     const paint = () => { const fmt = seg._v || 'standard'; hint.textContent = DK_FORMATS[fmt].hint; wiz.hidden = !(fmt === 'commander' && typeof dwOn === 'function' && dwOn() && typeof openDeckWiz === 'function'); };
@@ -28859,7 +28859,7 @@ function bdClick(e) {
   else if (act === 'pick-cmdr') { BD.tgt = 'cmdr'; $('#bdSeg', BD.el).setValue('coll'); bdTab('coll'); haptic('tap'); }
 }
 
-/* ── Enregistrement : comme un deck normal, puis monté ────────────────────────────────────────── */
+/* ── Enregistrement : comme un deck normal, réservation proposée ────────────────────────────────────────── */
 function bdSave() {
   const ck = bdCheck();
   if (!ck.n) { toast(T('Ajoute d\'abord des cartes')); return; }
@@ -28873,7 +28873,7 @@ function bdSave() {
   if (typeof dwSaved === 'function') dwSaved(id);      // réglages du coach (thèmes, bracket, budget) gardés avec le deck
   let reserved = 0;
   if (prev) engRefresh(id, name, text);                                   // deck déjà monté : ses cartes réservées suivent la liste
-  else { const q = engSnapshot(text, collQty); reserved = Object.values(q).reduce((a, x) => a + x, 0); if (reserved) engSet(id, name, text); }      // nouveau deck : monté automatiquement
+  else reserved = Object.values(engSnapshot(text, collQty)).reduce((a, x) => a + x, 0);      // nouveau deck : rien de réservé d'office, le toast le propose
   let ranged = 0, place = '';
   if (BD.scanPref && BD.scanPref.size && typeof plcMount === 'function' && Object.values(engSnapshot(text, collQty)).some(q => q > 0)) {      // deck scanné : monté et rangé dans « Deck : … »
     if (!engIsOn(id)) engSet(id, name, text);
@@ -28883,9 +28883,16 @@ function bdSave() {
   if (S.deckId === id) { $('#deckText').value = text; refreshDeck(); updateSaveButtons(); }
   const nb = ck.issues.filter(i => i.lv === 'bad' || i.lv === 'warn').length;
   bdClose(true); haptic('ok');
-  const msg = (prev ? T('Deck mis à jour') : T('Deck créé') + (reserved && !ranged ? ' · ' + TN(reserved, '{n} carte réservée de ta collection', '{n} cartes réservées de ta collection') : ''))
-    + (ranged ? ' · ' + TN(ranged, '{n} carte rangée dans « {place} »', '{n} cartes rangées dans « {place} »', { place }) : '');
-  toast(nb && !prev ? msg + ' · ' + T('incomplet') : msg, { label: T('Ouvrir'), fn: () => loadDeck(id) });
+  const msg = (prev ? T('Deck mis à jour') : T('Deck créé')) + (ranged ? ' · ' + TN(ranged, '{n} carte rangée dans « {place} »', '{n} cartes rangées dans « {place} »', { place }) : '');
+  const reserve = reserved && !engIsOn(id) ? { label: TN(reserved, 'Réserver ma carte', 'Réserver mes {n} cartes'), fn: () => bdReserve(id, name, text) } : null;      // le joueur choisit (avant : monté sans le demander)
+  toast(nb && !prev ? msg + ' · ' + T('incomplet') : msg, reserve || { label: T('Ouvrir'), fn: () => loadDeck(id) });
+}
+/** Action du toast d'enregistrement : monte le deck (cartes possédées réservées, extras.js › engSet) ; name, text : ceux enregistrés (deck du compte pas encore relu). */
+function bdReserve(id, name, text) {
+  if (engIsOn(id)) return;
+  const d = findDeck(id) || { name, text };
+  if (!Object.keys(engSnapshot(d.text, collQty)).length) { toast(T('Aucune carte de ce deck n\'est dans ta collection')); return; }
+  engSet(id, d.name, d.text); haptic('ok'); toast(T('Deck monté : cartes réservées'));
 }
 
 
@@ -37199,8 +37206,8 @@ const HELP_QA = [
   ['Je viens de ManaBox (ou Moxfield…) : comment tout récupérer ?', 'Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class="link-btn hp-swg" type="button" data-help="switch">Le guide pas à pas</button>'],
   ['Comment scanner tout un paquet ?', 'Dans le scan, active <b>Auto</b> (en bas à droite) : pose les cartes l\'une après l\'autre, le nom dans la bande ; chacune s\'ajoute dès que son nom est lu deux fois de suite, sans toucher l\'écran ; retire-la (ou montre la suivante) pour continuer. <b>Éditions</b> : choisis celle de la 1re carte, les suivantes la prennent si elles existent dans les extensions du scan ; une carte d\'une autre extension te demande la sienne. Pour un deck ou un classeur, les <b>réglages</b> du scan proposent de tout choisir à la fin, en voyant les illustrations (ou de scanner sans édition). Une seule langue dans le paquet : impose-la dans les réglages, c\'est plus rapide.'],
   ['Comment est calculée la valeur de ma collection ?', 'Pour chaque carte, le <b>prix tendance Cardmarket</b> (relevé par Scryfall) multiplié par tes exemplaires. C\'est une estimation : l\'édition, l\'état et le foil ne changent rien, et une carte sans prix n\'est pas comptée. Les prix sont relus une fois par jour au plus ; la courbe garde un relevé par jour. Dans « Prix d\'une liste », le prix Cardmarket est un « à partir de » : la tendance de l\'impression la moins chère.'],
-  ['Quels decks EDHREC puis-je monter ?', '<b>Decks</b> › À monter compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d\'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).'],
-  ['Comment publier un deck dans la communauté ?', 'Ouvre ton deck dans <b>Mes decks</b> et touche <b>Publier</b> : un deck Commander de 100 cartes pile, commandant compris, sous ton pseudo (compte vérifié, 10 decks au plus). Il apparaît pour tous dans <b>Decks</b> › À monter, type <b>Communauté</b>, d\'ici quelques minutes. <b>Mettre à jour</b> envoie ta liste du moment, <b>Retirer</b> l\'enlève (supprimer le deck aussi). Un deck choquant ? <b>Signaler ce deck</b>, dans sa feuille : il disparaît de ton appli, et de la communauté après plusieurs signalements.'],
+  ['Quels decks puis-je construire avec ma collection ?', '<b>Decks</b> › Idées de decks compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d\'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).'],
+  ['Comment publier un deck dans la communauté ?', 'Ouvre ton deck dans <b>Mes decks</b> et touche <b>Publier</b> : un deck Commander de 100 cartes pile, commandant compris, sous ton pseudo (compte vérifié, 10 decks au plus). Il apparaît pour tous dans <b>Decks</b> › Idées de decks, type <b>Communauté</b>, d\'ici quelques minutes. <b>Mettre à jour</b> envoie ta liste du moment, <b>Retirer</b> l\'enlève (supprimer le deck aussi). Un deck choquant ? <b>Signaler ce deck</b>, dans sa feuille : il disparaît de ton appli, et de la communauté après plusieurs signalements.'],
   ['À quoi sert la liste d\'échange ?', '<b>Échange</b> (barre du bas) réunit tes doublons (les exemplaires que tes decks n\'utilisent pas, au-delà de ce que tu gardes) et les cartes que tu cherches (celles qui manquent à tes decks, plus tes souhaits). Avec un compte, crée un <b>lien public</b> : tes amis voient ta liste, toujours à jour, sans rien pouvoir modifier.'],
   ['Comment montrer mes cartes comme dans un classeur ?', 'Dans <b>Échange</b>, l\'interrupteur au-dessus de la liste (icônes liste et grille) passe en <b>classeur</b> : des pages de 9 cartes à feuilleter. <b>Personnaliser</b> choisit sa couleur, les cartes épinglées en tête et le tri des autres (valeur, couleur, extension, nom). Tes amis voient le même classeur sur ton lien public, et peuvent repasser en liste.'],
   ['Comment ajouter un ami ?', 'Ouvre le lien d\'échange de ton ami (ou scanne son QR code) et touche <b>Ajouter en ami</b>, à côté de son nom. Il accepte dans Compte et réglages › <b>Amis</b>. Entre amis, vous voyez la liste d\'échange, les decks et, si chacun l\'autorise, la collection de l\'autre, toujours à jour ; une notification te prévient quand un ami ajoute une carte que tu cherches (une fois par jour au plus).'],
@@ -38320,7 +38327,7 @@ function simgTrade() {
 
 /* ── nav.js : barre du bas (Accueil · Collection · Scanner · Échange · Decks) et onglets de la section Decks ───────────────────────────────
    Sections : l'accueil (vue « home »), « Ma collection » (écran coll, onglets Cartes · Stats), « Échange » (même écran, liste d'échange seule),
-   « Decks » : Mes decks (écran dks) · À monter (écran coll, decks EDHREC) · Prix d'une liste (vue « input », l'ancien « Nouveau panier »).
+   « Decks » : Mes decks (écran dks) · Idées de decks (écran coll, decks EDHREC) · Prix d'une liste (vue « input », l'ancien « Nouveau panier »).
    La barre se montre sur l'accueil, la saisie et ces écrans ; elle se cache dès qu'un autre écran passe devant (scan, viewer, éditeur, page
    d'une extension, ajout de cartes, liste publique), pendant le premier lancement et sur les résultats d'une recherche. Le scan s'ouvre par le
    bouton foil du milieu. Passer d'une section à l'autre ne rejoue pas l'animation d'ouverture (classe .inst) et ferme la section quittée. */
@@ -38393,7 +38400,7 @@ function navGo(t) {
 /* ── Onglets de la section Decks ─────────────────────────────────────────────────────────────────── */
 function dkTabsHtml(cur) {
   const n = typeof allDecks === 'function' ? allDecks().length : 0;
-  return `<nav class="dk-tabs" aria-label="${T('Decks')}">${[['mine', T('Mes decks'), n], ['build', T('À monter'), 0], ['price', T('Prix d\'une liste'), 0]].map(([v, l, c]) => `<button type="button" class="dk-tab" data-dtab="${v}"${v === cur ? ' aria-current="page"' : ''}>${esc(l)}${c ? ` <em>${nf0(c)}</em>` : ''}</button>`).join('')}</nav>`;
+  return `<nav class="dk-tabs" aria-label="${T('Decks')}">${[['mine', T('Mes decks'), n], ['build', T('Idées de decks'), 0], ['price', T('Prix d\'une liste'), 0]].map(([v, l, c]) => `<button type="button" class="dk-tab" data-dtab="${v}"${v === cur ? ' aria-current="page"' : ''}>${esc(l)}${c ? ` <em>${nf0(c)}</em>` : ''}</button>`).join('')}</nav>`;
 }
 function dkTabGo(v) {
   haptic('tap');
@@ -45673,10 +45680,10 @@ function evPushOpen() {
    Étapes, regroupées par écran (le moins d'allers-retours) : Accueil (Scanner, Session d'ouverture dans les réglages du scan ouverts en feuille,
    Importer si la collection est vide, liste d'échange, compteur de vie, Carte mystère, Compte et réglages : niveau, badges et amis) · Échange
    (classeur, échange en direct avec un compte) · Collection (Importer s'il y a peu de cartes, masterset, scan mobile sur ordinateur, rangement,
-   partager en image) · Decks (À monter, prix d'une liste). La dernière étape ajoute l'appli sur le téléphone (Android : widgets et raccourcis ;
+   partager en image) · Decks (Idées de decks, prix d'une liste). La dernière étape ajoute l'appli sur le téléphone (Android : widgets et raccourcis ;
    web : l'installer). Étape sans objet (fonction coupée par le serveur, déconnecté, collection vide, APK ancienne, web) : texte adapté, ou sautée.
    Deux temps (TOUR_FEW) : un nouvel utilisateur (moins de 30 cartes) qui accepte l'offre de la fin du premier lancement reçoit l'essentiel
-   (étapes base : Scanner, Importer, liste d'échange, compteur de vie, À monter, prix d'une liste) ; « la suite » (les autres étapes) lui est
+   (étapes base : Scanner, Importer, liste d'échange, compteur de vie, Idées de decks, prix d'une liste) ; « la suite » (les autres étapes) lui est
    proposée une fois par la pastille « Prêt pour la suite ? », dès 30 cartes ou 5 jours après. Depuis l'aide : toujours toute la visite.
    À la fin, l'écran d'où l'on venait est remis (vue, section ouverte et son onglet, défilement) ; les feuilles ouvertes au départ restent fermées.
    Versions (TOUR_VER, v des étapes) : 1 = 13 octobre, 2 = 19 octobre (Carte mystère, partie, rangement, masterset, scan mobile), 3 = 25 octobre
@@ -45782,9 +45789,9 @@ const TOUR_STEPS = [
     x: () => T(collCount() ? 'Stats, deck, liste d\'échange, bilan d\'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.'
       : 'Collection › Stats, deck, liste d\'échange, bilan d\'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.') },
   { id: 'build', base: true, at: 'input', el: () => $('#inTabs .dk-tab[data-dtab="build"]'),
-    t: () => T('Decks › À monter'),
-    x: () => (CTX.pub ? T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.')
-      : T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix.')) + (D.user ? '' : ' ' + T('Il faut un compte.')) },
+    t: () => T('Decks › Idées de decks'),
+    x: () => (CTX.pub ? T('Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.')
+      : T('Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.')) + (D.user ? '' : ' ' + T('Il faut un compte.')) },
   { id: 'price', base: true, at: 'input', maxH: 132, el: () => [$('#viewInput .field-head'), $('#deckText')],
     t: () => T('Prix d\'une liste'),
     x: () => T('Colle une decklist (EDHREC, Moxfield, Archidekt…) : le prix de chaque carte, sans celles que tu as déjà, ou le panier CardTrader le moins cher.') },

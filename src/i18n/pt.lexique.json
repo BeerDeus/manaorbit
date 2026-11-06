@@ -1,5 +1,23 @@
 {
   "Infos du deck": "Informações do deck",
   "Éditer le deck": "Editar o deck",
-  "Revenir à la liste": "Voltar à lista"
+  "Revenir à la liste": "Voltar à lista",
+  "Idées de decks": "Ideias de decks",
+  "Quels decks puis-je construire avec ma collection ?": "Quais decks posso construir com a minha coleção?",
+  "Ajoute tes cartes : Mana Orbit suit leur valeur et te propose des idées de decks.": "Adicione suas cartas: o Mana Orbit acompanha o valor delas e sugere ideias de decks.",
+  "Réserver ma carte": "Reservar minha carta",
+  "Réserver mes {n} cartes": "Reservar minhas {n} cartas",
+  "<b>Decks</b> › Idées de decks compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).": "<b>Decks</b> › Ideias de decks compara sua coleção com os decks dos comandantes mais jogados: deck médio do EDHREC e decks recentes do Archidekt (Budget, Premium, cEDH). Você vê a parte que já tem, os cards a comprar e o preço deles. Montou um deck? Marque-o como “Deck montado”: os cards dele ficam reservados para ele. É preciso ter uma conta (Google, ou e-mail verificado pelo link recebido).",
+  "Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › Idées de decks, type « Communauté ».": "Publique um deck Commander pelo visualizador: Meus decks › o deck › Publicar. Ele aparece em Decks › Ideias de decks, tipo “Comunidade”.",
+  "Publier ce deck dans la communauté (Decks › Idées de decks)": "Publicar este deck na comunidade (Decks › Ideias de decks)",
+  "Ce serveur ne relaie pas encore les decks publics : ils n'apparaîtront pas dans Idées de decks.": "Este servidor ainda não divulga os decks públicos: eles não vão aparecer em Ideias de decks.",
+  "Deck mis à jour : visible dans Idées de decks d'ici quelques minutes": "Deck atualizado: visível em Ideias de decks em alguns minutos",
+  "Deck publié : visible dans Idées de decks d'ici quelques minutes": "Deck publicado: visível em Ideias de decks em alguns minutos",
+  "Ton deck apparaît dans Decks › Idées de decks, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l'enregistrer. C'est une copie : « Mettre à jour » envoie la liste du moment.": "Seu deck aparece em Decks › Ideias de decks, tipo “Comunidade”, com seu apelido. Qualquer um pode compará-lo com a própria coleção e salvá-lo. É uma cópia: “Atualizar” envia a lista atual.",
+  "Ouvre ton deck dans <b>Mes decks</b> et touche <b>Publier</b> : un deck Commander de 100 cartes pile, commandant compris, sous ton pseudo (compte vérifié, 10 decks au plus). Il apparaît pour tous dans <b>Decks</b> › Idées de decks, type <b>Communauté</b>, d'ici quelques minutes. <b>Mettre à jour</b> envoie ta liste du moment, <b>Retirer</b> l'enlève (supprimer le deck aussi). Un deck choquant ? <b>Signaler ce deck</b>, dans sa feuille : il disparaît de ton appli, et de la communauté après plusieurs signalements.": "Abra seu deck em <b>Meus decks</b> e toque em <b>Publicar</b>: um deck Commander de exatamente 100 cards, comandante incluído, com seu apelido (conta confirmada, no máximo 10 decks). Ele aparece para todos em <b>Decks</b> › Ideias de decks, tipo <b>Comunidade</b>, em alguns minutos. <b>Atualizar</b> envia sua lista atual, <b>Retirar</b> remove (excluir o deck também). Um deck ofensivo? <b>Denunciar este deck</b>, na ficha dele: ele some do seu app, e da comunidade após várias denúncias.",
+  "Decks › Idées de decks": "Decks › Ideias de decks",
+  "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "As cartas deste deck que você tem, local por local; reservar suas cartas",
+  "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "Para um deck novo: o assistente ajuda (comandante, temas, bracket, orçamento) e o treinador equilibra o deck.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "Os decks Commander que sua coleção quase monta, com os cards que faltam e o preço deles. E Comunidade: os decks publicados pelos jogadores.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Os decks Commander que sua coleção quase monta, com os cards que faltam e o preço deles."
 }

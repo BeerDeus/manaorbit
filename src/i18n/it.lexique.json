@@ -1,5 +1,23 @@
 {
   "Infos du deck": "Info sul mazzo",
   "Éditer le deck": "Modifica il mazzo",
-  "Revenir à la liste": "Torna alla lista"
+  "Revenir à la liste": "Torna alla lista",
+  "Idées de decks": "Idee di mazzi",
+  "Quels decks puis-je construire avec ma collection ?": "Quali mazzi posso costruire con la mia collezione?",
+  "Ajoute tes cartes : Mana Orbit suit leur valeur et te propose des idées de decks.": "Aggiungi le tue carte: Mana Orbit ne segue il valore e ti propone idee di mazzi.",
+  "Réserver ma carte": "Riserva la mia carta",
+  "Réserver mes {n} cartes": "Riserva le mie {n} carte",
+  "<b>Decks</b> › Idées de decks compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).": "<b>Mazzi</b> › Idee di mazzi confronta la tua collezione con i mazzi dei comandanti più giocati: mazzo medio EDHREC e mazzi recenti di Archidekt (Budget, Premium, cEDH). Vedi la parte che hai già, le carte da comprare e il loro prezzo. Hai montato un mazzo? Segnalo come «Mazzo montato»: le sue carte gli sono riservate. Serve un account (Google, o email verificata con il link ricevuto).",
+  "Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › Idées de decks, type « Communauté ».": "Pubblica un mazzo Commander dal suo visore: I miei mazzi › il mazzo › Pubblica. Compare in Mazzi › Idee di mazzi, tipo «Comunità».",
+  "Publier ce deck dans la communauté (Decks › Idées de decks)": "Pubblica questo mazzo nella comunità (Mazzi › Idee di mazzi)",
+  "Ce serveur ne relaie pas encore les decks publics : ils n'apparaîtront pas dans Idées de decks.": "Questo server non diffonde ancora i mazzi pubblici: non compariranno in Idee di mazzi.",
+  "Deck mis à jour : visible dans Idées de decks d'ici quelques minutes": "Mazzo aggiornato: visibile in Idee di mazzi tra qualche minuto",
+  "Deck publié : visible dans Idées de decks d'ici quelques minutes": "Mazzo pubblicato: visibile in Idee di mazzi tra qualche minuto",
+  "Ton deck apparaît dans Decks › Idées de decks, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l'enregistrer. C'est une copie : « Mettre à jour » envoie la liste du moment.": "Il tuo mazzo compare in Mazzi › Idee di mazzi, tipo «Comunità», con il tuo nickname. Chiunque può confrontarlo con la propria collezione e salvarlo. È una copia: «Aggiorna» invia la lista attuale.",
+  "Ouvre ton deck dans <b>Mes decks</b> et touche <b>Publier</b> : un deck Commander de 100 cartes pile, commandant compris, sous ton pseudo (compte vérifié, 10 decks au plus). Il apparaît pour tous dans <b>Decks</b> › Idées de decks, type <b>Communauté</b>, d'ici quelques minutes. <b>Mettre à jour</b> envoie ta liste du moment, <b>Retirer</b> l'enlève (supprimer le deck aussi). Un deck choquant ? <b>Signaler ce deck</b>, dans sa feuille : il disparaît de ton appli, et de la communauté après plusieurs signalements.": "Apri il tuo mazzo in <b>I miei mazzi</b> e tocca <b>Pubblica</b>: un mazzo Commander di esattamente 100 carte, comandante incluso, con il tuo nickname (account verificato, al massimo 10 mazzi). Compare per tutti in <b>Mazzi</b> › Idee di mazzi, tipo <b>Comunità</b>, entro qualche minuto. <b>Aggiorna</b> invia la tua lista attuale, <b>Ritira</b> lo toglie (anche eliminare il mazzo). Un mazzo offensivo? <b>Segnala questo mazzo</b>, nel suo foglio: sparisce dalla tua app, e dalla comunità dopo più segnalazioni.",
+  "Decks › Idées de decks": "Mazzi › Idee di mazzi",
+  "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "Le carte di questo mazzo che hai, posizione per posizione; riserva le sue carte",
+  "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "Per un nuovo mazzo: l'assistente ti aiuta (comandante, temi, bracket, budget) e il coach bilancia il mazzo.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "I mazzi Commander che la tua collezione quasi completa, con le carte mancanti e il loro prezzo. E Comunità: i mazzi pubblicati dai giocatori.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "I mazzi Commander che la tua collezione quasi completa, con le carte mancanti e il loro prezzo."
 }

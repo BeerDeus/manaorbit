@@ -44,7 +44,7 @@ await p.click('.hm-dk-a[data-hm="price"]'); await p.waitForFunction(() => S.view
 await p.waitForSelector('#hmDkChart svg.vl-svg');      // repeinte pendant que l'accueil était caché : la courbe revient avec lui
 await p.click('.hm-dk-a[data-hm="build"]'); await p.waitForFunction(() => COLL.el && COLL.mode === 'decks'); await p.click('.nav-b[data-nav="home"]'); await p.waitForFunction(() => !COLL.el);
 await p.click('[data-hm="stats"]'); await p.waitForFunction(() => COLL.el && COLL.tab === 'stats'); await p.click('.nav-b[data-nav="home"]'); await p.waitForFunction(() => !COLL.el);
-ok('raccourcis : Importer, Prix d\'une liste, Decks à monter, Statistiques');
+ok('raccourcis : Importer, Prix d\'une liste, Idées de decks, Statistiques');
 
 { // Google Play : l'appli est publiée (RATE_ASK vrai, help.js) : la fiche s'ouvre directement, plus de « Bientôt »
   await p.evaluate(() => { window.__opened = []; window.open = (u, t, f) => { window.__opened.push([u, t, f]); return null; }; });

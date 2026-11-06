@@ -1,5 +1,23 @@
 {
   "Infos du deck": "Deck info",
   "Éditer le deck": "Edit deck",
-  "Revenir à la liste": "Back to the list"
+  "Revenir à la liste": "Back to the list",
+  "Idées de decks": "Deck ideas",
+  "Quels decks puis-je construire avec ma collection ?": "Which decks can I build with my collection?",
+  "Ajoute tes cartes : Mana Orbit suit leur valeur et te propose des idées de decks.": "Add your cards: Mana Orbit tracks their value and suggests deck ideas.",
+  "Réserver ma carte": "Reserve my card",
+  "Réserver mes {n} cartes": "Reserve my {n} cards",
+  "<b>Decks</b> › Idées de decks compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).": "<b>Decks</b> › Deck ideas compares your collection with the decks of the most played commanders: EDHREC average deck and recent Archidekt decks (Budget, Premium, cEDH). You see the share you already own, the cards to buy and their price. Built a deck? Mark it as “Built deck”: its cards are reserved for it. You need an account (Google, or an email address verified through the link you receive).",
+  "Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › Idées de decks, type « Communauté ».": "Publish a Commander deck from its viewer: My decks › the deck › Publish. It shows up in Decks › Deck ideas, type “Community”.",
+  "Publier ce deck dans la communauté (Decks › Idées de decks)": "Publish this deck to the community (Decks › Deck ideas)",
+  "Ce serveur ne relaie pas encore les decks publics : ils n'apparaîtront pas dans Idées de decks.": "This server doesn't relay public decks yet: they won't show up in Deck ideas.",
+  "Deck mis à jour : visible dans Idées de decks d'ici quelques minutes": "Deck updated: visible in Deck ideas within a few minutes",
+  "Deck publié : visible dans Idées de decks d'ici quelques minutes": "Deck published: visible in Deck ideas within a few minutes",
+  "Ton deck apparaît dans Decks › Idées de decks, type « Communauté », sous ton pseudo. Chacun peut le comparer à sa collection et l'enregistrer. C'est une copie : « Mettre à jour » envoie la liste du moment.": "Your deck shows up in Decks › Deck ideas, type “Community”, under your nickname. Anyone can compare it to their collection and save it. It's a copy: “Update” sends the current list.",
+  "Ouvre ton deck dans <b>Mes decks</b> et touche <b>Publier</b> : un deck Commander de 100 cartes pile, commandant compris, sous ton pseudo (compte vérifié, 10 decks au plus). Il apparaît pour tous dans <b>Decks</b> › Idées de decks, type <b>Communauté</b>, d'ici quelques minutes. <b>Mettre à jour</b> envoie ta liste du moment, <b>Retirer</b> l'enlève (supprimer le deck aussi). Un deck choquant ? <b>Signaler ce deck</b>, dans sa feuille : il disparaît de ton appli, et de la communauté après plusieurs signalements.": "Open your deck in <b>My decks</b> and tap <b>Publish</b>: a Commander deck of exactly 100 cards, commander included, under your nickname (verified account, 10 decks at most). It shows up for everyone in <b>Decks</b> › Deck ideas, type <b>Community</b>, within a few minutes. <b>Update</b> sends your current list, <b>Remove</b> takes it down (so does deleting the deck). An offensive deck? <b>Report this deck</b>, in its sheet: it disappears from your app, and from the community after several reports.",
+  "Decks › Idées de decks": "Decks › Deck ideas",
+  "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "The cards of this deck you own, location by location; reserve its cards",
+  "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "For a new deck: the assistant helps (commander, themes, bracket, budget) and the coach balances the deck.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "The Commander decks your collection almost builds, with the missing cards and their price. Plus Community: decks published by players.",
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "The Commander decks your collection almost builds, with the missing cards and their price."
 }

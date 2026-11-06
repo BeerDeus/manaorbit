@@ -37,7 +37,7 @@ export function dscDeckMsg(x) {
     ...(x.price > 0 ? [{ name: 'Prix estimé · Estimated price', value: dscEuros(x.price), inline: true }] : []),
     { name: 'Auteur · Author', value: who, inline: true },
   ];
-  const embed = { title, url: x.url, color: dscDeckColor(x.ci), fields, ...(cmd.length ? { thumbnail: { url: dscCardImg(cmd[0]) } } : {}), footer: { text: 'Mana Orbit · Decks › À monter › Communauté' } };
+  const embed = { title, url: x.url, color: dscDeckColor(x.ci), fields, ...(cmd.length ? { thumbnail: { url: dscCardImg(cmd[0]) } } : {}), footer: { text: 'Mana Orbit · Decks › Idées de decks › Communauté' } };
   return {
     content: `🃏 ${who} partage son deck · shares a deck`,
     embeds: [embed],
