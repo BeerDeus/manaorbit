@@ -106,11 +106,14 @@ test('analyse : poids des notes, fréquences pondérées, échantillon de comman
   for (const ci of ['W', 'U', 'B', 'R', 'G']) for (let i = 0; i < 8; i++) cmds.push({ ci, rank: cmds.length + 1, decks: 100 });
   for (let i = 0; i < 4; i++) cmds.push({ ci: '', rank: cmds.length + 1, decks: 50 }, { ci: 'WU', rank: cmds.length + 2, decks: 50 }, { ci: 'WUB', rank: cmds.length + 3, decks: 50 });
   cmds.push({ ci: 'R', rank: 0, decks: 9, comm: true });
-  const sm = S.stpSample(cmds, '');
-  assert.equal(sm.filter(c => c.ci === 'W').length, 5); assert.equal(sm.filter(c => c.ci === '').length, 2); assert.equal(sm.filter(c => c.ci === 'WU').length, 1);
-  assert.equal(sm.filter(c => c.ci.length >= 3).length, 4); assert.ok(!sm.some(c => c.comm), 'decks de la communauté seuls : pas dans l\'échantillon');
-  const red = S.stpSample(cmds, 'R');
-  assert.ok(red.every(c => !c.ci || c.ci.includes('R')), 'couleurs choisies : commandants qui en partagent une (ou incolores)');
+  const n1 = () => 3, sm = S.stpSample(cmds, '', 30, n1);
+  assert.equal(sm.length, 10, '30 decks à 3 par commandant : 10 commandants');
+  assert.ok(new Set(sm.map(c => c.ci)).size >= 7, 'à tour de rôle entre les identités');
+  assert.ok(!sm.some(c => c.comm), 'decks de la communauté seuls : pas dans l\'échantillon');
+  const w = S.stpSample(cmds, '', 30, n1).filter(c => c.ci === 'W'); assert.deepEqual(w.map(c => c.rank), [...w.map(c => c.rank)].sort((a, b) => a - b), 'le plus joué d\'abord');
+  assert.equal(S.stpSample(cmds, '', 1e6, n1).length, cmds.length - 1, 'tout l\'index au plus');
+  const red = S.stpSample(cmds, 'R', 1e6, n1);
+  assert.ok(red.length && red.every(c => !c.ci || c.ci.includes('R')), 'couleurs choisies : commandants qui en partagent une (ou incolores)');
 });
 
 test('plusieurs commandants : identité de l\'un d\'eux, rangée chez celui qui la veut le plus, répartie à parts égales', () => {

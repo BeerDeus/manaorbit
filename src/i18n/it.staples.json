@@ -74,7 +74,6 @@
  "Le coach construit des decks pour {name}": "Il coach costruisce mazzi per {name}",
  "Analyse des decks : {name}": "Analisi dei mazzi: {name}",
  "Analyse approfondie": "Analisi approfondita",
- "Le coach construit un deck pour une quarantaine de commandants de toutes les couleurs (plusieurs minutes) ; avec leurs vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.": "Il coach costruisce un mazzo per una quarantina di comandanti di tutti i colori (diversi minuti); insieme ai loro veri mazzi EDHREC e Archidekt, tutti valutati dal coach, le carte che tornano nei mazzi meglio valutati passano davanti.",
  "Classement immédiat : popularité EDHREC, force et rôles du coach.": "Classifica immediata: popolarità EDHREC, forza e ruoli del coach.",
  "Commandant {a} / {b}": "Comandante {a} / {b}",
  "Analyse approfondie : le coach construit et note des decks, ça prend du temps. Tu peux fermer cette fiche, l'analyse continue ; « Arrêter » garde ce qui est déjà analysé.": "Analisi approfondita: il coach costruisce e valuta mazzi, richiede tempo. Puoi chiudere questa scheda, l'analisi continua; «Interrompi» tiene ciò che è già analizzato.",
@@ -87,5 +86,8 @@
  "{n} decks analysés": "{n} mazzi analizzati",
  "{n} commandant": "{n} comandante",
  "{n} commandants": "{n} comandanti",
- "Le coach construit des decks complets pour chaque commandant (8 versions, environ 1 à 2 minutes chacun) ; avec les vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.": "Il coach costruisce mazzi completi per ogni comandante (8 versioni, circa 1-2 minuti ciascuno); insieme ai veri mazzi EDHREC e Archidekt, tutti valutati dal coach, le carte che tornano nei mazzi meglio valutati passano davanti."
+ "Le coach construit des decks complets pour chaque commandant (8 versions, environ 1 à 2 minutes chacun) ; avec les vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.": "Il coach costruisce mazzi completi per ogni comandante (8 versioni, circa 1-2 minuti ciascuno); insieme ai veri mazzi EDHREC e Archidekt, tutti valutati dal coach, le carte che tornano nei mazzi meglio valutati passano davanti.",
+ "Des commandants de toutes les couleurs, les plus joués d'abord, jusqu'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.": "Comandanti di tutti i colori, i più giocati per primi, fino al numero di mazzi scelto: i loro veri mazzi EDHREC e Archidekt e un mazzo costruito dal coach per ciascuno, tutti valutati dal coach; le carte che tornano nei mazzi meglio valutati passano davanti.",
+ "Decks à analyser": "Mazzi da analizzare",
+ "(plus de decks : plus long)": "(più mazzi: più lento)"
 }

@@ -8060,8 +8060,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'b78d9065';
-const I18N_FILES = {"de":"i18n/de.922920ce.js","en":"i18n/en.98182c13.js","es":"i18n/es.2bd150bc.js","it":"i18n/it.9c5fe1a6.js","pt":"i18n/pt.a78fdd07.js"};
+const DD_BUILD = '863fc28b';
+const I18N_FILES = {"de":"i18n/de.7e4d3887.js","en":"i18n/en.611f9cff.js","es":"i18n/es.bedf3e0e.js","it":"i18n/it.935e771f.js","pt":"i18n/pt.65fb78b8.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -31870,7 +31870,8 @@ function ctWishSheet(o) {
      Prix lus gardés 2 jours sur l'appareil (deckdeal:stp:ct) ; la vérification continue si la fiche est fermée (pastille flottante).
    Sortie : « Copier » (« 1 Nom » par ligne) ou « Envoyer dans Prix d'une liste » (app.js › putDeckText). ✕ sur une ligne : écartée de cette liste seulement. */
 const STP_KEY = 'deckdeal:stp', STP_CT_KEY = 'deckdeal:stp:ct', STP_CT_TTL = 2 * 864e5;
-const STP_N = [50, 100, 150, 200, 300], STP_MAXS = [10, 15, 25, 50], STP_CMD_MAX = 10;
+const STP_N = [50, 100, 150, 200, 300], STP_ND = [200, 500, 1000, 2000], STP_ND_MAX = 2000,      // decks analysés sans commandant : choix proposés, et plafond absolu (jamais plus, quel que soit le réglage enregistré)
+  STP_MAXS = [10, 15, 25, 50], STP_CMD_MAX = 10;
 const STP_ROLES = [['ramp', 'Rampe'], ['draw', 'Pioche'], ['removal', 'Retraits ciblés'], ['wipe', 'Balayages'], ['counter', 'Contresorts'], ['protect', 'Protection'], ['recursion', 'Récursion'],
   ['tutor', 'Tuteurs'], ['fixing', 'Couleurs (fixing)'], ['wincon', 'Conditions de victoire'], ['land', 'Terrains']];
 const STP_UTIL = ['ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'recursion', 'tutor', 'fixing'];      // rôles « utilitaires » : un petit bonus au score
@@ -31935,24 +31936,34 @@ function stpFreq(decks) {
   if (W > 0) for (const [k, v] of m) m.set(k, v / W);
   return m;
 }
-/** Échantillon de commandants pour l'analyse sans commandant : les plus joués de chaque identité (5 par couleur seule, 2 incolores, 1 par paire, 6 à trois couleurs ou plus),
- *  restreint aux identités qui partagent une couleur choisie (cols) quand il y en a. */
-function stpSample(cmds, cols) {
-  const l = cmds.filter(c => !c.comm && (!cols || !c.ci || [...c.ci].some(x => cols.includes(x)))).sort((a, b) => (a.rank || 1e9) - (b.rank || 1e9) || b.decks - a.decks), out = [], per = new Map();
-  const cap = ci => (ci.length === 0 ? 2 : ci.length === 1 ? 5 : ci.length === 2 ? 1 : 6), key = ci => (ci.length >= 3 ? '3+' : ci);
-  for (const c of l) { const ci = String(c.ci || ''), k = key(ci), n = per.get(k) || 0; if (n < cap(ci)) { per.set(k, n + 1); out.push(c); } }
+/** Commandants de l'analyse sans commandant, jusqu'à environ target decks (nOf(c) : decks qu'il apporte) : à tour de rôle entre les identités de couleur,
+ *  chacune selon son poids (racine de ses decks EDHREC : les identités jouées passent plus souvent, les rares ne sont pas oubliées), le plus joué d'abord ;
+ *  restreint aux identités qui partagent une couleur choisie (cols) et aux incolores. */
+function stpSample(cmds, cols, target, nOf) {
+  const by = new Map();
+  for (const c of cmds) {
+    if (c.comm || (cols && c.ci && ![...c.ci].some(x => cols.includes(x)))) continue;
+    const k = String(c.ci || ''); if (!by.has(k)) by.set(k, { l: [], w: 0, n: 0 }); const g = by.get(k); g.l.push(c); g.w += c.decks || 0;
+  }
+  const gs = [...by.values()].map(g => ({ ...g, w: Math.sqrt(g.w) || 1, l: g.l.sort((a, b) => (a.rank || 1e9) - (b.rank || 1e9) || b.decks - a.decks) }));
+  const out = []; let tot = 0;
+  while (tot < target) {
+    let best = null; for (const g of gs) if (g.n < g.l.length && (!best || g.n / g.w < best.n / best.w)) best = g;
+    if (!best) break;
+    const c = best.l[best.n++]; out.push(c); tot += Math.max(1, nOf(c));
+  }
   return out;
 }
 /** Offre CardTrader acceptée ? (prix en centimes, null : aucune offre) : strictement sous prix maximum + marge. */
 const stpCtOk = (p, o) => p != null && p < o.max + o.tol;
 
 /* ── Réglages ─────────────────────────────────────────────────────────────────────────────────────── */
-const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true });
+const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true, nd: 1000 });
 function stpLoad() {
   if (STP.o) return STP.o;
   let o = {}; try { o = JSON.parse(localStorage.getItem(STP_KEY) || '{}') || {}; } catch (e) { o = {}; }
   const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
-  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, tol: int(o.tol, 0, 100, d.tol),
+  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
     cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
     tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
   return STP.o;
@@ -32177,10 +32188,11 @@ async function stpGo() {
         x.F = stpFreq(r.decks); A.n += r.decks.length; A.nc += r.nc; A.nr += r.nr; A.notes.push(...r.notes); A.cmds++;
       }
     } else if (o.deep && EDH.data) {      // sans commandant : un échantillon de commandants de toutes les couleurs ; une carte vaut d'autant plus qu'elle revient chez ceux qui peuvent la jouer
-      const sample = stpSample(EDH.data.cmds, o.cols), per = [];
+      const nr = new Map(); for (const d of EDH.data.decks) nr.set(d.cmd, (nr.get(d.cmd) || 0) + 1);      // vrais decks de chaque commandant (+ 1 deck du coach)
+      const sample = stpSample(EDH.data.cmds, o.cols, Math.min(o.nd, STP_ND_MAX), c => (nr.get(c) || 0) + 1), per = [];
       STP.prog = { done: 0, total: sample.length, sub: '' };
       for (const [i, c] of sample.entries()) {
-        if (STP.stop) break;
+        if (STP.stop || A.n >= STP_ND_MAX) break;      // plafond atteint : jamais plus de STP_ND_MAX decks
         STP.busy = T('Analyse des decks : {name}', { name: stpShort(c) }); STP.prog.done = i; STP.prog.frac = 0; STP.prog.sub = ''; stpPaint();
         const cmd = stpCoachCmd(c), pack = await dwPack('c', c.slug), x = { cmd, pack, C: dwInfo(pack, { ...dwDefaults(), own: false, mech: o.tags.slice(0, 4) }, cmd) };
         const r = await stpDecksOf(c, x, o, STP_GEN_MS, true, stpShort(c));
@@ -32253,8 +32265,9 @@ function stpFormHtml() {
       <p class="hint">${T('Une carte est gardée si son offre CardTrader la moins chère (tes critères de recherche) est sous {p} ; sinon la suivante du classement prend sa place.', { p: esc(stpEuro(o.max + o.tol)) })}</p>` : ''}
     <button type="button" class="dkf-sw" role="switch" data-stp="deep" aria-checked="${o.deep}" aria-pressed="${o.deep}"><span>${T('Analyse approfondie')}<small>${T('long')}</small></span><span class="switch" aria-hidden="true"><i></i></span></button>
     <p class="hint">${o.deep ? (cs.length ? T('Le coach construit des decks complets pour chaque commandant (8 versions, environ 1 à 2 minutes chacun) ; avec les vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.')
-      : T('Le coach construit un deck pour une quarantaine de commandants de toutes les couleurs (plusieurs minutes) ; avec leurs vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.'))
+      : T('Des commandants de toutes les couleurs, les plus joués d\'abord, jusqu\'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.'))
       : T('Classement immédiat : popularité EDHREC, force et rôles du coach.')}</p>
+    ${o.deep && !cs.length ? h(T('Decks à analyser') + ` <small>${T('(plus de decks : plus long)')}</small>`) + `<div class="fopts" role="group">${STP_ND.map(n => chip('nd', n, o.nd === n, nf0(n))).join('')}</div>` : ''}
     ${h(T('Commandants') + ` <small>${T('(facultatif, {n} au plus)', { n: STP_CMD_MAX })}</small>`)}
     <div class="fopts stp-cmds" role="group">${chip('cmd', '', !o.cmds.length, T('Aucun'))}${mine.length > 1 ? chip('cmdall', '', allMine, T('Tous mes decks')) : ''}${mine.map(cmdChip).join('')}${cs.filter(x => !mine.some(y => y.slug === x.slug)).map(cmdChip).join('')}</div>
     ${E ? `<label class="fsearch stp-q"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="stpCmdQ" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(T('Chercher un commandant'))}" value="${esc(STP.q)}"></label>
@@ -32351,7 +32364,7 @@ function stpPaintRun() {
 function stpClick(e) {
   const b = e.target.closest('[data-stp]'); if (!b || b.disabled) return;
   const o = stpLoad(), a = b.dataset.stp, v = b.dataset.v, tog = (l, x) => (l.includes(x) ? l.filter(y => y !== x) : [...l, x]);
-  if (a === 'n') o.n = +v; else if (a === 'q') o.q = +v; else if (a === 'max') o.max = +v;
+  if (a === 'n') o.n = +v; else if (a === 'nd') o.nd = +v; else if (a === 'q') o.q = +v; else if (a === 'max') o.max = +v;
   else if (a === 'ct') o.ct = !o.ct; else if (a === 'deep') o.deep = !o.deep; else if (a === 'cless') o.cless = !o.cless;
   else if (a === 'cmd') {
     if (!v) o.cmds = [];
