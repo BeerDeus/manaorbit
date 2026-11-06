@@ -24,7 +24,7 @@
    « Niveau et badges », qui est une feuille) ; une seule à la fois, effacée au premier toucher ou après 7 s. Vue pour de bon si elle est restée
    2 s à l'écran (TIP_READ), sinon elle revient la fois suivante (2 fois au plus, TIP_MAX). Jamais pendant la visite, le mode streamer ou le premier
    lancement ; Compte et réglages › Préférences : interrupteur « Astuces » et « Revoir les astuces ».
-   Collection vide : pas d'astuce « Tu viens de ManaBox ? », l'écran vide le dit déjà (et l'étape Importer de la visite).
+   Collection vide : pas d'astuce « Venir de ManaBox », l'écran vide le dit déjà (et l'étape Importer de la visite).
    État sur l'appareil seulement (deckdeal:tour) : offre faite, vue, refusée, étape atteinte, version, visite courte / suite, astuces vues. Rien au
    démarrage hormis un minuteur : tout se construit à la demande. Navigateurs pilotés par les tests : ni offre ni astuce, sauf avec ?tour.
    Retirer : ôter 'tour.js' de build.mjs (les crochets « typeof tour… / tip… » de onboard, help, me, back, ads, collection, filters, scan,
@@ -65,13 +65,13 @@ const tourTopIn = () => parseFloat(getComputedStyle(document.documentElement).pa
    du halo au plus ; v : version de la visite qui l'a ajoutée (1 sans rien). */
 const TOUR_STEPS = [
   { id: 'scan', base: true, at: 'home', fixed: true, r: 34, el: () => [$('#nav .nav-scan .nav-foil'), $('#nav .nav-scan .nav-l')],
-    t: () => T('Scanner tes cartes'),
+    t: () => T('Scanner des cartes'),
     x: () => T('Touche ce rond et vise le nom de la carte : elle rejoint ta collection. Ses réglages (édition, mode Auto) sont en haut du scan.') },
   { id: 'opening', at: 'scs', ok: () => typeof scsSheet === 'function' && typeof opnScsRow === 'function', el: () => $('.scs-sheet.open .opn-scs'),
     t: () => T('Session d\'ouverture'),
     x: () => T('Tu ouvres des boosters ? Lance une session ici : prix payé, mode streamer, puis le bilan (gain ou perte, meilleures cartes) à partager.') },
   { id: 'import', v: 3, base: true, at: 'home', ok: () => typeof openCollImport === 'function' && !collCount(), el: () => [$('#hmStart [data-hm="import"]'), $('#hmStart [data-hm="swg"]')],      // collection vide : la carte « Pour commencer »
-    t: () => T('Importer ta collection'), x: () => tourImportX() },
+    t: () => T('Importer un fichier'), x: () => tourImportX() },
   { id: 'trade', base: true, at: 'home', el: () => $('#hmTrade .hm-tr-acts:not([hidden])') || $('#hmTrade'),      // collection vide : la carte entière (QR code et Partager pas encore là)
     t: () => T('Ta liste d\'échange'),
     x: () => (D.user ? T('Ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches, toujours à jour.')
@@ -97,7 +97,7 @@ const TOUR_STEPS = [
     t: () => T('Échange en direct'),
     x: () => T('Cette icône lance un échange face à face, chacun sur son téléphone : vous choisissez vos cartes, validez, et vos collections suivent.') },
   { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="import"]'),      // quelques cartes : le bouton de la collection
-    t: () => T('Importer ta collection'), x: () => tourImportX() },
+    t: () => T('Importer un fichier'), x: () => tourImportX() },
   { id: 'masterset', v: 2, at: 'list', ok: () => typeof msBarHtml === 'function', el: () => tourIn('.coll-ms:not([hidden])') || tourIn('#collSeg [data-v="list"]'),
     t: () => T('Masterset'),
     x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, dans l\'ordre : en couleur tes cartes, en noir et blanc celles qui manquent. La roue crantée règle foil et variantes.')

@@ -1,6 +1,8 @@
-# Lexique : propositions (audit U6, 6 novembre 2026)
+# Lexique : propositions (audit U6, 6 novembre 2026) : appliqué (versions recommandées)
 
-Rapport : `docs/audit/70-regles-et-ux-6-novembre.md` › U6. Rien n'est codé : choisir une version par famille, puis appliquer (textes, 5 langues, tests).
+**État : appliqué (versions recommandées), décision du propriétaire du 6 novembre 2026** : Modifier B, monter A, cartes manquantes A, Coach A, Ajouter / Importer / Scanner / ManaBox A. Détail et limites : `docs/a-faire.md` › Point du 6 novembre (lignes « Lexique, … »). Les numéros de ligne ci-dessous sont ceux d'avant l'application.
+
+Rapport : `docs/audit/70-regles-et-ux-6-novembre.md` › U6.
 Règle visée : **un nom par action, une action par nom, le même titre pour le bouton et l'écran qu'il ouvre.** Numéros de ligne : branche du lot G (6 novembre).
 
 ## 1. « Modifier » (3 actions)

@@ -1,5 +1,4 @@
 {
-  "Scanner tes cartes": "Escanea tus cartas",
   "Ta liste d'échange": "Tu lista de cambios",
   "« + » ouvre « Ajouter des cartes » : active le scan mobile, puis scanne avec ton téléphone connecté au même compte. Chaque carte arrive ici.": "«+» abre «Añadir cartas»: activa el escaneo móvil y escanea con tu móvil conectado a la misma cuenta. Cada carta llega aquí.",
   "Il faut un compte.": "Hace falta una cuenta.",
@@ -35,7 +34,6 @@
   "Astuce": "Consejo",
   "Touche ce rond et vise le nom de la carte : elle rejoint ta collection. Ses réglages (édition, mode Auto) sont en haut du scan.": "Toca este círculo y apunta al nombre de la carta: se suma a tu colección. Sus ajustes (edición, modo Auto) están arriba en el escaneo.",
   "Tu ouvres des boosters ? Lance une session ici : prix payé, mode streamer, puis le bilan (gain ou perte, meilleures cartes) à partager.": "¿Abres sobres? Empieza aquí una sesión: precio pagado, modo streamer y luego el balance (ganancia o pérdida, mejores cartas) para compartir.",
-  "Importer ta collection": "Importa tu colección",
   "Ta collection est déjà ailleurs (ManaBox, Moxfield, un tableur) ? Importe son fichier CSV : tout arrive d'un coup.": "¿Tu colección ya está en otro sitio (ManaBox, Moxfield, una hoja de cálculo)? Importa su archivo CSV: llega todo de una vez.",
   "Ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches, toujours à jour.": "Tu enlace público y su código QR: otro jugador ve tus repetidas y las cartas que buscas, siempre al día.",
   "Avec un compte, ton lien public et son QR code montrent tes doublons et les cartes que tu cherches.": "Con una cuenta, tu enlace público y su código QR muestran tus repetidas y las cartas que buscas.",

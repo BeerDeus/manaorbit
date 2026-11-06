@@ -29,5 +29,9 @@
   "Alerte de prix : indisponible en mode démo.": "Avviso di prezzo: non disponibile in modalità demo.",
   "Alerte de prix : il faut le serveur Mana Orbit et les notifications.": "Avviso di prezzo: richiede il server di Mana Orbit e le notifiche.",
   "Ajouter une alerte de prix": "Aggiungi un avviso di prezzo",
-  "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Ancora niente da monitorare: salva un mazzo a cui mancano carte, o aggiungi un avviso di prezzo su una carta."
+  "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Ancora niente da monitorare: salva un mazzo a cui mancano carte, o aggiungi un avviso di prezzo su una carta.",
+  "Pas encore de cartes": "Ancora nessuna carta",
+  "Venir de ManaBox": "Passare da ManaBox",
+  "Ta collection est dans une autre appli ?": "La tua collezione è in un'altra app?",
+  "Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer un fichier</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Venir de ManaBox</button>": "Esporta la tua collezione in CSV dalla tua vecchia app (ManaBox: scheda Collection › menu in alto a destra › <b>Export</b>), poi <b>Collezione</b> › <b>Importa un file</b> › <b>Scegli un file</b>: quantità, edizioni e lingue vengono importate. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Passare da ManaBox</button>"
 }

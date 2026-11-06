@@ -89,14 +89,14 @@ for (const vp of [{ width: 393, height: 852 }, { width: 360, height: 780 }]) {
   assert.deepEqual(await homeOrder(q), ['hm-hero', 'hmStart', 'hmTrade', 'hmPartie', 'hmDiscord', 'btnHelp'], tag + ' : orbe, « Pour commencer », Échange, compteur de vie, puis Discord');
   assert.equal(await q.$eval('#collSub', x => x.hidden), true, tag + ' : plus la phrase « déduites du panier »');
   assert.match(await txt(q, '#hmStart'), /^Pour commencer Ajoute tes cartes : Mana Orbit suit leur valeur/);
-  assert.deepEqual(await q.$$eval('#hmStart .hm-go-a', l => l.map(b => [b.dataset.hm, b.querySelector('b').textContent])), [['scan', 'Scanner'], ['add', 'Ajouter une carte'], ['import', 'Importer'], ['swg', 'Je viens de ManaBox']]);
+  assert.deepEqual(await q.$$eval('#hmStart .hm-go-a', l => l.map(b => [b.dataset.hm, b.querySelector('b').textContent])), [['scan', 'Scanner des cartes'], ['add', 'Ajouter des cartes'], ['import', 'Importer un fichier'], ['swg', 'Venir de ManaBox']]);
   assert.ok((await q.$$eval('#hmStart .hm-go-a', l => l.map(b => b.getBoundingClientRect().height))).every(h => h >= 44), tag + ' : cibles de 44 px au moins');
   assert.equal(await q.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, tag + ' : rien ne dépasse sur le côté');
   assert.deepEqual(await q.evaluate(() => [document.querySelector('#hmTrade .hm-tr-acts').hidden, hmTradeNote.hidden]), [true, false], tag + ' : ni QR code ni Partager à vide');
   assert.match(await txt(q, '#hmTradeNote'), /proposés dès que tu auras des doublons/);
   assert.match(await txt(q, '#btnColl'), /Commencer/, 'l\'orbe « Commencer » reste');
   if (vp.width === 393) {
-    await q.click('#hmStart [data-hm="swg"]'); await q.waitForSelector('.swg-sheet.open'); assert.match(await txt(q, '.swg-sheet .sheet-head'), /Passer de ManaBox/); await closeSheets(q);
+    await q.click('#hmStart [data-hm="swg"]'); await q.waitForSelector('.swg-sheet.open'); assert.match(await txt(q, '.swg-sheet .sheet-head'), /Venir de ManaBox/); await closeSheets(q);
     await q.click('#hmStart [data-hm="import"]'); await q.waitForFunction(() => sheets.length === 1 && !!document.querySelector('#ciText')); await closeSheets(q);
     await q.click('#hmStart [data-hm="scan"]'); await q.waitForFunction(() => !!SC.el); await scanClose(q);
     // une carte ajoutée : tout redevient comme avant (orbe, phrase, QR code / Partager)
@@ -107,7 +107,7 @@ for (const vp of [{ width: 393, height: 852 }, { width: 360, height: 780 }]) {
   }
   assert.deepEqual(e.errs, []); await e.ctx.close();
 }
-ok('téléphone, collection vide : « Pour commencer » (Scanner, Importer, Je viens de ManaBox) à la place de « déduites du panier », Échange sans QR code ni Partager, Discord après le compteur de vie ; remplie : comme avant');
+ok('téléphone, collection vide : « Pour commencer » (Scanner des cartes, Ajouter des cartes, Importer un fichier, Venir de ManaBox) à la place de « déduites du panier », Échange sans QR code ni Partager, Discord après le compteur de vie ; remplie : comme avant');
 for (const vp of [{ width: 1890, height: 900 }, { width: 1280, height: 800 }]) {
   const e = await newPage(browser, world, { init: seen, ctx: { viewport: vp, isMobile: false, hasTouch: false, deviceScaleFactor: 1 } }), q = e.p, tag = vp.width + ' px';
   await q.waitForSelector('.hm-cols'); await q.waitForTimeout(400);

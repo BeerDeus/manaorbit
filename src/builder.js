@@ -587,7 +587,7 @@ function bdList() {
 /** Ordinateur : écran large et souris (même requête que zz-desktop.css et la barre latérale, nav.js). */
 const bdSplit = () => { try { return matchMedia('(min-width:1100px) and (hover:hover) and (pointer:fine)').matches; } catch (e) { return false; } };
 /** Nom du deck et « Scanner des cartes » (onglet Deck ; sur ordinateur, au-dessus de la liste du deck, et le scan va alors dans le deck). */
-const bdNameCtl = () => `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div><button class="btn ghost block bd-scan" type="button" data-act="scan"${BD.split ? ' data-tgt="main"' : ''} aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg><span>${T('Scanner des cartes')}</span></button>`;
+const bdNameCtl = () => `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div><button class="btn ghost block bd-scan" type="button" data-act="scan"${BD.split ? ' data-tgt="main"' : ''} aria-label="${T('Scanner le deck')}" title="${T('Scanner le deck')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg><span>${T('Scanner le deck')}</span></button>`;
 function bdPaint() {
   const el = BD.el; if (!el) return;
   bdHead(); $('#bdSum', el).innerHTML = bdSumHtml(); bdList();
@@ -602,7 +602,7 @@ function bdTab(v) {
   const el = BD.el; if (!el) return;
   BD.tab = v; BD.q = BD.f.q = ''; BD.shown = BD_PAGE; BD.fb = null; if (v !== 'coll') { BD.sel = null; bdSelPaint(); }
   const ctl = $('#bdCtl', el); $('#bdSeg', el).setValue(v);
-  const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
+  const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner le deck')}" title="${T('Scanner le deck')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
   if (v === 'deck') ctl.innerHTML = bdNameCtl();
   else if (v === 'coach') ctl.innerHTML = '';
   else {

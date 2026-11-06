@@ -37,11 +37,11 @@ const PNG_SIG = '137,80,78,71,13,10,26,10';
 {
   const { p, errs } = await newPage(browser, world); errsAll.push(errs);
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-  assert.ok(await p.$('.coll.on .coll-swg'), 'collection vide : « Tu viens de ManaBox ? »');
+  assert.ok(await p.$('.coll.on .coll-swg'), 'collection vide : « Venir de ManaBox »');
   await p.click('.coll.on .coll-tools [data-act="import"]'); await p.waitForSelector('.sheet-wrap.open #ciFile');
-  assert.match(await txt(p, '.sheet-wrap.open .ci-swg'), /Tu viens de ManaBox ou d'une autre appli \? Le guide en 2 minutes/);
+  assert.match(await txt(p, '.sheet-wrap.open .ci-swg'), /Ta collection est dans une autre appli \? Venir de ManaBox/);
   await p.click('.sheet-wrap.open [data-swg="open"]'); await sheetOpen(p, 'swg-sheet');
-  assert.equal(await txt(p, '.swg-sheet .sheet-head h2'), 'Passer de ManaBox en 2 minutes');
+  assert.equal(await txt(p, '.swg-sheet .sheet-head h2'), 'Venir de ManaBox');
   assert.equal(await p.$$eval('.swg-sheet .swg-step', l => l.length), 3, 'trois étapes');
   assert.match(await txt(p, '.swg-sheet .swg-step:first-child'), /Onglet Collection : menu en haut à droite › Export/);
   assert.deepEqual(await p.$$eval('.swg-sheet .swg-keep li', l => l.map(x => x.className)), ['ok', 'ok', 'ok', 'no', 'no'], 'gardé : quantités, éditions, langues ; pas : foil et état, classeurs');
@@ -58,7 +58,7 @@ const PNG_SIG = '137,80,78,71,13,10,26,10';
   await p.click('#ciGo'); await p.waitForFunction(() => collCount() === 6);
   const coll = await p.evaluate(() => Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [x.n, collLines(x).map(([g, q]) => g + ':' + q).join(' ')])));
   assert.equal(coll['Sol Ring'], 'fr|c21|263#cex:1 en|cmm|410:2 en|cmm|410*:1', 'la foil sur sa propre ligne, état « excellent » gardé (Near Mint ignoré)'); assert.equal(coll['Swords to Plowshares'], 'zh-CN|sta|10*:1'); assert.equal(coll['Ragavan, Nimble Pilferer'], 'kr|mh2|138:1', 'coréen : langue de l\'appli');
-  ok('Importer › « Tu viens de ManaBox ? » → guide (3 étapes, ce qui suit, autres applis) → « Choisir mon fichier » → export ManaBox lu et importé (éditions, langues)');
+  ok('Importer un fichier › « Venir de ManaBox » → guide (3 étapes, ce qui suit, autres applis) → « Choisir mon fichier » → export ManaBox lu et importé (éditions, langues)');
   await p.context().close();
 }
 
@@ -66,18 +66,18 @@ const PNG_SIG = '137,80,78,71,13,10,26,10';
 {
   const { p, errs } = await newPage(browser, world); errsAll.push(errs);
   await openMe(p, 'aide'); await p.click('.sheet-wrap.open [data-help="open"]'); await p.waitForSelector('.sheet-wrap.open.hp-sheet');
-  await p.click('.hp-sheet .hp-q:nth-child(3) summary'); assert.match(await txt(p, '.hp-sheet .hp-q:nth-child(3)'), /Je viens de ManaBox/);
+  await p.click('.hp-sheet .hp-q:nth-child(3) summary'); assert.match(await txt(p, '.hp-sheet .hp-q:nth-child(3)'), /Je viens de ManaBox/); assert.equal(await txt(p, '.hp-sheet [data-help="switch"]'), 'Venir de ManaBox', 'lien du même nom que le guide');
   await p.click('.hp-sheet [data-help="switch"]'); await sheetOpen(p, 'swg-sheet');
-  assert.equal(await txt(p, '.swg-sheet [data-swg="go"]'), 'Importer mon fichier');
+  assert.equal(await txt(p, '.swg-sheet [data-swg="go"]'), 'Importer un fichier');
   await p.click('.swg-sheet [data-swg="go"]'); await p.waitForSelector('.sheet-wrap.open #ciFile');
-  ok('Aide › « Je viens de ManaBox » → guide → « Importer mon fichier » ouvre l\'import');
+  ok('Aide › « Je viens de ManaBox (…) » › « Venir de ManaBox » → guide → « Importer un fichier » ouvre l\'import');
   await closeSheets(p);
   // premier lancement (appareil vierge) : 2e écran, « Tu viens de ManaBox ? »
   await p.evaluate(() => localStorage.removeItem('deckdeal:onboard')); await p.goto(world.url + '?onboarding'); await p.waitForSelector('.ob.on');
   await p.click('.ob [data-ob="next"]'); await p.waitForTimeout(400);
   await p.screenshot({ path: SHOTS + '/partage-2-premier-lancement.png' });
   await p.click('.ob [data-ob="swg"]'); await sheetOpen(p, 'swg-sheet'); assert.equal(await p.evaluate(() => !!document.querySelector('.ob.on')), false, 'premier lancement refermé');
-  ok('Premier lancement › « Tu viens de ManaBox ? Voir comment l\'exporter » → guide');
+  ok('Premier lancement › « Venir de ManaBox » → guide');
   // page publique
   const r = await fetch(world.url + 'passer-de-manabox'), html = await r.text();
   assert.equal(r.status, 200); assert.match(r.headers.get('content-type'), /text\/html/);

@@ -20,7 +20,7 @@ const SWG_APPS = [
 /** Ouvre le guide. o.from : 'import' (feuille d'import ouverte dessous : « Choisir mon fichier » ouvre directement son sélecteur), 'empty', 'onboard', 'help'. */
 function swgOpen(o) {
   const from = (o && o.from) || '';
-  openSheet(T('Passer de ManaBox en 2 minutes'), T('Ou de Moxfield, Delver Lens, Dragon Shield…'), api => {
+  openSheet(T('Venir de ManaBox'), T('Ou de Moxfield, Delver Lens, Dragon Shield…'), api => {
     api.wrap.classList.add('swg-sheet');
     const step = (n, title, text, more) => `<li class="swg-step"><i aria-hidden="true">${n}</i><div><b>${title}</b><p>${text}</p>${more ? `<small>${more}</small>` : ''}</div></li>`;
     const keep = (ok, text) => `<li class="${ok ? 'ok' : 'no'}"><svg class="i" aria-hidden="true"><use href="#i-${ok ? 'check' : 'close'}"/></svg><span>${text}</span></li>`;
@@ -46,7 +46,7 @@ function swgOpen(o) {
       <div class="hp-list">${det('Moxfield, Archidekt, ManaBox…', `<p>${helpNb(T('Copie la liste du deck en texte (Moxfield : <b>Export</b> › copier en texte ; ManaBox : menu du deck › export en texte), puis Decks › <b>Prix d\'une liste</b> : colle-la et touche <b>Enregistrer</b>.'))}</p>
         <p>${helpNb(T('Dans l\'appli Android, <b>Partager</b> un lien de deck Archidekt ou EDHREC vers Mana Orbit le lit tout seul. Les liens Moxfield ne se lisent pas (pas d\'accès public) : copie la liste.'))}</p>`, 'swg-decks')}</div>
       <p class="hint swg-web">${T('Ce guide existe aussi en page web, à envoyer à un ami : {link}', { link: `<a href="${SWG_WEB}" target="_blank" rel="noopener">manaorbit.app/${SWG_WEB}</a>` })}</p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" data-swg="go"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>${from === 'import' ? T('Choisir mon fichier') : T('Importer mon fichier')}</button>`);
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" data-swg="go"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>${from === 'import' ? T('Choisir mon fichier') : T('Importer un fichier')}</button>`);
     // une section ouverte referme les autres de son groupe : la feuille reste courte
     api.body.addEventListener('toggle', e => { const d = e.target; if (d.open) $$('.swg-q[open]', d.parentNode).forEach(x => { if (x !== d) x.open = false; }); }, true);
     $('[data-swg="go"]', api.foot).onclick = () => {

@@ -1,5 +1,4 @@
 {
-  "Scanner tes cartes": "Scan your cards",
   "Ta liste d'échange": "Your trade list",
   "« + » ouvre « Ajouter des cartes » : active le scan mobile, puis scanne avec ton téléphone connecté au même compte. Chaque carte arrive ici.": "“+” opens “Add cards”: turn on mobile scan, then scan with your phone signed in to the same account. Each card shows up here.",
   "Il faut un compte.": "Requires an account.",
@@ -35,7 +34,6 @@
   "Astuce": "Tip",
   "Touche ce rond et vise le nom de la carte : elle rejoint ta collection. Ses réglages (édition, mode Auto) sont en haut du scan.": "Tap this circle and aim at the card's name: it joins your collection. Its settings (edition, Auto mode) are at the top of the scanner.",
   "Tu ouvres des boosters ? Lance une session ici : prix payé, mode streamer, puis le bilan (gain ou perte, meilleures cartes) à partager.": "Opening boosters? Start a session here: price paid, streamer mode, then the summary (profit or loss, best cards) to share.",
-  "Importer ta collection": "Import your collection",
   "Ta collection est déjà ailleurs (ManaBox, Moxfield, un tableur) ? Importe son fichier CSV : tout arrive d'un coup.": "Is your collection already somewhere else (ManaBox, Moxfield, a spreadsheet)? Import its CSV file: everything arrives at once.",
   "Ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches, toujours à jour.": "Your public link and its QR code: another player sees your duplicates and the cards you're looking for, always up to date.",
   "Avec un compte, ton lien public et son QR code montrent tes doublons et les cartes que tu cherches.": "With an account, your public link and its QR code show your duplicates and the cards you're looking for.",

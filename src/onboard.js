@@ -38,11 +38,11 @@ function obOpen() {
       <section class="ob-s" aria-label="${T('Ta collection')}">
         <h2>${T('Ajoute ta collection')}</h2>
         <p>${T('Tu l\'as déjà dans une autre appli ? Exporte-la en CSV et importe le fichier : c\'est le plus rapide.')}</p>
-        <button class="link-btn ob-swg" type="button" data-ob="swg">${T('Tu viens de ManaBox ? Voir comment l\'exporter')}</button>
+        <button class="link-btn ob-swg" type="button" data-ob="swg">${T('Venir de ManaBox')}</button>
         <div class="ob-opts">
           <button class="ob-opt" type="button" data-ob="import"><svg class="i"><use href="#i-download"/></svg><b>${T('Importer un fichier')}</b><span>${T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».')}</span></button>
-          <button class="ob-opt" type="button" data-ob="add"><svg class="i"><use href="#i-plus"/></svg><b>${T('Ajouter une carte')}</b><span>${T('Tape son nom : elle rejoint ta collection.')}</span></button>
-          <button class="ob-opt" type="button" data-ob="scan"><svg class="i"><use href="#i-camera"/></svg><b>${T('Scanner mes cartes')}</b><span>${nmT('L\'appareil photo lit le nom de la carte, en français ou en anglais.', 'L\'appareil photo lit le nom de la carte, en {lang} ou en anglais.', 'L\'appareil photo lit le nom de la carte.')}</span></button>
+          <button class="ob-opt" type="button" data-ob="add"><svg class="i"><use href="#i-plus"/></svg><b>${T('Ajouter des cartes')}</b><span>${T('Tape son nom : elle rejoint ta collection.')}</span></button>
+          <button class="ob-opt" type="button" data-ob="scan"><svg class="i"><use href="#i-camera"/></svg><b>${T('Scanner des cartes')}</b><span>${nmT('L\'appareil photo lit le nom de la carte, en français ou en anglais.', 'L\'appareil photo lit le nom de la carte, en {lang} ou en anglais.', 'L\'appareil photo lit le nom de la carte.')}</span></button>
         </div>
         <button class="btn ghost block" type="button" data-ob="next">${T('Continuer sans ajouter de cartes')}</button>
       </section>
@@ -66,7 +66,7 @@ function obOpen() {
     if (a === 'next') obGo(OB.i + 1);
     else if (a === 'skip') obClose();
     else if (a === 'import') obClose(() => openCollImport());
-    else if (a === 'swg') obClose(() => swgOpen({ from: 'onboard' }));      // guide « Passer de ManaBox » (switch.js)
+    else if (a === 'swg') obClose(() => swgOpen({ from: 'onboard' }));      // guide « Venir de ManaBox » (switch.js)
     else if (a === 'scan') obClose(() => openScan());
     else if (a === 'add') obClose(() => openLot());
     else if (a === 'done') { if (OB.i === 2 && obPushStep()) obGo(3); else { if (OB.i === 3 && typeof evpAskLater === 'function') evpAskLater(); obClose(); } }      // étape 3 → notifications (s'il y en a une) ; étape 4 « Plus tard » : jamais redemandé
