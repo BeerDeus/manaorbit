@@ -45,7 +45,7 @@ await p.waitForFunction(() => /edgar-markov/.test((document.querySelector('.deck
 assert.doesNotMatch(await src('.deck[data-id="d2"] .deck-art img'), /\/fr\//, 'Edgar possédé en anglais : image anglaise');
 await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('#dkCover'); await p.click('#dkCover'); await p.waitForSelector('.cv-card img');
 await p.waitForFunction(() => /\/fr\//.test((document.querySelector('.cv-card[data-n="Sol Ring"] img') || {}).src || ''), null, { timeout: 6000 });
-await p.keyboard.press('Escape'); await p.waitForTimeout(300); await p.keyboard.press('Escape'); await p.waitForTimeout(300);      // image du deck, puis « Modifier le deck »
+await p.keyboard.press('Escape'); await p.waitForTimeout(300); await p.keyboard.press('Escape'); await p.waitForTimeout(300);      // image du deck, puis « Infos du deck »
 ok('image du deck : la carte possédée est montrée dans sa langue (liste et choix)');
 /* ── 4) aperçu en grand : en français quand Scryfall a la carte, sinon anglais avec une note ──────────────── */
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 }).catch(() => {});

@@ -378,7 +378,7 @@ function daAdd() {
 }
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { dwBracketOf });
 
-/* ── Réglages du coach d'un deck : formulaire partagé (bilan du coach, « Modifier le deck ») ─────────────────────────────────────────
+/* ── Réglages du coach d'un deck : formulaire partagé (bilan du coach, « Infos du deck ») ─────────────────────────────────────────
    Bracket visé (« Auto » : le bracket estimé de la liste, suivi tant qu'on n'en choisit pas un), limite de prix (vide : sans limite), thèmes (3 au plus),
    priorité à la collection. Gardés par deck comme ceux de l'éditeur (deckwiz.js › dwSettingsFor ; ba : bracket automatique). */
 /** Des réglages ont-ils été enregistrés pour ce deck ? */

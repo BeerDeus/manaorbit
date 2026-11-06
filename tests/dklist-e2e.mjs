@@ -57,8 +57,8 @@ ok('filtres : Commander / Standard, couleurs (toutes celles cochées), vide + «
 
 /* ── 3) carte de présentation : choisie dans la feuille du deck ─────────────────────────── */
 await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkEdit');
-assert.match(await txt(p, '.sheet-head p'), /^26 cartes · modifié /, 'feuille : même nombre que la liste et le viewer'); assert.match(await txt(p, '#dkEdit'), /^Modifier le deck Nom, image, format, tags · Standard$/);
-await p.click('#dkEdit'); await p.waitForSelector('#dkCover');      // « Modifier le deck » : nom, image, format, tags
+assert.match(await txt(p, '.sheet-head p'), /^26 cartes · modifié /, 'feuille : même nombre que la liste et le viewer'); assert.match(await txt(p, '#dkEdit'), /^Infos du deck Nom, image, format, tags · Standard$/);
+await p.click('#dkEdit'); await p.waitForSelector('#dkCover');      // « Infos du deck » : nom, image, format, tags
 assert.match(await txt(p, '#dkCoverSub'), /^Sol Ring · automatique$/);
 await p.click('#dkCover'); await p.waitForSelector('.cv-card'); await p.waitForFunction(() => document.querySelectorAll('.cv-card img.ok').length === 3, null, { timeout: 8000 });
 assert.deepEqual(await p.$$eval('.cv-card', c => c.map(x => x.dataset.n)), ['Swords to Plowshares', 'Sol Ring', 'Wrath of God'], 'cartes du deck et de la réserve, les plus chères d\'abord (égalité : ordre alphabétique)');
@@ -119,7 +119,7 @@ await p.fill('#svName', 'Edgar CM'); await p.click('#svGo'); await p.waitForFunc
 assert.equal(await txt(p, '#toast'), 'Deck enregistré', 'alertes indisponibles (pas de clés de notification) : aucune question');
 ok('« Enregistrer » : « 7/100 cartes · prix Cardmarket. » en Cardmarket, critères CardTrader sinon ; toast simple sans alertes possibles');
 
-/* ── 8) « Modifier le deck » : nom, format, tags (une ligne du texte, synchronisée avec lui) ; Commander : réglages du coach ─────────────── */
+/* ── 8) « Infos du deck » : nom, format, tags (une ligne du texte, synchronisée avec lui) ; Commander : réglages du coach ─────────────── */
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
 await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
 await p.evaluate(() => openDeckSheet('d4')); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('#dkeTag');
@@ -145,7 +145,7 @@ await p.click('#dkeOk'); await p.waitForFunction(() => !document.querySelector('
 assert.deepEqual(await p.evaluate(() => { const o = dwSettingsFor('d2'); return [o.br, o.bud, !!o.ba, !!o.bv]; }), [4, 15000, false, false], 'réglages du coach gardés pour ce deck');
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
 assert.equal(await p.evaluate(() => { const p0 = dkParse(findDeck('d2').text); return dkBuildText({ ...p0, fmt: 'commander' }).includes('// Deck Deal tags : Budget'); }), true, 'l\'éditeur garde les tags');
-ok('« Modifier le deck » : nom, format, tags (doublons refusés, proposés d\'un autre deck, sur la carte), réglages du coach d\'un deck Commander');
+ok('« Infos du deck » : nom, format, tags (doublons refusés, proposés d\'un autre deck, sur la carte), réglages du coach d\'un deck Commander');
 
 /* ── 9) « Suivre les cartes manquantes » : allumé par défaut, éteint pour un deck venu d'À monter ; « Je recherche » et alertes suivent ─────── */
 const want = () => p.evaluate(() => trState().want.filter(w => w.d).map(w => w.k).sort());

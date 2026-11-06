@@ -8090,8 +8090,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '7ebaa78b';
-const I18N_FILES = {"de":"i18n/de.08c2f2e1.js","en":"i18n/en.efdd5ee6.js","es":"i18n/es.0c4b6d05.js","it":"i18n/it.48581fe0.js","pt":"i18n/pt.b70f84b7.js"};
+const DD_BUILD = '12da046e';
+const I18N_FILES = {"de":"i18n/de.8497a716.js","en":"i18n/en.5395b4d1.js","es":"i18n/es.64695911.js","it":"i18n/it.2cab50fb.js","pt":"i18n/pt.63f94a94.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -18464,7 +18464,7 @@ function openDeckSheet(id) {
       const when = new Date(e.at).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
       return `<span class="d">${esc(when)} · ${e.mode === 'cm' ? 'Cardmarket' : e.mode === 'us' ? 'TCGplayer' : e.mode === 'zero' ? 'Zero' : 'Direct'}</span><span class="delta ${df == null || df === 0 ? 'flat' : df < 0 ? 'down' : 'up'}">${df == null || df === 0 ? '' : (df < 0 ? '−' : '+') + fmt(Math.abs(df), modeCur(e.mode))}</span><span class="t">${fmt(e.total, modeCur(e.mode))}</span>`;
     }).join('');
-    api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Modifier le deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+    api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Infos du deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
       <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
       ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
@@ -18477,7 +18477,7 @@ function openDeckSheet(id) {
     api.setFoot(`<button class="btn ghost-danger" type="button" id="dkDel">${T('Supprimer')}</button><button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
     $('#dkOpen', api.foot).onclick = () => { api.close(); loadDeck(id); };
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
-    const paintCover = () => {      // « Modifier le deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
+    const paintCover = () => {      // « Infos du deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/'), fk = deckFmt(cur), tg = dkTags(cur.text);
       imgKeep($('.cover-th', api.body), im ? `<img alt="" ${cardImgA(cv.key, cv.name, im)}>` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
       $('#dkEditSub', api.body).textContent = [T('Nom, image, format, tags'), fk ? DK_FORMATS[fk].label : '', ...tg].filter(Boolean).join(' · ');
@@ -18535,7 +18535,7 @@ function openDeckSheet(id) {
   });
 }
 
-/* ── Feuille : « Modifier le deck » (feuille ⋯ d'un deck) : nom, image, format, tags ; Commander : réglages du coach (deckana.js › daSetFormHtml) ─────── */
+/* ── Feuille : « Infos du deck » (feuille ⋯ d'un deck) : nom, image, format, tags ; Commander : réglages du coach (deckana.js › daSetFormHtml) ─────── */
 /** Tags déjà donnés à mes autres decks (proposés en un toucher), les plus fréquents d'abord. */
 function dkTagPool(except) {
   const n = new Map();
@@ -18547,7 +18547,7 @@ function openDeckEdit(id, done) {
   let fmt = deckFmt(d0) || 'standard', tags = dkTags(d0.text), wizOn = false;
   const fmt0 = fmt, wiz = typeof dwSettingsFor === 'function' ? dwSettingsFor(id) : null;
   if (wiz && typeof daSaved === 'function' && !daSaved(id)) { wiz.ba = 1; wiz.bv = 1; }      // jamais réglé : bracket estimé, budget = valeur actuelle (deckana.js)
-  openSheet(T('Modifier le deck'), null, api => {
+  openSheet(T('Infos du deck'), null, api => {
     api.wrap.classList.add('dke-sheet');
     api.body.innerHTML = `<div class="field-in"><label class="label" for="dkName">${T('Nom')}</label><input type="text" id="dkName" maxlength="120" autocomplete="off" value="${esc(d0.name)}"></div>
       <button class="coll-open dk-cover" type="button" id="dkCover"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Image du deck')}</b><span id="dkCoverSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
@@ -19685,7 +19685,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
-      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
+      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Éditer le deck')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
     <div class="dv-main"><div id="dvCmd"></div>
     <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
@@ -19891,7 +19891,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer le viewer')}"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="dv-title"><b>${esc(DV.name)}</b><span></span></div>${DV.pub ? '' : '<button class="icon-btn" type="button" data-act="share" aria-label="' + T('Partager ce deck (lien en lecture seule)') + '" title="' + T('Partager') + '"><svg class="i"><use href="#i-share"/></svg></button>'}</header>
     <div class="dv-scroll"><div class="dv-body"></div></div>
-    <footer class="dv-foot"><button class="btn ghost" type="button" data-act="edit">${T('Modifier la liste')}</button><button class="btn" type="button" data-act="refresh">${T('Actualiser')}</button><button class="btn" type="button" data-act="close">${T('Fermer')}</button><button class="btn" type="button" data-act="save" hidden>${T('Enregistrer dans mes decks')}</button><button class="btn" type="button" data-act="open" hidden>${T('Ouvrir')}</button></footer>`;
+    <footer class="dv-foot"><button class="btn ghost" type="button" data-act="edit">${T('Revenir à la liste')}</button><button class="btn" type="button" data-act="refresh">${T('Actualiser')}</button><button class="btn" type="button" data-act="close">${T('Fermer')}</button><button class="btn" type="button" data-act="save" hidden>${T('Enregistrer dans mes decks')}</button><button class="btn" type="button" data-act="open" hidden>${T('Ouvrir')}</button></footer>`;
   DV.el = wrap; DV.prevFocus = document.activeElement;
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); wrap.__close(); } };
   wrap.__close = () => {
@@ -30869,7 +30869,7 @@ function daAdd() {
 }
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { dwBracketOf });
 
-/* ── Réglages du coach d'un deck : formulaire partagé (bilan du coach, « Modifier le deck ») ─────────────────────────────────────────
+/* ── Réglages du coach d'un deck : formulaire partagé (bilan du coach, « Infos du deck ») ─────────────────────────────────────────
    Bracket visé (« Auto » : le bracket estimé de la liste, suivi tant qu'on n'en choisit pas un), limite de prix (vide : sans limite), thèmes (3 au plus),
    priorité à la collection. Gardés par deck comme ceux de l'éditeur (deckwiz.js › dwSettingsFor ; ba : bracket automatique). */
 /** Des réglages ont-ils été enregistrés pour ce deck ? */

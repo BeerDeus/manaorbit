@@ -63,7 +63,7 @@ await p.context().close();
   assert.match(await txt(q, '.dv-cmd'), /Commandant Edgar Markov.*Dans ta collection/i); assert.equal(await q.$eval('.dv-foot [data-act="refresh"]', e => e.hidden), true, 'tout est possédé : pas de recherche d\'offres');
   assert.equal(await txt(q, '.dvc-l.own'), '✓'); assert.equal(await q.$eval('.dv-g[data-g="land"] .dvc', e => e.dataset.s), 'basic', 'terrains de base à part, sans prix');
   assert.equal(await q.$eval('.dv-foot [data-act="edit"]', e => e.hidden), false); ok('deck 100 % possédé : viewer en valeur estimée, commandant, ✓, pas de « Chercher les offres »');
-  // « Modifier la liste » charge le deck ; tout étant possédé, la recherche d'offres reste désactivée
+  // « Revenir à la liste » charge le deck ; tout étant possédé, la recherche d'offres reste désactivée
   await q.click('.dv-foot [data-act="edit"]'); await q.waitForFunction(() => !document.querySelector('.dv'), null, { timeout: 3000 });
   assert.equal(await q.$eval('#btnRun', b => b.disabled), true); assert.match(await txt(q, '#btnRunLabel'), /Tout est dans ta collection/); ok('modifier la liste : charge le deck, rien à chercher');
   assert.deepEqual(e2, [], 'aucune erreur console'); await q.context().close();

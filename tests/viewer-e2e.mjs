@@ -184,9 +184,9 @@ assert.equal(prodReqs() - n1, 9, 'lecture fraîche : 8 blueprints en français +
 await p.click('#toast .toast-act'); await p.waitForSelector('.dv.on .dv-g'); assert.equal(await p.$eval('.dv-age', e => e.dataset.age), 'fresh'); assert.match(await txt(p, '.dv-age'), /Prix du .+ · (à l'instant|il y a \d+ min)/);
 ok('prix de 3 jours signalés, Actualiser relit tout, retour au viewer à jour');
 
-// 7) « Modifier la liste » : retour à la saisie avec le texte du deck
+// 7) « Revenir à la liste » : retour à la saisie avec le texte du deck
 await p.click('.dv-foot [data-act="edit"]'); await p.waitForFunction(() => !document.querySelector('.dv'), null, { timeout: 3000 }); await p.waitForTimeout(300);
-assert.equal(await p.$eval('#viewInput', v => v.hidden), false); assert.match(await p.inputValue('#deckText'), /Craterhoof Behemoth/); ok('Modifier la liste : saisie rechargée');
+assert.equal(await p.$eval('#viewInput', v => v.hidden), false); assert.match(await p.inputValue('#deckText'), /Craterhoof Behemoth/); ok('Revenir à la liste : saisie rechargée');
 
 // 8) viewer de la recherche en cours (depuis les résultats) : pas d'« Actualiser », pas de « Modifier »
 await toInput(p); await p.click('#btnRun'); await done(p); await p.waitForTimeout(500);
