@@ -1,7 +1,7 @@
 // E2E classeur d'échange (binder.js) : interrupteur Liste | Classeur (section Échange du propriétaire, page publique), « Mon classeur » (couleur, tri,
 // cartes épinglées), réglages publiés DANS le champ d du partage et vus par un visiteur, pages (flèches, glisser, clavier), carte en grand, 1 carte,
 // 2 000 cartes (3 feuilles seulement dans la page), deux pages face à face sur grand écran, choix gardé, réglages relus par un autre appareil du compte.
-// Foil : pochette à part (voile irisé, liseré, pastille ✦, prix foil ; inconnu : sans prix), publiée (fo, pf) et vue par le visiteur ; éditions : chaque pochette au prix de son impression (p). « Aller à la page » : tuiles (12 pages), curseur (223 pages), clavier.
+// Foil : pochette à part (voile irisé, liseré, pastille ✦, prix foil ; inconnu : le prix normal avec ⚠️), publiée (fo, pf) et vue par le visiteur ; éditions : chaque pochette au prix de son impression (p). « Aller à la page » : tuiles (12 pages), curseur (223 pages), clavier.
 // Captures (clair et sombre) : BND_SHOTS=<dossier> (fausses cartes dessinées pour juger du rendu).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -107,11 +107,16 @@ assert.equal(await p.$eval('.coll-main .bnd', e => e.dataset.cover), 'nuit', 'co
   assert.match(await p.$eval('.coll-main .bnd-card[data-k="edgar markov"]', b => b.getAttribute('aria-label')), /^Edgar Markov, Foil, × 2/);
   assert.deepEqual(await p.$eval('.coll-main .bnd-card.foil .bnd-art', a => { const s = getComputedStyle(a, '::after'); return [s.animationName, s.mixBlendMode]; }), ['bndfoil', 'screen'], 'voile irisé qui glisse');
   assert.ok(await p.$eval('.coll-main .bnd-card.foil', b => /conic-gradient/.test(getComputedStyle(b, '::before').backgroundImage)), 'liseré irisé : reconnaissable même sur une illustration chargée');
-  // prix de la pochette foil : le prix foil ; inconnu (ni l'édition ni la carte n'en ont) : pas de prix, jamais le prix normal présenté comme le sien
-  assert.equal(await p.$('.coll-main .bnd-card[data-k="edgar markov"] .bnd-p'), null, 'prix foil inconnu : pochette foil sans prix');
+  // prix de la pochette foil : le prix foil ; inconnu (ni l'édition ni la carte n'en ont) : le prix normal avec ⚠️, qui le dit quand on le touche (décision du 6 novembre)
+  const base0 = await p.evaluate(() => trPrice('edgar markov'));
+  assert.equal(await txt(p, '.coll-main .bnd-card[data-k="edgar markov"] .bnd-p'), (await p.evaluate(v => fmt(v, mkCur()), base0)).replace(/\s+/g, ' ') + '⚠️', 'prix foil inconnu : le prix normal, avec ⚠️');
+  await p.click('.coll-main .bnd-card[data-k="edgar markov"] .bnd-p [data-pxwarn]');
+  await p.waitForFunction(() => /Prix foil non disponible, prix sans foil affiché/.test(document.querySelector('#toast').textContent));
+  assert.equal(await p.$('.imgv.on, .zoom.on'), null, '⚠️ touché : le message seul, la carte ne s\'ouvre pas');
   const sumOf = () => p.$eval('.tr-sum em', e => Math.round(Number(e.textContent.replace(/[^\d,]/g, '').replace(',', '.')) * 100)), v0 = await sumOf(), base = await p.evaluate(() => trPrice('edgar markov'));
   await p.evaluate(() => { COLL.meta['edgar markov'] = { ...COLL.meta['edgar markov'], ef: 450 }; trRepaint(); });
   await p.waitForSelector('.coll-main .bnd-card[data-k="edgar markov"] .bnd-p');
+  await p.waitForFunction(() => !document.querySelector('.coll-main .bnd-card[data-k="edgar markov"] .bnd-p [data-pxwarn]'));
   assert.match(await txt(p, '.coll-main .bnd-card[data-k="edgar markov"] .bnd-p'), /^4,50\s€$/, 'prix foil Cardmarket de la carte');
   assert.equal(await sumOf(), v0 + 2 * (450 - base), 'total « ≈ … € » : ses 2 foil comptés au prix foil (inconnu : au prix normal)');
   assert.deepEqual(await p.evaluate(() => bndOwnItems([{ k: 'sol ring', n: 'Sol Ring', q: 4, u: 120, lines: [['fr', 2], ['fr|cmm|400*', 1], ['en', 1]] }], false).map(x => [x.l, x.q, !!x.foil])), [['fr', 2, false], ['fr', 1, true], ['en', 1, false]], 'foil d\'une langue : sa pochette après les autres');

@@ -116,26 +116,27 @@ function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, 
 const trPrice = k => dkPx(k) || (dmOf(k) || {}).eu || null;
 /** Prix d'un exemplaire d'une ligne de MA collection (clé 'fr|cmm|400*') : celui de son impression (COLL.ed, comme la valeur de la collection : collection.js › edEu), sinon trPrice ;
  *  foil : le prix foil de son impression, sinon le prix foil Cardmarket de la carte ; null si aucun prix foil n'est connu (jamais le prix non foil présenté comme prix foil). */
-function trLinePx(k, g) {
-  const e = lineEd(g);
-  if (lineFoil(g)) { const x = e && COLL.ed[e], m = dmOf(k) || {}; return x && !x.none && x.ef > 0 ? x.ef : m.ef > 0 ? m.ef : null; }
-  return (e && edEu(e, false)) || trPrice(k);
+function trLinePx(k, g) { return trLinePxW(k, g).v; }
+/** Même chose avec le marqueur w (foil sans prix foil : le prix non foil, avec ⚠️) : la règle de la collection (collection.js › collLinePx). */
+function trLinePxW(k, g) {
+  if (lineFoil(g)) return collLinePx(k, g);
+  const e = lineEd(g), v = (e && edEu(e, false)) || trPrice(k); return { v: v > 0 ? v : null, w: false };
 }
 /** Ligne de la liste chiffrée (tradeView › price(k, x)) : doublons (x.lines) → { u (à l'unité : exemplaires non foil, sinon foil ; moyenne s'ils ont plusieurs prix), v (chaque ligne à son prix ;
- *  foil sans prix foil connu : compté au prix normal), fu (foil : prix à l'unité, null s'il manque ; absent sans foil) } ; recherchées : trPrice. */
+ *  foil sans prix foil connu : compté au prix normal), fu (foil : prix à l'unité ; sans prix foil, le non foil et fw ; null sans aucun prix ; absent sans foil) } ; recherchées : trPrice. */
 function trRowPx(k, x) {
   if (!x || !x.lines) return trPrice(k);
-  let v = 0, any = false, nq = 0, nv = 0, fq = 0, fv = 0, fok = true;
+  let v = 0, any = false, nq = 0, nv = 0, fq = 0, fv = 0, fok = true, fw = false;
   for (const [g, q] of x.lines) {
-    const f = lineFoil(g), p = trLinePx(k, g), u = p > 0 ? p : f ? trLinePx(k, lineKey(lineLang(g), lineEd(g))) : null;
+    const f = lineFoil(g), pw = trLinePxW(k, g), u = pw.v;
     if (u > 0) { v += u * q; any = true; }
-    if (f) { fq += q; if (p > 0) fv += p * q; else fok = false; } else if (u > 0) { nq += q; nv += u * q; }
+    if (f) { fq += q; if (u > 0) fv += u * q; else fok = false; if (pw.w) fw = true; } else if (u > 0) { nq += q; nv += u * q; }
   }
   const fu = fq ? (fok ? Math.round(fv / fq) : null) : undefined;
-  return { u: nq ? Math.round(nv / nq) : fq === x.q ? fu : null, v: any ? v : null, ...(fq ? { fu } : {}) };
+  return { u: nq ? Math.round(nv / nq) : fq === x.q ? fu : null, v: any ? v : null, ...(fq ? { fu, ...(fw ? { fw: true } : {}) } : {}) };
 }
 /** Carte d'un partage (visiteur) : prix à l'unité de ses exemplaires non foil (celui de leur impression publié par le propriétaire : p, sinon trPrice) et de ses foil (pf, null si inconnu). */
-const trShPx = it => { const p = mkUs() ? it.pu : it.p, pf = mkUs() ? it.pfu : it.pf; return { u: p > 0 ? p : trPrice(it.k), fu: it.fo > 0 ? (pf > 0 ? pf : null) : undefined }; };      // prix publiés dans la devise du visiteur (p, pf : euros ; pu, pfu : dollars)
+const trShPx = it => { const p = mkUs() ? it.pu : it.p, pf = mkUs() ? it.pfu : it.pf; return { u: p > 0 ? p : trPrice(it.k), fu: it.fo > 0 ? (pf > 0 ? pf : null) : undefined, fw: it.fo > 0 && pf > 0 && it.pfw === 1 }; };      // pfw : prix foil non disponible chez le propriétaire, son prix non foil publié à la place      // prix publiés dans la devise du visiteur (p, pf : euros ; pu, pfu : dollars)
 /** Carte d'un partage : nom, exemplaires, langue, édition (e : « cmm/400 »), nom français, image (édition : cette impression exacte, sinon la carte ; dans la langue de l'exemplaire si Scryfall l'a), coût, type, couleurs, symboles.
  *  Édition dont l'image n'est pas encore lue : sans image (le visiteur la lit par l'extension et le numéro), jamais celle d'une autre impression. */
 function trCard(k, n, q, l, e) {
@@ -150,11 +151,12 @@ function trCard(k, n, q, l, e) {
 /** Contenu du partage de la liste d'échange (sans date : sert aussi d'empreinte). Trop gros : sans images ni symboles (le visiteur les lit sur Scryfall), puis tronqué.
  *  La limite tient compte du pseudo et de la photo que trPut ajoute (jusqu'à 40 000 caractères) : le document reste sous la règle des 900 000.
  *  Doublons : une carte par langue et par édition (e ; sans édition : une par langue, comme avant), fo = ses exemplaires foil (pochette foil du classeur du visiteur ; absent sans foil),
- *  p / pf = prix à l'unité de cette impression / de ses foil (trLinePx ; absents s'ils sont inconnus : le visiteur prend le prix de la carte, comme avant ; une version d'avant les ignore). */
+ *  p / pf = prix à l'unité de cette impression / de ses foil (trLinePx ; absents s'ils sont inconnus : le visiteur prend le prix de la carte, comme avant ; une version d'avant les ignore) ;
+ *  pfw = 1 : pf est le prix non foil (prix foil non disponible), montré avec ⚠️. */
 function trPayload() {
   const st = trState(), have = st.have.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => {
-    const o = trCard(x.k, x.n, q, l, e), p = e && fo < q && edEu(e, false), pf = fo && trLinePx(x.k, lineKey(l, e, true)); if (fo) o.fo = fo;
-    if (p > 0) o[mkUs() ? 'pu' : 'p'] = p; if (pf > 0) o[mkUs() ? 'pfu' : 'pf'] = pf;      // prix à l'unité de cette impression (p) et de ses foil (pf) : le visiteur n'a que le prix de la carte (impression la moins chère, non foil)
+    const o = trCard(x.k, x.n, q, l, e), p = e && fo < q && edEu(e, false), pw = fo ? trLinePxW(x.k, lineKey(l, e, true)) : { v: null }, pf = pw.v; if (fo) o.fo = fo;
+    if (p > 0) o[mkUs() ? 'pu' : 'p'] = p; if (pf > 0) { o[mkUs() ? 'pfu' : 'pf'] = pf; if (pw.w) o.pfw = 1; }      // prix à l'unité de cette impression (p) et de ses foil (pf) : le visiteur n'a que le prix de la carte (impression la moins chère, non foil)
     return o;
   })), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
   const bd = bndPayload(st, have, want);      // classeur réglé (binder.js) : cartes dans son ordre (une liste tronquée garde les épinglées), réglages pour les visiteurs
@@ -349,16 +351,16 @@ function trShareBoxHtml(st) {
     <div class="tr-acts small"><button class="link-btn link-inline" type="button" data-act="trnew">${T('Nouveau lien')}</button><button class="link-btn link-inline" type="button" data-act="troff">${T('Arrêter le partage')}</button></div>${live}</div>`;
 }
 /** Prix unitaire d'une ligne chiffrée (tradeView) : « ≈ 1,50 € » devant « × 3 » (lu « 1,50 € × 3 », la ligne garde sa hauteur). */
-const trPxHtml = x => (x.u != null ? `<small class="tr-px" title="${esc(T('{v} pièce', { v: fmt(x.u, mkCur()) }))}">≈ ${esc(fmt(x.u, mkCur()))}</small>` : '');
+const trPxHtml = x => (x.u != null ? `<small class="tr-px" title="${esc(T('{v} pièce', { v: fmt(x.u, mkCur()) }))}">≈ ${esc(fmt(x.u, mkCur()))}${pxWarn(!!x.fw && x.u === x.fu)}</small>` : '');      // toutes foil sans prix foil : ⚠️
 const trQxHtml = x => `<span class="tr-qx">${trPxHtml(x)}<b>× ${x.q}</b></span>`;
 /** « 5 € » sans centimes (filtre « ≥ 5 € »). */
 const trEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: mkCur(), minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(c / 100);
 /** Pastille foil d'une ligne de la liste d'échange (propriétaire et visiteur) : « ✦ Foil », « ✦ Foil × 1 · 5,00 € » quand une partie seulement l'est (leur prix à l'unité : fu,
- *  celui de la ligne étant celui des non foil) ; fu null : prix foil inconnu, dit au survol (comptées au prix normal) ; '' sans foil. */
-const trFoilTag = (fo, q, fu) => (fo > 0 ? `<span class="tag foil"${fu === null ? ` title="${esc(T('Prix foil inconnu : compté au prix normal'))}"` : ''}>✦ ${T('Foil')}${fo < q ? ' × ' + fo + (fu > 0 ? ' · ' + esc(fmt(fu, mkCur())) : '') : ''}</span>` : '');
+ *  celui de la ligne étant celui des non foil) ; fw : prix foil non disponible, le non foil à la place (⚠️) ; fu null : aucun prix ; '' sans foil. */
+const trFoilTag = (fo, q, fu, fw) => (fo > 0 ? `<span class="tag foil">✦ ${T('Foil')}${fo < q ? ' × ' + fo + (fu > 0 ? ' · ' + esc(fmt(fu, mkCur())) + pxWarn(!!fw) : '') : ''}</span>` : '');
 function trHaveRow(x) {
   const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, th = bndThumb(x, it.l, it.im), img = th.src;      // par langue, éditions confondues ; vignette : l'impression de la 1re ligne (sa 1re pochette du classeur)
-  const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q, x.fu);
+  const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q, x.fu, x.fw);
   return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, x.n, img, it.l, !!th.e)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${langs}${it.dn ? `<span class="tag">${esc(x.n)}</span>` : ''}</span></span>
     <span class="tr-q">${trQxHtml(x)}<button class="link-btn" type="button" data-act="tkeep" aria-label="${T('Garder {name} (ne plus la proposer)', { name: esc(nm) })}">${T('Garder')}</button></span></div>`;
@@ -718,8 +720,8 @@ function pubRow(it) {
     : (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : it.own ? `<span class="tag good">${T('déjà à toi × {n}', { n: it.own })}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.fo > 0 ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '');
   return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(it.k, it.n, img, '', pubFixed(it))}>` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q, px.fu)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
-    <span class="tr-q">${trQxHtml({ q: it.q, u: it.fo >= it.q ? px.fu : px.u })}</span></div>`;      // prix à l'unité de l'appareil du visiteur (celui de l'impression s'il est publié : p, pf), comme sur l'onglet du propriétaire ; toutes foil : le prix foil
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q, px.fu, px.fw)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
+    <span class="tr-q">${trQxHtml({ q: it.q, u: it.fo >= it.q ? px.fu : px.u, fu: px.fu, fw: px.fw })}</span></div>`;      // prix à l'unité de l'appareil du visiteur (celui de l'impression s'il est publié : p, pf), comme sur l'onglet du propriétaire ; toutes foil : le prix foil
 }
 
 function trInit() {

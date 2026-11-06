@@ -380,4 +380,10 @@ function qrDecode(m) {
   assert.deepEqual([m.keep, m.kept.sort(), Object.keys(m.wish).sort(), m.wish.sol.q, m.share], [2, ['a', 'c'], ['a1', 'b1', 'sol'], 2, 's9']);
   console.log('✓ tradeMerge3 : souhaits et cartes gardées de deux appareils fusionnés (rien de perdu), quantités additionnées, sans base : union');
 }
+{      // prix d'un exemplaire selon la finition (décision du 6 novembre : foil sans prix foil → prix normal, avec ⚠️)
+  const F = C.finPx;
+  assert.deepEqual([F(150, 900, true), F(150, null, true), F(150, 900, false), F(null, 900, false), F(null, null, true), F(0, 0, false)],
+    [{ v: 900, w: false }, { v: 150, w: true }, { v: 150, w: false }, { v: 900, w: false }, { v: null, w: false }, { v: null, w: false }]);
+  console.log('✓ finPx : foil → prix foil, à défaut le normal marqué (⚠️) ; non foil → normal, à défaut foil (impression foil seulement)');
+}
 console.log('test-trade OK');

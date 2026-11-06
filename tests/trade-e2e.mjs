@@ -375,9 +375,10 @@ const tradeId = [...shares.keys()][0];
 }
 
 /* ── Liste de souhaits depuis la carte en grand : l'illustration affichée est retenue ───────────── */
+// (carte non possédée : nom dans la langue de l'appli, « Béhémoth Cratérosabot », dès que l'index des noms est là ; décision du 6 novembre)
 {
-  await p.evaluate(() => openDeckViewer({ id: 'deck1' })); await p.waitForSelector('.dv.on .dvc[aria-label^="Craterhoof"]');
-  await p.click('.dv.on .dvc[aria-label^="Craterhoof"]'); await p.waitForSelector('.imgv.on .imgv-wish:not([hidden])');
+  await p.evaluate(() => openDeckViewer({ id: 'deck1' })); await p.waitForSelector('.dv.on .dvc[aria-label^="Craterhoof"], .dv.on .dvc[aria-label^="Béhémoth"]');
+  await p.click('.dv.on .dvc[aria-label^="Craterhoof"], .dv.on .dvc[aria-label^="Béhémoth"]'); await p.waitForSelector('.imgv.on .imgv-wish:not([hidden])');
   assert.equal(await txt(p, '.imgv-wish'), 'Liste de souhaits');
   await p.click('.imgv-wish');
   const w1 = await p.evaluate(() => TR.wish['craterhoof behemoth']);

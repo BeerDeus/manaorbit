@@ -96,13 +96,30 @@ if (typeof document !== 'undefined') { document.addEventListener('visibilitychan
    COLL.ed : 'cmm|400' → { eu, ef (centimes, null si inconnu), im (petite image anglaise), sn (extension), r (rareté), t (lecture) } ou { t, none: 1 } (inconnue de Scryfall). */
 const ED_TTL = 2 * DAY;
 /** Prix Cardmarket d'un exemplaire de l'édition e (centimes) : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil, à défaut le non foil ; null si inconnu. */
-const edEu = (e, f) => { const x = e && COLL.ed[e]; if (!x) return null; const a = f ? x.ef : x.eu, b = f ? x.eu : x.ef; return a > 0 ? a : b > 0 ? b : null; };
+const edEu = (e, f) => edPx(e, f).v;
+/** Même chose avec le marqueur w (foil : prix non foil faute de prix foil, core.js › finPx). */
+const edPx = (e, f) => { const x = e && COLL.ed[e]; return x && !x.none ? finPx(x.eu, x.ef, f) : { v: null, w: false }; };
 /** Prix de référence d'une carte sans édition connue (centimes, null sans prix) : builder.js › refPx (dkPx : relevé du jour, impression la moins chère du marché
  *  choisi, sinon tendance de la fiche ; foil : prix foil de la fiche, à défaut dkPx). Le même chiffre que les decks, le coach, les échanges. */
 const collRefEu = (k, f) => { const u = refPx(k, f); return u > 0 ? u : null; };
 /** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu (foil : prix foil), sinon le prix de référence de la carte (collRefEu ; null sans prix).
  *  Règle de la valeur de la collection (liste, Stats, accueil, widget, courbe, Rangement, lot) : prix de l'édition possédée quand il est connu, sinon le prix de référence. */
-const collLineEu = (k, g) => { const f = lineFoil(g), u = edEu(lineEd(g), f); if (u != null) return u; return collRefEu(k, f); };
+const collLineEu = (k, g) => collLinePx(k, g).v;
+/** Prix d'un exemplaire d'une ligne avec le marqueur w : foil sans prix foil (de son édition ; sans édition, de la fiche) → prix non foil, w (affiché avec ⚠️, pxWarn). */
+function collLinePx(k, g) {
+  const f = lineFoil(g), p = edPx(lineEd(g), f); if (p.v != null) return p;
+  const v = collRefEu(k, f), x = COLL.meta[k] || (typeof DM !== 'undefined' && DM[k]); return { v, w: !!f && v != null && !(x && x.ef > 0) };
+}
+/** Prix d'une tuile d'impression (choix d'édition, lot, Illustrations, page d'extension, masterset) : { t (texte), w } ; foil : prix foil, à défaut le non foil (w : ⚠️) ;
+ *  non foil : prix non foil, à défaut foil (impression qui n'existe qu'en foil). ✦ après le prix quand c'est un prix foil. */
+const prPx = (p, foil) => { const r = finPx(p.eu, p.ef, !!foil); return { t: r.v ? fmt(r.v, mkCur()) + ((foil ? !r.w : !(p.eu > 0)) ? ' ✦' : '') : '', w: r.w }; };
+/** Marqueur ⚠️ d'un prix foil remplacé par le prix non foil (w vrai) : touché, il dit « Prix foil non disponible, prix sans foil affiché » (toast) ; '' sinon.
+ *  Peut se trouver dans un bouton (tuile, ligne) : l'appui ne déclenche que le message (écoute en capture, plus bas). */
+const pxWarn = w => (w ? `<span class="px-warn" role="button" tabindex="0" data-pxwarn aria-label="${esc(T('Prix foil non disponible, prix sans foil affiché'))}" title="${esc(T('Prix foil non disponible, prix sans foil affiché'))}">⚠️</span>` : '');
+if (typeof document !== 'undefined') {
+  const pxWarnSay = e => { const w = e.target && e.target.closest && e.target.closest('[data-pxwarn]'); if (!w) return; if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return; e.preventDefault(); e.stopPropagation(); toast(T('Prix foil non disponible, prix sans foil affiché')); };
+  document.addEventListener('click', pxWarnSay, true); document.addEventListener('keydown', pxWarnSay, true);
+}
 /** Prix moyen d'un exemplaire de la carte (centimes), éditions comprises : valeur de la collection, tri par prix. null sans prix. */
 function collCardEu(k) {
   const x = COLL.map[k], ref = collRefEu(k, false); if (!x || !x.x) return ref;      // sans édition : le prix de référence
@@ -242,8 +259,8 @@ function edSheet(o) {
     const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(cmax())}</small></div>` : '')
       + (o.onSplit ? `<button type="button" class="link-btn ced-split" data-split>${T('Répartir entre plusieurs éditions')}</button>` : '');      // feuille « Répartir par édition » (edSplit)
     const tile = (p, i) => {
-      const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : p.eu > 0 ? fmt(p.eu, mkCur()) : '') : p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
-      return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
+      const e = edKey(p.set, p.num), r = prPx(p, foil), px = r.t, ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition, à défaut le non foil avec ⚠️
+      return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}${pxWarn(r.w)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
     };
     let q = '', wantQ = !!o.focusQ;      // focusQ : la feuille s'ouvre sur la recherche (bandeau du scan › « Chercher une extension »)
     const more = edQFinder(() => prints, o.find, extra => { prints.push(...extra); paint(); });      // o.find : recherche sur Scryfall quand la liste n'a rien (code, numéro)
@@ -323,7 +340,7 @@ function edSplit(k, g) {
   const l = lineLang(g), f = lineFoil(g), aw = lineAw(g), grp = edGroup(k, g), total = grp.total; if (total < 2) return;
   const rows = grp.lines.filter(([h]) => lineEd(h)).map(([h, q]) => ({ e: lineEd(h), q, info: null })), name = frName(k, l) || x.n;
   const rest = () => total - rows.reduce((a, r) => a + r.q, 0);
-  const pxOf = r => { const i = r.info, u = i ? (f ? (i.ef > 0 ? i.ef : i.eu) : (i.eu > 0 ? i.eu : i.ef)) : edEu(r.e, f); return u > 0 ? u : 0; };
+  const pxW = r => (r.info ? finPx(r.info.eu, r.info.ef, f) : edPx(r.e, f)), pxOf = r => pxW(r).v || 0;      // foil sans prix foil : le non foil, avec ⚠️
   haptic('tap');
   openSheet(T('Répartir par édition'), TN(total, '{name} · {n} exemplaire', '{name} · {n} exemplaires', { name }) + (l ? ' ' + langCode(l) : '') + (f ? ' · ' + T('Foil') : ''), api => {
     api.wrap.classList.add('esp-sheet');
@@ -332,7 +349,7 @@ function edSplit(k, g) {
       let val = r0 * ref; for (const r of rows) val += r.q * (pxOf(r) || ref);
       api.body.innerHTML = rows.map((r, i) => {
         const set = edSet(r.e), sn = setName(set) || (r.info && r.info.sn) || (COLL.ed[r.e] || {}).sn || set.toUpperCase(), px = pxOf(r);
-        return `<div class="esp-r" data-e="${esc(r.e)}"><span class="esp-ic">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}</span><span class="esp-t"><b>${esc(sn)}</b><small>${esc(edLabel(r.e))}${px ? ' · ' + esc(fmt(px, mkCur())) : ''}</small></span>
+        return `<div class="esp-r" data-e="${esc(r.e)}"><span class="esp-ic">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}</span><span class="esp-t"><b>${esc(sn)}</b><small>${esc(edLabel(r.e))}${px ? ' · ' + esc(fmt(px, mkCur())) + pxWarn(pxW(r).w) : ''}</small></span>
           <span class="qstep"><button type="button" data-i="${i}" data-d="-1" aria-label="${esc(T('Moins'))}"${r.q ? '' : ' disabled'}>−</button><b>${r.q}</b><button type="button" data-i="${i}" data-d="1" aria-label="${esc(T('Plus'))}"${r0 ? '' : ' disabled'}>+</button></span></div>`;
       }).join('')
         + `<div class="esp-r esp-none"><span class="esp-ic" aria-hidden="true"></span><span class="esp-t"><b>${T('Sans édition')}</b><small>${T('le reste')}</small></span><em>${r0}</em></div>
@@ -887,8 +904,11 @@ function frOf(k) {
   return (m && m.get(k)) || '';
 }
 /** Nom affiché d'une ligne de la collection : l'imprimé français pour un exemplaire FR ('' si la carte n'est pas FR ou si le catalogue ne la connaît pas).
- *  Même chose dans la langue du catalogue chargé (exemplaire allemand → nom allemand) ; frOf donne alors le nom dans cette langue. */
-const frName = (k, l) => (l && l === FRX.l ? frOf(k) : '');
+ *  Même chose dans la langue du catalogue chargé (exemplaire allemand → nom allemand) ; frOf donne alors le nom dans cette langue ; exemplaire dans la langue de l'appli : son index. */
+const frName = (k, l) => (!l ? '' : l === FRX.l ? frOf(k) : l === cnLang() && typeof cnOf === 'function' ? cnOf(k) : '');      // langue des cartes, ou celle de l'appli (son index : cardnames.js), comme la suggestion (sugOwned)
+/** Nom affiché d'une carte hors d'une ligne de la collection (decks : éditeur, viewer, analyse, image partagée ; variations de prix ; alertes) : possédée → dans la langue de
+ *  tes exemplaires (frName ; exemplaire anglais : anglais) ; pas possédée → dans la langue de l'appli (cardnames.js › cnOf), sinon anglais. Décision du 6 novembre 2026. */
+const cardName = (k, n) => { const x = COLL.map[k]; if (x) return (x.l && frName(k, x.l)) || n; return (typeof cnOf === 'function' && cnOf(n)) || n; };
 /** Langue des noms imprimés reconnus (core.js › namesLangOf) : celle des cartes cherchées, sinon français pour l'interface française ; '' : aucun catalogue (cartes anglaises). */
 const namesLang = () => namesLangOf(S.opts.lang, I18N.lang);
 /** Passe au catalogue d'une autre langue : un seul en mémoire, l'ancien est oublié (index, noms affichés, catalogue du scan, recherches du scan). */
@@ -1090,7 +1110,8 @@ function crowHtml(it) {
   if (!it.l) tags.push(langChip(it.k, '', it.n, '', g));
   const plc = plcRowTag(g); if (plc) tags.push(plc);      // emplacement et détails (places.js) : seulement si la ligne est rangée ou détaillée
   const px = [];      // prix : CM (tendance Cardmarket, estimation) au-dessus, CT (offre CardTrader la plus basse, lue à la demande) en dessous
-  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${it.e ? T('Cardmarket : prix de cette édition') : it.f ? T('Exemplaires foil : prix foil Cardmarket') : T('Cardmarket : valeur estimée (impression la moins chère)')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
+  const pw = !!it.f && Number.isFinite(it.eu) && collLinePx(it.k, g).w;      // ligne foil sans prix foil : le non foil, avec ⚠️
+  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${pw ? T('Prix foil non disponible, prix sans foil affiché') : it.e ? T('Cardmarket : prix de cette édition') : it.f ? T('Exemplaires foil : prix foil Cardmarket') : T('Cardmarket : valeur estimée (impression la moins chère)')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b>${pxWarn(pw)}</span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
   return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
@@ -1512,8 +1533,9 @@ function collViewItem(k, ln) {
   const ls = collLines(x), line = ls.find(e => e[0] === (ln || '')) || ls[0] || [x.l || '', x.q], g = line[0], l = lineLang(g), e = lineEd(g), n = line[1];
   const im = collLineImage(k, g, m.im), fr = l && l !== 'en' && im.lang === 'en' && !e ? ' · ' + T('image anglaise (pas d\'image {lang} sur Scryfall)', { lang: LANGS[l] ? T(LANGS[l]) : l }) : '';
   const own = ls.length > 1 ? TN(n, '{n} exemplaire {lang} · {total} au total', '{n} exemplaires {lang} · {total} au total', { n, lang: lineTag(g), total: x.q }) : TN(x.q, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: x.q });
-  const f = lineFoil(g), eu = e ? edEu(e, f) : null, ref = eu == null ? collRefEu(k, f) : null;      // édition connue : son prix, dit comme tel ; sinon le prix de référence (le même que la liste et les decks)
-  const px = eu != null ? ' · ' + T(f ? 'prix foil de cette édition {v}' : 'prix de cette édition {v}', { v: fmt(eu, mkCur()) }) : ref != null ? ' · ' + (f && m.ef > 0 ? T('prix foil Cardmarket {v}', { v: fmt(ref, mkCur()) }) : T('valeur estimée {p}', { p: fmt(ref, mkCur()) })) : '';
+  const f = lineFoil(g), lp = collLinePx(k, g), eu = e ? edEu(e, f) : null, ref = eu == null ? lp.v : null;      // édition connue : son prix, dit comme tel ; sinon le prix de référence (le même que la liste et les decks)
+  const px = (eu != null ? ' · ' + T(f && !lp.w ? 'prix foil de cette édition {v}' : 'prix de cette édition {v}', { v: fmt(eu, mkCur()) }) : ref != null ? ' · ' + (f && !lp.w ? T('prix foil Cardmarket {v}', { v: fmt(ref, mkCur()) }) : T('valeur estimée {p}', { p: fmt(ref, mkCur()) })) : '')
+    + (lp.w && (eu != null || ref != null) ? ' ⚠️ ' + T('Prix foil non disponible, prix sans foil affiché') : '');      // texte de la carte en grand : le message écrit, pas de bouton
   const sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '';
   return { key: k, lid: k + '|' + g, name: frName(k, l) || x.n, ln: x.n, wl: l && l !== 'en' && !e ? l : '', small: im.src, lang: im.lang, plain: true, coll: { k, g }, ...(f ? { foil: true } : {}),
     ...(e ? { set: edSet(e), num: edNum(e), setName: sn } : {}),

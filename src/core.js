@@ -101,6 +101,10 @@ function TN(n, one, many, v) {
 /** Nombre écrit dans la locale de l'appli (LOC) : num(1234) → « 1 234 » (français), « 1,234 » (anglais) ; num(3.125, 2) → « 3,13 » : d décimales toujours écrites
  *  (sans d : jusqu'à 3, comme toLocaleString). Jamais toFixed dans un texte (« 3.12 » en français). */
 const num = (v, d) => Number(v || 0).toLocaleString(LOC(), d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Prix d'une impression selon la finition (centimes) : { v, w }. Exemplaire foil : prix foil, à défaut le prix non foil de la même impression, marqué w (affiché avec ⚠️ :
+ *  « Prix foil non disponible, prix sans foil affiché ») ; non foil : prix non foil, à défaut le foil (impression qui n'existe qu'en foil). v null : aucun prix. Règle unique (collection, échange,
+ *  classeur, lot, scan, extension, masterset : décision du 6 novembre 2026). */
+const finPx = (eu, ef, f) => { const a = f ? ef : eu, b = f ? eu : ef; return a > 0 ? { v: a, w: false } : b > 0 ? { v: b, w: !!f } : { v: null, w: false }; };
 /** Montant tapé par l'utilisateur → nombre (unités : euros, dollars), NaN si vide ou illisible. Symboles et espaces ignorés (« 50 € », « 1 000 », « $1,234.50 ») ;
  *  séparateurs lus selon la locale de l'appli (LOC) : « 4,90 » partout, « 1,000 » = mille en anglais, « 1.000 » = mille en allemand ; les deux présents : le dernier est la virgule décimale. */
 function moneyIn(s, loc) {
@@ -2749,7 +2753,7 @@ function shareCard(x) {
   const e = edUnshare(x.e); if (e) it.e = e;      // impression exacte de ces exemplaires (classeur, liste : son image) ; absente d'un partage d'avant ou sans édition
   const fo = shNum(x.fo, 0, q); if (fo) it.fo = fo;      // foil (classeur : pochette à part) ; absent d'un partage d'avant
   const p = shNum(x.p, 0, 1e7), pf = fo ? shNum(x.pf, 0, 1e7) : 0; if (p) it.p = p; if (pf) it.pf = pf;      // prix à l'unité (centimes) de cette impression et de ses foil, publiés par le propriétaire ; absents : prix de la carte
-  const pu = shNum(x.pu, 0, 1e7), pfu = fo ? shNum(x.pfu, 0, 1e7) : 0; if (pu) it.pu = pu; if (pfu) it.pfu = pfu;      // les mêmes en dollars (propriétaire au marché TCGplayer) : lus par un visiteur du même marché seulement
+  const pu = shNum(x.pu, 0, 1e7), pfu = fo ? shNum(x.pfu, 0, 1e7) : 0; if (pu) it.pu = pu; if (pfu) it.pfu = pfu; if ((pf || pfu) && x.pfw === 1) it.pfw = 1;      // les mêmes en dollars (propriétaire au marché TCGplayer) : lus par un visiteur du même marché seulement
   const f = shStr(x.f, 160).trim(); if (f) { it.fn = f; if (it.l === (SHARE_LANGS.includes(x.fl) ? x.fl : 'fr')) it.dn = f; }      // fl : langue de f (partage d'un appareil en allemand…), français sans elle
   { const iv = shStr(x.i, 300), full = !iv || /^https:/.test(iv) ? iv : SCRY_IMG + iv; if (SHARE_IMG_RE.test(full)) it.im = full; }      // adresse complète ou raccourcie (imgShort)
   const pw = shStr(x.w, 90).trim(); if (pw) it.pw = pw;      // illustration recherchée : « Extension · CODE 123 »
@@ -2823,7 +2827,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
 // Nombres, pourcentages et « Afficher plus » écrits dans la langue de l'appli : exportés à part
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn, moneyIn, tradeMerge3 });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn, moneyIn, tradeMerge3, finPx });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient

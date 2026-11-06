@@ -210,9 +210,10 @@ function scanThumb(e) { if (e.pk && e.pk.th) return e.pk.th; const u = e.l && e.
 /** Prix sous la quantité d'une ligne du scan : « 2,40 € » ou « 2,40 € ×3 » (prix de l'édition posée, sinon de la carte ; foil au prix foil ; foil et non foil mêlés : le total). */
 function scanRowPx(e) {
   const fq = Math.min(e.fq || 0, e.q), u = scanEu(e.key, e.pk, false), uf = fq ? scanEu(e.key, e.pk, true) : 0;
-  if (fq && fq < e.q) { const tot = u * (e.q - fq) + uf * fq; return tot > 0 ? `<small class="sc-px">${esc(fmt(tot, mkCur()))}</small>` : ''; }
+  const fw = fq > 0 && uf > 0 && (e.pk && (e.pk.eu > 0 || e.pk.ef > 0) ? finPx(e.pk.eu, e.pk.ef, true).w : !((COLL.meta[e.key] || {}).ef > 0));      // foil sans prix foil : le non foil, avec ⚠️
+  if (fq && fq < e.q) { const tot = u * (e.q - fq) + uf * fq; return tot > 0 ? `<small class="sc-px">${esc(fmt(tot, mkCur()))}${pxWarn(fw)}</small>` : ''; }
   const one = fq ? uf : u; if (!(one > 0)) return '';
-  return `<small class="sc-px">${esc(fmt(one, mkCur()))}${e.q > 1 ? ' ×' + e.q : ''}</small>`;
+  return `<small class="sc-px">${esc(fmt(one, mkCur()))}${e.q > 1 ? ' ×' + e.q : ''}${pxWarn(fw)}</small>`;
 }
 /* ── Alerte de prix (Réglages du scan › Alerte de prix, scanset.js) : une carte qui vaut le seuil ou plus s'annonce sur l'aperçu (comme « Encore X ? ») ;
    « Ranger dans » la met à part (it.dp : son emplacement, section « À ranger dans … » de la liste), elle y va à l'ajout (scanKeep). Une décision par ligne (it.pa). */

@@ -327,7 +327,7 @@ assert.deepEqual(await pairs(), [
 ], 'normale et foil côte à côte (finitions Scryfall : Arcane Signet foil seulement, Wrath of God sans foil) ; la foil irisée, même manquante');
 assert.equal(await pn(), '3 / 12 · 25 %', 'progression case par case : 12 cases (normales et foil), 3 complètes');
 await p.evaluate(() => { const g = document.querySelector('.coll-srow'); g.scrollIntoView({ block: 'start' }); document.querySelector('.coll .dv-scroll').scrollTop -= 8; }); await p.waitForTimeout(300); await p.screenshot({ path: 'shots/masterset-6-foil.png' });
-assert.deepEqual(await p.$$eval('.ms-c:first-child .ms-px', l => l.map(e => e.textContent.replace(/\s/g, ' '))), ['0,20 €', '✦ 1,50 €'], 'prix normal et prix foil');
+assert.deepEqual(await p.$$eval('.ms-c:first-child .ms-px', l => l.map(e => e.textContent.replace(/\s/g, ' '))), ['0,20 €', '1,50 € ✦'], 'prix normal et prix foil (✦ après le prix, comme ailleurs)');
 assert.ok(await p.$eval('.ms-c:first-child .ms-h.fo', h => getComputedStyle(h.querySelector('.dvc-art')).filter.includes('grayscale') && getComputedStyle(h.querySelector('.ms-fx')).opacity > 0.3), 'foil manquante : grisée, voile irisé gardé');
 assert.equal(await txt(p, '.ms-osum'), '✦ Normale et foil'); assert.equal(await p.$eval('.ms-opt', b => b.classList.contains('on')), true, 'roue allumée : options changées');
 assert.deepEqual(await p.$$eval('select.ms-cols option', l => l.map(o => o.value)), ['1', '2', '3', '4'], 'paires par ligne');

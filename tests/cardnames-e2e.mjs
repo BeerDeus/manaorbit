@@ -108,6 +108,10 @@ const collSearch = async (p, q, want) => { await p.fill('.coll .fsearch input', 
     [['lightning bolt', 'de×2 fr×1']], 'import : « Blitzschlag » → exemplaire allemand, « Foudre » → français');
   assert.deepEqual(await p.evaluate(() => [cnToEn('Blitzschlag'), cnToEn('Foudre'), cnToEn('Zzzz')]), ['Lightning Bolt', 'Lightning Bolt', ''], 'alertes : nom tapé → carte anglaise');
   ok('decklist « 4 Blitzschlag » et « 1 Foudre », import (langue du nom reconnu), alertes');
+  // nom affiché d'une carte de deck (décision du 6 novembre : possédée → langue de tes exemplaires ; sinon langue de l'appli) ; exemplaire allemand : son nom allemand partout (frName)
+  assert.deepEqual(await p.evaluate(() => [cardName('rhystic study', 'Rhystic Study'), cardName('zzz inconnue', 'Zzz Inconnue'), frName('lightning bolt', 'de'), frName('lightning bolt', 'fr')]),
+    ['Rhystische Studien', 'Zzz Inconnue', 'Blitzschlag', 'Foudre'], 'pas possédée : allemand (appli) ; inconnue : anglais ; exemplaire allemand : « Blitzschlag » (avant : anglais), français : « Foudre »');
+  ok('noms affichés : carte de deck non possédée dans la langue de l\'appli, exemplaire dans la langue de l\'appli par son nom (frName)');
 
   // langue des cartes passée à l'allemand : l'index de l'appli devient celui des cartes (repris, pas relu) ; retour au français : l'allemand reste pour la recherche
   const de0 = hits.de;

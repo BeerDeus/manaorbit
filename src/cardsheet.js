@@ -115,11 +115,11 @@ function csHeadHtml(k, x, m) {
 function csLinesHtml(k, x) {
   const ls = collLines(x), name = CS.n;
   const rows = ls.map(([g, q]) => {
-    const l = lineLang(g), e = lineEd(g), f = lineFoil(g), sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '', u = collLineEu(k, g), nm = frName(k, l) || x.n;
+    const l = lineLang(g), e = lineEd(g), f = lineFoil(g), sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '', lp = collLinePx(k, g), u = lp.v, nm = frName(k, l) || x.n;
     const tagline = [langCode(l) || T('sans langue'), e ? edLabel(e) : '', f ? T('Foil') : ''].filter(Boolean).join(' · ');
     return `<div class="cs-ln${g === CS.g ? ' on' : ''}" data-g="${esc(g)}" role="group" aria-label="${esc(tagline + ' · ' + TN(q, '{n} exemplaire', '{n} exemplaires'))}">
       ${langChip(k, l, x.n, 'cs-lc', g)}
-      <span class="cs-lt"><b><span>${esc(e ? sn || edLabel(e) : T('Sans édition'))}</span>${f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}</b><small>${esc([e && sn ? edLabel(e) : '', u > 0 ? T('{p} pièce', { p: fmt(u, mkCur()) }) : T('sans prix')].filter(Boolean).join(' · '))}</small></span>
+      <span class="cs-lt"><b><span>${esc(e ? sn || edLabel(e) : T('Sans édition'))}</span>${f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}</b><small>${esc([e && sn ? edLabel(e) : '', u > 0 ? T('{p} pièce', { p: fmt(u, mkCur()) }) : T('sans prix')].filter(Boolean).join(' · '))}${u > 0 ? pxWarn(lp.w) : ''}</small></span>
       <span class="cs-lp">${plcRowTag(g) || `<button type="button" class="tag plc add" data-act="cex">${esc(T('Ranger, état…'))}</button>`}</span>
       ${edBtn({ e, f }, nm)}
       <span class="qstep"><button type="button" data-cs="dec" aria-label="${esc(T('Retirer un exemplaire de {name}', { name: nm }))}">−</button><b>${q}</b><button type="button" data-cs="inc" aria-label="${esc(T('Ajouter un exemplaire de {name}', { name: nm }))}">+</button></span></div>`;

@@ -435,7 +435,7 @@ function simgDeckSpec(o) {
   const pd = parseDeck(text), cmd = commanderKeys(text).map(k => pd.cards.find(c => c.key === k)).filter(Boolean), fk = dkFmtOf(text);
   const cv = dkCoverCard(text, dmOf), v = typeof dkEst === 'function' ? dkEst(text) : dkValue(text, dmOf);
   const colors = deckColors(text);      // la règle de Mes decks (core.js › deckColors) : identité du commandant, sinon couleurs des cartes, sinon terrains de base
-  const sub = cmd.length ? cmd.map(c => c.dn || c.name).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
+  const sub = cmd.length ? cmd.map(c => cardName(c.key, c.name)).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
   return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', ...(cv && !ownLangImg(cv.key) ? { ln: cv.name, wl: imgLang() } : {}), cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
 }
 const simgDeck = o => simgShare(simgDeckSpec(o));

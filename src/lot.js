@@ -29,8 +29,7 @@ function lotInSet(prints, set, l) {
 }
 /** Prix d'un exemplaire (centimes) : l'édition choisie, sinon le prix de référence de la carte ; null sans prix. */
 const lotEu = c => {
-  const a = c.f ? 'ef' : 'eu', b = c.f ? 'eu' : 'ef';      // exemplaires foil : le prix foil, à défaut le normal
-  if (c.pick) return c.pick[a] > 0 ? c.pick[a] : c.pick[b] > 0 ? c.pick[b] : null;
+  if (c.pick) return finPx(c.pick.eu, c.pick.ef, !!c.f).v;      // exemplaires foil : le prix foil, à défaut le normal (core.js › finPx)
   return refPx(c.k, !!c.f) || null;      // sans édition : le prix de référence (builder.js › refPx), comme la collection
 };
 /** Grande image de la carte : l'édition choisie, sinon la dernière impression dans sa langue, sinon l'image anglaise de Scryfall. */
@@ -105,8 +104,8 @@ function lotEdSheet() {
     const more = edQFinder(() => c.prints, q => scryPrintsFind(c.n, lotLangOf(c), q), extra => { c.prints.push(...extra); paint(); });      // liste tronquée (terrains de base) : code ou numéro cherchés sur Scryfall
     const paint = () => {
       const keep = edQKeep(api.body); q = keep.q || q;
-      api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const px = p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
-        return `<button type="button" class="lot-ev" data-i="${i}" aria-pressed="${!!on}" aria-label="${esc(p.sn)} ${esc(String(p.set).toUpperCase())} ${esc(p.num)}${px ? ', ' + esc(px) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set)}${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span><em>${esc(p.sn)}</em>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length || p.y ? `<small>${esc([p.y, ...p.fx].filter(Boolean).join(' · '))}</small>` : ''}</button>`; }).join('')}
+      api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const r = prPx(p, c.f), px = r.t, on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
+        return `<button type="button" class="lot-ev" data-i="${i}" aria-pressed="${!!on}" aria-label="${esc(p.sn)} ${esc(String(p.set).toUpperCase())} ${esc(p.num)}${px ? ', ' + esc(px) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set)}${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span><em>${esc(p.sn)}</em>${px ? `<b>${esc(px)}${pxWarn(r.w)}</b>` : ''}${p.fx.length || p.y ? `<small>${esc([p.y, ...p.fx].filter(Boolean).join(' · '))}</small>` : ''}</button>`; }).join('')}
         <button type="button" class="lot-ev none" data-i="-1" aria-pressed="${!c.pick}"><i>${T('Sans édition')}</i></button></div>`;
       edQApply($('.lot-eds', api.body), c.prints, q, '.lot-ev'); keep.restore();
       const on = $('.lot-ev[aria-pressed="true"]:not(.ed-off)', api.body); if (on && on.scrollIntoView && !q) on.scrollIntoView({ block: 'nearest' });
