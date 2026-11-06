@@ -151,3 +151,15 @@ test('classer par couleur, type ou rôle : seul l\'ordre change', () => {
   assert.equal(S.stpText(R).split('\n').length, 5, 'les mêmes cartes, dans l\'ordre affiché');
   S.STP.o = null;
 });
+
+test('plusieurs commandants : parts égales même quand les scores d\'un commandant sont bien plus hauts', () => {
+  const R = [];
+  for (let i = 0; i < 300; i++) R.push({ k: 'a' + i, g: 'krenko', s: 3 - i * 0.001 }, { k: 'b' + i, g: 'other', s: 0.6 - i * 0.001 });
+  R.sort((a, b) => b.s - a.s);
+  const q = S.stpQuotas(200, ['krenko', 'other']);
+  const strict = S.stpPick(R, 200, q, true).pick, loose = S.stpPick(R, 200, q).pick;
+  assert.deepEqual(['krenko', 'other'].map(g => strict.filter(x => x.g === g).length), [100, 100]);
+  assert.ok(loose.filter(x => x.g === 'other').length < 100, 'sans strict (couleurs) : le seuil de qualité joue');
+  const few = R.filter(x => x.g === 'krenko' || +x.k.slice(1) < 30);
+  assert.deepEqual(['krenko', 'other'].map(g => S.stpPick(few, 200, q, true).pick.filter(x => x.g === g).length), [170, 30], 'un commandant à court de cartes : ses places passent à l\'autre');
+});

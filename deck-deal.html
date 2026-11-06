@@ -8063,7 +8063,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '5183ddbd';
+const DD_BUILD = '6b85c868';
 const I18N_FILES = {"de":"i18n/de.6f747f23.js","en":"i18n/en.4a75eecb.js","es":"i18n/es.0948798f.js","it":"i18n/it.9f9bf6aa.js","pt":"i18n/pt.4bc049eb.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -31924,10 +31924,11 @@ function stpQuotas(n, groups) {
   return q;
 }
 /** Choix des n cartes (ranked : [{ k, g, s }] du meilleur au moins bon) : chaque groupe jusqu'à son quota (quotas null : classement pur), puis les meilleures restantes.
+ *  strict : sans seuil de qualité entre groupes (commandants : leurs scores ne se comparent pas) ; une place ne passe à un autre groupe que s'il n'a plus de candidates.
  *  → { pick, rest } (rest : les suivantes, dans l'ordre du classement : réserve des remplacements). */
-function stpPick(ranked, n, quotas) {
+function stpPick(ranked, n, quotas, strict) {
   if (!quotas) return { pick: ranked.slice(0, n), rest: ranked.slice(n) };
-  const cnt = {}, take = new Set(), pick = [], floor = ranked.length ? ranked[Math.min(n, ranked.length) - 1].s * 0.8 : 0;      // un groupe ne remplit son quota qu'avec des cartes proches du niveau de la liste (pas d'incolores médiocres pour faire le compte)
+  const cnt = {}, take = new Set(), pick = [], floor = strict || !ranked.length ? -Infinity : ranked[Math.min(n, ranked.length) - 1].s * 0.8;      // strict (commandants) : parts égales, sans seuil (leurs scores ne se comparent pas)      // un groupe ne remplit son quota qu'avec des cartes proches du niveau de la liste (pas d'incolores médiocres pour faire le compte)
   for (const x of ranked) { if (pick.length >= n || x.s < floor) break; const q = quotas[x.g] || 0; if ((cnt[x.g] || 0) < q) { cnt[x.g] = (cnt[x.g] || 0) + 1; take.add(x); pick.push(x); } }
   for (const x of ranked) { if (pick.length >= n) break; if (!take.has(x)) { take.add(x); pick.push(x); } }      // un groupe trop court : les meilleures des autres
   return { pick: ranked.filter(x => take.has(x)), rest: ranked.filter(x => !take.has(x)) };
@@ -32233,7 +32234,7 @@ async function stpGo() {
     STP.busy = T('Classement des cartes…'); stpPaint();
     await new Promise(r => setTimeout(r, 30));
     const ranked = stpCands(o, { pop: stpPop(), cmds, U: !cmds.length && o.deep ? STP.U : null }), bal = cmds.length !== 1, order = cmds.length > 1 ? cmds.map(c => c.slug) : null;      // plusieurs commandants : parts égales entre eux ; un seul : classement pur ; aucun : par couleur
-    const quotas = bal ? stpQuotas(o.n, order || stpGroupsOf(o)) : null, { pick, rest } = stpPick(ranked, o.n, quotas);
+    const quotas = bal ? stpQuotas(o.n, order || stpGroupsOf(o)) : null, { pick, rest } = stpPick(ranked, o.n, quotas, !!order);      // plusieurs commandants : parts égales strictes (Krenko, très documenté, ne prend plus les places de l'autre)
     const R = STP.res = { o, list: pick, rest, out: [], rep: 0, bal, quotas, order, gn: Object.fromEntries(cmds.map(c => [c.slug, c])), cmd: cmds.map(c => c.short).join(', '), pool: ranked.length, A, stopped: STP.stop, note: '', warn: EDH.data ? '' : T('Decks EDHREC indisponibles : classement par force et rôles seulement.'), at: Date.now() };
     STP.busy = '';
     if (o.ct && R.list.length) { stpPaint(); await stpVerify(R); }
