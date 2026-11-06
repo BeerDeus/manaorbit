@@ -137,8 +137,13 @@ function stpMyCmds() {
 }
 /** Commandants choisis (base EDHREC ; un commandant absent du fichier chargé est ignoré). */
 const stpCmds = () => { const E = typeof EDH !== 'undefined' && EDH.data; return E && STP.o ? STP.o.cmds.map(s => E.bySlug.get(s)).filter(Boolean) : []; };
-/** Nom court d'un commandant (« Krenko », « Atraxa ») : avant la virgule ; une paire : les deux. */
-const stpShort = c => c.names.map(n => String(n).split(/,| of the | the /)[0].trim() || n).join(' + ');
+/** Nom affiché d'une carte (n : nom anglais) : la règle commune de l'appli (collection.js › cardName : langue de tes exemplaires, sinon de l'appli, sinon anglais),
+ *  cardnames.js › cnName (langue de l'appli) tant qu'elle n'est pas là. Avant l'arrivée des noms traduits : l'anglais (cnWhen repeint la fiche). */
+const stpNm = n => (typeof cardName === 'function' ? cardName(ownKey(n), n) : typeof cnName === 'function' ? cnName(n) : n);
+/** Nom affiché d'un commandant (une paire : les deux). */
+const stpCmdNm = c => c.names.map(stpNm).join(' + ');
+/** Nom court d'un commandant (« Krenko », « Atraxa ») : son nom affiché avant la virgule ; une paire : les deux. */
+const stpShort = c => c.names.map(n => { const d = stpNm(n); return String(d).split(',')[0].trim() || d; }).join(' + ');
 /** Commandant au format du coach (deckwiz.js › dwCmdOf). */
 const stpCoachCmd = c => ({ slug: c.slug, names: c.names, keys: c.keys, ci: dwCiOf(c.keys, c.ci), th: [] });
 
@@ -259,7 +264,7 @@ async function stpVerify(R) {
 const stpBdHeld = () => !!(STP.deep && STP.deep.el && BD.el === STP.deep.el);
 function stpBdYield(fn) { const d = STP.deep; if (!d) { fn(); return; } d.yield = true; toast(T('Chasse aux staples : analyse arrêtée pour ouvrir l\'éditeur')); d.p.finally(() => setTimeout(fn, 0)); }
 /** Decks du coach pour ce commandant (dsMake : versions, tirages, amélioration, parties jouées), BD prêté puis remis. → [{ main: Map, sc }] ou [] (éditeur ouvert, arrêt). */
-async function stpCoachDecks(c, o, ms, one, step) {
+async function stpCoachDecks(c, o, ms, one, step, seed) {
   if (typeof dsMake !== 'function' || BD.el) return [];      // éditeur ouvert : on ne touche pas à son deck
   const keep = { el: BD.el, id: BD.id, name: BD.name, fmt: BD.fmt, main: BD.main, side: BD.side, comp: BD.comp, cmdr: BD.cmdr, wiz: BD.wiz, avoid: BD.avoid, dirty: BD.dirty }, el = document.createElement('div');
   let res = null;
@@ -268,7 +273,7 @@ async function stpCoachDecks(c, o, ms, one, step) {
     try {
       Object.assign(BD, { el, id: null, name: '', fmt: 'commander', main: new Map(), side: new Map(), comp: new Map(), cmdr: c.keys.map((k, i) => ({ key: k, name: c.names[i] || k, qty: 1 })), avoid: null, dirty: false,
         wiz: { ...dwDefaults(), own: false, mech: o.tags.slice(0, 4) } });
-      res = await dsMake({ empty: true, budget: ms, ...(one ? { list: [DS_VARIANTS[0]], draws: 1 } : {}), alive: () => !STP.stop && !d.yield && BD.el === el, step });
+      res = await dsMake({ empty: true, budget: ms, ...(seed ? { seed } : {}), ...(one ? { list: [DS_VARIANTS[0]], draws: 1 } : {}), alive: () => !STP.stop && !d.yield && BD.el === el, step });
     } catch (e) { res = null; }
     finally { if (BD.el === el) Object.assign(BD, keep); }
   })();
@@ -286,7 +291,8 @@ async function stpDecksOf(c, x, o, ms, one, label) {
   }
   const nr = out.length;
   if (o.deep && !STP.stop) {
-    const built = await stpCoachDecks(c, o, ms, one, (v, ph, part) => { if (STP.prog) { STP.prog.sub = label + ' · ' + T(v.name) + (ph === 'sim' ? ' · ' + T('parties jouées') : ''); STP.prog.frac = Math.max(0, Math.min(0.99, part || 0)); stpPaintRun(); } });
+    const rounds = one ? 1 : 2, built = [];      // commandant choisi : deux séries de versions (graines différentes) pour des fréquences plus sûres
+    for (let i = 0; i < rounds && !STP.stop; i++) built.push(...await stpCoachDecks(c, o, ms, one, (v, ph, part) => { if (STP.prog) { STP.prog.sub = label + ' · ' + T(v.name) + (ph === 'sim' ? ' · ' + T('parties jouées') : ''); STP.prog.frac = Math.max(0, Math.min(0.99, (i + (part || 0)) / rounds)); stpPaintRun(); } }, 1 + Math.floor(Math.random() * 2e9)));
     for (const b of built) { const t = b.sc ? b.sc.total : sc(b.main); notes.push(t); out.push({ keys: b.main.keys(), w: stpNoteW(t), src: 'c' }); }
   }
   return { decks: out, nr, nc: out.length - nr, notes };
@@ -303,9 +309,9 @@ async function stpGo() {
     const cs = stpCmds(), cmds = [];
     if (o.cmds.length && !cs.length) throw new Error(T('Commandant introuvable dans la base EDHREC.'));
     for (const c of cs) {      // fiche et valeur du coach de chaque commandant (dwInfo : une table par commandant, gardée ici)
-      STP.busy = T('Fiche de {name}…', { name: c.names.join(' + ') }); stpPaint();
+      STP.busy = T('Fiche de {name}…', { name: stpCmdNm(c) }); stpPaint();
       const cmd = stpCoachCmd(c), pack = await dwPack('c', c.slug);
-      cmds.push({ slug: c.slug, cmd, pack, C: dwInfo(pack, { ...dwDefaults(), own: false, mech: o.tags.slice(0, 4) }, cmd), short: stpShort(c), name: c.names.join(' + '), ci: cmd.ci, c });
+      cmds.push({ slug: c.slug, cmd, pack, C: dwInfo(pack, { ...dwDefaults(), own: false, mech: o.tags.slice(0, 4) }, cmd), short: stpShort(c), name: stpCmdNm(c), ci: cmd.ci, c });
     }
     const A = { n: 0, nc: 0, nr: 0, notes: [], cmds: 0 }; STP.U = null;      // bilan de l'analyse (affiché au-dessus de la liste)
     STP.stop = false;
@@ -380,7 +386,7 @@ function stpFormHtml() {
   const o = stpLoad(), E = typeof EDH !== 'undefined' && EDH.data, cs = stpCmds(), h = t => `<h3 class="dkf-h">${t}</h3>`;
   const chip = (act, v, on, label, extra = '') => `<button type="button" class="fopt" data-stp="${act}" data-v="${esc(String(v))}" aria-pressed="${!!on}"${extra}>${label}</button>`;
   const mine = stpMyCmds();
-  const cmdChip = x => chip('cmd', x.slug, o.cmds.includes(x.slug), esc(x.names.join(' + ')) + ` <small>${stpPipsHtml(x.ci)}</small>`);
+  const cmdChip = x => chip('cmd', x.slug, o.cmds.includes(x.slug), esc(stpCmdNm(x)) + ` <small>${stpPipsHtml(x.ci)}</small>`);
   const allMine = mine.length > 1 && mine.slice(0, STP_CMD_MAX).every(x => o.cmds.includes(x.slug)), ciAll = [...new Set(cs.flatMap(x => [...dwCiOf(x.keys, x.ci)]))].sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
   return `<div class="dkf stp">
     ${h(T('Nombre de cartes'))}<div class="fopts" role="group">${STP_N.map(n => chip('n', n, o.n === n, nf0(n))).join('')}
@@ -393,7 +399,7 @@ function stpFormHtml() {
     ${o.ct ? `<div class="fopts"><label class="stp-in">${T('Marge CardTrader')} + <input type="number" id="stpTol" inputmode="decimal" min="0" max="1" step="0.01" value="${(o.tol / 100).toFixed(2)}"> €</label></div>
       <p class="hint">${T('Une carte est gardée si son offre CardTrader la moins chère (tes critères de recherche) est sous {p} ; sinon la suivante du classement prend sa place.', { p: esc(stpEuro(o.max + o.tol)) })}</p>` : ''}
     <button type="button" class="dkf-sw" role="switch" data-stp="deep" aria-checked="${o.deep}" aria-pressed="${o.deep}"><span>${T('Analyse approfondie')}<small>${T('long')}</small></span><span class="switch" aria-hidden="true"><i></i></span></button>
-    <p class="hint">${o.deep ? (cs.length ? T('Le coach construit des decks complets pour chaque commandant (4 versions, environ 1 minute chacun) ; avec les vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.')
+    <p class="hint">${o.deep ? (cs.length ? T('Le coach construit des decks complets pour chaque commandant (8 versions, environ 1 à 2 minutes chacun) ; avec les vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.')
       : T('Le coach construit un deck pour une quarantaine de commandants de toutes les couleurs (plusieurs minutes) ; avec leurs vrais decks EDHREC et Archidekt, tous notés par le coach, les cartes qui reviennent dans les decks les mieux notés passent devant.'))
       : T('Classement immédiat : popularité EDHREC, force et rôles du coach.')}</p>
     ${h(T('Commandants') + ` <small>${T('(facultatif, {n} au plus)', { n: STP_CMD_MAX })}</small>`)}
@@ -413,7 +419,7 @@ function stpCmdResHtml() {
   const E = typeof EDH !== 'undefined' && EDH.data, q = STP.q.trim(); if (!E || q.length < 2) return '';
   const Q = cnQ(q), ix = cnIx(); if (!Q) return '';
   const l = E.cmds.filter(c => !c.comm && (c.names.some(n => cnItem({ n, fn: frOf(ownKey(n)) }, Q, ix)) || cnHit(Q, c.names.join(' ')))).sort((a, b) => b.decks - a.decks).slice(0, 10);
-  return l.length ? l.map(c => `<button type="button" class="fopt" data-stp="cmd" data-v="${esc(c.slug)}" aria-pressed="${STP.o.cmds.includes(c.slug)}">${esc(c.names.join(' + '))} <small>${stpPipsHtml(c.ci)}</small></button>`).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`;
+  return l.length ? l.map(c => `<button type="button" class="fopt" data-stp="cmd" data-v="${esc(c.slug)}" aria-pressed="${STP.o.cmds.includes(c.slug)}">${c.names.map(n => (typeof cnLabel === 'function' ? cnLabel(n) : esc(n))).join(' + ')} <small>${stpPipsHtml(c.ci)}</small></button>`).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`;
 }
 function stpRunHtml() {
   const r = STP.run, R = STP.res, f = r && r.total ? Math.min(1, (r.done + r.frac) / r.total) : 0, pg = STP.busy && STP.prog;
@@ -439,9 +445,9 @@ function stpWhy(x, R) {
   return out.slice(0, 3).join(' · ');
 }
 function stpRowHtml(x, i, R) {
-  const ln = typeof cnOf === 'function' ? cnOf(x.name) : '', nm = ln || x.name, en = ln && ln !== x.name ? x.name : '', im = (typeof dmOf === 'function' && (dmOf(x.k) || {}).im) || zoomUrl(x.name, 'small'), ct = x.ct === undefined ? '' : x.ct == null ? `<small class="bad">${T('CT : aucune offre')}</small>` : `<small${stpCtOk(x.ct, R.o) ? '' : ' class="bad"'}>CT ${esc(stpEuro(x.ct))}</small>`;
+  const nm = stpNm(x.name), en = nm !== x.name ? x.name : '', im = (typeof dmOf === 'function' && (dmOf(x.k) || {}).im) || zoomUrl(x.name, 'small'), ct = x.ct === undefined ? '' : x.ct == null ? `<small class="bad">${T('CT : aucune offre')}</small>` : `<small${stpCtOk(x.ct, R.o) ? '' : ' class="bad"'}>CT ${esc(stpEuro(x.ct))}</small>`;
   return `<div class="stp-row" data-k="${esc(x.k)}" data-n="${esc(x.name)}"><span class="stp-i">${nf0(i + 1)}</span><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('stp', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(im)}"></span>
-    <span class="stp-n"><b>${x.need > 1 ? `<em>${nf0(x.need)} ×</em> ` : ''}<span class="row-name">${esc(nm)}</span></b><small>${stpPipsHtml(x.ci)}<span>${en ? esc(en) + ' · ' : ''}${esc(stpWhy(x, R))}</span></small></span>
+    <span class="stp-n"><b>${x.need > 1 ? `<em>${nf0(x.need)} ×</em> ` : ''}<span class="row-name">${esc(nm)}</span></b><small>${stpPipsHtml(x.ci)}<span>${esc(en || stpWhy(x, R))}</span></small>${en ? `<small class="stp-why"><span>${esc(stpWhy(x, R))}</span></small>` : ''}</span>
     <span class="stp-p">${esc(stpEuro(x.eur))}${ct}</span><button type="button" class="icon-btn stp-x" data-stp="x" data-v="${esc(x.k)}" aria-label="${esc(T('Retirer {name} de cette liste', { name: x.name }))}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
 }
 /** Bilan de l'analyse : decks analysés (coach, joueurs), note moyenne, commandants. */
@@ -537,10 +543,10 @@ function stpOpen() {
   openSheet(T('Chasse aux staples'), T('Admin · ton compte seulement'), api => {
     STP.api = api; api.wrap.classList.add('dkf-sheet', 'stp-sheet');
     if (typeof dwImgs === 'function') dwImgs(api.body);      // vignettes : l'image apparaît une fois chargée, la lettre sinon
-    if (typeof cnWhen === 'function') cnWhen(() => stpPaint());      // noms dans la langue de l'appli : la liste se repeint à l'arrivée de l'index
     api.wrap.addEventListener('click', stpClick);
     api.wrap.addEventListener('input', stpInput); api.wrap.addEventListener('change', stpInput);
     stpPaint();
+    if (typeof cnWhen === 'function') cnWhen(() => stpPaint());      // noms traduits pas encore là (anglais en attendant) : la fiche se repeint à leur arrivée
     const E0 = typeof EDH !== 'undefined' && EDH.data;
     if (!E0) edhLoad().then(() => { if (!STP.res || STP.edit) stpPaint(); }, () => stpPaint());      // commandants de Mes decks et recherche
     if (!DW.core) dwLoad().catch(() => {});
@@ -549,6 +555,6 @@ function stpOpen() {
 /* Vignette d'une ligne → la carte en grand, précédente / suivante dans la liste (zoom.js). */
 if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.stp = th => {
   const row = th.closest('.stp-row'); if (!row || !STP.api) return null;
-  return zoomFrom(STP.api.body.querySelectorAll('.stp-row'), row, r => zoomNamed(r.dataset.k, (typeof cnName === 'function' ? cnName(r.dataset.n) : r.dataset.n), r.dataset.n, ''));
+  return zoomFrom(STP.api.body.querySelectorAll('.stp-row'), row, r => zoomNamed(r.dataset.k, stpNm(r.dataset.n), r.dataset.n, typeof wantLang === 'function' ? wantLang() : ''));      // en grand : l'impression dans la langue voulue, cherchée par le viewer
 };
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { stpNoteW, stpFreq, stpSample, stpPopScore, stpMask, stpGroup, stpPopIndex, stpQuotas, stpPick, stpNext, stpSorted, stpText, stpCtOk, stpGroupsOf });
