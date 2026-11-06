@@ -1513,6 +1513,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .dv-acts .btn{flex-basis:calc(50% - 4px);min-width:min(100%,10.5em);height:auto;min-height:44px;padding:6px 10px;font-size:13.5px;line-height:1.15}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière : min-width en em, police agrandie → jamais trois lignes), la liste des cartes remonte d'autant */
 .dv-acts .dv-ana{flex-basis:100%}      /* Coach (decks Commander) : toute la ligne, en tête */
 .tr-wacts{margin-bottom:10px}
+.tr-wrule{margin:-4px 0 10px}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────
    Couche finale : n'ajoute que fonds, bordures et ombres ; aucune mise en page ne change. */
@@ -8057,8 +8058,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'd6fd29a9';
-const I18N_FILES = {"de":"i18n/de.b4b9b5e8.js","en":"i18n/en.d3bd7fff.js","es":"i18n/es.26e8f702.js","it":"i18n/it.c336f565.js","pt":"i18n/pt.53f26f7e.js"};
+const DD_BUILD = 'f3203405';
+const I18N_FILES = {"de":"i18n/de.f2bc62ef.js","en":"i18n/en.65f53105.js","es":"i18n/es.4785759f.js","it":"i18n/it.ff890977.js","pt":"i18n/pt.2dfb7737.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -18045,7 +18046,16 @@ function localWrite(list) {
   catch (e) { toast(T('Stockage local indisponible : le deck ne sera pas conservé')); return false; }
 }
 const stripDeck = d => ({ name: d.name, text: d.text, opts: d.opts, cards: d.cards, history: d.history, createdAt: d.createdAt, updatedAt: d.updatedAt });   // les prix gardés (snap) restent dans snapsRead() pour les decks locaux
-const allDecks = () => (D.user ? D.list : D.localList);
+/** Decks supprimés dont la suppression attend encore (id → minuteur) : « Annuler » du toast les rend ; sinon removeDeck après le toast (6,5 s), ou tout de suite si l'appli passe en arrière-plan. */
+const DK_GONE = new Map();
+const allDecks = () => { const l = D.user ? D.list : D.localList; return DK_GONE.size ? l.filter(d => !DK_GONE.has(d.id)) : l; };      // deck en cours de suppression (« Annuler » du toast) : déjà caché partout
+function dkGoneFlush(id) { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); removeDeck(id); }
+function dkDelete(id) {
+  if (S.deckId === id) S.deckId = null;
+  DK_GONE.set(id, setTimeout(() => dkGoneFlush(id), 7000)); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon();
+  toast(T('Deck supprimé'), { label: T('Annuler'), fn: () => { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon(); } });
+}
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) for (const id of [...DK_GONE.keys()]) dkGoneFlush(id); });
 const findDeck = id => (id ? allDecks().find(d => d.id === id) || null : null);
 const cloudOn = () => !!(D.user && D.cloud);
 /** Decks de cet appareil pas encore envoyés dans le compte. */
@@ -18422,12 +18432,22 @@ function openDeckSheet(id) {
     };
     DK_VALP = paintVal;      // relevé du jour arrivé pendant que la feuille est ouverte (builder.js › pxRepaint) : repeinte
     paintVal(); dmLoad().then(() => { paintVal(); return dmFetch(dkValue((findDeck(id) || d).text, dmOf).missing); }).then(() => { fetched = true; paintVal(); });
-    $('#dkOwn', api.body).onclick = () => {
+    $('#dkOwn', api.body).onclick = () => {      // déjà possédées en partie (deck monté depuis la collection) : ce qui manque, ou tout, au choix ; jamais doublé sans le dire
       const cur = findDeck(id) || d, cards = parseDeck(cur.text).cards; if (!cards.length) return;
-      const before = COLL.map, n = cards.reduce((a, c) => a + c.qty, 0);
-      collAdd(cards.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); api.close(); haptic('ok');
-      toast(TN(n, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
-      collEnrich();
+      const n = cards.reduce((a, c) => a + c.qty, 0), miss = cards.map(c => ({ ...c, qty: Math.max(0, c.qty - collQty(ownKey(c.name))) })).filter(c => c.qty > 0), nm = miss.reduce((a, c) => a + c.qty, 0);
+      const add = list => {
+        const before = COLL.map, q = list.reduce((a, c) => a + c.qty, 0);
+        collAdd(list.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); haptic('ok');
+        toast(TN(q, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+        collEnrich();
+      };
+      api.close();
+      if (nm === n) { add(cards); return; }      // aucune possédée : tout, comme avant
+      openSheet(T('Ajouter ses cartes à ma collection'), cur.name, s => {
+        s.body.innerHTML = `<p class="cf-msg">${esc(nm ? TN(n - nm, '{n} carte de ce deck est déjà dans ta collection.', '{n} cartes de ce deck sont déjà dans ta collection.') : T('Toutes les cartes de ce deck sont déjà dans ta collection.'))}</p>`;
+        s.setFoot(`<button class="btn ghost" type="button" data-all>${esc(TN(n, 'Tout ajouter ({n} carte)', 'Tout ajouter ({n} cartes)'))}</button>${nm ? `<button class="btn" type="button" data-miss>${esc(TN(nm, 'Ajouter celle qui manque', 'Ajouter les {n} qui manquent'))}</button>` : `<button class="btn" type="button" data-close>${T('Annuler')}</button>`}`);
+        s.foot.addEventListener('click', e => { if (e.target.closest('[data-all]')) { s.close(); add(cards); } else if (e.target.closest('[data-miss]')) { s.close(); add(miss); } });
+      });
     };
     $('#dkDup', api.body).onclick = () => {
       const cur = findDeck(id) || d, nid = newIdFor();
@@ -18437,7 +18457,7 @@ function openDeckSheet(id) {
     const del = $('#dkDel', api.foot); let armed = 0;
     del.onclick = () => {
       if (!armed) { armed = setTimeout(() => { armed = 0; del.textContent = T('Supprimer'); del.className = 'btn ghost-danger'; }, 4000); del.textContent = T('Confirmer'); del.className = 'btn danger'; return; }
-      clearTimeout(armed); removeDeck(id); api.close(); toast(T('Deck supprimé'));
+      clearTimeout(armed); api.close(); dkDelete(id);      // annulable quelques secondes (dkDelete)
     };
   });
 }
@@ -24539,8 +24559,8 @@ function alItems() {
   if (AC.deck) {
     for (const d of allDecks()) {
       if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
-      for (const c of parseDeck(d.text).cards) {
-        const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
+      for (const c of [...parseDeck(d.text).cards, ...dkSideCards(d.text)]) {      // réserve comprise (et compagnon), comme « Je recherche » (décision du 6 novembre 2026)
+        const k = ownKey(c.key || c.name); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
         put(k, c.name, 0, d.name);
       }
@@ -32631,7 +32651,7 @@ function trPanelHtml() {
   TR.bv = bv && list.length ? { list, want } : null;
   return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
     <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
-    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div>` : ''}
+    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}

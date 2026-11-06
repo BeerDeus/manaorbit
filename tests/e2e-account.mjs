@@ -155,6 +155,11 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await p.click('.deck:first-child .deck-more'); await sheetOpen(p);
   await p.click('#dkDel'); assert.equal(await T(p, '#dkDel'), 'Confirmer'); await p.click('#dkDel'); await sheetGone(p); await p.waitForTimeout(200);
   assert.equal(await p.$$eval('.deck', n => n.length), 1); ok('supprimer en deux temps');
+  assert.match(await T(p, '#toast'), /Deck supprimé/); await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.deck').length === 2);
+  assert.equal(await p.evaluate(() => DK_GONE.size), 0); ok('« Annuler » du toast : le deck revient (suppression pas encore faite)');
+  await p.click('.deck:first-child .deck-more'); await sheetOpen(p); await p.click('#dkDel'); await p.click('#dkDel'); await sheetGone(p); await p.waitForTimeout(200);
+  assert.equal(await p.$$eval('.deck', n => n.length), 1); const goneId = await p.evaluate(() => [...DK_GONE.keys()][0]); assert.ok(goneId, 'suppression en attente');
+  await p.evaluate(() => { for (const id of [...DK_GONE.keys()]) dkGoneFlush(id); }); assert.equal(await p.evaluate(id => DK_GONE.size === 0 && !findDeck(id), goneId), true); ok('suppression faite à la fin du délai (ou en arrière-plan)');
   // plus de 4 decks
   await H(p);
   for (let i = 0; i < 5; i++) { await toInput(p); await p.fill('#deckText', `1 Sol Ring\n1 Card ${i}`); await toInput(p); await p.click('#deckStats .stat-x').catch(() => {}); await toInput(p); await p.click('#btnSave'); await sheetOpen(p); await p.fill('#svName', 'Deck ' + i); await p.click('#svGo'); await sheetGone(p); }

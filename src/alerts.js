@@ -64,8 +64,8 @@ function alItems() {
   if (AC.deck) {
     for (const d of allDecks()) {
       if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
-      for (const c of parseDeck(d.text).cards) {
-        const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
+      for (const c of [...parseDeck(d.text).cards, ...dkSideCards(d.text)]) {      // réserve comprise (et compagnon), comme « Je recherche » (décision du 6 novembre 2026)
+        const k = ownKey(c.key || c.name); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
         put(k, c.name, 0, d.name);
       }

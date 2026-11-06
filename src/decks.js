@@ -19,7 +19,16 @@ function localWrite(list) {
   catch (e) { toast(T('Stockage local indisponible : le deck ne sera pas conservé')); return false; }
 }
 const stripDeck = d => ({ name: d.name, text: d.text, opts: d.opts, cards: d.cards, history: d.history, createdAt: d.createdAt, updatedAt: d.updatedAt });   // les prix gardés (snap) restent dans snapsRead() pour les decks locaux
-const allDecks = () => (D.user ? D.list : D.localList);
+/** Decks supprimés dont la suppression attend encore (id → minuteur) : « Annuler » du toast les rend ; sinon removeDeck après le toast (6,5 s), ou tout de suite si l'appli passe en arrière-plan. */
+const DK_GONE = new Map();
+const allDecks = () => { const l = D.user ? D.list : D.localList; return DK_GONE.size ? l.filter(d => !DK_GONE.has(d.id)) : l; };      // deck en cours de suppression (« Annuler » du toast) : déjà caché partout
+function dkGoneFlush(id) { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); removeDeck(id); }
+function dkDelete(id) {
+  if (S.deckId === id) S.deckId = null;
+  DK_GONE.set(id, setTimeout(() => dkGoneFlush(id), 7000)); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon();
+  toast(T('Deck supprimé'), { label: T('Annuler'), fn: () => { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon(); } });
+}
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) for (const id of [...DK_GONE.keys()]) dkGoneFlush(id); });
 const findDeck = id => (id ? allDecks().find(d => d.id === id) || null : null);
 const cloudOn = () => !!(D.user && D.cloud);
 /** Decks de cet appareil pas encore envoyés dans le compte. */
@@ -396,12 +405,22 @@ function openDeckSheet(id) {
     };
     DK_VALP = paintVal;      // relevé du jour arrivé pendant que la feuille est ouverte (builder.js › pxRepaint) : repeinte
     paintVal(); dmLoad().then(() => { paintVal(); return dmFetch(dkValue((findDeck(id) || d).text, dmOf).missing); }).then(() => { fetched = true; paintVal(); });
-    $('#dkOwn', api.body).onclick = () => {
+    $('#dkOwn', api.body).onclick = () => {      // déjà possédées en partie (deck monté depuis la collection) : ce qui manque, ou tout, au choix ; jamais doublé sans le dire
       const cur = findDeck(id) || d, cards = parseDeck(cur.text).cards; if (!cards.length) return;
-      const before = COLL.map, n = cards.reduce((a, c) => a + c.qty, 0);
-      collAdd(cards.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); api.close(); haptic('ok');
-      toast(TN(n, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
-      collEnrich();
+      const n = cards.reduce((a, c) => a + c.qty, 0), miss = cards.map(c => ({ ...c, qty: Math.max(0, c.qty - collQty(ownKey(c.name))) })).filter(c => c.qty > 0), nm = miss.reduce((a, c) => a + c.qty, 0);
+      const add = list => {
+        const before = COLL.map, q = list.reduce((a, c) => a + c.qty, 0);
+        collAdd(list.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); haptic('ok');
+        toast(TN(q, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+        collEnrich();
+      };
+      api.close();
+      if (nm === n) { add(cards); return; }      // aucune possédée : tout, comme avant
+      openSheet(T('Ajouter ses cartes à ma collection'), cur.name, s => {
+        s.body.innerHTML = `<p class="cf-msg">${esc(nm ? TN(n - nm, '{n} carte de ce deck est déjà dans ta collection.', '{n} cartes de ce deck sont déjà dans ta collection.') : T('Toutes les cartes de ce deck sont déjà dans ta collection.'))}</p>`;
+        s.setFoot(`<button class="btn ghost" type="button" data-all>${esc(TN(n, 'Tout ajouter ({n} carte)', 'Tout ajouter ({n} cartes)'))}</button>${nm ? `<button class="btn" type="button" data-miss>${esc(TN(nm, 'Ajouter celle qui manque', 'Ajouter les {n} qui manquent'))}</button>` : `<button class="btn" type="button" data-close>${T('Annuler')}</button>`}`);
+        s.foot.addEventListener('click', e => { if (e.target.closest('[data-all]')) { s.close(); add(cards); } else if (e.target.closest('[data-miss]')) { s.close(); add(miss); } });
+      });
     };
     $('#dkDup', api.body).onclick = () => {
       const cur = findDeck(id) || d, nid = newIdFor();
@@ -411,7 +430,7 @@ function openDeckSheet(id) {
     const del = $('#dkDel', api.foot); let armed = 0;
     del.onclick = () => {
       if (!armed) { armed = setTimeout(() => { armed = 0; del.textContent = T('Supprimer'); del.className = 'btn ghost-danger'; }, 4000); del.textContent = T('Confirmer'); del.className = 'btn danger'; return; }
-      clearTimeout(armed); removeDeck(id); api.close(); toast(T('Deck supprimé'));
+      clearTimeout(armed); api.close(); dkDelete(id);      // annulable quelques secondes (dkDelete)
     };
   });
 }

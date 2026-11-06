@@ -188,6 +188,17 @@ if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/mesdecks
 await p.click('.dks-reset'); assert.equal(await p.evaluate(() => DKS.eq), false, '« Tout afficher » retire aussi « Exactement »'); assert.equal(await p.$eval('.dks-eq', e => e.hidden), true);
 ok('lot R5 : Lurrus avec seulement des Plaines → pastilles W + B (identité), trouvé par le filtre Noir ; source des couleurs dans la bulle, sens du filtre sous les pastilles');
 
+// « Ajouter ses cartes à ma collection » : cartes déjà possédées (deck monté depuis la collection) → choix « ce qui manque » ou « tout », jamais doublé sans le dire
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); COLL.map = {}; collAdd([{ k: 'sol ring', n: 'Sol Ring', q: 1 }], 'add'); putDeck('d7', deckDoc({ name: 'Possédé en partie', text: '1 Sol Ring\n2 Arcane Signet' })); });
+await p.click('.dks-reset').catch(() => {}); await p.waitForSelector('.deck[data-id="d7"] .deck-more'); await p.click('.deck[data-id="d7"] .deck-more'); await p.waitForSelector('#dkOwn'); await p.click('#dkOwn');
+await p.waitForSelector('.sheet-wrap.open [data-miss]'); assert.match(await txt(p, '.sheet-wrap.open .cf-msg'), /1 carte de ce deck est déjà dans ta collection/);
+assert.equal(await txt(p, '.sheet-wrap.open [data-miss]'), 'Ajouter les 2 qui manquent'); assert.equal(await txt(p, '.sheet-wrap.open [data-all]'), 'Tout ajouter (3 cartes)');
+await p.click('.sheet-wrap.open [data-miss]'); await p.waitForFunction(() => collQty('arcane signet') === 2);
+assert.deepEqual(await p.evaluate(() => [collQty('sol ring'), collQty('arcane signet')]), [1, 2], 'seulement ce qui manquait : Sol Ring pas doublé');
+await p.click('.deck[data-id="d7"] .deck-more'); await p.waitForSelector('#dkOwn'); await p.click('#dkOwn'); await p.waitForSelector('.sheet-wrap.open [data-all]');
+assert.match(await txt(p, '.sheet-wrap.open .cf-msg'), /Toutes les cartes de ce deck sont déjà dans ta collection/); await p.click('.sheet-wrap.open [data-all]');
+await p.waitForFunction(() => collQty('sol ring') === 2); ok('« Ajouter ses cartes » : ce qui manque (Sol Ring déjà là, pas doublé), ou tout sur demande');
+
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));
 await browser.close(); world.stop();
 console.log('DKLIST E2E OK');
