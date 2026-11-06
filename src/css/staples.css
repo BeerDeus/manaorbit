@@ -34,3 +34,5 @@
 .stp-p{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
 .stp-p small{font-size:11.5px;font-weight:500;color:var(--ink-3)}
 .stp-x{flex:none;width:36px;height:36px}
+.stp-grp{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
+.stp-grp > span{font-size:13px;font-weight:650;color:var(--ink-2)}

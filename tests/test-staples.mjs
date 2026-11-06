@@ -136,3 +136,18 @@ test('plusieurs commandants : identité de l\'un d\'eux, rangée chez celui qui 
   const R = { bal: true, order: ['krenko', 'elf'], list: l };
   assert.deepEqual([...new Set(S.stpSorted(R).map(x => x.g))], ['krenko', 'elf'], 'liste groupée par commandant, dans l\'ordre choisi');
 });
+
+test('classer par couleur, type ou rôle : seul l\'ordre change', () => {
+  const list = [{ name: 'Opt', g: 'U', ty: 16, r1: 'draw', s: 0.5, need: 1 }, { name: 'Mind Stone', g: 'C', ty: 4, r1: 'ramp', s: 0.9, need: 1 },
+    { name: 'Wood Elves', g: 'G', ty: 2, r1: 'ramp', s: 0.7, need: 1 }, { name: 'Terramorphic Expanse', g: 'C', ty: 1, r1: 'fixing', s: 0.6, need: 1 }, { name: 'Intangible Virtue', g: 'W', ty: 8, r1: '', s: 0.4, need: 1 }];
+  const R = { bal: true, list };
+  assert.equal(S.stpTypeOf(6), 'cre', 'créature-artefact : créature'); assert.equal(S.stpTypeOf(0), 'oth');
+  S.STP.o = { grp: '' };
+  assert.deepEqual(S.stpSorted(R).map(x => x.g), ['W', 'U', 'G', 'C', 'C']);
+  S.STP.o.grp = 'type';
+  assert.deepEqual(S.stpSorted(R).map(x => x.name), ['Terramorphic Expanse', 'Wood Elves', 'Opt', 'Mind Stone', 'Intangible Virtue']);
+  S.STP.o.grp = 'role';
+  assert.deepEqual(S.stpSorted(R).map(x => x.name), ['Mind Stone', 'Wood Elves', 'Opt', 'Terramorphic Expanse', 'Intangible Virtue'], 'rampe (meilleur score d\'abord), pioche, fixing, sans rôle');
+  assert.equal(S.stpText(R).split('\n').length, 5, 'les mêmes cartes, dans l\'ordre affiché');
+  S.STP.o = null;
+});

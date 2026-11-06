@@ -6832,6 +6832,8 @@ html.sp-on #app *,html.sp-on #app *::before,html.sp-on #app *::after{animation-p
 .stp-p{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
 .stp-p small{font-size:11.5px;font-weight:500;color:var(--ink-3)}
 .stp-x{flex:none;width:36px;height:36px}
+.stp-grp{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
+.stp-grp > span{font-size:13px;font-weight:650;color:var(--ink-2)}
 
 /* ── start.css : premiers pas. Accueil vide (« Pour commencer », phrase de la carte Échange), premier lancement étape 3 (« Sauvegarde ta collection »),
    bouton « Continuer avec Google » aux couleurs de la charte de Google, œil du mot de passe (feuille Compte). Ordinateur : zz-desktop.css. ── */
@@ -8061,7 +8063,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '819a8ab9';
+const DD_BUILD = '5183ddbd';
 const I18N_FILES = {"de":"i18n/de.6f747f23.js","en":"i18n/en.4a75eecb.js","es":"i18n/es.0948798f.js","it":"i18n/it.9f9bf6aa.js","pt":"i18n/pt.4bc049eb.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -31880,6 +31882,16 @@ const STP_ROLES = [['ramp', 'Rampe'], ['draw', 'Pioche'], ['removal', 'Retraits 
 const STP_UTIL = ['ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'recursion', 'tutor', 'fixing'];      // rôles « utilitaires » : un petit bonus au score
 const STP_GROUPS = ['W', 'U', 'B', 'R', 'G', 'M', 'C'];
 const STP_GROUP_NAMES = { W: 'Blanc', U: 'Bleu', B: 'Noir', R: 'Rouge', G: 'Vert', M: 'Multicolore', C: 'Incolore' };
+/** Types (bits de la base du coach, gen-deckdb.mjs › TYPE_BITS), dans l'ordre d'affichage : une carte va dans le premier qui la décrit (créature-artefact : créature). */
+const STP_TYPES = [[1, 'land', 'Terrains'], [2, 'cre', 'Créatures'], [64, 'pw', 'Planeswalkers'], [128, 'bat', 'Batailles'], [16, 'ins', 'Éphémères'], [32, 'sor', 'Rituels'], [4, 'art', 'Artefacts'], [8, 'enc', 'Enchantements']];
+const stpTypeOf = ty => (STP_TYPES.find(t => ty & t[0]) || [0, 'oth'])[1];
+/** Classement de l'affichage (et de la liste copiée) : '' (couleur, ou commandant), 'type' ou 'role'. Seul l'ordre change, jamais les cartes retenues. */
+function stpGrp(R) {
+  const m = STP.o && STP.o.grp;
+  if (m === 'type') return { m, key: x => stpTypeOf(x.ty || 0), order: [...STP_TYPES.map(t => t[1]), 'oth'] };
+  if (m === 'role') return { m, key: x => x.r1 || 'none', order: [...STP_ROLES.map(r => r[0]), 'none'] };
+  return R.bal ? { m: '', key: x => x.g, order: R.order || STP_GROUPS } : null;
+}
 const STP = { o: null, api: null, q: '', res: null, run: null, pop: null, ct: null, task: null, prog: null, stop: false, deep: null };
 const STP_DEEP_MS = 40000, STP_GEN_MS = 12000;      // analyse approfondie : temps donné au coach pour construire les decks d'un commandant choisi (4 versions, 3 tirages) / d'un commandant de l'échantillon (1 version)
 
@@ -31926,8 +31938,8 @@ function stpNext(R, g) {
   let i = R.bal && g ? R.rest.findIndex(x => x.g === g) : 0; if (i < 0) i = 0;
   return R.rest.splice(i, 1)[0];
 }
-/** Ordre d'affichage (et de la liste copiée) : par groupe (couleur, ou commandant : R.order) si la répartition est équilibrée, puis du meilleur score au moins bon. */
-const stpSorted = R => { const ord = R.order || STP_GROUPS; return [...R.list].sort((a, b) => (R.bal ? ord.indexOf(a.g) - ord.indexOf(b.g) : 0) || b.s - a.s); };
+/** Ordre d'affichage (et de la liste copiée) : par groupe (stpGrp : couleur ou commandant si la répartition est équilibrée, type, rôle), puis du meilleur score au moins bon. */
+const stpSorted = R => { const G = stpGrp(R); return [...R.list].sort((a, b) => (G ? G.order.indexOf(G.key(a)) - G.order.indexOf(G.key(b)) : 0) || b.s - a.s); };
 /** Texte de la liste : « 1 Sol Ring » par ligne. */
 const stpText = R => stpSorted(R).map(x => x.need + ' ' + x.name).join('\n');
 /** Poids d'un deck d'après la note du coach (0-100) : les meilleurs comptent bien plus (95 → 0,81 ; 80 → 0,41 ; 60 → 0,13). */
@@ -31961,12 +31973,12 @@ function stpSample(cmds, cols, target, nOf) {
 const stpCtOk = (p, o) => p != null && p < o.max + o.tol;
 
 /* ── Réglages ─────────────────────────────────────────────────────────────────────────────────────── */
-const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true, nd: 1000 });
+const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true, nd: 1000, grp: '' });
 function stpLoad() {
   if (STP.o) return STP.o;
   let o = {}; try { o = JSON.parse(localStorage.getItem(STP_KEY) || '{}') || {}; } catch (e) { o = {}; }
   const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
-  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
+  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
     cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
     tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
   return STP.o;
@@ -32045,7 +32057,8 @@ function stpCands(o, ctx) {
       s = top.v + 0.15 * also.length; x = top.y; g = cmds.length > 1 ? top.c.slug : g; f = top.f;      // une carte qui sert plusieurs de tes commandants : un achat plus utile
     } else s = 0.7 * ps + 0.18 * qv + Math.min(0.08, 0.04 * roles.length) + (plan && m ? 0.35 * dmxFit(m, plan, null) : 0) + 0.6 * Math.sqrt(f);      // les plus jouées d'abord ; force et rôles départagent ; analyse : part des decks analysés (coach et joueurs, pondérés par la note)
     if (!(s > 0.03)) continue;      // ni jouée ni utile : rien à faire dans une liste de staples
-    out.push({ k, name: r[0], ci, g, eur, need, s, p, f, rank: r[8] || 0, roles, also, x: x ? { incl: x.incl || 0, ai: x.ai, m: x.m || 0 } : null, tag: tagI.find(i => m && (m.p.includes(i) || m.w.includes(i) || m.ip.includes(i))) });
+    const r1 = (STP_ROLES.find(([y]) => stpRole(m, r, y)) || [''])[0];      // rôle principal (ordre de STP_ROLES) : classement « Rôle »
+    out.push({ k, name: r[0], ci, g, ty: r[3] || 0, r1, eur, need, s, p, f, rank: r[8] || 0, roles, also, x: x ? { incl: x.incl || 0, ai: x.ai, m: x.m || 0 } : null, tag: tagI.find(i => m && (m.p.includes(i) || m.w.includes(i) || m.ip.includes(i))) });
   }
   return out.sort((a, b) => b.s - a.s || a.eur - b.eur);
 }
@@ -32344,10 +32357,16 @@ function stpResHtml() {
     <small>${[R.cmd ? T('Pour {name}', { name: R.cmd }) : '', TN(R.pool, '{n} candidate sous {p}', '{n} candidates sous {p}', { p: esc(stpEuro(R.o.max)) }), R.rep ? TN(R.rep, '{n} remplacée après vérification', '{n} remplacées après vérification') : '', nv && R.o.ct && !STP.run ? TN(nv, '{n} non vérifiée', '{n} non vérifiées') : ''].filter(Boolean).join(' · ')}</small>
     ${R.A && R.A.n ? `<p class="hint stp-note">${esc(stpABil(R))}</p>` : ''}
     ${R.warn || R.note ? `<p class="hint stp-note">${esc([R.warn, R.note].filter(Boolean).join(' '))}</p>` : ''}
+    <div class="stp-grp"><span>${T('Classer par')}</span><div class="fopts" role="radiogroup" aria-label="${esc(T('Classer par'))}">${[['', R.order ? T('Commandant') : R.bal ? T('Couleur') : T('Classement')], ['type', T('Type')], ['role', T('Rôle')]].map(([v, lb]) => `<button type="button" class="fopt" role="radio" data-stp="grp" data-v="${v}" aria-checked="${(STP.o.grp || '') === v}" aria-pressed="${(STP.o.grp || '') === v}">${esc(lb)}</button>`).join('')}</div></div>
     <div class="stp-acts"><button type="button" class="btn ghost small" data-stp="edit">${T('Modifier les réglages')}</button>${l.length < R.o.n && R.rest.length && !STP.run ? `<button type="button" class="btn ghost small" data-stp="fill">${T('Compléter ({n})', { n: nf0(Math.min(R.o.n - l.length, R.rest.length)) })}</button>` : ''}${R.note && !STP.run && R.o.ct && nv ? `<button type="button" class="btn ghost small" data-stp="verify">${T('Vérifier sur CardTrader')}</button>` : ''}</div></div>`;
   if (!l.length) return html + `<p class="hint listempty">${T('Aucune carte ne correspond : élargis les couleurs, les rôles ou le prix maximum.')}</p>`;
-  let g = '';
-  html += '<div class="stp-list">' + l.map((x, i) => { let hd = ''; if (R.bal && x.g !== g) { g = x.g; const gc = R.gn && R.gn[g]; hd = `<h3 class="stp-g">${gc ? stpPipsHtml(gc.ci) + esc(gc.name) : stpPipsHtml(g === 'M' || g === 'C' ? '' : g) + T(STP_GROUP_NAMES[g])} <small>${nf0(l.filter(y => y.g === g).length)}</small></h3>`; } return hd + stpRowHtml(x, i, R); }).join('') + '</div>';
+  const G = stpGrp(R), lab = (k) => {      // titre d'un groupe : couleur ou commandant (pastilles), type, rôle
+    if (G.m === 'type') { const t = STP_TYPES.find(y => y[1] === k); return esc(T(t ? t[2] : 'Autres')); }
+    if (G.m === 'role') { const r = STP_ROLES.find(y => y[0] === k); return esc(T(r ? r[1] : 'Sans rôle précis')); }
+    const gc = R.gn && R.gn[k]; return gc ? stpPipsHtml(gc.ci) + esc(gc.name) : stpPipsHtml(k === 'M' || k === 'C' ? '' : k) + esc(T(STP_GROUP_NAMES[k]));
+  };
+  let g = null;
+  html += '<div class="stp-list">' + l.map((x, i) => { let hd = ''; if (G && G.key(x) !== g) { g = G.key(x); hd = `<h3 class="stp-g">${lab(g)} <small>${nf0(l.filter(y => G.key(y) === g).length)}</small></h3>`; } return hd + stpRowHtml(x, i, R); }).join('') + '</div>';
   return html;
 }
 function stpPaint() {
@@ -32408,6 +32427,7 @@ function stpClick(e) {
     return;
   }
   else if (a === 'stop') { if (STP.run) STP.run.ctrl.abort(); return; }
+  else if (a === 'grp') { o.grp = v || ''; stpSave(); haptic('tap'); const y = STP.api ? STP.api.body.scrollTop : 0; stpPaint(); if (STP.api) STP.api.body.scrollTop = y; return; }
   else if (a === 'stopa') { STP.stop = true; b.disabled = true; haptic('tap'); return; }
   else if (a === 'copy') { haptic('ok'); copyText(stpText(STP.res)); return; }
   else if (a === 'send') { stpSend(); return; }
@@ -32448,7 +32468,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.stp = th => {
   const row = th.closest('.stp-row'); if (!row || !STP.api) return null;
   return zoomFrom(STP.api.body.querySelectorAll('.stp-row'), row, r => zoomNamed(r.dataset.k, stpNm(r.dataset.n), r.dataset.n, typeof wantLang === 'function' ? wantLang() : ''));      // en grand : l'impression dans la langue voulue, cherchée par le viewer
 };
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { stpNoteW, stpFreq, stpSample, stpPopScore, stpMask, stpGroup, stpPopIndex, stpQuotas, stpPick, stpNext, stpSorted, stpText, stpCtOk, stpGroupsOf });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STP, stpTypeOf, stpNoteW, stpFreq, stpSample, stpPopScore, stpMask, stpGroup, stpPopIndex, stpQuotas, stpPick, stpNext, stpSorted, stpText, stpCtOk, stpGroupsOf });
 
 
 /* ── share.js : liste d'échange (doublons, cartes recherchées) et liens publics en lecture seule (liste d'échange, deck) ──────────
