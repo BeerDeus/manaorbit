@@ -4,5 +4,8 @@
   "Collection trop grosse pour ton compte": "Coleção grande demais para sua conta",
   "Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.": "Com este arquivo, sua coleção passaria do espaço permitido na sua conta ({p}): ela não seria mais salva, apenas guardada neste aparelho.",
   "Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.": "Importe parte do arquivo ou remova cartas da sua coleção antes. Exportar sua coleção guarda uma cópia.",
-  "Importer quand même": "Importar mesmo assim"
+  "Importer quand même": "Importar mesmo assim",
+  "Compter les cartes engagées dans mes autres decks comme possédées": "Contar como possuídas as cartas em uso nos meus outros decks",
+  "Une carte réservée par un de tes decks montés compte comme possédée : rien à acheter pour elle.": "Uma carta reservada por um dos seus decks montados conta como possuída: nada a comprar para ela.",
+  "Une carte réservée par un de tes decks montés est à acheter pour ce deck (coût, budget, cartes à acheter).": "Uma carta reservada por um dos seus decks montados precisa ser comprada para este deck (custo, orçamento, cartas a comprar)."
 }

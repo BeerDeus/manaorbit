@@ -93,7 +93,14 @@ const edhInfoHtml = x => { const i = x.indexOf(' Ex. : '); return i < 0 ? esc(T(
 /** Nom court d'un type de deck, traduit ('' si inconnu). */
 const edhKindName = k => (EDH_KIND_NAMES[k] ? T(EDH_KIND_NAMES[k]) : '');
 const EDH_BUDGETS = [[0, 'Budget illimité'], [3000, '≤ 30 €'], [6000, '≤ 60 €'], [10000, '≤ 100 €'], [20000, '≤ 200 €']];
-const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), colsEq: false, tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
+/** « Compter les cartes engagées dans mes autres decks comme possédées » (feuille Filtres, éteint par défaut, gardé sur l'appareil). Éteint : règle R2 (extras.js › ownFor) :
+ *  un exemplaire réservé par un deck monté est à acheter pour un deck d'À monter (coût, tri, budget, « À acheter », Je recherche, alertes). Allumé : il compte comme possédé. */
+const EDH_ENG_KEY = 'deckdeal:edh:engown';
+const edhEngRead = () => { try { return localStorage.getItem(EDH_ENG_KEY) === '1'; } catch (e) { return false; } };
+const edhEngWrite = on => { try { if (on) localStorage.setItem(EDH_ENG_KEY, '1'); else localStorage.removeItem(EDH_ENG_KEY); } catch (e) { /* stockage indisponible : réglage de la session */ } };
+/** Réservations des decks montés pour edhRank (held), ou null quand l'interrupteur les compte comme possédées. */
+const edhHeld = () => (EDH.engOwn ? null : k => engTotal(XS.eng, k));
+const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', engOwn: edhEngRead(), then: '', kinds: new Set(), cols: new Set(), colsEq: false, tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
 
 /** Fichier du site (null hors http, ou s'il manque) : { buf, etag }. same : ETag déjà connu ; si le site répond avec le même, le corps n'est pas lu → { same: true }. */
 async function edhGet(file, same) {
@@ -187,9 +194,9 @@ const edhDate = () => { const d = EDH.data && EDH.data.at ? new Date(EDH.data.at
 function edhRows() {
   if (!EDH.data) return [];
   for (const t of [...EDH.themes]) if (!EDH.data.themeIx.has(t)) EDH.themes.delete(t);      // un thème absent du fichier chargé (version plus ancienne ou plus récente) ne filtre plus rien
-  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join('') + (EDH.colsEq ? '=' : ''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? CN.v + FRX.l : ''].join('|');
+  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join('') + (EDH.colsEq ? '=' : ''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.engOwn, EDH.budget, q, EDH.qm, alt ? CN.v + FRX.l : ''].join('|');
   if (EDH.memo && EDH.memo.sig === sig) return EDH.memo.rows;
-  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, colsEq: EDH.colsEq, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
+  const rows = edhRank(EDH.data, collQty, { held: edhHeld(), cols: EDH.cols, colsEq: EDH.colsEq, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
   EDH.memo = { sig, rows }; return rows;
 }
 /* ── Recherche dans la langue de l'appli et dans celle des cartes (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés des index chargés (cardnames.js › cnIx,
@@ -331,6 +338,8 @@ function edhFiltersHtml() {
     ${h(T('Budget maximum à acheter'))}<div class="fopts" role="radiogroup" aria-label="${T('Budget maximum à acheter')}">${EDH_BUD_SHORT.map(([v, l]) => `<button type="button" class="fopt" role="radio" data-act="dbudget" data-v="${v}" aria-checked="${EDH.budget === v}" aria-pressed="${EDH.budget === v}">${v ? l : T(l)}</button>`).join('')}</div>
     ${(e.themeOrder || []).length ? h(T('Thèmes')) + edhThemesHtml() : ''}
     <button type="button" class="dkf-sw" role="switch" data-act="dmine" aria-checked="${EDH.mine}" aria-pressed="${EDH.mine}"><span>${T('J\'ai le commandant')}${mineN ? ` <small>${nf0(mineN)}</small>` : ''}</span><span class="switch" aria-hidden="true"><i></i></span></button>
+    <button type="button" class="dkf-sw" role="switch" data-act="deng" aria-checked="${EDH.engOwn}" aria-pressed="${EDH.engOwn}"><span>${T('Compter les cartes engagées dans mes autres decks comme possédées')}</span><span class="switch" aria-hidden="true"><i></i></span></button>
+    <p class="hint dkf-rule">${EDH.engOwn ? T('Une carte réservée par un de tes decks montés compte comme possédée : rien à acheter pour elle.') : T('Une carte réservée par un de tes decks montés est à acheter pour ce deck (coût, budget, cartes à acheter).')}</p>
     ${h(T('Puis par') + ` <small>${esc(T('(après « {s} »)', { s: edhSortLabel(EDH.sort, '') }))}</small>`)}<div class="fopts dk-then" role="group" aria-label="${T('Puis par')}">${EDH_SORTS.filter(([v]) => v !== EDH.sort).map(([v, l]) => `<button type="button" class="fopt" data-act="dthen" data-v="${v}" aria-pressed="${EDH.then === v}">${T(l)}</button>`).join('')}</div></div>`;
 }
 function openEdhFilters() {
@@ -545,6 +554,7 @@ function edhClick(e) {
   else if (act === 'dth') { const t = b.dataset.s; if (EDH.themes.has(t)) EDH.themes.delete(t); else EDH.themes.add(t); EDH.shown = 30; haptic('tap'); collPaintBody(true); }
   else if (act === 'dthall') { haptic('tap'); if (EDH.fclose) { EDH.fclose(); EDH.fclose = null; } openEdhThemes(); }      // depuis la feuille « Filtres » : elle laisse la place à la liste complète des thèmes
   else if (act === 'dmine') { EDH.mine = !EDH.mine; EDH.shown = 30; haptic('tap'); collPaintBody(true); }
+  else if (act === 'deng') { EDH.engOwn = !EDH.engOwn; edhEngWrite(EDH.engOwn); EDH.shown = 30; haptic('tap'); collPaintBody(true); }      // réglage de comptage, pas un filtre : ni pastille ni « Tout effacer »
   else if (act === 'dbudget') { const v = Number(b.dataset.v) || 0; if (EDH.budget !== v) { EDH.budget = v; EDH.shown = 30; haptic('tap'); collPaintBody(true); } }
   else if (act === 'dfilt') { haptic('tap'); openEdhFilters(); }
   else if (act === 'dpx') { const g = b.dataset.g; if (g === 'budget') EDH.budget = 0; else if (g === 'mine') EDH.mine = false; else if (g === 'cols') { EDH.cols.clear(); EDH.colsEq = false; } else if (EDH[g] && EDH[g].clear) EDH[g].clear(); EDH.shown = 30; haptic('tap'); collPaintBody(true); }

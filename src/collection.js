@@ -1806,8 +1806,8 @@ function paintGlance() {
   if (eg === 'off') { /* EDHREC coupé par le serveur : pas de ligne « Decks EDHREC » */ }
   else if (eg !== 'ok') dk = `<div class="gl-edh"><span>${T('<b>Decks EDHREC</b> à finir avec tes cartes : réservés aux comptes')}</span><button class="btn ghost small" type="button" data-g="decks">${T('Voir')}</button></div>`;
   else if (EDH.data && !reading) {
-    const sig = COLL.seq + '|' + EDH.at;
-    if (!GLANCE.edh || GLANCE.edh.sig !== sig) GLANCE.edh = { sig, n: edhRank(EDH.data, collQty, { budget: GLANCE_BUDGET, sort: 'have' }).filter(r => r.have >= r.total * 0.3).length };      // au moins 30 % du deck déjà là : un vrai deck « à finir »
+    const sig = COLL.seq + '|' + EDH.at + '|' + EDH.engOwn + '|' + engSig();
+    if (!GLANCE.edh || GLANCE.edh.sig !== sig) GLANCE.edh = { sig, n: edhRank(EDH.data, collQty, { budget: GLANCE_BUDGET, sort: 'have', held: edhHeld() }).filter(r => r.have >= r.total * 0.3).length };      // au moins 30 % du deck déjà là : un vrai deck « à finir »
     const nd = GLANCE.edh.n;
     if (nd) dk = `<div class="gl-edh"><span>${TN(nd, '<b>{n}</b> deck EDHREC à moins de {v} de finir', '<b>{n}</b> decks EDHREC à moins de {v} de finir', { v: esc(new Intl.NumberFormat(LOC(), { style: 'currency', currency: mkCur(), minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(GLANCE_BUDGET / 100)) })}</span><button class="btn ghost small" type="button" data-g="decks">${T('Voir ces decks')}</button></div>`;
   } else if (EDH.p || reading) dk = `<p class="hint gl-edh-wait">${T('Decks EDHREC à finir : calcul après la lecture des prix…')}</p>`;

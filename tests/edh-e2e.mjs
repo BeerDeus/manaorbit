@@ -115,6 +115,25 @@ assert.match(await txt(p, '.sheet-head p'), /^Tier S · n° 1 · 3 \/ 26 posséd
 assert.deepEqual(await p.$$eval('.sheet .crow[data-ik]:has(.tag.warn[title^="Déjà"]) .row-name', n => n.map(x => x.textContent).sort()), ['Arcane Signet', 'Sol Ring'], 'pastille « dont 1 engagée » sur les cartes concernées');
 assert.match(await p.$eval('.sheet .crow[data-ik="sol ring"]', e => e.dataset.ex), /dont 1 engagée/);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+// interrupteur « Compter les cartes engagées dans mes autres decks comme possédées » (feuille Filtres) : éteint par défaut (règle R2 ci-dessus), gardé sur l'appareil
+const edgarBuy = () => p.evaluate(() => edhRows().filter(r => r.cmd.names[0] === 'Edgar Markov').map(r => r.missing.filter(x => x.k === 'sol ring' || x.k === 'arcane signet').map(x => x.k).sort().join(',')));
+assert.deepEqual(await edgarBuy(), ['arcane signet,sol ring', 'arcane signet,sol ring'], 'éteint : Sol Ring et Arcane Signet réservés = à acheter (feuille, Je recherche, alertes)');
+await openF(); assert.equal(await p.getAttribute('.dkf-sheet [data-act="deng"]', 'aria-checked'), 'false', 'éteint par défaut');
+assert.match(await txt(p, '.dkf-sheet .dkf'), /Compter les cartes engagées dans mes autres decks comme possédées Une carte réservée par un de tes decks montés est à acheter pour ce deck/);
+await p.click('.dkf-sheet [data-act="deng"]'); await p.waitForFunction(() => !document.querySelector('.crow.dk .dk-eng'), null, { timeout: 3000 });
+assert.equal(await p.getAttribute('.dkf-sheet [data-act="deng"]', 'aria-checked'), 'true'); assert.match(await txt(p, '.dkf-sheet .dkf'), /compte comme possédée : rien à acheter pour elle/);
+assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:edh:engown')), '1', 'gardé sur l\'appareil'); assert.equal(await p.evaluate(() => edhEngRead()), true);
+await closeF(); assert.equal(await txt(p, '[data-act="dfilt"]'), 'Filtres', 'un réglage de comptage, pas un filtre (ni pastille ni « Tout effacer »)');
+assert.deepEqual(await p.evaluate(() => edhRows().map(r => [r.have, r.eng, r.miss])), [[3, 0, 22], [3, 0, 23], [3, 0, 24], [2, 0, 27]], 'allumé : les réservées comptent comme possédées (22 · 23 · 24 · 27 à acheter)');
+assert.deepEqual(await edgarBuy(), ['', ''], 'plus à acheter : ni dans la feuille, ni pour Je recherche, ni pour les alertes');
+d = await dks(); assert.ok(d.every(x => !/engagée/.test(x.have)), 'plus de « dont N engagées »');
+await p.click('.crow.dk:nth-child(2)'); await p.waitForSelector('.sheet .ci-sum');
+assert.doesNotMatch(await txt(p, '.sheet-head p'), /engagée/); assert.equal(await p.$$eval('.sheet .tag.warn[title^="Déjà"]', n => n.length), 0);
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+await filt('[data-act="deng"]'); await closeF(); await p.waitForFunction(() => document.querySelector('.crow.dk .dk-eng'), null, { timeout: 3000 });
+assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:edh:engown')), null, 'éteint de nouveau : retiré de l\'appareil');
+assert.deepEqual(await edgarBuy(), ['arcane signet,sol ring', 'arcane signet,sol ring']);
+ok('« Compter les cartes engagées dans mes autres decks comme possédées » : éteint par défaut (à acheter), allumé : possédées (coût, tri, à acheter, feuille), gardé sur l\'appareil');
 await p.evaluate(() => { XS.eng = {}; engApplied(); });
 await p.waitForFunction(() => !document.querySelector('.crow.dk .dk-eng'), null, { timeout: 3000 });
 assert.equal(await p.$$eval('.crow.dk .dk-bar i.eng', n => n.length), 0, 'deck démonté : plus d\'orange');
