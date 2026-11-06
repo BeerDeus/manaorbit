@@ -175,6 +175,8 @@ await p.waitForFunction(() => document.querySelectorAll('.crow').length === 1); 
 assert.equal((await rows())[0].q, 2, 'quantité du compte'); assert.equal(await p.evaluate(() => sameDoc(COLL.base, collDocFromText('2 Sol Ring'))), true, 'base = dernier état du compte');
 // texte du compte gardé avec la base (enregistrement sans le refaire) ; écho du même texte : la base reprise telle quelle, sans relire le texte
 assert.deepEqual(await p.evaluate(() => { const b0 = COLL.base, r = JSON.parse(localStorage.getItem('deckdeal:coll:v1')).b; collFromCloud('u1', { text: '2 Sol Ring', count: 1, updatedAt: Date.now() + 6000 }, false, false); return [r, COLL.base === b0, collUnsynced()]; }), ['2 Sol Ring', true, false], 'texte de la base gardé, écho sans nouvelle lecture');
+// démarrage (collRead) : la base n'est lue qu'en texte, analysée à la première fusion qui en a besoin (COLL.base)
+assert.deepEqual(await p.evaluate(() => { collRead(); const lazy = COLL_B.lazy, txt = COLL_B.t, b = COLL.base; return [lazy, txt, sameDoc(b, collDocFromText('2 Sol Ring')), COLL_B.lazy]; }), [true, '2 Sol Ring', true, false], 'base analysée seulement au premier besoin');
 await p.evaluate(m => { COLL.map = JSON.parse(m); collChanged({ push: false }); }, before4); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4);
 // plusieurs cartes d'un coup (scan, scan mobile) : un seul enregistrement ; valeur de la collection gardée tant que rien ne change, recalculée après un « + » ou un prix
 const bat = await p.evaluate(() => {
