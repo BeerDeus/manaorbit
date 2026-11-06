@@ -100,7 +100,8 @@ const dmOf = k => {
  *  Relevé pas encore lu : demandé (pxRefEnsure), les écrans se redessinent à son arrivée. */
 function dkPx(k) {
   const e = pxRef(k); if (e) return e;
-  pxRefEnsure(); const m = COLL.meta[k] || DM[k]; return m && m.eu > 0 ? m.eu : 0;
+  pxRefEnsure(); const m = COLL.meta[k] || DM[k]; if (m && m.eu > 0) return m.eu;
+  return typeof dwBasePx === 'function' ? dwBasePx(k) : 0;      // ni relevé ni fiche : prix de la base du coach (deckwiz.js), comme le coach l'a toujours compté (l'en-tête affichait « ≈ 9 €+ » pour un deck que le coach disait à 18 €)
 }
 /** Prix de référence d'un exemplaire dont l'édition n'est pas connue (centimes, 0 si inconnu) : dkPx, la même règle partout (collection, Stats, accueil, widget,
  *  courbe de valeur, scan, lot, échanges, « De ta collection pour ce deck ») ; foil : le prix foil de la fiche (Scryfall), à défaut dkPx. m : fiche d'une carte pas encore
@@ -428,7 +429,7 @@ function bdSumHtml() {
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
   const ev = dkEst(dkBuildText(bdData())), val = ev.ready ? dkValueText(ev) : '';      // règle unique (dkPx) : le même chiffre que le coach, Mes decks et le viewer, dès l'ouverture (pas d'attente de la base du coach)
   const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
-  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${valT}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
+  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-valw"><span>${T('valeur estimée')}</span><b class="bd-val" title="${valT}">${esc(val)}</b></div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : TN(ck.issues.length - 3, 'Voir l\'autre alerte', 'Voir les {n} autres alertes')}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach

@@ -126,6 +126,9 @@ ok('rechargement : collection et infos gardées sur l\'appareil, aucune requête
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForFunction(() => { const d = document.querySelector('.coll-dot'); return d && !d.hidden && ['warn', 'bad'].includes(d.dataset.k); }, null, { timeout: 8000 });
 // hors compte : plus de bandeau (place gardée pour la liste, densite.js) ; le point orange ou rouge à côté du titre dit tout (libellé lu), et touché, la feuille qui explique
 assert.equal(await p.$eval('.coll-sync', e => e.hidden), true, 'hors compte : pas de bandeau, le point suffit'); assert.match(await p.$eval('.coll-dot', d => d.getAttribute('aria-label')), /ne sont que sur cet appareil/, 'texte complet dans le libellé du point');
+// pastille avec texte (audit U10 : un point de 9 px avant), 44 px de haut à toucher
+assert.equal(await txt(p, '.coll-dot'), 'Non sauvegardée', 'pastille : l\'état en toutes lettres');
+assert.deepEqual(await p.$eval('.coll-dot', d => { const r = d.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, on = yy => { const h = document.elementFromPoint(x, yy); return !!h && (h === d || d.contains(h)); }; return [r.width > 60, on(y - 21), on(y + 21)]; }), [true, true, true], 'pastille large et zone de toucher de 44 px');
 await p.click('.coll-dot'); await p.waitForSelector('.sheet-wrap.open .sync-sheet');
 assert.match(await txt(p, '.sheet-wrap.open .sync-sheet'), /ne sont que sur cet appareil/); assert.equal(await p.$eval('.sheet-wrap.open .sync-sheet', e => e.dataset.k), await p.$eval('.coll-dot', d => d.dataset.k), 'même couleur que le point');
 { const acts = await p.$$eval('.sheet-wrap.open [data-sy]', b => b.map(x => x.dataset.sy)), unav = await p.evaluate(() => D.state === 'unavailable');
@@ -159,12 +162,11 @@ console.log('✓ export : texte ou CSV au format Moxfield, relu par l\'import ; 
 await p.screenshot({ path: 'shots/coll-sync-local.png' });
 await p.evaluate(() => { D.user = { uid: 'u1' }; D.uid = 'u1'; COLL.cloud = 'ok'; COLL.s = 'u1'; collPaintHead(); });
 assert.equal(await p.$eval('.coll-sync', e => e.hidden), true, 'sauvegardée : plus de bandeau…');
-assert.deepEqual(await p.$eval('.coll-dot', d => [d.hidden, d.dataset.k, d.getAttribute('aria-label'), getComputedStyle(d).backgroundColor !== getComputedStyle(document.querySelector('.dv-title b')).color]), [false, 'ok', 'Sauvegardée dans ton compte', true], '… le point vert à côté du titre');
-await p.click('.coll-dot'); await p.waitForFunction(() => /Sauvegardée dans ton compte/.test(document.querySelector('#toast').textContent));
+assert.deepEqual(await p.$eval('.coll-dot', d => [d.hidden, d.dataset.k, d.getAttribute('aria-label')]), [true, 'ok', 'Sauvegardée dans ton compte'], '… ni pastille : rien quand tout va bien (audit U10)');
 await p.screenshot({ path: 'shots/coll-sync-ok.png' });
 await p.evaluate(() => { COLL.cloud = 'error'; COLL.err = 'Règles Firestore à publier pour la collection'; collPaintHead(); });
 assert.match(await txt(p, '.coll-sync'), /Pas sauvegardée dans ton compte : Règles Firestore à publier/); assert.equal(await p.$eval('.coll-sync', e => e.dataset.k), 'bad'); assert.ok(await p.$('.coll-sync [data-act="resync"]'));
-assert.equal(await p.$eval('.coll-dot', d => d.dataset.k), 'bad', 'point rouge, bandeau qui dit pourquoi');
+assert.equal(await p.$eval('.coll-dot', d => d.dataset.k), 'bad', 'pastille rouge, bandeau qui dit pourquoi'); assert.equal(await txt(p, '.coll-dot'), 'Erreur de synchro');
 await p.screenshot({ path: 'shots/coll-sync-erreur.png' });
 const before4 = await p.evaluate(() => JSON.stringify(COLL.map));
 // un autre appareil a retiré 3 cartes et baissé Sol Ring : appliqué carte par carte (la base = ce qu'on avait vu du compte)

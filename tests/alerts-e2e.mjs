@@ -194,7 +194,18 @@ assert.deepEqual(await p.evaluate(() => alItems().filter(i => i.dn).map(i => [i.
 }
 ok('nom affiché envoyé au serveur (dn) : notification « Colère de Dieu −60 % » au lieu de « Wrath of God »');
 
-/* ── Lien de notification────────────────────────────────────────────────────────────────── */
+
+/* ── Échange › Je recherche : entrée « Alertes de prix » (audit U8 : la feuille en un appui, plus par Compte › Notifications) ─────────── */
+await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade #trSub .seg-opt[data-v="want"]');
+await p.click('.coll.m-trade #trSub .seg-opt[data-v="want"]'); await p.waitForSelector('.coll.m-trade .al-entry');
+assert.match(await txt(p, '.coll.m-trade .al-entry .coll-t'), /^Alertes de prix 3 cartes surveillées · baisse d'au moins 40\s%\.$/, 'nombre de cartes surveillées et seuil');
+await p.click('.coll.m-trade .al-entry'); await p.waitForSelector('.sheet-wrap #alThr');
+assert.match(await txt(p, '.sheet-head h2'), /Alertes de prix/); assert.equal(await txt(p, '#alOff'), 'Désactiver les alertes', '« Couper » renommé');
+await p.click('#alThr [data-v="30"]'); await p.keyboard.press('Escape'); await sheetGone();
+await p.waitForFunction(() => /baisse d'au moins 30/.test(document.querySelector('.coll.m-trade .al-entry').textContent), null, { timeout: 3000 });
+ok('Échange › Je recherche : « Alertes de prix » (3 cartes surveillées) ouvre la feuille des alertes ; seuil changé → repeint à la fermeture ; « Désactiver les alertes »');
+
+/* ── Lien de notification ────────────────────────────────────────────────────────────────── */
 await p.goto(world.url + '/?alerts=1'); await p.waitForSelector('.sheet-wrap .al-list, .sheet-wrap .hint', { timeout: 8000 });
 assert.match(await txt(p, '.sheet-head h2'), /Alertes de prix/); ok('notification touchée : la feuille des alertes s\'ouvre');
 

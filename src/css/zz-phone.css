@@ -24,6 +24,17 @@ button.sync::before{content:"";position:absolute;inset:-8px 0}
 .fopt::before{content:"";position:absolute;inset:-5px 0}
 .bnd-sw .seg-opt{position:relative}
 .bnd-sw .seg-opt::before{content:"";position:absolute;inset:-6px 0}
+/* Audit U9 (6 novembre) : ce qui restait sous 44 × 44 une fois les zones ci-dessus comptées (mesure : point touché par point touché, tests/.tmp de lotG) */
+.qstep>button:first-child::before{left:-6px}.qstep>button:last-child::before{right:-6px}      /* − et + : 6 px vers l'extérieur */
+.qstep>button:first-child:has(+b)::before{right:-10px}.qstep>b+button:last-child::before{left:-10px}      /* et la moitié du chiffre entre eux (il ne se touche pas) : 30 → 46 px de large ; jamais sur un autre bouton (compteur de la partie : − 5 +) */
+.bnd-sw .seg-thumb+.seg-opt::before{left:-3px}.bnd-sw .seg-opt:last-child::before{right:-3px}      /* Liste | Classeur : 41 → 44 px de large, vers l'extérieur seulement */
+.sortsel:not(.coll-sort)::before{content:"";position:absolute;inset:-6px 0}      /* menus Trier (34 px, bordés) : toute la pilule et 6 px autour ouvre le menu (app.js › showPicker), plus seulement le mot choisi (tri de la collection : déjà 40 px, sous la barre d'icônes, laissé tel quel) */
+.link-btn.link-inline::before{inset:-14px 0}      /* liens dans une feuille : 17 + 28 = 45 px */
+#dkDup+#dkOwn{margin-top:14px}      /* « Dupliquer ce deck » et « Ajouter ses cartes à ma collection » l'un sous l'autre : 14 px de plus, sinon le second couvrait le bas du premier (31 px) */
+.deck-new::before{inset:-6px}      /* « + » Créer un deck : bouton de 34 px bordé (la zone part du bord intérieur : 32 + 12 = 44) */
+.dw-chips{row-gap:14px}      /* puces de l'assistant : 8 px de plus entre deux rangées, pour que chaque puce garde ses 44 px */
+.dw-chips .chip:is([data-br],[data-bud]){position:relative;overflow:visible}      /* bracket, budget : textes courts, pas de « … » à garder (le débord coupait la zone) */
+.dw-chips .chip:is([data-br],[data-bud])::before{content:"";position:absolute;inset:-7px 0}      /* 32 px bordés : 30 + 14 = 44 */
 
 @media (max-width:380px){
   /* F4 — barre du bas : la colonne du Scanner n'a besoin que de son rond (60 px) ; « Collection », « Sammlung », « Collezione » tiennent à ×1,3 */

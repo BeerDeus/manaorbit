@@ -208,9 +208,11 @@ async function alPaintBox(box) {
 
 /* ── Feuille « Alertes de prix » ─────────────────────────────────────────────────────────────── */
 const alPct = (c, b) => (b > 0 && c > 0 ? Math.round((c - b) / b * 100) : 0);
-async function openAlertSheet() {
+/** o.onClose : appelé à la fermeture (Échange › Je recherche repeint le nombre de cartes surveillées). */
+async function openAlertSheet(o = {}) {
   if (!alAvail()) { toast(S.demo ? T('Alertes indisponibles en mode démo') : T('Alertes indisponibles : serveur Mana Orbit requis')); return; }
   openSheet(T('Alertes de prix'), T('Prix Cardmarket, relevés toutes les 6 h'), api => {
+    if (o.onClose) { const c0 = api.close; api.close = () => { api.close = c0; c0(); o.onClose(); }; }
     let data = null, busy = false;
     const sig = () => api.wrap.isConnected;
     const load = async () => {
@@ -253,7 +255,7 @@ async function openAlertSheet() {
         ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${TN(rows.length - AL_ROWS, '{n} autre carte surveillée, non listée ici.', '{n} autres cartes surveillées, non listées ici.')}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou suis une carte à la main.')}</p>`}
         ${muted ? `<p class="hint">${TN(muted, '{n} carte exclue de la surveillance', '{n} cartes exclues de la surveillance')} · <button class="link-btn link-inline" type="button" id="alUnmute">${T('Rétablir')}</button></p>` : ''}
         <p class="hint">${esc(last)}</p>`;
-      api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Couper')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);
+      api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Désactiver les alertes')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);
       mountSeg($('#alThr', api.body), AL_THRS.map(v => ({ v: String(v), label: pct(v) })), String(AC.thr), v => { AC.thr = Number(v); alWrite(); alSoon(); });
       const dmSeg = $('#alDm', api.body);
       if (dmSeg) mountSeg(dmSeg, [{ v: 'push', label: T('Notification') }, { v: 'only', label: T('Discord (MP)') }, { v: 'both', label: T('Les deux') }], AC.dm || 'push', async v => {
@@ -305,6 +307,14 @@ async function openAlertSheet() {
   });
 }
 
+/** Entrée « Alertes de prix » d'Échange › Je recherche (share.js) : la feuille des alertes en un appui (avant : Compte › Notifications › interrupteur ›
+ *  « Cartes surveillées et réglages »). Rien si les alertes ne sont pas possibles ici (sans serveur, démo). */
+function alEntryHtml() {
+  if (!alAvail()) return '';
+  const n = AC.info ? AC.info.watching : alItems().length;
+  const sub = AC.on ? TN(n, '{n} carte surveillée · baisse d\'au moins {thr} %.', '{n} cartes surveillées · baisse d\'au moins {thr} %.', { thr: AC.thr }) : T('Une notification quand une carte qui te manque, ou une carte suivie, chute de prix.');
+  return `<button class="coll-open al-entry" type="button" data-act="tralert"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-bell"/></svg></span><span class="coll-t"><b>${T('Alertes de prix')}</b><span>${esc(sub)}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+}
 /** Touché sur une notification d'alerte ou lien ./?alerts=1. */
 function alertsOpen() { if (alAvail()) openAlertSheet(); else toast(T('Alerte de prix reçue : ouvre Mana Orbit connectée au serveur pour la voir')); }
 

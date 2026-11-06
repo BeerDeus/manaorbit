@@ -1128,15 +1128,15 @@ function crowHtml(it) {
 function collSyncInfo() {
   if (!collCount()) return null;
   if (D.user) {
-    const big = collBigInfo(); if (big && (big.k === 'bad' || COLL.cloud === 'ok')) return big;
-    if (COLL.cloud === 'ok') return { k: 'ok', t: T('Sauvegardée dans ton compte'), acts: [] };
-    if (COLL.cloud === 'offline') return { k: 'warn', t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')]] };
-    if (COLL.cloud === 'error') return { k: 'bad', t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')]] };
-    return { k: 'warn', t: T('Synchronisation avec ton compte…'), acts: [] };
+    const big = collBigInfo(); if (big && (big.k === 'bad' || COLL.cloud === 'ok')) return { s: big.k === 'bad' ? T('Non sauvegardée') : '', ...big };      // collection trop grosse pour le compte (pastille seulement au-delà du plafond)
+    if (COLL.cloud === 'ok') return { k: 'ok', s: '', t: T('Sauvegardée dans ton compte'), acts: [] };
+    if (COLL.cloud === 'offline') return { k: 'warn', s: T('Hors ligne'), t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')]] };
+    if (COLL.cloud === 'error') return { k: 'bad', s: T('Erreur de synchro'), t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')]] };
+    return { k: 'warn', s: '', t: T('Synchronisation avec ton compte…'), acts: [] };      // quelques secondes : pas de pastille qui clignote
   }
-  if (D.state === 'unavailable') return { k: 'bad', t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [] };
+  if (D.state === 'unavailable') return { k: 'bad', s: T('Non sauvegardée'), t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [] };
   if (!D.authReady) return null;
-  return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
+  return { k: 'warn', s: T('Non sauvegardée'), t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
 }
 /** Collection près du plafond du compte (80 %) ou au-delà : bandeau qui dit quoi faire (big : affiché même en simple avertissement) ; null : loin du plafond. */
 function collBigInfo() {
@@ -1219,7 +1219,7 @@ function collPaintHead(tick) {
   const el = COLL.el; if (!el) return;
   if (!tick) $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul ; tick : cartes, exemplaires et valeur inchangés
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
-  if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
+  if (dot) { dot.hidden = !si || !si.s; if (si) { dot.dataset.k = si.k; dot.textContent = si.s; dot.setAttribute('aria-label', !si.s || si.t.startsWith(si.s) ? si.t : si.s + ' : ' + si.t); dot.title = si.t; } }      // pastille « Non sauvegardée » / « Erreur de synchro » / « Hors ligne » (rien quand tout va bien) ; touchée : la feuille qui explique
   if (!si || si.k === 'ok' || !((si.k === 'bad' || si.big) && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
   if (GLANCE.api) paintGlance();
@@ -1428,7 +1428,7 @@ function openCollection(tab) {
         <button class="icon-btn" type="button" data-act="export" aria-label="${T('Exporter ma collection')}" title="${T('Exporter')}"><svg class="i"><use href="#i-upload"/></svg></button>`
     : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="dv-title"><b>${title}${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}</b><span></span></div>
+      <div class="dv-title"><b>${title}</b>${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}<span></span></div>
       <div class="coll-tools">${tools}</div></header>${md === 'decks' ? dkTabsHtml('build') : ''}
     <div class="dv-scroll"><div class="dv-body coll-body">
       ${md === 'coll' ? '<div class="coll-val" hidden></div>' : ''}

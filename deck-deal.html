@@ -831,11 +831,16 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .coll-sync[data-k="warn"]{background:var(--warn-soft);color:var(--warn)}.coll-sync[data-k="warn"] .sy-d{background:var(--warn)}
 .coll-sync[data-k="bad"]{background:var(--bad-soft);color:var(--bad)}.coll-sync[data-k="bad"] .sy-d{background:var(--bad)}
 /* point de la sauvegarde, à côté du titre (vert : dans ton compte ; orange, rouge : le bandeau dit pourquoi) ; touché : le texte en message */
-.coll-dot{position:relative;display:inline-block;width:9px;height:9px;margin:0 0 0 9px;padding:0;border:0;border-radius:50%;background:var(--ink-3);vertical-align:middle;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* État de la sauvegarde (audit U10) : pastille avec texte sous le titre, à la place du début du sous-titre (« Non sauvegardée » orange sans compte, « Erreur de synchro » rouge) */
+.dv.coll .dv-title{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center}
+.dv.coll .dv-title b{grid-column:1/-1}
+.dv.coll .dv-title span{grid-column:2}
+.coll-dot{position:relative;grid-column:1;display:inline-flex;align-items:center;gap:5px;height:22px;margin:1px 7px 1px 0;padding:0 9px 0 7px;border:0;border-radius:99px;font-size:12px;font-weight:650;line-height:1;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
 .coll-dot[hidden]{display:none}
-.coll-dot::before{content:"";position:absolute;inset:-12px}      /* zone de toucher */
-.coll-dot[data-k="ok"]{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
-.coll-dot[data-k="warn"]{background:var(--warn)}.coll-dot[data-k="bad"]{background:var(--bad)}
+.coll-dot::after{content:"";flex:none;order:-1;width:7px;height:7px;border-radius:50%;background:currentColor}
+.coll-dot::before{content:"";position:absolute;inset:-11px 0}      /* zone de toucher : 44 px de haut (hauteur seulement : un débord de côté gonflait la largeur mesurée du libellé, menus-e2e) */
+.coll-dot[data-k="bad"]{color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}
+.coll-dot[data-k="ok"]{color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)}
 .coll-dot:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .coll-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--accent-soft);color:var(--ink);font-size:13px;flex-wrap:wrap}
 .coll-status[hidden]{display:none}
@@ -1349,6 +1354,8 @@ button,.btn,select,summary{touch-action:manipulation}
 .dk-val b{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .dk-val span{font-size:12.5px;color:var(--ink-3)}
 .bd-val{font-family:var(--font-display);font-size:17px;font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.bd-valw{display:flex;align-items:baseline;gap:6px}
+.bd-valw>span{font-size:13px;color:var(--ink-3)}
 .deck-pips{flex:none;display:inline-flex;gap:3px}
 .pip{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.28)}
 .pip.W{background:#f6f0cf}.pip.U{background:#3f8fe0}.pip.B{background:#4b3f52}.pip.R{background:#e0533d}.pip.G{background:#3a9a5e}
@@ -1515,6 +1522,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .dv-acts .dv-ana{flex-basis:100%}      /* Coach (decks Commander) : toute la ligne, en tête */
 .tr-wacts{margin-bottom:10px}
 .tr-wrule{margin:-4px 0 10px}
+.al-entry{margin:0 0 12px}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────
    Couche finale : n'ajoute que fonds, bordures et ombres ; aucune mise en page ne change. */
@@ -7568,6 +7576,17 @@ button.sync::before{content:"";position:absolute;inset:-8px 0}
 .fopt::before{content:"";position:absolute;inset:-5px 0}
 .bnd-sw .seg-opt{position:relative}
 .bnd-sw .seg-opt::before{content:"";position:absolute;inset:-6px 0}
+/* Audit U9 (6 novembre) : ce qui restait sous 44 × 44 une fois les zones ci-dessus comptées (mesure : point touché par point touché, tests/.tmp de lotG) */
+.qstep>button:first-child::before{left:-6px}.qstep>button:last-child::before{right:-6px}      /* − et + : 6 px vers l'extérieur */
+.qstep>button:first-child:has(+b)::before{right:-10px}.qstep>b+button:last-child::before{left:-10px}      /* et la moitié du chiffre entre eux (il ne se touche pas) : 30 → 46 px de large ; jamais sur un autre bouton (compteur de la partie : − 5 +) */
+.bnd-sw .seg-thumb+.seg-opt::before{left:-3px}.bnd-sw .seg-opt:last-child::before{right:-3px}      /* Liste | Classeur : 41 → 44 px de large, vers l'extérieur seulement */
+.sortsel:not(.coll-sort)::before{content:"";position:absolute;inset:-6px 0}      /* menus Trier (34 px, bordés) : toute la pilule et 6 px autour ouvre le menu (app.js › showPicker), plus seulement le mot choisi (tri de la collection : déjà 40 px, sous la barre d'icônes, laissé tel quel) */
+.link-btn.link-inline::before{inset:-14px 0}      /* liens dans une feuille : 17 + 28 = 45 px */
+#dkDup+#dkOwn{margin-top:14px}      /* « Dupliquer ce deck » et « Ajouter ses cartes à ma collection » l'un sous l'autre : 14 px de plus, sinon le second couvrait le bas du premier (31 px) */
+.deck-new::before{inset:-6px}      /* « + » Créer un deck : bouton de 34 px bordé (la zone part du bord intérieur : 32 + 12 = 44) */
+.dw-chips{row-gap:14px}      /* puces de l'assistant : 8 px de plus entre deux rangées, pour que chaque puce garde ses 44 px */
+.dw-chips .chip:is([data-br],[data-bud]){position:relative;overflow:visible}      /* bracket, budget : textes courts, pas de « … » à garder (le débord coupait la zone) */
+.dw-chips .chip:is([data-br],[data-bud])::before{content:"";position:absolute;inset:-7px 0}      /* 32 px bordés : 30 + 14 = 44 */
 
 @media (max-width:380px){
   /* F4 — barre du bas : la colonne du Scanner n'a besoin que de son rond (60 px) ; « Collection », « Sammlung », « Collezione » tiennent à ×1,3 */
@@ -7770,7 +7789,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
     <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.4"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.4"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.4"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.4"/></symbol>
     <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/></symbol>
-    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.4v.1"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2.1 2.1 0 0 0 4 0"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.4v.1"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></symbol><symbol id="i-bug" viewBox="0 0 32 32"><g fill="currentColor" stroke="none"><path d="M12.6 9.6a3.4 3.1 0 0 1 6.8 0z"/><path d="M15.4 10.43A6.4 7.4 0 0 0 15.4 25.17z"/><path d="M16.6 10.43A6.4 7.4 0 0 1 16.6 25.17z"/></g><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.4 13.4 7.4 11.6 6.6 8.8M9.7 17.8H5.4M10.4 22.2 7.4 24 6.6 26.8M21.6 13.4 24.6 11.6 25.4 8.8M22.3 17.8h4.3M21.6 22.2 24.6 24 25.4 26.8"/><path stroke-width="1.4" d="M14.4 7.2 12.8 5M17.6 7.2 19.2 5"/></g></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H8l1.2-2h5.6L16 7h2.5A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.5" r="3.4"/></symbol>
     <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V5M7.5 9.5L12 5l4.5 4.5M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
@@ -8068,8 +8087,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'b5ae2f0d';
-const I18N_FILES = {"de":"i18n/de.17248131.js","en":"i18n/en.49fc5d9d.js","es":"i18n/es.26ac2062.js","it":"i18n/it.d7e9b691.js","pt":"i18n/pt.48ac96e9.js"};
+const DD_BUILD = 'ac5c9c30';
+const I18N_FILES = {"de":"i18n/de.39de20d6.js","en":"i18n/en.76089c62.js","es":"i18n/es.c1b25798.js","it":"i18n/it.d5f5bb18.js","pt":"i18n/pt.64dbdae8.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -13088,8 +13107,17 @@ function tween(el, to) {
   };
   el._raf = requestAnimationFrame(step);
 }
+/* Menus « Trier » (.sortsel : libellé + menu déroulant) : toucher la pilule hors du mot choisi ouvre aussi le menu (zone de 44 px, audit U9). */
+document.addEventListener('click', e => {
+  const l = e.target && e.target.closest ? e.target.closest('.sortsel') : null; if (!l || e.target.tagName === 'SELECT') return;
+  const s = l.querySelector('select'); if (!s || s.disabled) return;
+  try { s.showPicker(); } catch (x) { s.focus(); }      // navigateur sans showPicker sur un menu : le menu prend le focus (clavier)
+});
 let toastT;
-/** act : { label, fn } → bouton dans le toast (ex. Annuler), affiché plus longtemps. */
+/** Libellé du bouton d'un toast qui défait ce qui vient d'être fait : « Annuler » en français, mais sa propre clé (« Rückgängig » en allemand, « Undo » en anglais),
+ *  distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen »). */
+const tUndo = () => { const k = 'Annuler (défaire)'; return I18N.dict && Object.prototype.hasOwnProperty.call(I18N.dict, k) ? T(k) : T('Annuler'); };
+/** act : { label, fn } → bouton dans le toast (ex. tUndo()), affiché plus longtemps. */
 function toast(msg, act) {
   const t = $('#toast'); t.textContent = msg; t.classList.toggle('act', !!act);
   if (act) {
@@ -21163,15 +21191,15 @@ function crowHtml(it) {
 function collSyncInfo() {
   if (!collCount()) return null;
   if (D.user) {
-    const big = collBigInfo(); if (big && (big.k === 'bad' || COLL.cloud === 'ok')) return big;
-    if (COLL.cloud === 'ok') return { k: 'ok', t: T('Sauvegardée dans ton compte'), acts: [] };
-    if (COLL.cloud === 'offline') return { k: 'warn', t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')]] };
-    if (COLL.cloud === 'error') return { k: 'bad', t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')]] };
-    return { k: 'warn', t: T('Synchronisation avec ton compte…'), acts: [] };
+    const big = collBigInfo(); if (big && (big.k === 'bad' || COLL.cloud === 'ok')) return { s: big.k === 'bad' ? T('Non sauvegardée') : '', ...big };      // collection trop grosse pour le compte (pastille seulement au-delà du plafond)
+    if (COLL.cloud === 'ok') return { k: 'ok', s: '', t: T('Sauvegardée dans ton compte'), acts: [] };
+    if (COLL.cloud === 'offline') return { k: 'warn', s: T('Hors ligne'), t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')]] };
+    if (COLL.cloud === 'error') return { k: 'bad', s: T('Erreur de synchro'), t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')]] };
+    return { k: 'warn', s: '', t: T('Synchronisation avec ton compte…'), acts: [] };      // quelques secondes : pas de pastille qui clignote
   }
-  if (D.state === 'unavailable') return { k: 'bad', t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [] };
+  if (D.state === 'unavailable') return { k: 'bad', s: T('Non sauvegardée'), t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [] };
   if (!D.authReady) return null;
-  return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
+  return { k: 'warn', s: T('Non sauvegardée'), t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
 }
 /** Collection près du plafond du compte (80 %) ou au-delà : bandeau qui dit quoi faire (big : affiché même en simple avertissement) ; null : loin du plafond. */
 function collBigInfo() {
@@ -21254,7 +21282,7 @@ function collPaintHead(tick) {
   const el = COLL.el; if (!el) return;
   if (!tick) $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul ; tick : cartes, exemplaires et valeur inchangés
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
-  if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
+  if (dot) { dot.hidden = !si || !si.s; if (si) { dot.dataset.k = si.k; dot.textContent = si.s; dot.setAttribute('aria-label', !si.s || si.t.startsWith(si.s) ? si.t : si.s + ' : ' + si.t); dot.title = si.t; } }      // pastille « Non sauvegardée » / « Erreur de synchro » / « Hors ligne » (rien quand tout va bien) ; touchée : la feuille qui explique
   if (!si || si.k === 'ok' || !((si.k === 'bad' || si.big) && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
   if (GLANCE.api) paintGlance();
@@ -21463,7 +21491,7 @@ function openCollection(tab) {
         <button class="icon-btn" type="button" data-act="export" aria-label="${T('Exporter ma collection')}" title="${T('Exporter')}"><svg class="i"><use href="#i-upload"/></svg></button>`
     : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="dv-title"><b>${title}${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}</b><span></span></div>
+      <div class="dv-title"><b>${title}</b>${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}<span></span></div>
       <div class="coll-tools">${tools}</div></header>${md === 'decks' ? dkTabsHtml('build') : ''}
     <div class="dv-scroll"><div class="dv-body coll-body">
       ${md === 'coll' ? '<div class="coll-val" hidden></div>' : ''}
@@ -24766,9 +24794,11 @@ async function alPaintBox(box) {
 
 /* ── Feuille « Alertes de prix » ─────────────────────────────────────────────────────────────── */
 const alPct = (c, b) => (b > 0 && c > 0 ? Math.round((c - b) / b * 100) : 0);
-async function openAlertSheet() {
+/** o.onClose : appelé à la fermeture (Échange › Je recherche repeint le nombre de cartes surveillées). */
+async function openAlertSheet(o = {}) {
   if (!alAvail()) { toast(S.demo ? T('Alertes indisponibles en mode démo') : T('Alertes indisponibles : serveur Mana Orbit requis')); return; }
   openSheet(T('Alertes de prix'), T('Prix Cardmarket, relevés toutes les 6 h'), api => {
+    if (o.onClose) { const c0 = api.close; api.close = () => { api.close = c0; c0(); o.onClose(); }; }
     let data = null, busy = false;
     const sig = () => api.wrap.isConnected;
     const load = async () => {
@@ -24811,7 +24841,7 @@ async function openAlertSheet() {
         ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${TN(rows.length - AL_ROWS, '{n} autre carte surveillée, non listée ici.', '{n} autres cartes surveillées, non listées ici.')}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou suis une carte à la main.')}</p>`}
         ${muted ? `<p class="hint">${TN(muted, '{n} carte exclue de la surveillance', '{n} cartes exclues de la surveillance')} · <button class="link-btn link-inline" type="button" id="alUnmute">${T('Rétablir')}</button></p>` : ''}
         <p class="hint">${esc(last)}</p>`;
-      api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Couper')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);
+      api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Désactiver les alertes')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);
       mountSeg($('#alThr', api.body), AL_THRS.map(v => ({ v: String(v), label: pct(v) })), String(AC.thr), v => { AC.thr = Number(v); alWrite(); alSoon(); });
       const dmSeg = $('#alDm', api.body);
       if (dmSeg) mountSeg(dmSeg, [{ v: 'push', label: T('Notification') }, { v: 'only', label: T('Discord (MP)') }, { v: 'both', label: T('Les deux') }], AC.dm || 'push', async v => {
@@ -24863,6 +24893,14 @@ async function openAlertSheet() {
   });
 }
 
+/** Entrée « Alertes de prix » d'Échange › Je recherche (share.js) : la feuille des alertes en un appui (avant : Compte › Notifications › interrupteur ›
+ *  « Cartes surveillées et réglages »). Rien si les alertes ne sont pas possibles ici (sans serveur, démo). */
+function alEntryHtml() {
+  if (!alAvail()) return '';
+  const n = AC.info ? AC.info.watching : alItems().length;
+  const sub = AC.on ? TN(n, '{n} carte surveillée · baisse d\'au moins {thr} %.', '{n} cartes surveillées · baisse d\'au moins {thr} %.', { thr: AC.thr }) : T('Une notification quand une carte qui te manque, ou une carte suivie, chute de prix.');
+  return `<button class="coll-open al-entry" type="button" data-act="tralert"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-bell"/></svg></span><span class="coll-t"><b>${T('Alertes de prix')}</b><span>${esc(sub)}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+}
 /** Touché sur une notification d'alerte ou lien ./?alerts=1. */
 function alertsOpen() { if (alAvail()) openAlertSheet(); else toast(T('Alerte de prix reçue : ouvre Mana Orbit connectée au serveur pour la voir')); }
 
@@ -28236,7 +28274,8 @@ const dmOf = k => {
  *  Relevé pas encore lu : demandé (pxRefEnsure), les écrans se redessinent à son arrivée. */
 function dkPx(k) {
   const e = pxRef(k); if (e) return e;
-  pxRefEnsure(); const m = COLL.meta[k] || DM[k]; return m && m.eu > 0 ? m.eu : 0;
+  pxRefEnsure(); const m = COLL.meta[k] || DM[k]; if (m && m.eu > 0) return m.eu;
+  return typeof dwBasePx === 'function' ? dwBasePx(k) : 0;      // ni relevé ni fiche : prix de la base du coach (deckwiz.js), comme le coach l'a toujours compté (l'en-tête affichait « ≈ 9 €+ » pour un deck que le coach disait à 18 €)
 }
 /** Prix de référence d'un exemplaire dont l'édition n'est pas connue (centimes, 0 si inconnu) : dkPx, la même règle partout (collection, Stats, accueil, widget,
  *  courbe de valeur, scan, lot, échanges, « De ta collection pour ce deck ») ; foil : le prix foil de la fiche (Scryfall), à défaut dkPx. m : fiche d'une carte pas encore
@@ -28564,7 +28603,7 @@ function bdSumHtml() {
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
   const ev = dkEst(dkBuildText(bdData())), val = ev.ready ? dkValueText(ev) : '';      // règle unique (dkPx) : le même chiffre que le coach, Mes decks et le viewer, dès l'ouverture (pas d'attente de la base du coach)
   const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
-  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${valT}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
+  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-valw"><span>${T('valeur estimée')}</span><b class="bd-val" title="${valT}">${esc(val)}</b></div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : TN(ck.issues.length - 3, 'Voir l\'autre alerte', 'Voir les {n} autres alertes')}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
@@ -29309,15 +29348,17 @@ function dwWinKeys(X) {
   const v = { cards, cmdr: cm }; if (pack) pack._win2 = { k: cmd.keys.join('+'), v };
   return v;
 }
-/** Prix d'une carte : la valeur estimée de l'appli (builder.js › dkPx : relevé du jour, impression la moins chère du marché choisi, sinon tendance de la fiche) s'il est connu,
- *  sinon celui de la base (euros, marché européen seulement). inDeck : carte du deck (dwProfile) ; relevé du jour lu, la base n'est plus consultée, pour que la valeur du deck
- *  soit exactement celle de l'en-tête de l'éditeur, de Mes decks et du viewer (dkEst) ; elle ne sert qu'aux cartes suggérées et hors ligne sans relevé. */
+/** Prix d'une carte : la valeur estimée de l'appli (builder.js › dkPx : relevé du jour, impression la moins chère du marché choisi, sinon tendance de la fiche, sinon
+ *  la base du coach), la même règle que l'en-tête de l'éditeur, Mes decks et le viewer (dkEst). Sans l'éditeur (banc d'essai, mesures dans une vm) : la même, en local.
+ *  inDeck : gardé pour les appels (la règle est la même pour une carte du deck et une carte suggérée depuis le 6 novembre). */
 function dwPrice(k, x, inDeck) {
-  const e = typeof dkPx === 'function' ? dkPx(k) : (() => { const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; if (t && t.e > 0) return t.e; const m = dmOf(k); return m && m.eu > 0 ? m.eu : 0; })();      // la règle de l'appli (builder.js › dkPx) ; sans l'éditeur (banc d'essai, mesures dans une vm) : la même, en local
-  if (e > 0) return e;
-  if (inDeck && typeof PXT !== 'undefined' && PXT) return 0;
+  if (typeof dkPx === 'function') return dkPx(k);
+  const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; if (t && t.e > 0) return t.e;
+  const m = dmOf(k); if (m && m.eu > 0) return m.eu;
   return !mkUs() && x && x.eur > 0 ? x.eur : 0;
 }
+/** Prix de la base du coach (centimes, euros : marché européen seulement), 0 si la carte n'y est pas ou si la base n'est pas lue : dernier recours de dkPx. */
+function dwBasePx(k) { const r = DW.byKey && DW.byKey.get(k); return r && r[5] > 0 && !mkUs() ? r[5] : 0; }
 
 /* ── Cibles ───────────────────────────────────────────────────────────────────────────────────────── */
 /** Terrains conseillés (Frank Karsten, régression sur plus de 95 000 decks de tournoi, transposée à 99 cartes) : 31,42 + 3,13 × coût moyen − 0,28 × rampe et pioche de coût ≤ 2. */
@@ -29904,7 +29945,7 @@ function dwFillBasics(quiet) {
   cols.forEach(c => { if (share[c] > 0) BD.main.set(BK[c], { key: BK[c], name: EN[c], qty: share[c] }); else BD.main.delete(BK[c]); });
   BD.dirty = true; if (quiet) return n;
   haptic('ok'); bdPaint(); bdMetaSoon();
-  if (cut.length) toast(TN(cut.length, '{n} terrain de base ajouté à la place de : {cards}', '{n} terrains de base ajoutés à la place de : {cards}', { cards: cut.join(', ') }), { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; haptic('tap'); bdPaint(); } });
+  if (cut.length) toast(TN(cut.length, '{n} terrain de base ajouté à la place de : {cards}', '{n} terrains de base ajoutés à la place de : {cards}', { cards: cut.join(', ') }), { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; haptic('tap'); bdPaint(); } });
   else if (n > curB) toast(TN(n - curB, '{n} terrain de base ajouté', '{n} terrains de base ajoutés'));
   else toast(prof.land >= tgt.land[1] ? T('Assez de terrains : rien à ajouter') : TN(n, '{n} terrain de base dans le deck', '{n} terrains de base dans le deck'));
   return n;
@@ -29979,7 +30020,7 @@ function* dwAutoBuildGen(undoTo, quiet) {
   if (quiet) return added;      // passes de la construction en plusieurs temps (deckopt.js) : ni affichage ni message
   haptic('ok'); bdPaint(); bdMetaSoon(); prof = dwProfile();
   const cur = mkCur(), msg = TN(added, '{n} carte ajoutée', '{n} cartes ajoutées') + ' · ' + T('{t} / 100', { t: total }) + (prof.cents ? ' · ' + T('valeur {p}', { p: fmt(prof.cents, cur) }) : '');
-  toast(total < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+  toast(total < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
   return added;
 }
 /** Construire le deck : en plusieurs passes avec versions au choix (deckopt.js), sinon en une passe. undoTo : deck à remettre si on annule. */
@@ -31515,6 +31556,9 @@ async function dsBuild(undoTo, seed) {
       if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? TN(n, 'Essais en partie : {v} · {n} série de 1 500 parties', 'Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)', { v: v.name }));
     } });
     if (!res || !alive()) return quit();
+    set('ok', 'run', '', 0.93, T('Vérification…'));
+    await dsMetaFor(res); if (!alive()) return quit();
+    for (const r of res) { const X = { id: BD.id, main: r.main, cmdr: BD.cmdr, wiz: dsWizOf(r, empty) }; r.sc = dsScore(X) || r.sc; r.prof = dwProfile(X); }      // note et valeur avec les fiches des cartes et les réglages du deck une fois la version choisie : les chiffres que l'onglet Coach, l'en-tête et le rapport montreront
     for (const r of res) set(r.v.id, 'done', T('note {n} · {p}', { n: r.sc.total, p: fmt(r.prof.cents, cur) }) + (r.sim ? ' · ' + T('{p} % de mains gardées', { p: r.sim.keep7 }) : '') + (r.kept + r.fixed ? ' · ' + TN(r.kept + r.fixed, '{n} échange', '{n} échanges') : '') + (r.draws > 1 ? ' · ' + TN(r.draws, '{n} tirage', '{n} tirages') : ''));
     set('ok', 'done', '', 1, T('Terminé'));
     if (!res.length) { quit(); api.close(); return; }
@@ -31523,6 +31567,24 @@ async function dsBuild(undoTo, seed) {
     done = true; DS.last = res; dsChoose(api, res, before, empty);
   } catch (e) { console.error(e); quit(); if (sheets.includes(api)) api.close(); toast(T('La construction a échoué : réessaie.')); }
   finally { if (!done && BD.el === el) { BD.pace = BD.wide = BD.gen = false; BD.avoid = null; BD.landRes = 0; } }
+}
+/** Fiches des cartes des versions (coût de mana, type, prix) lues avant la note finale : l'onglet Coach les lit dès l'ouverture du deck. Sans elles, la note et la valeur
+ *  des versions (base du coach seule) n'étaient pas celles du Coach juste après (58 puis 51 : symboles de mana des sorts ; 49,80 € puis 49,85 € : prix de la fiche).
+ *  5 s au plus (hors ligne, limite Scryfall : la note des versions reste celle de la base). */
+async function dsMetaFor(res) {
+  if (typeof dmFetch !== 'function') return;
+  const by = new Map(); for (const r of res) for (const c of r.main.values()) if (!by.has(c.key)) by.set(c.key, c);
+  for (const c of BD.cmdr) by.set(c.key, c);
+  await Promise.race([Promise.resolve().then(async () => { await dmLoad(); await dmFetch([...by.values()], false); }).catch(() => null), new Promise(r => setTimeout(r, 5000))]);
+}
+/** Réglages du deck une fois la version r choisie (dsApply) : ceux du joueur, le style et la graine de la version (pas le budget réduit de la version « moins chère »). */
+function dsWizOf(r, empty) {
+  const w = { ...(BD.wiz || dwDefaults()) };
+  if (r.v.arch) w.arch = r.v.arch; else delete w.arch;
+  if (r.v.style) w.style = r.v.style; else delete w.style;      // style de la version : le coach continue à suggérer dans cet esprit
+  if (r.wiz && r.wiz.seed) w.seed = r.wiz.seed;
+  if (empty) w.gen = 1;
+  return w;
 }
 /** « Autre proposition » : tout reconstruire avec une nouvelle graine (mêmes réglages) ; le deck d'avant reste annulable. */
 function dsAgain(before) { const orig = before || dsClone(BD.main); BD.main = new Map(); dsBuild(orig, dsSeed()); }
@@ -31541,7 +31603,7 @@ function dsChoose(api, res, before, empty) {
   api.body.innerHTML = `<p class="hint">${T('Le coach a construit plusieurs versions avec tes réglages. Choisis celle qui te ressemble ; tu pourras tout ajuster ensuite.')}</p><div class="ds-vs">${res.map((r, i) => `<button class="ds-v${r.sc.total === best ? ' best' : ''}" type="button" data-ds-pick="${i}">
       <span class="ds-vh"><b>${esc(r.v.name)}</b>${r.sc.total === best ? `<em>${T('Meilleure note')}</em>` : ''}<span class="ds-vn ds-${dsLevel(r.sc.total)}">${r.sc.total}<small>/100</small></span></span>
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}
-      <span class="ds-vk">${esc([fmt(r.prof.cents, cur), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
+      <span class="ds-vk">${esc([T('valeur {p}', { p: fmt(r.prof.cents, cur) }), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
       ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }) + (r.sim.elim10 != null && !r.sim.blind ? ' · ' + T('un adversaire éliminé avant le tour 11 : {p}', { p: dsimPct(r.sim.kill10) }) : ''))}</span>` : ''}
       <span class="ds-vr">${esc(roles.map(x => dsRoleLabel(x) + ' ' + r.prof[x]).join(' · '))}</span>
       ${dsStoryLine(r.story) ? `<span class="ds-vd">${esc(dsStoryLine(r.story))}</span>` : ''}${r.common != null ? `<span class="ds-vd">${esc(T('{p} % des sorts en commun avec la version équilibrée', { p: Math.round(r.common * 100) }))}</span>` : ''}</button>`).join('')}</div>`;
@@ -31555,14 +31617,11 @@ function dsChoose(api, res, before, empty) {
 /** Version choisie : mise dans l'éditeur, style gardé dans les réglages du deck (cibles du coach), annulable. */
 function dsApply(r, before, empty) {
   if (!BD.el) return;
-  BD.main = dsClone(r.main); BD.wiz = BD.wiz || dwDefaults();
-  if (r.v.arch) BD.wiz.arch = r.v.arch; else delete BD.wiz.arch;
-  if (r.v.style) BD.wiz.style = r.v.style; else delete BD.wiz.style;      // style de la version : le coach continue à suggérer dans cet esprit
-  if (r.wiz && r.wiz.seed) BD.wiz.seed = r.wiz.seed;
-  if (empty) BD.wiz.gen = 1;
+  BD.main = dsClone(r.main); BD.wiz = dsWizOf(r, empty);
   dwPersist(BD.id); BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
-  const n = r.prof.n, cur = mkCur(), msg = T('Version « {v} » · note {s}/100', { v: r.v.name, s: r.sc.total }) + ' · ' + T('{t} / 100', { t: n }) + (r.prof.cents ? ' · ' + T('valeur {p}', { p: fmt(r.prof.cents, cur) }) : '');
-  toast(n < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+  const n = r.prof.n, sc = (dsScore(BD) || r.sc).total;      // la note que l'onglet Coach affiche au même moment (la valeur est dans l'en-tête de l'éditeur)
+  const msg = (empty ? T('Deck créé · note {s}/100', { s: sc }) : T('Deck complété · note {s}/100', { s: sc })) + (n < 100 ? ' · ' + T('{n}/{size} cartes', { n, size: 100 }) : '');      // court : le reste (manque, budget) est dans les prochaines étapes du Coach
+  toast(msg, { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
 }
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { DS_PARTS });
 // détail de la note ouvert ou fermé dans le Coach : gardé d'un rafraîchissement à l'autre
@@ -32908,7 +32967,7 @@ function trPanelHtml() {
   TR.bv = bv && list.length ? { list, want } : null;
   return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
     <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
-    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>` : ''}
+    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>${typeof alEntryHtml === 'function' ? alEntryHtml() : ''}` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : act && filterActive(f) ? collNoMatchHtml() : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
@@ -32963,6 +33022,7 @@ function trClick(e) {
   else if (act === 'trlive' && typeof trocEntry === 'function') trocEntry();      // échange en direct, face à face (troc.js)
   else if (act === 'trview') { const p = trPayload(); openPublicTrade(readShare('trade', { ...p, ...profShare(), at: Date.now() }), true); }
   else if (act === 'trmore') { TR.shown += TR_PAGE; collPaintBody(true); }
+  else if (act === 'tralert') { haptic('tap'); openAlertSheet({ onClose: trRepaint }); }      // alertes de prix (alerts.js), nombre de cartes surveillées repeint à la fermeture
   else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); } }); }
   else if (act === 'tunkeep' && k) { TR.kept.delete(k); haptic('tap'); trChanged(); }
   else if ((act === 'wplus' || act === 'wminus') && k && TR.wish[k]) {

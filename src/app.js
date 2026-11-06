@@ -188,8 +188,17 @@ function tween(el, to) {
   };
   el._raf = requestAnimationFrame(step);
 }
+/* Menus « Trier » (.sortsel : libellé + menu déroulant) : toucher la pilule hors du mot choisi ouvre aussi le menu (zone de 44 px, audit U9). */
+document.addEventListener('click', e => {
+  const l = e.target && e.target.closest ? e.target.closest('.sortsel') : null; if (!l || e.target.tagName === 'SELECT') return;
+  const s = l.querySelector('select'); if (!s || s.disabled) return;
+  try { s.showPicker(); } catch (x) { s.focus(); }      // navigateur sans showPicker sur un menu : le menu prend le focus (clavier)
+});
 let toastT;
-/** act : { label, fn } → bouton dans le toast (ex. Annuler), affiché plus longtemps. */
+/** Libellé du bouton d'un toast qui défait ce qui vient d'être fait : « Annuler » en français, mais sa propre clé (« Rückgängig » en allemand, « Undo » en anglais),
+ *  distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen »). */
+const tUndo = () => { const k = 'Annuler (défaire)'; return I18N.dict && Object.prototype.hasOwnProperty.call(I18N.dict, k) ? T(k) : T('Annuler'); };
+/** act : { label, fn } → bouton dans le toast (ex. tUndo()), affiché plus longtemps. */
 function toast(msg, act) {
   const t = $('#toast'); t.textContent = msg; t.classList.toggle('act', !!act);
   if (act) {

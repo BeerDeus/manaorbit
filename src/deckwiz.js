@@ -240,15 +240,17 @@ function dwWinKeys(X) {
   const v = { cards, cmdr: cm }; if (pack) pack._win2 = { k: cmd.keys.join('+'), v };
   return v;
 }
-/** Prix d'une carte : la valeur estimée de l'appli (builder.js › dkPx : relevé du jour, impression la moins chère du marché choisi, sinon tendance de la fiche) s'il est connu,
- *  sinon celui de la base (euros, marché européen seulement). inDeck : carte du deck (dwProfile) ; relevé du jour lu, la base n'est plus consultée, pour que la valeur du deck
- *  soit exactement celle de l'en-tête de l'éditeur, de Mes decks et du viewer (dkEst) ; elle ne sert qu'aux cartes suggérées et hors ligne sans relevé. */
+/** Prix d'une carte : la valeur estimée de l'appli (builder.js › dkPx : relevé du jour, impression la moins chère du marché choisi, sinon tendance de la fiche, sinon
+ *  la base du coach), la même règle que l'en-tête de l'éditeur, Mes decks et le viewer (dkEst). Sans l'éditeur (banc d'essai, mesures dans une vm) : la même, en local.
+ *  inDeck : gardé pour les appels (la règle est la même pour une carte du deck et une carte suggérée depuis le 6 novembre). */
 function dwPrice(k, x, inDeck) {
-  const e = typeof dkPx === 'function' ? dkPx(k) : (() => { const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; if (t && t.e > 0) return t.e; const m = dmOf(k); return m && m.eu > 0 ? m.eu : 0; })();      // la règle de l'appli (builder.js › dkPx) ; sans l'éditeur (banc d'essai, mesures dans une vm) : la même, en local
-  if (e > 0) return e;
-  if (inDeck && typeof PXT !== 'undefined' && PXT) return 0;
+  if (typeof dkPx === 'function') return dkPx(k);
+  const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; if (t && t.e > 0) return t.e;
+  const m = dmOf(k); if (m && m.eu > 0) return m.eu;
   return !mkUs() && x && x.eur > 0 ? x.eur : 0;
 }
+/** Prix de la base du coach (centimes, euros : marché européen seulement), 0 si la carte n'y est pas ou si la base n'est pas lue : dernier recours de dkPx. */
+function dwBasePx(k) { const r = DW.byKey && DW.byKey.get(k); return r && r[5] > 0 && !mkUs() ? r[5] : 0; }
 
 /* ── Cibles ───────────────────────────────────────────────────────────────────────────────────────── */
 /** Terrains conseillés (Frank Karsten, régression sur plus de 95 000 decks de tournoi, transposée à 99 cartes) : 31,42 + 3,13 × coût moyen − 0,28 × rampe et pioche de coût ≤ 2. */
@@ -835,7 +837,7 @@ function dwFillBasics(quiet) {
   cols.forEach(c => { if (share[c] > 0) BD.main.set(BK[c], { key: BK[c], name: EN[c], qty: share[c] }); else BD.main.delete(BK[c]); });
   BD.dirty = true; if (quiet) return n;
   haptic('ok'); bdPaint(); bdMetaSoon();
-  if (cut.length) toast(TN(cut.length, '{n} terrain de base ajouté à la place de : {cards}', '{n} terrains de base ajoutés à la place de : {cards}', { cards: cut.join(', ') }), { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; haptic('tap'); bdPaint(); } });
+  if (cut.length) toast(TN(cut.length, '{n} terrain de base ajouté à la place de : {cards}', '{n} terrains de base ajoutés à la place de : {cards}', { cards: cut.join(', ') }), { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; haptic('tap'); bdPaint(); } });
   else if (n > curB) toast(TN(n - curB, '{n} terrain de base ajouté', '{n} terrains de base ajoutés'));
   else toast(prof.land >= tgt.land[1] ? T('Assez de terrains : rien à ajouter') : TN(n, '{n} terrain de base dans le deck', '{n} terrains de base dans le deck'));
   return n;
@@ -910,7 +912,7 @@ function* dwAutoBuildGen(undoTo, quiet) {
   if (quiet) return added;      // passes de la construction en plusieurs temps (deckopt.js) : ni affichage ni message
   haptic('ok'); bdPaint(); bdMetaSoon(); prof = dwProfile();
   const cur = mkCur(), msg = TN(added, '{n} carte ajoutée', '{n} cartes ajoutées') + ' · ' + T('{t} / 100', { t: total }) + (prof.cents ? ' · ' + T('valeur {p}', { p: fmt(prof.cents, cur) }) : '');
-  toast(total < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+  toast(total < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
   return added;
 }
 /** Construire le deck : en plusieurs passes avec versions au choix (deckopt.js), sinon en une passe. undoTo : deck à remettre si on annule. */
