@@ -105,8 +105,8 @@ function cnItem(it, Q, ix) {
   return false;
 }
 /**
- * Cartes dont le nom correspond au texte tapé, les meilleures d'abord : nom exact (toute langue), puis début du nom ou d'un mot dans la langue de l'appli,
- * en anglais, dans la langue des cartes, puis le milieu d'un nom (même ordre des langues).
+ * Cartes dont le nom correspond au texte tapé, les meilleures d'abord : nom exact (toute langue), puis début du nom, puis début d'un mot, puis milieu d'un nom ;
+ * à qualité égale : langue de l'appli, anglais, langue des cartes. La correspondance retenue donne la langue de l'exemplaire ajouté (p, l).
  * o.each(visit) : noms anglais candidats (visit(clé normalisée, nom anglais)) ; o.en : { list, norm } (catalogue Scryfall de collCatalog) ; sans eux : les cartes des index.
  * o.ok(k, en) : carte permise ; o.tie(k) : départage (rang EDHREC…) ; o.n : nombre de résultats (12) ; o.min : longueur minimale (2).
  * → [{ n (anglais), k, p? (nom imprimé qui correspond), l? (sa langue), r (rang 0-3) }] ; nom affiché : cnName(n).
@@ -116,7 +116,7 @@ function cnFind(text, o = {}) {
   const n = o.n || 12, best = new Map(); let good = 0;
   const put = (en, k, r, tier, p, l) => {
     if (r === 3 && good >= n) return;      // assez de débuts de nom : les milieux ne passeront jamais devant
-    const key = (r === 0 ? 0 : r === 3 ? 200 : 100) + tier * 10 + r, cur = best.get(k);
+    const key = (r === 0 ? 0 : r === 3 ? 200 : 100) + r * 10 + tier, cur = best.get(k);      // qualité d'abord (début du nom > début d'un mot), langue ensuite : « llanowar » = Llanowar Elves (anglais), pas Elfes de Llanowar
     if (cur && cur.key <= key) return;
     if (o.ok && !cur && !o.ok(k, en)) return;
     if (!cur && key < 200) good++; else if (cur && cur.key >= 200 && key < 200) good++;
