@@ -153,7 +153,7 @@ await toInput(p); await p.click('#btnSave'); await p.waitForSelector('#svName');
 assert.equal(await txt(p, '#toast'), 'Deck enregistré', 'rien ne manque à ce deck : pas de question');
 ok('deck enregistré, alertes coupées : « Deck enregistré · Me prévenir des baisses ? » [Activer] → alertes actives, ses manquantes surveillées ; aucune question si actives ou si rien ne manque');
 
-/* ── Feuille d'un deck EDHREC : « Surveiller leurs prix » (active les alertes, seulement ce qui n'est pas déjà surveillé) ─────────── */
+/* ── Feuille d'un deck EDHREC : « Alerte de prix » (active les alertes, seulement ce qui n'est pas déjà surveillé) ─────────── */
 const EDHF = ['#edh\t1\t2026-10-03T04:00:00Z', 'C\tedgar-markov\t12345\tWBR\tEdgar Markov', 'D\tedgar-markov\tedhrec\tDeck moyen\t',
   'K\t1\tSol Ring', 'K\t1\tWrath of God', 'K\t1\tCraterhoof Behemoth', 'K\t1\tArcane Signet', ...Array.from({ length: 20 }, (_, i) => `K\t1\tFiller ${i}`),
   'P\t500\tEdgar Markov', 'P\t300\tSol Ring', 'P\t250\tWrath of God', 'P\t900\tCraterhoof Behemoth', 'P\t100\tArcane Signet', ...Array.from({ length: 20 }, (_, i) => `P\t40\tFiller ${i}`)].join('\n') + '\n';
@@ -162,12 +162,12 @@ await signInFake(p);      // onglet « Decks » : réservé aux comptes vérifi�
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk', { timeout: 8000 });
 await p.click('.crow.dk'); await p.waitForSelector('.dk-act[data-act="dkwatch"]');
 const watchRow = () => p.$eval('.dk-act[data-act="dkwatch"]', x => [x.querySelector('b').textContent, x.querySelector('small').textContent, x.disabled]);
-assert.deepEqual(await watchRow(), ['Surveiller leurs prix', '4 cartes à 1 € ou plus · active les alertes', false], 'Edgar, Sol Ring, Wrath, Craterhoof (Arcane Signet possédée, fillers à 0,40 €)');
+assert.deepEqual(await watchRow(), ['Alerte de prix', '4 cartes à 1 € ou plus · active les alertes', false], 'Edgar, Sol Ring, Wrath, Craterhoof (Arcane Signet possédée, fillers à 0,40 €)');
 await p.click('.dk-act[data-act="dkwatch"]'); await p.waitForFunction(() => AC.on && AC.id, null, { timeout: 8000 });
 await p.waitForFunction(() => /surveillée/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 });
 assert.equal(await txt(p, '#toast'), '1 carte surveillée : tu seras prévenu en cas de forte baisse Régler', 'Sol Ring et Wrath (decks enregistrés) et Craterhoof (à la main) l\'étaient déjà : Edgar seule');
 assert.deepEqual(await p.evaluate(() => AC.watch['edgar markov']), { n: 'Edgar Markov', d: 'Edgar Markov' });
-assert.deepEqual(await watchRow(), ['Prix surveillés', 'Une notification en cas de forte baisse', true]);
+assert.deepEqual(await watchRow(), ['Alerte de prix active', 'Une notification en cas de forte baisse', true]);
 assert.ok(await p.evaluate(() => alItems().some(i => i.k === 'edgar markov' && i.d && i.d.includes('Edgar Markov'))), 'envoyée avec le nom du deck (« manque à Edgar Markov »)');
 await p.waitForTimeout(3500); srv = await server(await myId()); assert.equal(srv.o.watching, 4, '+ Edgar Markov');
 await p.screenshot({ path: 'shots/alerts-2-edh-surveiller.png' });
@@ -178,7 +178,7 @@ await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySe
 await p.keyboard.press('Escape'); await sheetGone();
 await p.evaluate(() => collAdd([{ k: 'edgar markov', n: 'Edgar Markov', q: 1 }], 'add')); await p.waitForTimeout(3800);
 srv = await server(await myId()); assert.equal(srv.o.watching, 3, 'Edgar désormais possédée : plus surveillée'); assert.ok(await p.evaluate(() => !!AC.watch['edgar markov']), 'le suivi reste (revendue, elle le serait à nouveau)');
-ok('feuille EDHREC : « Surveiller leurs prix » active les alertes, ajoute seulement Edgar (le reste l\'était déjà), nom du deck envoyé, « Prix surveillés » ; une fois possédée, plus surveillée');
+ok('feuille EDHREC : « Alerte de prix » active les alertes, ajoute seulement Edgar (le reste l\'était déjà), nom du deck envoyé, « Alerte de prix active » ; une fois possédée, plus surveillée');
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 
 /* ── Nom affiché (dn, collection.js › cardName) envoyé avec chaque carte : la notification faite par le serveur le reprend ──────────────── */

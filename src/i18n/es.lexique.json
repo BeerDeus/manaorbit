@@ -19,5 +19,15 @@
   "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "Las cartas de este mazo que tienes, ubicación por ubicación; reservar sus cartas",
   "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "Para un mazo nuevo: el asistente te ayuda (comandante, temas, bracket, presupuesto) y el asesor equilibra el mazo.",
   "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "Los mazos Commander que tu colección casi completa, con las cartas que faltan y su precio. Y Comunidad: los mazos publicados por los jugadores.",
-  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Los mazos Commander que tu colección casi completa, con las cartas que faltan y su precio."
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Los mazos Commander que tu colección casi completa, con las cartas que faltan y su precio.",
+  "Mettre dans Je recherche": "Poner en «Busco»",
+  "Cartes manquantes dans Je recherche": "Cartas que faltan, en «Busco»",
+  "Cartes manquantes retirées de Je recherche": "Cartas que faltan quitadas de «Busco»",
+  "Alerte de prix active": "Alerta de precio activa",
+  "Alerte de prix : hausse et baisse": "Alerta de precio: subida y bajada",
+  "Alerte de prix : baisse": "Alerta de precio: bajada",
+  "Alerte de prix : indisponible en mode démo.": "Alerta de precio: no disponible en modo demo.",
+  "Alerte de prix : il faut le serveur Mana Orbit et les notifications.": "Alerta de precio: requiere el servidor de Mana Orbit y las notificaciones.",
+  "Ajouter une alerte de prix": "Añadir una alerta de precio",
+  "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Nada que vigilar por ahora: guarda un mazo al que le falten cartas o añade una alerta de precio a una carta."
 }

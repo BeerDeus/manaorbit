@@ -19,5 +19,15 @@
   "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "Die Karten dieses Decks, die du hast, Ort für Ort; seine Karten reservieren",
   "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "Für ein neues Deck: Der Assistent hilft (Kommandeur, Themen, Bracket, Budget) und der Coach balanciert das Deck.",
   "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "Die Commander-Decks, die deine Sammlung fast baut, mit den fehlenden Karten und ihrem Preis. Dazu Community: von Spielern veröffentlichte Decks.",
-  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Die Commander-Decks, die deine Sammlung fast baut, mit den fehlenden Karten und ihrem Preis."
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Die Commander-Decks, die deine Sammlung fast baut, mit den fehlenden Karten und ihrem Preis.",
+  "Mettre dans Je recherche": "Auf die Wunschliste",
+  "Cartes manquantes dans Je recherche": "Fehlende Karten auf der Wunschliste",
+  "Cartes manquantes retirées de Je recherche": "Fehlende Karten von der Wunschliste entfernt",
+  "Alerte de prix active": "Preisalarm aktiv",
+  "Alerte de prix : hausse et baisse": "Preisalarm: steigend und fallend",
+  "Alerte de prix : baisse": "Preisalarm: fallend",
+  "Alerte de prix : indisponible en mode démo.": "Preisalarm: im Demo-Modus nicht verfügbar.",
+  "Alerte de prix : il faut le serveur Mana Orbit et les notifications.": "Preisalarm: braucht den Mana-Orbit-Server und Benachrichtigungen.",
+  "Ajouter une alerte de prix": "Preisalarm hinzufügen",
+  "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Noch nichts zu beobachten: Speichere ein Deck, dem Karten fehlen, oder füge einen Preisalarm für eine Karte hinzu."
 }

@@ -19,5 +19,15 @@
   "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "Le carte di questo mazzo che hai, posizione per posizione; riserva le sue carte",
   "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "Per un nuovo mazzo: l'assistente ti aiuta (comandante, temi, bracket, budget) e il coach bilancia il mazzo.",
   "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "I mazzi Commander che la tua collezione quasi completa, con le carte mancanti e il loro prezzo. E Comunità: i mazzi pubblicati dai giocatori.",
-  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "I mazzi Commander che la tua collezione quasi completa, con le carte mancanti e il loro prezzo."
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "I mazzi Commander che la tua collezione quasi completa, con le carte mancanti e il loro prezzo.",
+  "Mettre dans Je recherche": "Metti in «Cerco»",
+  "Cartes manquantes dans Je recherche": "Carte mancanti messe in «Cerco»",
+  "Cartes manquantes retirées de Je recherche": "Carte mancanti tolte da «Cerco»",
+  "Alerte de prix active": "Avviso di prezzo attivo",
+  "Alerte de prix : hausse et baisse": "Avviso di prezzo: rialzo e ribasso",
+  "Alerte de prix : baisse": "Avviso di prezzo: ribasso",
+  "Alerte de prix : indisponible en mode démo.": "Avviso di prezzo: non disponibile in modalità demo.",
+  "Alerte de prix : il faut le serveur Mana Orbit et les notifications.": "Avviso di prezzo: richiede il server di Mana Orbit e le notifiche.",
+  "Ajouter une alerte de prix": "Aggiungi un avviso di prezzo",
+  "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Ancora niente da monitorare: salva un mazzo a cui mancano carte, o aggiungi un avviso di prezzo su una carta."
 }

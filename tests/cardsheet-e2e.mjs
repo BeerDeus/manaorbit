@@ -1,7 +1,7 @@
 // E2E fiche d'une carte (src/cardsheet.js) : ouverture depuis la collection (ligne, pas la vignette), l'Échange (propriétaire) et le scan ; exemplaires par
 // langue × édition × foil (− / + et « Annuler », emplacement, édition, langue, « Ajouter un exemplaire ») ; prix Cardmarket normal et foil de l'édition, valeur,
 // offre CardTrader (« Voir les offres ») ; decks qui l'utilisent (monté, ouvrir le deck), « Ajouter à un deck » (Annuler, singleton Commander) ; Échange (« Garder »,
-// « Je recherche ») ; « Suivre le prix » (hausse et baisse : u envoyé au serveur) ; texte Oracle FR + EN et légalités (faux Scryfall de ce test) ; évolution du prix
+// « Je recherche ») ; « Alerte de prix » (hausse et baisse : u envoyé au serveur) ; texte Oracle FR + EN et légalités (faux Scryfall de ce test) ; évolution du prix
 // sur 30 jours (faux /api/hist : courbe, 7 et 30 jours, plus bas et plus haut ; sans historique, un seul relevé ou hors ligne : la variation connue) ; hors ligne.
 // Captures : 393 clair et sombre, 360 clair, 1280 clair (fenêtre), hors ligne → $SHOTS (défaut shots/cardsheet).
 import './setup-env.mjs';
@@ -209,16 +209,16 @@ await p.waitForFunction(() => /^2 Sol Ring/.test(findDeck('dA').text)); assert.e
 await p.evaluate(() => { const d = findDeck('dA'); putDeck('dA', deckDoc({ ...d, text: d.text.replace(/^2 Sol Ring/, '1 Sol Ring') })); engRefresh('dA', d.name, findDeck('dA').text); });
 ok('« Ajouter à un deck » : +1 dans la section principale (Annuler), singleton Commander refusé, quantité d\'une ligne existante');
 
-/* ── Suivre le prix : alertes en hausse ET baisse ────────────────────────────────────────────── */
+/* ── Alerte de prix : alertes en hausse ET baisse ────────────────────────────────────────────── */
 await p.click('.cs-sheet [data-cs="watch"]'); await p.waitForFunction(() => AC.on && AC.watch['sol ring'], null, { timeout: 8000 });
 assert.deepEqual(await p.evaluate(() => AC.watch['sol ring']), { n: 'Sol Ring', u: 1 });
 assert.equal(await p.evaluate(() => alItems().find(x => x.k === 'sol ring').u), 1, 'u : hausse et baisse, envoyé au serveur');
-assert.match(await txt(p, '.cs-sheet [data-cs="watch"]'), /Prix suivi : hausse et baisse/); assert.match(await toastTxt(), /hausse ou baisse/);
+assert.match(await txt(p, '.cs-sheet [data-cs="watch"]'), /Alerte de prix : hausse et baisse/); assert.match(await toastTxt(), /hausse ou baisse/);
 await p.waitForFunction(() => AC.id && AC.info, null, { timeout: 8000 });
 const srv = await (await fetch(world.url + 'api/alerts?id=' + await p.evaluate(() => AC.id))).json(); assert.ok(srv.watching >= 1, 'liste enregistrée par le serveur');
-await p.click('.cs-sheet [data-cs="watch"]'); await p.waitForFunction(() => !AC.watch['sol ring']); assert.match(await txt(p, '.cs-sheet [data-cs="watch"]'), /^Suivre le prix$/);
+await p.click('.cs-sheet [data-cs="watch"]'); await p.waitForFunction(() => !AC.watch['sol ring']); assert.match(await txt(p, '.cs-sheet [data-cs="watch"]'), /^Alerte de prix$/);
 await p.click('#toast .toast-act'); await p.waitForFunction(() => AC.watch['sol ring'] && AC.watch['sol ring'].u === 1);
-ok('« Suivre le prix » : alertes activées, carte suivie en hausse et en baisse (u), enregistrée par le serveur ; ne plus suivre, Annuler');
+ok('« Alerte de prix » : alertes activées, carte suivie en hausse et en baisse (u), enregistrée par le serveur ; ne plus suivre, Annuler');
 
 /* ── Ouvrir un deck depuis la fiche ──────────────────────────────────────────────────────────── */
 await p.click('.cs-sheet .cs-dk[data-id="dB"]'); await p.waitForFunction(() => !sheets.length && DV.el && DV.deckId === 'dB', null, { timeout: 5000 });

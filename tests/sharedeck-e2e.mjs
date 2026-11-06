@@ -132,7 +132,7 @@ const shot = async (pg, f) => { await pg.waitForTimeout(450); await pg.screensho
   assert.equal(await p.evaluate(() => DV.text), arch.text, 'viewer : la liste complète du deck'); assert.deepEqual(await foot(p), UNSAVED, 'même bouton que pour un lien partagé');
   await p.click('.dv.on [data-act="save"]');
   assert.equal(await txt(p, '#toast'), `« ${arch.save} » ajouté à Mes decks Voir`); assert.deepEqual(await foot(p), SAVED);
-  const d = await decks(p); assert.equal(d.length, 1); assert.equal(d[0].name, arch.save, 'nom de la feuille (edhSaveName), passé par l\'ouvreur'); assert.equal(d[0].text.replace(/^\/\/ Deck Deal from : \w+\n/m, ''), arch.text, 'texte identique au viewer (plus la marque d\'origine, « Suivre les cartes manquantes » éteint)'); assert.match(d[0].text, /^\/\/ Deck Deal from : (edh|pub)$/m, 'deck enregistré depuis À monter ou la Communauté : origine notée');
+  const d = await decks(p); assert.equal(d.length, 1); assert.equal(d[0].name, arch.save, 'nom de la feuille (edhSaveName), passé par l\'ouvreur'); assert.equal(d[0].text.replace(/^\/\/ Deck Deal from : \w+\n/m, ''), arch.text, 'texte identique au viewer (plus la marque d\'origine, « Mettre dans Je recherche » éteint)'); assert.match(d[0].text, /^\/\/ Deck Deal from : (edh|pub)$/m, 'deck enregistré depuis À monter ou la Communauté : origine notée');
   await shot(p, 'sharedeck-3-edhrec.png');
   // la feuille reconnaît la copie enregistrée depuis le viewer, et inversement
   await p.evaluate(() => closeDeckViewer()); await p.waitForTimeout(300); await openSheet(arch.i);

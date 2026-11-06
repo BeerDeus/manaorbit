@@ -8090,8 +8090,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'dce56d6f';
-const I18N_FILES = {"de":"i18n/de.fcf82052.js","en":"i18n/en.954886f1.js","es":"i18n/es.7fe35865.js","it":"i18n/it.b2c02c41.js","pt":"i18n/pt.de8ee7e4.js"};
+const DD_BUILD = '91096e11';
+const I18N_FILES = {"de":"i18n/de.44cbcb5f.js","en":"i18n/en.2d952f47.js","es":"i18n/es.9aab204f.js","it":"i18n/it.974c0ceb.js","pt":"i18n/pt.954424cc.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -18466,7 +18466,7 @@ function openDeckSheet(id) {
     }).join('');
     api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Infos du deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
-      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
+      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Mettre dans Je recherche')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
       ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
@@ -18493,7 +18493,7 @@ function openDeckSheet(id) {
       const cur = findDeck(id); if (!cur) return; const text = dkSetTrack(cur.text, trk.checked);
       putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // le deck garde sa place
       if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
-      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack(dkTrack(text));      // l'état écrit, pas celui relu : avec un compte, le deck enregistré n'est relu qu'au retour de Firestore (l'interrupteur revenait en arrière)
+      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes dans Je recherche') : T('Cartes manquantes retirées de Je recherche')); paintTrack(dkTrack(text));      // l'état écrit, pas celui relu : avec un compte, le deck enregistré n'est relu qu'au retour de Firestore (l'interrupteur revenait en arrière)
     };
     const valEl = $('#dkVal', api.body);      // valeur estimée du deck (builder.js › dkEst : même chiffre que l'éditeur et le viewer), même monté : pas besoin de chercher des offres
     let fetched = false;
@@ -19685,7 +19685,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
-      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Éditer le deck')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › Idées de decks)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
+      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Éditer le deck')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › Idées de decks)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${T('Copier pour Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
     <div class="dv-main"><div id="dvCmd"></div>
     <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
@@ -23345,13 +23345,13 @@ function edhDeckActs(api, r, name) {
     const d = edhSavedDeck(text), sv = saved || (d && d.name) || '', wish = r.miss ? edhWishTodo(r) : [], wq = wish.reduce((a, x) => a + x.q, 0);
     const watch = alAvail() ? edhWatchCards(r) : [], wTodo = watch.length ? edhWatchCards(r, true) : [];
     el.innerHTML = row('dksave', '<svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>', sv ? T('Dans mes decks') : T('Enregistrer dans mes decks'), sv ? T('Enregistré sous « {name} »', { name: sv }) : dkCountText(text), !!sv)
-      + (r.miss ? row('dkwish', '<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>', wq ? T('Ajouter les manquantes à Je recherche') : T('Manquantes dans Je recherche'), wq ? TN(wq, '{n} carte', '{n} cartes') + ' · ' + T('liste d\'échange') : T('Ta liste d\'échange les recherche déjà'), !wq) : '')
-      + (watch.length ? row('dkwatch', EDH_BELL, wTodo.length ? T('Surveiller leurs prix') : T('Prix surveillés'), wTodo.length ? TN(wTodo.length, '{n} carte à 1 € ou plus', '{n} cartes à 1 € ou plus') + (AC.on ? '' : ' · ' + T('active les alertes')) : T('Une notification en cas de forte baisse'), !wTodo.length) : '');
+      + (r.miss ? row('dkwish', '<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>', wq ? T('Mettre dans Je recherche') : T('Manquantes dans Je recherche'), wq ? TN(wq, '{n} carte', '{n} cartes') + ' · ' + T('liste d\'échange') : T('Ta liste d\'échange les recherche déjà'), !wq) : '')
+      + (watch.length ? row('dkwatch', EDH_BELL, wTodo.length ? T('Alerte de prix') : T('Alerte de prix active'), wTodo.length ? TN(wTodo.length, '{n} carte à 1 € ou plus', '{n} cartes à 1 € ou plus') + (AC.on ? '' : ' · ' + T('active les alertes')) : T('Une notification en cas de forte baisse'), !wTodo.length) : '');
   };
   el.onclick = async e => {
     const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return; const act = b.dataset.act;
     if (act === 'dksave') {
-      const nm = edhSaveName(r), id = newIdFor(), doc = deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } }); putDeck(id, doc); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
+      const nm = edhSaveName(r), id = newIdFor(), doc = deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } }); putDeck(id, doc); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Mettre dans Je recherche »
       if (added.size && dkTrack(doc.text)) {      // (deck suivi seulement) le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
         for (const [k, q] of added) { const cur = TR.wish[k]; if (!cur) continue; if (cur.q > q) TR.wish[k] = { ...cur, q: cur.q - q }; else delete TR.wish[k]; }
         added.clear(); trChanged();
@@ -23430,7 +23430,7 @@ function openEdhDeck(r) {
     };
     api.body.addEventListener('click', e => { const rw = e.target.closest('.crow[data-ik]'); if (rw) open(rw); });
     api.body.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.crow[data-ik]')) { e.preventDefault(); open(e.target); } });
-    api.setFoot(`${url ? `<a class="btn ghost" href="${esc(edhRef(url))}" target="_blank" rel="noopener">${r.deck.src === 'edhrec' ? 'EDHREC' : 'Archidekt'} ↗</a>` : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`}<button class="btn" type="button" id="dkGo">${r.miss ? T('Chercher les manquantes') : T('Charger le deck')}</button>`);
+    api.setFoot(`${url ? `<a class="btn ghost" href="${esc(edhRef(url))}" target="_blank" rel="noopener">${r.deck.src === 'edhrec' ? 'EDHREC' : 'Archidekt'} ↗</a>` : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`}<button class="btn" type="button" id="dkGo">${r.miss ? T('Chercher les offres') : T('Charger le deck')}</button>`);
     $('#dkGo', api.foot).onclick = () => { api.close(); edhUseDeck(r); };
   });
 }
@@ -24613,8 +24613,8 @@ function xsInit() {
    notification quand l'une chute d'au moins N % (et 0,50 €) ou passe sous un prix cible. Cette page fournit la liste à surveiller :
    · automatiquement : cartes qu'il manque pour chaque deck enregistré (liste du deck − collection libre) ;
    · à la main : n'importe quelle carte, avec ou sans prix cible (fiche d'une carte, ou saisie dans la feuille « Alertes de prix ») ; depuis la fiche d'une carte
-     (cardsheet.js › « Suivre le prix »), en hausse ET en baisse (champ u, ignoré par un serveur plus ancien) ;
-     depuis la feuille d'un deck EDHREC (« Surveiller leurs prix »), ses cartes manquantes, avec le nom du deck, jusqu'à ce qu'elles soient dans la collection.
+     (cardsheet.js › « Alerte de prix »), en hausse ET en baisse (champ u, ignoré par un serveur plus ancien) ;
+     depuis la feuille d'un deck EDHREC (« Alerte de prix »), ses cartes manquantes, avec le nom du deck, jusqu'à ce qu'elles soient dans la collection.
    La liste part avec l'abonnement push de CET appareil (PUT /api/alerts) à chaque changement (différé de 3 s) et au plus toutes les 12 h ;
    dans l'appli Android, avec son jeton FCM ({ fcm }) à la place de l'abonnement (voir push.js).
    Les cartes suivies à la main et les réglages restent sur l'appareil (deckdeal:alert:v1).
@@ -24673,7 +24673,7 @@ function alItems() {
   }
   if (AC.deck) {
     for (const d of allDecks()) {
-      if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
+      if (!dkTrack(d.text)) continue;      // « Mettre dans Je recherche » éteint sur ce deck (feuille du deck, decks.js)
       for (const c of [...parseDeck(d.text).cards, ...dkSideCards(d.text)]) {      // réserve comprise (et compagnon), comme « Je recherche » (décision du 6 novembre 2026)
         const k = ownKey(c.key || c.name); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
@@ -24857,12 +24857,12 @@ async function openAlertSheet(o = {}) {
         <div class="switch-row"><span class="t"><b>${T('Cartes manquantes de mes decks')}</b><span class="hint">${T('Toutes les cartes qu\'il te reste à acheter pour tes decks enregistrés.')}</span></span><label class="switch"><input type="checkbox" id="alDeck" ${AC.deck ? 'checked' : ''}><i></i></label></div>
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
         ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
-        <div class="sec-title">${T('Suivre une carte')}</div>
-        <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" data-cn="1" placeholder="${esc(cnPh())}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Suivre')}</button></form>
+        <div class="sec-title">${T('Ajouter une alerte de prix')}</div>
+        <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" data-cn="1" placeholder="${esc(cnPh())}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Ajouter')}</button></form>
         <div class="ca-list al-sug" id="alSug" role="listbox" aria-label="${T('Suggestions')}"></div>
         <p class="hint" id="alAddMsg" hidden></p>
         <div class="sec-title">${TN(rows.length, '{n} carte surveillée', '{n} cartes surveillées')}</div>
-        ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${TN(rows.length - AL_ROWS, '{n} autre carte surveillée, non listée ici.', '{n} autres cartes surveillées, non listées ici.')}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou suis une carte à la main.')}</p>`}
+        ${rows.length ? `<div class="al-list">${rows.slice(0, AL_ROWS).map(rowHtml).join('')}</div>${rows.length > AL_ROWS ? `<p class="hint">${TN(rows.length - AL_ROWS, '{n} autre carte surveillée, non listée ici.', '{n} autres cartes surveillées, non listées ici.')}</p>` : ''}` : `<p class="hint">${T('Rien à surveiller pour l\'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.')}</p>`}
         ${muted ? `<p class="hint">${TN(muted, '{n} carte exclue de la surveillance', '{n} cartes exclues de la surveillance')} · <button class="link-btn link-inline" type="button" id="alUnmute">${T('Rétablir')}</button></p>` : ''}
         <p class="hint">${esc(last)}</p>`;
       api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Désactiver les alertes')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);
@@ -25169,7 +25169,7 @@ function csDecksHtml(k) {
 function csTrade(k, x) {
   if (BASIC_NAMES.has(k) || typeof TR === 'undefined') return null;
   const use = deckUse(trDeckTexts()), one = x ? { [k]: x } : {}, tl = tradeLists(one, use, TR.keep, TR.kept, COLL.places);
-  const wu = typeof trWantTexts === 'function' ? deckUse(trWantTexts()) : use, w = tradeWant(one, new Map(wu.has(k) ? [[k, wu.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;      // decks suivis seulement (« Suivre les cartes manquantes »)
+  const wu = typeof trWantTexts === 'function' ? deckUse(trWantTexts()) : use, w = tradeWant(one, new Map(wu.has(k) ? [[k, wu.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;      // decks suivis seulement (« Mettre dans Je recherche »)
   return { have: tl.have[0] || null, held: tl.held[0] || null, kept: TR.kept.has(k), want: w };
 }
 function csTradeHtml(k, x) {
@@ -25185,14 +25185,14 @@ function csTradeHtml(k, x) {
 }
 function csActsHtml(k, x) {
   const al = alAvail(), w = AC.watch[k];
-  const watch = al ? `<button type="button" class="btn ghost small${w ? ' on' : ''}" data-cs="watch" aria-pressed="${!!w}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg>${esc(w ? (w.u ? T('Prix suivi : hausse et baisse') : T('Prix suivi : baisse')) : T('Suivre le prix'))}</button>` : '';
+  const watch = al ? `<button type="button" class="btn ghost small${w ? ' on' : ''}" data-cs="watch" aria-pressed="${!!w}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg>${esc(w ? (w.u ? T('Alerte de prix : hausse et baisse') : T('Alerte de prix : baisse')) : T('Alerte de prix'))}</button>` : '';
   const px = COLL.px[k], bp = px && px.b > 0 ? px.b : 0;
   return `<section class="cs-sec"><h3 class="cs-h">${T('Actions')}</h3><div class="cs-acts">${watch}
     <button type="button" class="btn ghost small" data-cs="adddeck"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg>${T('Ajouter à un deck')}</button>
     <a class="btn ghost small" href="${esc(mkUrl(CS.n, userLang()))}" target="_blank" rel="noopener noreferrer">${mkName()} ↗</a>
     ${bp ? `<a class="btn ghost small" href="${esc(ctCardUrl(bp))}" target="_blank" rel="noopener noreferrer">CardTrader ↗</a>` : ''}
     <button type="button" class="btn ghost small" data-cs="share"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager')}</button></div>
-    ${!al ? `<p class="hint">${esc(S.demo ? T('Suivre le prix : indisponible en mode démo.') : T('Suivre le prix : il faut le serveur Mana Orbit et les notifications.'))}</p>` : ''}</section>`;
+    ${!al ? `<p class="hint">${esc(S.demo ? T('Alerte de prix : indisponible en mode démo.') : T('Alerte de prix : il faut le serveur Mana Orbit et les notifications.'))}</p>` : ''}</section>`;
 }
 function csPaint() {
   if (!csOpen()) return;
@@ -25255,7 +25255,7 @@ function csZoom(k) {
   const wl = l ? (l !== 'en' ? l : '') : wantLang();      // langue non précisée : celle de l'appli (anglaise si Scryfall ne l'a pas)
   openCardViewer([m && m.im ? { key: k, name: frName(k, l) || CS.n, ln: CS.n, wl, small: m.im, lang: 'en', plain: true, extra: '' } : zoomNamed(k, frName(k, l) || CS.n, CS.n, wl)], 0);
 }
-/** « Suivre le prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
+/** « Alerte de prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
 async function csWatch(k, b) {
   const w = AC.watch[k];
   if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: T('Annuler'), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }
@@ -32718,7 +32718,7 @@ async function trPush() {
 
 /* ── Listes ────────────────────────────────────────────────────────────────────────────────────── */
 const trDeckTexts = () => allDecks().map(d => d.text || '');
-/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Suivre les cartes manquantes » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
+/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Mettre dans Je recherche » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
 const trWantTexts = () => allDecks().filter(d => dkTrack(d.text)).map(d => d.text || '');
 function trState() {
   const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places);

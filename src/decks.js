@@ -366,7 +366,7 @@ function openDeckSheet(id) {
     }).join('');
     api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Infos du deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
-      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
+      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Mettre dans Je recherche')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
       ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
@@ -393,7 +393,7 @@ function openDeckSheet(id) {
       const cur = findDeck(id); if (!cur) return; const text = dkSetTrack(cur.text, trk.checked);
       putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // le deck garde sa place
       if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
-      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack(dkTrack(text));      // l'état écrit, pas celui relu : avec un compte, le deck enregistré n'est relu qu'au retour de Firestore (l'interrupteur revenait en arrière)
+      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes dans Je recherche') : T('Cartes manquantes retirées de Je recherche')); paintTrack(dkTrack(text));      // l'état écrit, pas celui relu : avec un compte, le deck enregistré n'est relu qu'au retour de Firestore (l'interrupteur revenait en arrière)
     };
     const valEl = $('#dkVal', api.body);      // valeur estimée du deck (builder.js › dkEst : même chiffre que l'éditeur et le viewer), même monté : pas besoin de chercher des offres
     let fetched = false;

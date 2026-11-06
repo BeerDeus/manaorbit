@@ -19,5 +19,15 @@
   "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "As cartas deste deck que você tem, local por local; reservar suas cartas",
   "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "Para um deck novo: o assistente ajuda (comandante, temas, bracket, orçamento) e o treinador equilibra o deck.",
   "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "Os decks Commander que sua coleção quase monta, com os cards que faltam e o preço deles. E Comunidade: os decks publicados pelos jogadores.",
-  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Os decks Commander que sua coleção quase monta, com os cards que faltam e o preço deles."
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "Os decks Commander que sua coleção quase monta, com os cards que faltam e o preço deles.",
+  "Mettre dans Je recherche": "Pôr em “Procuro”",
+  "Cartes manquantes dans Je recherche": "Cartas que faltam postas em “Procuro”",
+  "Cartes manquantes retirées de Je recherche": "Cartas que faltam removidas de “Procuro”",
+  "Alerte de prix active": "Alerta de preço ativo",
+  "Alerte de prix : hausse et baisse": "Alerta de preço: alta e queda",
+  "Alerte de prix : baisse": "Alerta de preço: queda",
+  "Alerte de prix : indisponible en mode démo.": "Alerta de preço: indisponível no modo demo.",
+  "Alerte de prix : il faut le serveur Mana Orbit et les notifications.": "Alerta de preço: requer o servidor do Mana Orbit e as notificações.",
+  "Ajouter une alerte de prix": "Adicionar um alerta de preço",
+  "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Nada a monitorar por enquanto: salve um deck em que faltem cartas, ou adicione um alerta de preço a uma carta."
 }

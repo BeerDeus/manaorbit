@@ -19,5 +19,15 @@
   "Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes": "The cards of this deck you own, location by location; reserve its cards",
   "Pour un nouveau deck : l'assistant t'aide (commandant, thèmes, bracket, budget) et le coach équilibre le deck.": "For a new deck: the assistant helps (commander, themes, bracket, budget) and the coach balances the deck.",
   "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.": "The Commander decks your collection almost builds, with the missing cards and their price. Plus Community: decks published by players.",
-  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "The Commander decks your collection almost builds, with the missing cards and their price."
+  "Les decks Commander que ta collection couvre presque, avec les cartes qui manquent et leur prix.": "The Commander decks your collection almost builds, with the missing cards and their price.",
+  "Mettre dans Je recherche": "Add to Wanted",
+  "Cartes manquantes dans Je recherche": "Missing cards added to Wanted",
+  "Cartes manquantes retirées de Je recherche": "Missing cards removed from Wanted",
+  "Alerte de prix active": "Price alert on",
+  "Alerte de prix : hausse et baisse": "Price alert: up and down",
+  "Alerte de prix : baisse": "Price alert: drops",
+  "Alerte de prix : indisponible en mode démo.": "Price alert: unavailable in demo mode.",
+  "Alerte de prix : il faut le serveur Mana Orbit et les notifications.": "Price alert: needs the Mana Orbit server and notifications.",
+  "Ajouter une alerte de prix": "Add a price alert",
+  "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Nothing to watch yet: save a deck that is missing cards, or add a price alert on a card."
 }

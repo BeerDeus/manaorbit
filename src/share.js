@@ -93,7 +93,7 @@ async function trPush() {
 
 /* ── Listes ────────────────────────────────────────────────────────────────────────────────────── */
 const trDeckTexts = () => allDecks().map(d => d.text || '');
-/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Suivre les cartes manquantes » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
+/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Mettre dans Je recherche » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
 const trWantTexts = () => allDecks().filter(d => dkTrack(d.text)).map(d => d.text || '');
 function trState() {
   const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places);

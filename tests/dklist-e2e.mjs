@@ -147,7 +147,7 @@ await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close()
 assert.equal(await p.evaluate(() => { const p0 = dkParse(findDeck('d2').text); return dkBuildText({ ...p0, fmt: 'commander' }).includes('// Deck Deal tags : Budget'); }), true, 'l\'éditeur garde les tags');
 ok('« Infos du deck » : nom, format, tags (doublons refusés, proposés d\'un autre deck, sur la carte), réglages du coach d\'un deck Commander');
 
-/* ── 9) « Suivre les cartes manquantes » : allumé par défaut, éteint pour un deck venu d'À monter ; « Je recherche » et alertes suivent ─────── */
+/* ── 9) « Mettre dans Je recherche » : allumé par défaut, éteint pour un deck venu d'À monter ; « Je recherche » et alertes suivent ─────── */
 const want = () => p.evaluate(() => trState().want.filter(w => w.d).map(w => w.k).sort());
 await p.evaluate(() => putDeck('d5', deckDoc({ name: 'Venu d\'À monter', text: '// Deck Deal from : edh\nDeck\n1 Rhystic Study' })));
 assert.equal(await p.evaluate(() => [dkTrack(findDeck('d1').text), dkTrack(findDeck('d5').text)].join()), 'true,false');
@@ -160,7 +160,7 @@ assert.equal((await want()).includes('rhystic study'), true, 'allumé : dans « 
 assert.match(await p.evaluate(() => findDeck('d5').text), /\/\/ Deck Deal track : on/);
 await p.click('label[for="dkTrack"]'); await p.waitForFunction(() => !dkTrack(findDeck('d5').text)); assert.equal((await want()).includes('rhystic study'), false, 'éteint : retiré');
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
-ok('« Suivre les cartes manquantes » : sur chaque deck, éteint d\'office pour un deck venu d\'À monter ; « Je recherche » et alertes de prix suivent');
+ok('« Mettre dans Je recherche » : sur chaque deck, éteint d\'office pour un deck venu d\'À monter ; « Je recherche » et alertes de prix suivent');
 
 /* ── 10) lot R5 : couleurs d'un deck = identité du commandant (Lurrus avec seulement des Plaines : blanc-noir), filtre Noir, sens dit sous les pastilles ─────── */
 world.prints['Lurrus of the Dream-Den'] = [{ id: 's-lurrus', set: 'iko', set_name: 'Ikoria', collector_number: '226', name: 'Lurrus of the Dream-Den', cmc: 3, type_line: 'Legendary Creature — Cat Nightmare', mana_cost: '{1}{W/B}{W/B}', colors: ['W', 'B'], color_identity: ['W', 'B'],
