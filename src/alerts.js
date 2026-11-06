@@ -72,9 +72,14 @@ function alItems() {
     }
   }
   // Tailles alignées sur le serveur (nom 150, deck 40, envoi ≤ 64 Ko) : trop de decks aux noms longs → un seul deck par carte, puis moins de cartes.
-  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.u) o.u = 1; if (x.hand) o.h = 1; return o; });      // u : hausse ET baisse (proxy.mjs › alEval)
+  // dn : nom affiché (collection.js › cardName : possédée → langue de tes exemplaires, sinon langue de l'appli), repris par le serveur dans la notification et le MP Discord ; n reste anglais (relevé, liens)
+  const dnOf = x => { const d = typeof cardName === 'function' ? String(cardName(x.k, x.n) || '').trim().slice(0, 150) : ''; return d && d !== x.n ? d : ''; };
+  if (cnLang() && !cnIx(true)) CN.on.add(alSoon);      // index des noms de l'appli pas encore là : renvoyée à son arrivée, avec les noms traduits
+  if (FRX.l && !FRX.ix) FRN.on.add(alSoon);      // de même pour la langue de tes cartes (exemplaires possédés)
+  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }, dn = dnOf(x); if (dn) o.dn = dn; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.u) o.u = 1; if (x.hand) o.h = 1; return o; });      // u : hausse ET baisse (proxy.mjs › alEval)
   const size = () => new TextEncoder().encode(JSON.stringify(items)).length;
   if (size() > AL_BODY_MAX) items.forEach(o => { if (o.d) o.d = o.d.slice(0, 1); });
+  if (size() > AL_BODY_MAX) items.forEach(o => { delete o.dn; });      // puis sans les noms affichés (anglais dans la notification) avant de retirer des cartes
   while (items.length && size() > AL_BODY_MAX) items.splice(-Math.max(1, items.length >> 4));
   return items;
 }

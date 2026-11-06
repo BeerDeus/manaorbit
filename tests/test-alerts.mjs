@@ -147,6 +147,25 @@ ps = pushesFor(A); m = decrypt(ps[ps.length - 1].body, A); assert.equal(m.title,
   ok('appli en allemand, espagnol, italien, portugais : notifications dans sa langue (baisse, prix cible, résumé ; « 18,00 € », « € 39,90 » au Brésil)');
 }
 
+// 4 bis 2) nom affiché envoyé par l'appli (dn : « Foudre », possédée en français ou appli en français) : titre et résumé avec ce nom, relevé et liens en anglais ;
+// dn mal formé (caractère de contrôle, inversion du sens du texte, plus de 150 caractères, pas une chaîne) ou identique au nom anglais : ignoré, nom anglais
+{
+  const N = browser('devDn');
+  set({ 'Lightning Bolt': '2.00', Counterspell: '2.00', Brainstorm: '2.00', Ponder: '2.00', Preordain: '2.00', Opt: '2.00' });
+  const its = [{ k: 'lightning bolt', n: 'Lightning Bolt', dn: 'Foudre', d: ['Deck F'] }, { k: 'counterspell', n: 'Counterspell', dn: 'Contre\u0007sort' }, { k: 'brainstorm', n: 'Brainstorm', dn: '‮Tempête' },
+    { k: 'ponder', n: 'Ponder', dn: 'x'.repeat(151) }, { k: 'preordain', n: 'Preordain', dn: 42 }, { k: 'opt', n: 'Opt', dn: 'Opt' }];
+  r = await J(B, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: N.sub, thr: 30, items: its }) }); assert.equal(r.s, 200); assert.equal(r.o.watching, 6); const IDN = r.o.id; await sleep(500);
+  const asked = scryReqs.length;
+  set({ 'Lightning Bolt': '1.00' }); await check(B, IDN);
+  assert.ok(scryReqs.slice(asked).some(q => q.ids.some(i => i.name === 'Lightning Bolt')) && !scryReqs.slice(asked).some(q => q.ids.some(i => i.name === 'Foudre')), 'relevé : nom anglais');
+  ps = pushesFor(N); assert.equal(ps.length, 1); m = decrypt(ps[0].body, N); assert.equal(m.title, 'Foudre : −50 %'); assert.equal(m.body, '2,00 € → 1,00 € (tendance Cardmarket). · manque à Deck F');
+  r = await J(B, '/api/alerts?id=' + IDN); assert.deepEqual([r.o.hits[0].k, r.o.hits[0].n, r.o.hits[0].dn], ['lightning bolt', 'Lightning Bolt', 'Foudre'], 'alerte gardée : nom anglais, nom affiché à côté');
+  set({ Counterspell: '1.00', Brainstorm: '1.00', Ponder: '1.00', Preordain: '1.00', Opt: '1.00' }); await check(B, IDN);
+  ps = pushesFor(N); assert.equal(ps.length, 2); m = decrypt(ps[1].body, N); assert.equal(m.title, '5 cartes en baisse'); assert.equal(m.body, 'Counterspell −50 %, Brainstorm −50 %, Ponder −50 % et 2 autres', 'noms affichés refusés : anglais');
+  r = await J(B, '/api/alerts?id=' + IDN); assert.equal(r.o.hits.filter(h => 'dn' in h).length, 1, 'seul « Foudre » gardé');
+  ok('nom affiché (dn) : notification « Foudre : −50 % », relevé et alerte gardée au nom anglais ; dn mal formé (contrôle, sens du texte, > 150, pas une chaîne) ou inutile : nom anglais');
+}
+
 // 4 ter) hausse : carte suivie depuis sa fiche (u = 1) ; sans u, une hausse ne prévient jamais (applis d'avant) ; résumé mélangé ; délai de 5 jours
 {
   const U = browser('devUp');

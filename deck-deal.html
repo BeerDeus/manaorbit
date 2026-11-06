@@ -8058,7 +8058,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '95bf056d';
+const DD_BUILD = 'd98b9ef4';
 const I18N_FILES = {"de":"i18n/de.41f54563.js","en":"i18n/en.6652d76c.js","es":"i18n/es.67cbc3d9.js","it":"i18n/it.952dfb1e.js","pt":"i18n/pt.6e5599cc.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -24597,9 +24597,14 @@ function alItems() {
     }
   }
   // Tailles alignées sur le serveur (nom 150, deck 40, envoi ≤ 64 Ko) : trop de decks aux noms longs → un seul deck par carte, puis moins de cartes.
-  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.u) o.u = 1; if (x.hand) o.h = 1; return o; });      // u : hausse ET baisse (proxy.mjs › alEval)
+  // dn : nom affiché (collection.js › cardName : possédée → langue de tes exemplaires, sinon langue de l'appli), repris par le serveur dans la notification et le MP Discord ; n reste anglais (relevé, liens)
+  const dnOf = x => { const d = typeof cardName === 'function' ? String(cardName(x.k, x.n) || '').trim().slice(0, 150) : ''; return d && d !== x.n ? d : ''; };
+  if (cnLang() && !cnIx(true)) CN.on.add(alSoon);      // index des noms de l'appli pas encore là : renvoyée à son arrivée, avec les noms traduits
+  if (FRX.l && !FRX.ix) FRN.on.add(alSoon);      // de même pour la langue de tes cartes (exemplaires possédés)
+  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }, dn = dnOf(x); if (dn) o.dn = dn; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.u) o.u = 1; if (x.hand) o.h = 1; return o; });      // u : hausse ET baisse (proxy.mjs › alEval)
   const size = () => new TextEncoder().encode(JSON.stringify(items)).length;
   if (size() > AL_BODY_MAX) items.forEach(o => { if (o.d) o.d = o.d.slice(0, 1); });
+  if (size() > AL_BODY_MAX) items.forEach(o => { delete o.dn; });      // puis sans les noms affichés (anglais dans la notification) avant de retirer des cartes
   while (items.length && size() > AL_BODY_MAX) items.splice(-Math.max(1, items.length >> 4));
   return items;
 }

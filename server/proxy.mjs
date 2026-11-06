@@ -681,7 +681,7 @@ function alEval(rec, now) {
       if (cur > it.t) { it.arm = true; continue; }
       if (it.arm === false) continue;
       it.arm = false; it.nt = now; it.na = cur;
-      hits.push({ k: it.k, n: it.n, why: 'target', t: it.t, to: cur, from: prev.length ? alMedian(prev) : cur, d: it.d || [], at: now });
+      hits.push({ k: it.k, n: it.n, ...(it.dn ? { dn: it.dn } : {}), why: 'target', t: it.t, to: cur, from: prev.length ? alMedian(prev) : cur, d: it.d || [], at: now });
       continue;
     }
     if (!prev.length) continue;
@@ -689,13 +689,13 @@ function alEval(rec, now) {
     if (it.u && -drop >= AL_MIN_DROP && -drop / base >= thr) {                      // hausse (carte suivie depuis sa fiche) : mêmes seuils, son propre délai de 5 jours
       if (it.ut && now - it.ut < AL_COOL && cur < (it.ua || 0) * 1.15) continue;     // déjà signalée : seulement si elle remonte encore d'au moins 15 %
       it.ut = now; it.ua = cur;
-      hits.push({ k: it.k, n: it.n, why: 'rise', from: base, to: cur, pct: Math.round(-drop / base * 100), d: it.d || [], at: now });
+      hits.push({ k: it.k, n: it.n, ...(it.dn ? { dn: it.dn } : {}), why: 'rise', from: base, to: cur, pct: Math.round(-drop / base * 100), d: it.d || [], at: now });
       continue;
     }
     if (drop < AL_MIN_DROP || drop / base < thr) continue;
     if (it.nt && now - it.nt < AL_COOL && cur > (it.na || 0) * 0.85) continue;      // déjà signalée : seulement si elle rechute d'au moins 15 %
     it.nt = now; it.na = cur;
-    hits.push({ k: it.k, n: it.n, why: 'drop', from: base, to: cur, pct: Math.round(drop / base * 100), d: it.d || [], at: now });
+    hits.push({ k: it.k, n: it.n, ...(it.dn ? { dn: it.dn } : {}), why: 'drop', from: base, to: cur, pct: Math.round(drop / base * 100), d: it.d || [], at: now });
   }
   return hits;
 }
@@ -718,15 +718,17 @@ function alL(lang, mk) {
   const re = /\([^()]*Cardmarket[^()]*\)/, w = '(' + AL_US[l] + ')';
   return { ...L, eur: c => alUsd(c, l), under: p => L.under(p).replace(re, w), trend: (a, b) => L.trend(a, b).replace(re, w) };
 }
+/** Nom d'une carte dans les textes : celui affiché par l'appli (dn : langue de tes exemplaires, sinon de l'appli), sinon l'anglais. Liens et relevés : toujours l'anglais (n). */
+const alNm = h => h.dn || h.n;
 function alMessage(hits, lang, mk) {
   const L = alL(lang, mk);
   if (hits.length === 1) {
     const h = hits[0], deck = h.d && h.d.length ? L.deck(h.d[0]) : '';
     return h.why === 'target'
-      ? { title: L.at(h.n, L.eur(h.to)), body: L.under(L.eur(h.t)) + deck }
-      : { title: L.drop(h.n, h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)), body: L.trend(L.eur(h.from), L.eur(h.to)) + deck };
+      ? { title: L.at(alNm(h), L.eur(h.to)), body: L.under(L.eur(h.t)) + deck }
+      : { title: L.drop(alNm(h), h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)), body: L.trend(L.eur(h.from), L.eur(h.to)) + deck };
   }
-  const part = h => h.why === 'target' ? `${h.n} ${L.eur(h.to)}` : `${h.n} ${h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)}`, ups = hits.filter(h => h.why === 'rise').length;
+  const part = h => h.why === 'target' ? `${alNm(h)} ${L.eur(h.to)}` : `${alNm(h)} ${h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)}`, ups = hits.filter(h => h.why === 'rise').length;
   return { title: !ups ? L.many(hits.length) : ups === hits.length ? L.manyUp(hits.length) : L.manyMix(hits.length), body: hits.slice(0, 3).map(part).join(', ') + (hits.length > 3 ? L.more(hits.length - 3) : '') };
 }
 // Message privé Discord (dm 'both' / 'only') : mêmes phrases que la notification (AL_TXT), plus ces quelques mots ; carte : prix actuel (titre), habituel ou cible
@@ -746,7 +748,7 @@ const alTcg = n => `https://www.tcgplayer.com/search/magic/product?productLineNa
 function alDmMsg(hits, lang, mk) {
   const l = alLang(lang), L = alL(l, mk), us = mk === 'us', X = us ? { ...AL_DM[l], cm: AL_DM[l].cm.replace('Cardmarket', 'TCGplayer') } : AL_DM[l], m = alMessage(hits, l, mk);
   const fields = hits.slice(0, AL_DM_MAX).map(h => ({
-    name: alMd(h.why === 'target' ? L.at(h.n, L.eur(h.to)) : L.drop(h.n, h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct))).slice(0, 250),
+    name: alMd(h.why === 'target' ? L.at(alNm(h), L.eur(h.to)) : L.drop(alNm(h), h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct))).slice(0, 250),
     value: alMd((h.why === 'target' ? L.under(L.eur(h.t)) : L.trend(L.eur(h.from), L.eur(h.to))) + (h.d && h.d.length ? L.deck(h.d[0]) : '')).slice(0, 900) + `\n[${X.cm}](${us ? alTcg(h.n) : alCm(h.n, l)})`,
   }));
   return { content: (hits.every(h => h.why === 'rise') ? '📈' : '📉') + ' **' + alMd(m.title.slice(0, 200)) + '**', embeds: [{ title: X.title + ' · Mana Orbit', url: AL_APP, color: 0x8b5cf6,
@@ -815,6 +817,9 @@ async function alAcct(req) {
   catch (e) { return e && e.authCode === 'unavailable' ? { keep: true } : null; }
 }
 const alStr = (v, n) => typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n) : '';
+/** Nom affiché envoyé par l'appli (dn, « Foudre ») : une chaîne de 150 caractères au plus, sans caractère de contrôle ni d'inversion du sens du texte (C0, DEL, C1,
+    U+200B-U+200F, U+2028-U+202E, U+2060-U+206F, U+FEFF) ; refusé (''), la notification garde le nom anglais. Identique au nom anglais : inutile, ''. */
+const alDn = (v, n) => { if (typeof v !== 'string') return ''; const s = v.trim(); return s && s.length <= 150 && s !== n && !/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/.test(s) ? s : ''; };
 /** Serveur plein : retire l'enregistrement le plus ancien qui ne peut être un abonné actif (aucune notification réussie, et aucune carte au prix connu
     depuis plus d'une heure, ou pas réenregistré depuis 30 jours alors que l'appli le refait toutes les 12 h). Faux si aucun : le nouveau venu est refusé. */
 function alEvict(now, keep = '') {
@@ -843,8 +848,8 @@ async function alertsApi(req, res, path, url) {
       if (items.size >= AL_MAX_ITEMS) break;
       const n = alStr(x && x.n, 150), nk = alKey(n); if (!nk || items.has(nk)) continue;
       const t = Number.isSafeInteger(x.t) && x.t > 0 && x.t <= 1e6 ? x.t : 0, d = (Array.isArray(x.d) ? x.d : []).map(y => alStr(y, 40)).filter(Boolean).slice(0, 3), prev = oldItems.get(nk) || {};
-      const up = x.u === 1 || x.u === true;      // hausse ET baisse (fiche d'une carte) ; absent : baisses seulement, comme avant
-      items.set(nk, { k: alStr(x.k, 150) || nk, n, nk, ...(t ? { t } : {}), ...(d.length ? { d } : {}), ...(up ? { u: 1 } : {}), ...(prev.nt ? { nt: prev.nt, na: prev.na } : {}), ...(up && prev.ut ? { ut: prev.ut, ua: prev.ua } : {}), ...(t && prev.t === t && prev.arm === false ? { arm: false } : {}) });
+      const up = x.u === 1 || x.u === true, dn = alDn(x.dn, n);      // u : hausse ET baisse (fiche d'une carte) ; absent : baisses seulement, comme avant ; dn : nom affiché (alDn)
+      items.set(nk, { k: alStr(x.k, 150) || nk, n, nk, ...(dn ? { dn } : {}), ...(t ? { t } : {}), ...(d.length ? { d } : {}), ...(up ? { u: 1 } : {}), ...(prev.nt ? { nt: prev.nt, na: prev.na } : {}), ...(up && prev.ut ? { ut: prev.ut, ua: prev.ua } : {}), ...(t && prev.t === t && prev.arm === false ? { arm: false } : {}) });
     }
     if (!items.size) { AL.subs.delete(rid); alSaveSoon(); return json(res, 200, { ok: true, id: rid, watching: 0 }); }
     const thr = Math.min(80, Math.max(10, Math.round(Number(b.thr)) || 30));

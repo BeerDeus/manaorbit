@@ -181,7 +181,20 @@ srv = await server(await myId()); assert.equal(srv.o.watching, 3, 'Edgar désorm
 ok('feuille EDHREC : « Surveiller leurs prix » active les alertes, ajoute seulement Edgar (le reste l\'était déjà), nom du deck envoyé, « Prix surveillés » ; une fois possédée, plus surveillée');
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 
-/* ── Lien de notification ────────────────────────────────────────────────────────────────── */
+/* ── Nom affiché (dn, collection.js › cardName) envoyé avec chaque carte : la notification faite par le serveur le reprend ──────────────── */
+await p.evaluate(() => frUse(frIndex(['Colère de Dieu\tWrath of God']), 'fr'));      // index des noms français (appli en français) : Wrath of God non possédée → nom de l'appli
+assert.deepEqual(await p.evaluate(() => alItems().filter(i => i.dn).map(i => [i.k, i.n, i.dn])), [['wrath of god', 'Wrath of God', 'Colère de Dieu']], 'dn : nom affiché ; n : anglais (relevé, liens)');
+{
+  const n0 = pushed.length; price.set('wrath of god', '1.00');
+  await p.evaluate(() => openAlertSheet()); await p.waitForSelector('#alCheck'); await p.click('#alCheck');
+  await p.waitForFunction(() => /1 alerte envoyée/.test(document.querySelector('#toast').textContent), null, { timeout: 8000 });
+  assert.equal(pushed.length, n0 + 1); const mm = decrypt(pushed[n0].body), all = mm.title + ' | ' + mm.body;      // une autre carte peut baisser au même relevé (résumé)
+  assert.match(all, /Colère de Dieu( :)? −60 %/, 'notification au nom affiché par l\'appli : ' + all); assert.doesNotMatch(all, /Wrath of God/, 'plus en anglais');
+  await p.keyboard.press('Escape'); await alSheetGone();
+}
+ok('nom affiché envoyé au serveur (dn) : notification « Colère de Dieu −60 % » au lieu de « Wrath of God »');
+
+/* ── Lien de notification────────────────────────────────────────────────────────────────── */
 await p.goto(world.url + '/?alerts=1'); await p.waitForSelector('.sheet-wrap .al-list, .sheet-wrap .hint', { timeout: 8000 });
 assert.match(await txt(p, '.sheet-head h2'), /Alertes de prix/); ok('notification touchée : la feuille des alertes s\'ouvre');
 
