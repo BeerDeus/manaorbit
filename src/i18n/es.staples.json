@@ -90,5 +90,11 @@
  "Des commandants de toutes les couleurs, les plus joués d'abord, jusqu'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.": "Comandantes de todos los colores, los más jugados primero, hasta el número de mazos elegido: sus mazos reales de EDHREC y Archidekt y un mazo construido por el coach para cada uno, todos puntuados por el coach; las cartas que se repiten en los mazos mejor puntuados van primero.",
  "Decks à analyser": "Mazos a analizar",
  "(plus de decks : plus long)": "(más mazos: más lento)",
- "Analyse des decks…": "Analizando mazos…"
+ "Analyse des decks…": "Analizando mazos…",
+ "Lecture du panier CardTrader…": "Leyendo el carrito de CardTrader…",
+ "Panier CardTrader non lu : ses cartes ne sont pas écartées.": "Carrito de CardTrader no leído: sus cartas no se descartan.",
+ "{n} carte de ton panier CardTrader écartée": "{n} carta de tu carrito de CardTrader descartada",
+ "{n} cartes de ton panier CardTrader écartées": "{n} cartas de tu carrito de CardTrader descartadas",
+ "Écarter les cartes déjà dans mon panier CardTrader": "Descartar las cartas que ya están en mi carrito de CardTrader",
+ "Une commande en préparation (un deck par exemple) ne revient pas dans la liste ; sans CardTrader configuré, rien n'est écarté.": "Un pedido en preparación (un mazo, por ejemplo) no vuelve a la lista; sin CardTrader configurado, no se descarta nada."
 }

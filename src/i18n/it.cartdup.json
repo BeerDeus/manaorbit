@@ -1,0 +1,12 @@
+{
+ "Panier CardTrader non lu : doublons non vérifiés": "Carrello CardTrader non letto: doppioni non verificati",
+ "{n} carte de cette liste est déjà dans ton panier CardTrader.": "{n} carta di questa lista è già nel tuo carrello CardTrader.",
+ "{n} cartes de cette liste sont déjà dans ton panier CardTrader.": "{n} carte di questa lista sono già nel tuo carrello CardTrader.",
+ "{a} au panier · {b} dans la liste": "{a} nel carrello · {b} nella lista",
+ "et {n} autre": "e altre {n}",
+ "et {n} autres": "e altre {n}",
+ "« Ajouter quand même » : tu gardes les deux (par exemple une pour un deck, une pour la collection). « Sans celles déjà au panier » : seuls les exemplaires qui manquent sont ajoutés.": "«Aggiungi comunque»: tieni entrambe (per esempio una per un mazzo, una per la collezione). «Senza quelle già nel carrello»: si aggiungono solo le copie mancanti.",
+ "Ajouter quand même": "Aggiungi comunque",
+ "Sans celles déjà au panier": "Senza quelle già nel carrello",
+ "Tout est déjà dans ton panier": "È già tutto nel tuo carrello"
+}

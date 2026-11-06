@@ -90,5 +90,11 @@
  "Des commandants de toutes les couleurs, les plus joués d'abord, jusqu'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.": "Comandanti di tutti i colori, i più giocati per primi, fino al numero di mazzi scelto: i loro veri mazzi EDHREC e Archidekt e un mazzo costruito dal coach per ciascuno, tutti valutati dal coach; le carte che tornano nei mazzi meglio valutati passano davanti.",
  "Decks à analyser": "Mazzi da analizzare",
  "(plus de decks : plus long)": "(più mazzi: più lento)",
- "Analyse des decks…": "Analisi dei mazzi…"
+ "Analyse des decks…": "Analisi dei mazzi…",
+ "Lecture du panier CardTrader…": "Lettura del carrello CardTrader…",
+ "Panier CardTrader non lu : ses cartes ne sont pas écartées.": "Carrello CardTrader non letto: le sue carte non sono escluse.",
+ "{n} carte de ton panier CardTrader écartée": "{n} carta del tuo carrello CardTrader esclusa",
+ "{n} cartes de ton panier CardTrader écartées": "{n} carte del tuo carrello CardTrader escluse",
+ "Écarter les cartes déjà dans mon panier CardTrader": "Escludi le carte già nel mio carrello CardTrader",
+ "Une commande en préparation (un deck par exemple) ne revient pas dans la liste ; sans CardTrader configuré, rien n'est écarté.": "Un ordine in preparazione (un mazzo, per esempio) non torna nella lista; senza CardTrader configurato, non si esclude nulla."
 }

@@ -90,5 +90,11 @@
  "Des commandants de toutes les couleurs, les plus joués d'abord, jusqu'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.": "Commanders of every color, most played first, up to the chosen number of decks: their real EDHREC and Archidekt decks and one deck built by the coach for each, all rated by the coach; cards that come back in the best-rated decks come first.",
  "Decks à analyser": "Decks to analyze",
  "(plus de decks : plus long)": "(more decks: slower)",
- "Analyse des decks…": "Analyzing decks…"
+ "Analyse des decks…": "Analyzing decks…",
+ "Lecture du panier CardTrader…": "Reading the CardTrader cart…",
+ "Panier CardTrader non lu : ses cartes ne sont pas écartées.": "CardTrader cart not read: its cards are not excluded.",
+ "{n} carte de ton panier CardTrader écartée": "{n} card from your CardTrader cart excluded",
+ "{n} cartes de ton panier CardTrader écartées": "{n} cards from your CardTrader cart excluded",
+ "Écarter les cartes déjà dans mon panier CardTrader": "Exclude cards already in my CardTrader cart",
+ "Une commande en préparation (un deck par exemple) ne revient pas dans la liste ; sans CardTrader configuré, rien n'est écarté.": "An order being prepared (a deck, for example) does not come back in the list; without CardTrader set up, nothing is excluded."
 }

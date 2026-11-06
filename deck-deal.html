@@ -6834,6 +6834,9 @@ html.sp-on #app *,html.sp-on #app *::before,html.sp-on #app *::after{animation-p
 .stp-x{flex:none;width:36px;height:36px}
 .stp-grp{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
 .stp-grp > span{font-size:13px;font-weight:650;color:var(--ink-2)}
+.cart-dups{margin:10px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.cart-dups li{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.cart-dups li small{flex:none;color:var(--ink-3);font-size:12.5px}
 
 /* ── start.css : premiers pas. Accueil vide (« Pour commencer », phrase de la carte Échange), premier lancement étape 3 (« Sauvegarde ta collection »),
    bouton « Continuer avec Google » aux couleurs de la charte de Google, œil du mot de passe (feuille Compte). Ordinateur : zz-desktop.css. ── */
@@ -8063,8 +8066,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '6b85c868';
-const I18N_FILES = {"de":"i18n/de.6f747f23.js","en":"i18n/en.4a75eecb.js","es":"i18n/es.0948798f.js","it":"i18n/it.9f9bf6aa.js","pt":"i18n/pt.4bc049eb.js"};
+const DD_BUILD = '2eaee5f9';
+const I18N_FILES = {"de":"i18n/de.1ac8f59b.js","en":"i18n/en.2d231340.js","es":"i18n/es.679850ca.js","it":"i18n/it.d9590da3.js","pt":"i18n/pt.9e11f3ae.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -12754,6 +12757,19 @@ async function cartRead(signal) {
   return { items, subtotal: cart && cart.subtotal };
 }
 
+/** Cartes de la liste (parts : offres { key, name, n }) déjà dans le panier (items de cartRead, par nom anglais) : [{ key, name, want, inCart }]. */
+function cartDups(parts, items) {
+  const inCart = new Map(); for (const it of items || []) { const k = ownKey(it.name); if (k) inCart.set(k, (inCart.get(k) || 0) + it.quantity); }
+  const want = new Map(); for (const p of parts) { const w = want.get(p.key) || { key: p.key, name: p.name, want: 0, inCart: inCart.get(p.key) || 0 }; w.want += p.n; want.set(p.key, w); }
+  return [...want.values()].filter(w => w.inCart > 0);
+}
+/** Les offres sans les exemplaires déjà au panier (même carte, toute édition ou langue) : une carte voulue en 3 et présente en 1 n'en ajoute que 2. */
+function cartMinus(parts, items) {
+  const left = new Map(); for (const it of items || []) { const k = ownKey(it.name); if (k) left.set(k, (left.get(k) || 0) + it.quantity); }
+  const out = [];
+  for (const p of parts) { const l = left.get(p.key) || 0, cut = Math.min(l, p.n); if (cut) left.set(p.key, l - cut); if (p.n - cut > 0) out.push(cut ? { ...p, n: p.n - cut } : p); }
+  return out;
+}
 /** Vide le panier : l'API n'a pas de « tout supprimer », on retire chaque ligne (quantité exacte lue dans le panier). */
 async function cartClear(items, signal, onItem) {
   const failed = []; let ok = 0;
@@ -12815,7 +12831,7 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
   }
   return { ok, failed, replaced, gone, added };
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = { ...(module.exports || {}), bpNum, bpIndexOf, expIndexOf, mapBlueprints };
+if (typeof module !== 'undefined' && module.exports) module.exports = { ...(module.exports || {}), bpNum, bpIndexOf, expIndexOf, mapBlueprints, cartDups, cartMinus };
 
 
 /* ── tasks.js : pastilles de progression flottantes (haut à droite) ─────────────────────────────
@@ -13889,12 +13905,26 @@ function openCartSheet() {
           return;
         }
       }
-      run(null, ctrl);
+      if (S.demo) { run(null, ctrl); return; }
+      begin(T('Lecture du panier…'));      // cartes de la liste déjà dans le panier : ajouter quand même (doublons voulus), seulement ce qui manque, ou vider d'abord
+      let cur = null;
+      try { cur = await cartRead(ctrl.signal); } catch (e) { toast(T('Panier CardTrader non lu : doublons non vérifiés')); run(null, ctrl); return; }
+      const dup = cartDups(parts, cur.items);
+      if (!dup.length) { run(null, ctrl); return; }
+      const nCopies = dup.reduce((a, d) => a + d.inCart, 0), rest = cartMinus(parts, cur.items);
+      api.body.innerHTML = status(TN(dup.length, '{n} carte de cette liste est déjà dans ton panier CardTrader.', '{n} cartes de cette liste sont déjà dans ton panier CardTrader.'))
+        + `<ul class="cart-dups">${dup.slice(0, 12).map(d => `<li><span>${esc(cardName(d.key, d.name))}</span><small>${esc(T('{a} au panier · {b} dans la liste', { a: nf0(d.inCart), b: nf0(d.want) }))}</small></li>`).join('')}${dup.length > 12 ? `<li class="hint">${esc(TN(dup.length - 12, 'et {n} autre', 'et {n} autres'))}</li>` : ''}</ul>
+        <p class="hint">${T('« Ajouter quand même » : tu gardes les deux (par exemple une pour un deck, une pour la collection). « Sans celles déjà au panier » : seuls les exemplaires qui manquent sont ajoutés.')}</p>`;
+      api.setFoot(`<button class="btn ghost" type="button" id="cfBack">${T('Annuler')}</button><button class="btn ghost" type="button" id="cfDup">${T('Ajouter quand même')}</button><button class="btn" type="button" id="cfMinus"${rest.length ? '' : ' disabled'}>${T('Sans celles déjà au panier')}</button>`);
+      $('#cfBack', api.foot).onclick = intro;
+      $('#cfDup', api.foot).onclick = () => run(null, ctrl);
+      $('#cfMinus', api.foot).onclick = () => run(null, ctrl, rest);
+      if (nCopies && !rest.length) $('#cfMinus', api.foot).title = T('Tout est déjà dans ton panier');
     }
 
     // Étape 2 : vidage éventuel, puis ajout. La fenêtre peut être fermée : tout continue, la pastille flottante prend le relais.
-    async function run(clearItems, ctrl) {
-      task = floatTask(T('Remplissage du panier'), { total: parts.length, sub: T('Démarrage…') }, () => !sheets.includes(api));
+    async function run(clearItems, ctrl, list = parts) {      // list : offres à ajouter (sans les cartes déjà au panier si demandé)
+      task = floatTask(T('Remplissage du panier'), { total: list.length, sub: T('Démarrage…') }, () => !sheets.includes(api));
       const bye = (msg, kind, d) => { const shown = task.isShown(); task.finish(msg, kind, d); haptic(kind); if (!shown && !sheets.includes(api)) toast(msg); };
       try {
         if (clearItems) {
@@ -13910,7 +13940,7 @@ function openCartSheet() {
           }
         }
         begin(T('Ajout des articles…')); task.label(T('Remplissage du panier'));
-        const res = await cartFill(parts, S.opts.mode, null, ctrl.signal, (i, n) => prog(T('Ajout des articles'), i, n, T('Ajout')), S.demo);
+        const res = await cartFill(list, S.opts.mode, null, ctrl.signal, (i, n) => prog(T('Ajout des articles'), i, n, T('Ajout')), S.demo);
         if (res.gone.length) { res.gone.forEach(id => S.gone.add(id)); scheduleRecompute(true); } // offres indisponibles : retirées de la recherche
         if (!S.demo) buyRemember(res.added, !!clearItems);      // « J'ai acheté » : les cartes réellement au panier attendent ta validation
         const rep = res.replaced.length;
@@ -31974,12 +32004,12 @@ function stpSample(cmds, cols, target, nOf) {
 const stpCtOk = (p, o) => p != null && p < o.max + o.tol;
 
 /* ── Réglages ─────────────────────────────────────────────────────────────────────────────────────── */
-const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true, nd: 1000, grp: '' });
+const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', cless: true, cmds: [], tags: [], roles: [], deep: true, nd: 1000, grp: '', cart: true });
 function stpLoad() {
   if (STP.o) return STP.o;
   let o = {}; try { o = JSON.parse(localStorage.getItem(STP_KEY) || '{}') || {}; } catch (e) { o = {}; }
   const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
-  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
+  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, cart: o.cart !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
     cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
     tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
   return STP.o;
@@ -32041,7 +32071,7 @@ function stpCands(o, ctx) {
     const m = dmx(k);
     if (o.roles.length && !o.roles.some(x => stpRole(m, r, x))) continue;
     if (tagI.length && !(m && tagI.some(i => m.p.includes(i) || m.w.includes(i) || m.ip.includes(i)))) continue;
-    const need = o.q - Math.max(0, ownFree(k, null)); if (need <= 0) continue;      // assez d'exemplaires libres (ni engagés dans un deck monté)
+    const need = o.q - Math.max(0, ownFree(k, null)) - (ctx.cart ? ctx.cart.get(k) || 0 : 0); if (need <= 0) continue;      // assez d'exemplaires libres (ni engagés dans un deck monté), ou déjà dans le panier CardTrader
     const p = pop.get(k) || 0, ps = stpPopScore(p, r[8] || 0), qv = dmxQ(m), roles = STP_UTIL.filter(x => stpRole(m, r, x));
     let s, x = null, g = stpGroup(ci), also = [], f = ctx.U ? ctx.U.get(k) || 0 : 0;
     if (cmds.length) {
@@ -32231,11 +32261,17 @@ async function stpGo() {
     }
     STP.prog = null;
     if (STP.atask) { STP.atask.finish(T('Chasse aux staples'), STP.stop ? 'warn' : 'ok', TN(A.n, '{n} deck analysé', '{n} decks analysés')); STP.atask = null; }
+    let cart = null, cartN = 0, cartNote = '';      // panier CardTrader : ses cartes comptent comme déjà là (une commande de deck en cours ne revient pas dans la liste)
+    if (o.cart && !stpCtWhy()) {
+      STP.busy = T('Lecture du panier CardTrader…'); stpPaint();
+      try { const c = await cartRead(); cart = new Map(); for (const it of c.items) { const k = ownKey(it.name); if (k) cart.set(k, (cart.get(k) || 0) + it.quantity); } cartN = cart.size; }
+      catch (e) { cartNote = T('Panier CardTrader non lu : ses cartes ne sont pas écartées.'); }
+    }
     STP.busy = T('Classement des cartes…'); stpPaint();
     await new Promise(r => setTimeout(r, 30));
-    const ranked = stpCands(o, { pop: stpPop(), cmds, U: !cmds.length && o.deep ? STP.U : null }), bal = cmds.length !== 1, order = cmds.length > 1 ? cmds.map(c => c.slug) : null;      // plusieurs commandants : parts égales entre eux ; un seul : classement pur ; aucun : par couleur
+    const ranked = stpCands(o, { pop: stpPop(), cmds, cart, U: !cmds.length && o.deep ? STP.U : null }), bal = cmds.length !== 1, order = cmds.length > 1 ? cmds.map(c => c.slug) : null;      // plusieurs commandants : parts égales entre eux ; un seul : classement pur ; aucun : par couleur
     const quotas = bal ? stpQuotas(o.n, order || stpGroupsOf(o)) : null, { pick, rest } = stpPick(ranked, o.n, quotas, !!order);      // plusieurs commandants : parts égales strictes (Krenko, très documenté, ne prend plus les places de l'autre)
-    const R = STP.res = { o, list: pick, rest, out: [], rep: 0, bal, quotas, order, gn: Object.fromEntries(cmds.map(c => [c.slug, c])), cmd: cmds.map(c => c.short).join(', '), pool: ranked.length, A, stopped: STP.stop, note: '', warn: EDH.data ? '' : T('Decks EDHREC indisponibles : classement par force et rôles seulement.'), at: Date.now() };
+    const R = STP.res = { o, list: pick, rest, out: [], rep: 0, bal, quotas, order, gn: Object.fromEntries(cmds.map(c => [c.slug, c])), cmd: cmds.map(c => c.short).join(', '), pool: ranked.length, A, stopped: STP.stop, cartN, note: '', warn: [EDH.data ? '' : T('Decks EDHREC indisponibles : classement par force et rôles seulement.'), cartNote].filter(Boolean).join(' '), at: Date.now() };
     STP.busy = '';
     if (o.ct && R.list.length) { stpPaint(); await stpVerify(R); }
   } catch (e) {
@@ -32296,6 +32332,8 @@ function stpFormHtml() {
       : T('Des commandants de toutes les couleurs, les plus joués d\'abord, jusqu\'au nombre de decks choisi : leurs vrais decks EDHREC et Archidekt et un deck construit par le coach pour chacun, tous notés par le coach ; les cartes qui reviennent dans les decks les mieux notés passent devant.'))
       : T('Classement immédiat : popularité EDHREC, force et rôles du coach.')}</p>
     ${o.deep && !cs.length ? h(T('Decks à analyser') + ` <small>${T('(plus de decks : plus long)')}</small>`) + `<div class="fopts" role="group">${STP_ND.map(n => chip('nd', n, o.nd === n, nf0(n))).join('')}</div>` : ''}
+    ${typeof mkUs === 'function' && mkUs() ? '' : `<button type="button" class="dkf-sw" role="switch" data-stp="cart" aria-checked="${o.cart}" aria-pressed="${o.cart}"><span>${T('Écarter les cartes déjà dans mon panier CardTrader')}</span><span class="switch" aria-hidden="true"><i></i></span></button>
+    <p class="hint">${T('Une commande en préparation (un deck par exemple) ne revient pas dans la liste ; sans CardTrader configuré, rien n\'est écarté.')}</p>`}
     ${h(T('Commandants') + ` <small>${T('(facultatif, {n} au plus)', { n: STP_CMD_MAX })}</small>`)}
     <div class="fopts stp-cmds" role="group">${chip('cmd', '', !o.cmds.length, T('Aucun'))}${mine.length > 1 ? chip('cmdall', '', allMine, T('Tous mes decks')) : ''}${mine.map(cmdChip).join('')}${cs.filter(x => !mine.some(y => y.slug === x.slug)).map(cmdChip).join('')}</div>
     ${E ? `<label class="fsearch stp-q"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="stpCmdQ" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(T('Chercher un commandant'))}" value="${esc(STP.q)}"></label>
@@ -32355,7 +32393,7 @@ function stpResHtml() {
   const vv = l.filter(x => x.ct != null), ctTot = vv.reduce((a, x) => a + x.ct * x.need, 0), nv = l.filter(x => x.ct === undefined).length;
   let html = `<div class="stp-sum"><b>${TN(l.length, '{n} carte', '{n} cartes')}${copies !== l.length ? ' · ' + TN(copies, '{n} exemplaire', '{n} exemplaires') : ''}</b>
     <span>${T('≈ {p} au prix Cardmarket', { p: esc(stpEuro(cm)) })}${vv.length ? ` · CardTrader ≈ ${esc(stpEuro(ctTot))}${vv.length < l.length ? ' ' + TN(vv.length, '({n} vérifiée)', '({n} vérifiées)') : ''}` : ''}</span>
-    <small>${[R.cmd ? T('Pour {name}', { name: R.cmd }) : '', TN(R.pool, '{n} candidate sous {p}', '{n} candidates sous {p}', { p: esc(stpEuro(R.o.max)) }), R.rep ? TN(R.rep, '{n} remplacée après vérification', '{n} remplacées après vérification') : '', nv && R.o.ct && !STP.run ? TN(nv, '{n} non vérifiée', '{n} non vérifiées') : ''].filter(Boolean).join(' · ')}</small>
+    <small>${[R.cmd ? T('Pour {name}', { name: R.cmd }) : '', TN(R.pool, '{n} candidate sous {p}', '{n} candidates sous {p}', { p: esc(stpEuro(R.o.max)) }), R.rep ? TN(R.rep, '{n} remplacée après vérification', '{n} remplacées après vérification') : '', R.cartN ? TN(R.cartN, '{n} carte de ton panier CardTrader écartée', '{n} cartes de ton panier CardTrader écartées') : '', nv && R.o.ct && !STP.run ? TN(nv, '{n} non vérifiée', '{n} non vérifiées') : ''].filter(Boolean).join(' · ')}</small>
     ${R.A && R.A.n ? `<p class="hint stp-note">${esc(stpABil(R))}</p>` : ''}
     ${R.warn || R.note ? `<p class="hint stp-note">${esc([R.warn, R.note].filter(Boolean).join(' '))}</p>` : ''}
     <div class="stp-grp"><span>${T('Classer par')}</span><div class="fopts" role="radiogroup" aria-label="${esc(T('Classer par'))}">${[['', R.order ? T('Commandant') : R.bal ? T('Couleur') : T('Classement')], ['type', T('Type')], ['role', T('Rôle')]].map(([v, lb]) => `<button type="button" class="fopt" role="radio" data-stp="grp" data-v="${v}" aria-checked="${(STP.o.grp || '') === v}" aria-pressed="${(STP.o.grp || '') === v}">${esc(lb)}</button>`).join('')}</div></div>
@@ -32409,7 +32447,7 @@ function stpClick(e) {
   const b = e.target.closest('[data-stp]'); if (!b || b.disabled) return;
   const o = stpLoad(), a = b.dataset.stp, v = b.dataset.v, tog = (l, x) => (l.includes(x) ? l.filter(y => y !== x) : [...l, x]);
   if (a === 'n') o.n = +v; else if (a === 'nd') o.nd = +v; else if (a === 'q') o.q = +v; else if (a === 'max') o.max = +v;
-  else if (a === 'ct') o.ct = !o.ct; else if (a === 'deep') o.deep = !o.deep; else if (a === 'cless') o.cless = !o.cless;
+  else if (a === 'ct') o.ct = !o.ct; else if (a === 'deep') o.deep = !o.deep; else if (a === 'cart') o.cart = !o.cart; else if (a === 'cless') o.cless = !o.cless;
   else if (a === 'cmd') {
     if (!v) o.cmds = [];
     else if (o.cmds.includes(v)) o.cmds = o.cmds.filter(x => x !== v);

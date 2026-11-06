@@ -1,0 +1,12 @@
+{
+ "Panier CardTrader non lu : doublons non vérifiés": "Carrito de CardTrader no leído: duplicados sin comprobar",
+ "{n} carte de cette liste est déjà dans ton panier CardTrader.": "{n} carta de esta lista ya está en tu carrito de CardTrader.",
+ "{n} cartes de cette liste sont déjà dans ton panier CardTrader.": "{n} cartas de esta lista ya están en tu carrito de CardTrader.",
+ "{a} au panier · {b} dans la liste": "{a} en el carrito · {b} en la lista",
+ "et {n} autre": "y {n} más",
+ "et {n} autres": "y {n} más",
+ "« Ajouter quand même » : tu gardes les deux (par exemple une pour un deck, une pour la collection). « Sans celles déjà au panier » : seuls les exemplaires qui manquent sont ajoutés.": "«Añadir de todos modos»: te quedas con ambas (por ejemplo una para un mazo, otra para la colección). «Sin las que ya están en el carrito»: solo se añaden las copias que faltan.",
+ "Ajouter quand même": "Añadir de todos modos",
+ "Sans celles déjà au panier": "Sin las que ya están en el carrito",
+ "Tout est déjà dans ton panier": "Todo está ya en tu carrito"
+}

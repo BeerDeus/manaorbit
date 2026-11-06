@@ -1,0 +1,12 @@
+{
+ "Panier CardTrader non lu : doublons non vérifiés": "CardTrader cart not read: duplicates not checked",
+ "{n} carte de cette liste est déjà dans ton panier CardTrader.": "{n} card from this list is already in your CardTrader cart.",
+ "{n} cartes de cette liste sont déjà dans ton panier CardTrader.": "{n} cards from this list are already in your CardTrader cart.",
+ "{a} au panier · {b} dans la liste": "{a} in cart · {b} in list",
+ "et {n} autre": "and {n} more",
+ "et {n} autres": "and {n} more",
+ "« Ajouter quand même » : tu gardes les deux (par exemple une pour un deck, une pour la collection). « Sans celles déjà au panier » : seuls les exemplaires qui manquent sont ajoutés.": "“Add anyway”: you keep both (for example one for a deck, one for the collection). “Without those already in the cart”: only the missing copies are added.",
+ "Ajouter quand même": "Add anyway",
+ "Sans celles déjà au panier": "Without those already in the cart",
+ "Tout est déjà dans ton panier": "Everything is already in your cart"
+}
