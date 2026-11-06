@@ -1,0 +1,98 @@
+// Chasse aux staples (src/staples.js), logique seule sous Node : popularité dans les decks EDHREC (identité de couleur, poids des commandants), score de popularité,
+// quotas et choix équilibrés par couleur (seuil de qualité), réserve des remplacements, texte de la liste, offre CardTrader acceptée ; puis les candidates
+// avec le vrai coach dans une vm (tools/coach-eval.mjs › coachCtx) sur une petite base : terrains de base, interdites, prix au-dessus du maximum ou aberrant,
+// exemplaires libres (engagés = à acheter), couleurs, incolores, rôles, mécaniques, quantité voulue. Aucun port.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const S = require('../src/staples.js');
+const { coachCtx } = await import('../tools/coach-eval.mjs');
+
+/** Faux index EDHREC (edhIndex) : commandants { ci, decks } et decks [[commandant, [clés]]]. */
+function fakeE(cmds, decks) {
+  const keys = [...new Set(decks.flatMap(d => d[1]))], ids = [], off = [0];
+  for (const [, cs] of decks) { for (const k of cs) ids.push(keys.indexOf(k)); off.push(ids.length); }
+  return { cmds: cmds.map((c, i) => ({ ...c, i })), decks: decks.map(([ci]) => ({ cmd: { i: ci } })), names: keys, keys, off, ids, bs: new Uint8Array(keys.length).map((_, i) => (keys[i] === 'forest' ? 1 : 0)) };
+}
+
+test('popularité : part des decks des commandants dont l\'identité permet la carte, pondérée par commandant', () => {
+  const E = fakeE([{ ci: 'G', decks: 100 }, { ci: 'U', decks: 100 }, { ci: 'UG', decks: 100 }],
+    [[0, ['sol', 'cultivate', 'forest']], [0, ['sol']], [1, ['sol', 'opt']], [2, ['cultivate', 'opt', 'sol']]]);
+  const ci = { sol: '', cultivate: 'G', opt: 'U', forest: '' }, pop = S.stpPopIndex(E, k => (k in ci ? ci[k] : null));
+  assert.equal(pop.get('sol'), 1, 'jouée par tous les commandants');
+  assert.ok(Math.abs(pop.get('cultivate') - 0.75) < 1e-9, 'G : la moitié des decks de G (0,5) + UG (1) sur 2 commandants');
+  assert.equal(pop.get('opt'), 1, 'U et UG la jouent');
+  assert.equal(pop.has('forest'), false, 'terrain de base ignoré');
+  assert.equal(S.stpPopIndex(null, () => '').size, 0);
+});
+
+test('score de popularité : échelle log et rang EDHREC', () => {
+  assert.equal(S.stpPopScore(0, 0), 0);
+  assert.ok(Math.abs(S.stpPopScore(1, 1) - 1) < 1e-9);
+  assert.ok(S.stpPopScore(0.26, 57) > S.stpPopScore(0.04, 891) && S.stpPopScore(0.04, 891) > S.stpPopScore(0, 13557), 'Negate > Tragic Slip > carte jamais jouée');
+});
+
+test('groupes, quotas, choix équilibré et réserve', () => {
+  assert.deepEqual([S.stpGroup(''), S.stpGroup('W'), S.stpGroup('WU'), S.stpGroup('GG')], ['C', 'W', 'M', 'G']);
+  assert.deepEqual(S.stpGroupsOf({ cols: '', cless: true }), ['W', 'U', 'B', 'R', 'G', 'M', 'C']);
+  assert.deepEqual(S.stpGroupsOf({ cols: 'B', cless: false }), ['B']);
+  const q = S.stpQuotas(150, S.stpGroupsOf({ cols: '', cless: true }));
+  assert.equal(Object.values(q).reduce((a, x) => a + x, 0), 150);
+  assert.ok(q.M < q.W, 'multicolore : part plus petite');
+  // 10 blanches fortes, 10 bleues moyennes, 10 incolores faibles : 12 cartes, quotas 4 / 4 / 4 ; les incolores trop faibles laissent leur place
+  const R = [];
+  for (let i = 0; i < 10; i++) R.push({ k: 'w' + i, g: 'W', s: 0.9 - i * 0.01 }, { k: 'u' + i, g: 'U', s: 0.8 - i * 0.01 }, { k: 'c' + i, g: 'C', s: 0.3 - i * 0.01 });
+  R.sort((a, b) => b.s - a.s);
+  const { pick, rest } = S.stpPick(R, 12, { W: 4, U: 4, C: 4 });
+  assert.equal(pick.length, 12); assert.equal(pick.length + rest.length, 30);
+  assert.equal(pick.filter(x => x.g === 'C').length, 0, 'incolores sous le seuil de qualité : remplacées par les meilleures des autres');
+  assert.equal(pick.filter(x => x.g === 'U').length >= 4, true);
+  const same = S.stpPick(R.map(x => ({ ...x, s: x.g === 'C' ? x.s + 0.55 : x.s })).sort((a, b) => b.s - a.s), 12, { W: 4, U: 4, C: 4 }).pick;
+  assert.deepEqual(['W', 'U', 'C'].map(g => same.filter(x => x.g === g).length), [4, 4, 4], 'niveaux proches : quotas respectés');
+  assert.deepEqual(S.stpPick(R, 3, null).pick.map(x => x.k), ['w0', 'w1', 'w2'], 'sans quotas : classement pur');
+  const box = { bal: true, rest: [{ k: 'a', g: 'U' }, { k: 'b', g: 'W' }] };
+  assert.equal(S.stpNext(box, 'W').k, 'b'); assert.equal(S.stpNext(box, 'W').k, 'a', 'groupe vide : la meilleure de la réserve'); assert.equal(S.stpNext(box, 'W'), null);
+});
+
+test('texte de la liste (ordre par couleur) et offre CardTrader acceptée', () => {
+  const R = { bal: true, list: [{ name: 'Opt', g: 'U', s: 0.5, need: 1 }, { name: 'Disenchant', g: 'W', s: 0.4, need: 2 }, { name: 'Mind Stone', g: 'C', s: 0.9, need: 1 }] };
+  assert.equal(S.stpText(R), '2 Disenchant\n1 Opt\n1 Mind Stone');
+  assert.equal(S.stpText({ ...R, bal: false }), '1 Mind Stone\n1 Opt\n2 Disenchant');
+  const o = { max: 15, tol: 5 };
+  assert.equal(S.stpCtOk(19, o), true); assert.equal(S.stpCtOk(20, o), false); assert.equal(S.stpCtOk(null, o), false);
+});
+
+test('candidates : exclusions, exemplaires libres, couleurs, rôles, mécaniques (vrai coach dans une vm)', () => {
+  // rangée : [nom, identité, coût, types, rôles, prix €, drapeaux, couleurs produites, rang, coût de mana, mécaniques [rôles, fournit, veut, types, force], sous-types]
+  const mech = { roles: ['land', 'ramp', 'fixing', 'draw', 'tutor', 'removal', 'wipe', 'counter', 'protect', 'recursion', 'wincon', 'stax'], tags: ['tokens-creature', 'lifegain'] };
+  const row = (n, ci, rb, eur, rank, pw = 3, p = [], fl = 0, ty = 0) => [n, ci, 2, ty, 0, eur, fl, '', rank, '{1}', [rb, p, [], 0, pw], ''];
+  const D = { v: 1, mech, cards: [
+    row('Mind Stone', '', 2, 10, 50), row('Murder', 'B', 32, 5, 900), row('Opt', 'U', 8, 3, 300), row('Forest', 'G', 1, 1, 1, 3, [], 0, 1),
+    row('Banned Thing', 'R', 8, 2, 100, 3, [], 16), row('Pricey', 'W', 32, 40, 20), row('Odd Price', 'B', 8, 2, 10), row('Soul Warden', 'W', 0, 4, 2000, 3, [1]),
+    row('Commit', 'U', 128, 9, 700), row('Owned Free', 'G', 2, 5, 40), row('Owned Held', 'G', 2, 6, 60),
+  ] };
+  const ctx = coachCtx(new URL('../src', import.meta.url).pathname, D);
+  const core = require('../src/core.js');
+  const px = new Map([['odd price', { e: 2, u: 5000 }], ['murder', { e: 5, u: 10 }]]);
+  const free = { 'owned free': 1, 'owned held': 0 };
+  Object.assign(ctx, { colorFit: core.colorFit, ownFree: k => free[k] || 0, PXT: { map: px } });
+  vm.runInContext(readFileSync(new URL('../src/staples.js', import.meta.url), 'utf8'), ctx, { filename: 'staples.js' });
+  const run = o => [...vm.runInContext('stpCands', ctx)({ n: 10, q: 1, max: 15, tol: 5, cols: '', cless: true, cmd: '', tags: [], roles: [], ...o }, { pop: new Map([['murder', 0.02], ['mind stone', 0.4]]), cmd: null, C: null }).map(x => x.name)];
+  const all = run({});
+  assert.ok(all.includes('Mind Stone') && all.includes('Murder') && all.includes('Opt') && all.includes('Owned Held'));
+  for (const n of ['Forest', 'Banned Thing', 'Pricey', 'Odd Price', 'Owned Free']) assert.ok(!all.includes(n), n + ' exclue');
+  assert.equal(all[0], 'Mind Stone', 'la plus jouée en tête');
+  assert.ok(!run({ max: 5 }).includes('Murder'), 'prix maximum strict (< 0,05 €)');
+  assert.ok(run({ max: 6 }).includes('Murder'));
+  assert.deepEqual(run({ cols: 'B', cless: false }), ['Murder']);
+  assert.ok(run({ cols: 'B' }).includes('Mind Stone'), 'incolores permises');
+  assert.deepEqual(run({ roles: ['counter'] }), ['Commit']);
+  assert.deepEqual(run({ tags: ['lifegain'] }), ['Soul Warden']);
+  assert.ok(run({ q: 2 }).includes('Owned Free'), '2 voulues, 1 libre : 1 à acheter');
+  const q2 = vm.runInContext('stpCands', ctx)({ n: 10, q: 2, max: 15, tol: 5, cols: 'G', cless: false, cmd: '', tags: [], roles: [] }, { pop: new Map(), cmd: null, C: null });
+  assert.deepEqual([...q2].map(x => [x.name, x.need]).sort(), [['Owned Free', 1], ['Owned Held', 2]]);
+});

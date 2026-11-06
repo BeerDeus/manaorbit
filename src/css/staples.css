@@ -1,0 +1,34 @@
+/* Chasse aux staples (staples.js) : fiche de l'éditeur seulement */
+.stp .stp-in{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 4px 0 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface-3);font-size:13px;font-weight:600;color:var(--ink-2)}
+.stp .stp-in input{width:72px;height:28px;padding:0 8px;border:0;border-radius:99px;background:var(--surface);color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
+.stp .fopt .deck-pips{vertical-align:-1px}
+.stp .stp-q{margin-top:4px}
+.stp-cl{font-size:11px;line-height:11px;color:var(--ink-3)}
+.stp-run{display:flex;flex-direction:column;gap:8px;padding:6px 0 14px}
+.stp-run b{font-size:15px}
+.stp-run small{font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.stp-bar{position:relative;display:block;height:6px;border-radius:99px;background:var(--surface-3);overflow:hidden}
+.stp-bar i{position:absolute;inset:0 auto 0 0;border-radius:inherit;background:var(--accent);transition:width .3s}
+.stp-bar.indet i{width:35%;animation:stp-ind 1.2s ease-in-out infinite}
+@keyframes stp-ind{0%{left:-35%}100%{left:100%}}
+@media (prefers-reduced-motion:reduce){.stp-bar.indet i{animation:none;width:100%;opacity:.4}}
+.stp-sum{display:flex;flex-direction:column;gap:3px;padding:2px 0 10px;border-bottom:1px solid var(--line)}
+.stp-sum b{font-size:16px}
+.stp-sum span{font-size:13.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stp-sum small{font-size:12px;color:var(--ink-3)}
+.stp-note{margin:4px 0 0}
+.stp-note.bad,.stp-row small.bad{color:var(--bad)}
+.stp-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.stp-g{display:flex;align-items:center;gap:6px;margin:14px 0 2px;font-size:13.5px;font-weight:700;color:var(--ink-2)}
+.stp-g small{font-weight:500;color:var(--ink-3)}
+.stp-row{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 0;border-bottom:1px solid var(--line)}
+.stp-i{flex:none;width:26px;font-size:12px;color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
+.stp-n{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.stp-n b{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stp-n b em{font-style:normal;color:var(--accent)}
+.stp-n small{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stp-n small .deck-pips{flex:none}
+.stp-n small span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stp-p{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
+.stp-p small{font-size:11.5px;font-weight:500;color:var(--ink-3)}
+.stp-x{flex:none;width:36px;height:36px}

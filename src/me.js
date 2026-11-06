@@ -1,7 +1,7 @@
 /* ── me.js : « Compte et réglages », une seule fiche du bas (bouton du compte, dans l'en-tête), qui se ferme en la tirant vers le bas ─────────────
    En haut, le compte : connecté, photo, pseudo, e-mail, état de la synchro et « Modifier » ; sinon « Se connecter ». Puis cartes · decks · valeur, puis la carte
    « Signaler un bug ou une idée » (symbole de mana « scarabée », bien en vue : la fenêtre d'avis ou le mailto, help.js › helpReport).
-   Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange, amis (friends.js), Discord (dsclink.js) · Préférences : langue, thème, vibrations, astuces (tour.js) (changés sur place), notifications,
+   Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange, amis (friends.js), Discord (dsclink.js), Chasse aux staples (staples.js, compte de l'éditeur seulement) · Préférences : langue, thème, vibrations, astuces (tour.js) (changés sur place), notifications,
    scan, widget (appli Android) · Prix : CardTrader · Plus : aide et avis, données de l'appareil, application (navigateur), confidentialité et mentions ·
    version, « Se déconnecter ». Les rubriques ouvrent leur propre fiche par-dessus (app.js › setPrixSheet, setDataSheet…). */
 const ME = { api: null, sig: '', raf: 0 };
@@ -59,6 +59,7 @@ function mePaint() {
     meRow('trade', T('Lien d\'échange'), TR.share ? T('Actif') : T('Aucun')),
     amMeRow(),      // amis (friends.js) : vide si le serveur ne les a pas
     typeof dlMeRow === 'function' ? dlMeRow() : '',      // compte Discord lié (dsclink.js) : vide si le serveur ne sait pas lier
+    typeof stpMeRow === 'function' ? stpMeRow() : '',      // Chasse aux staples (staples.js) : compte de l'éditeur seulement
   ]) : '';
   const prefs = meGroup(T('Préférences'), [
     `<label class="me-row" for="setLang"><span class="me-t">${T('Langue')}</span><span class="sel me-sel"><select id="setLang">${i18nLangs().map(([c, nm]) => `<option value="${c}" ${c === I18N.lang ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select></span></label>`,
@@ -122,6 +123,7 @@ function meSub(k) {
   else if (k === 'decks') leave(() => navGo('decks'));
   else if (k === 'valeur') leave(() => navOpen(() => openCollection('stats')));
   else if (k === 'opn' && typeof opnSheet === 'function') opnSheet();
+  else if (k === 'staples' && typeof stpOpen === 'function') stpOpen();      // compte de l'éditeur seulement (staples.js › stpOn)
   else if (k === 'out') meSignOut();
 }
 async function meSignOut() {
