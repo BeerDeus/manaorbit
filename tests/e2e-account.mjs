@@ -279,6 +279,20 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await D(p); assert.equal(await T(p, '.deck-name'), 'Local seulement'); assert.equal(await T(p, '#decksSyncTxt'), 'Sur cet appareil'); assert.equal(await p.$eval('#decksSync', e => e.disabled), true); await H(p); ok('C : enregistrement local OK, libellé « Sur cet appareil »');
   await openAcct(p); await p.waitForSelector('#acRetry');
   assert.match(await T(p, '.sheet-wrap.open:last-child .sheet-body'), /indisponible/i); await p.waitForTimeout(500); await shot(p, 'C1-compte-indisponible'); ok('C : feuille compte → message + « Réessayer »');
+  // réessayé seul au retour du réseau et au retour au premier plan, jamais deux fois de suite dans le délai (decks.js › connectCloudSoon)
+  const tries = () => p.evaluate(() => D.ccFails);
+  const f0 = await tries(); await p.evaluate(() => { D.ccNext = 0; dispatchEvent(new Event('online')); });
+  await p.waitForFunction(n => D.state === 'unavailable' && D.ccFails === n + 1, f0, { timeout: 8000 });
+  await p.evaluate(() => { dispatchEvent(new Event('online')); document.dispatchEvent(new Event('visibilitychange')); }); await p.waitForTimeout(600);
+  assert.equal(await tries(), f0 + 1, 'pas de nouvel essai avant le délai (pas de boucle serrée)');
+  assert.ok(await p.evaluate(() => D.ccNext - Date.now() > 5000), 'délai avant le prochain essai');
+  await ctx.unroute(/gstatic\.com\/firebasejs/);
+  for (const n of ['app', 'auth', 'firestore']) await ctx.route(`https://www.gstatic.com/firebasejs/12.19.0/firebase-${n}.js`, r => r.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'text/javascript' }, body: "export * from 'https://fb.test/shared.js';" }));
+  await ctx.route('https://fb.test/shared.js', r => r.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'text/javascript' }, body: SHARED }));
+  await p.evaluate(() => { D.ccNext = 0; document.dispatchEvent(new Event('visibilitychange')); });      // retour au premier plan, délai passé
+  await p.waitForFunction(() => D.state === 'ready' && D.cloud, null, { timeout: 10000 });
+  assert.equal(await p.$('#acRetry'), null, 'feuille Compte : « Réessayer » remplacé par la connexion');
+  ok('C : compte indisponible réessayé seul (réseau revenu, premier plan), sans boucle serrée');
   await ctx.close();
 }
 

@@ -8090,7 +8090,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '57af9a0b';
+const DD_BUILD = '826705b1';
 const I18N_FILES = {"de":"i18n/de.43e9b6ad.js","en":"i18n/en.7f470149.js","es":"i18n/es.b716cef3.js","it":"i18n/it.d67875e8.js","pt":"i18n/pt.0a68575c.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -11761,7 +11761,11 @@ function loadCloud() {
     if (typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) {
       throw Object.assign(new Error(tcl('Ouvre l\'app via http(s) (proxy local ou ton hébergement) pour te connecter.')), { code: 'env' });
     }
-    const [app, auth, fs] = await Promise.all([import(FB_BASE + 'firebase-app.js'), import(FB_BASE + 'firebase-auth.js'), import(FB_BASE + 'firebase-firestore.js')]);
+    // joignable d'abord (fetch : un échec n'est jamais gardé) : un import() qui échoue reste en échec pour toute la vie de la page (Chromium), et « Réessayer »
+    // comme le nouvel essai tout seul au retour du réseau (decks.js › connectCloudSoon) n'aboutissaient jamais sans recharger la page
+    const urls = ['app', 'auth', 'firestore'].map(n => FB_BASE + 'firebase-' + n + '.js');
+    await Promise.all(urls.map(u => fetch(u).then(r => { if (!r.ok) throw Object.assign(new Error('SDK Firebase injoignable'), { code: 'unavailable' }); })));
+    const [app, auth, fs] = await Promise.all(urls.map(u => import(u)));
     return makeCloud({ app, auth, fs });
   })();
   cloudP.catch(() => { cloudP = null; });
@@ -18966,14 +18970,26 @@ async function connectCloud() {
   D.state = 'loading'; D.err = ''; paintAccount(); paintSync();
   try { D.cloud = await loadCloud(); }
   catch (e) {
-    D.state = 'unavailable';
+    D.state = 'unavailable'; D.errCode = (e && e.code) || ''; D.ccFails = (D.ccFails || 0) + 1;
+    D.ccNext = Date.now() + Math.min(CC_RETRY.max, CC_RETRY.min * 2 ** (D.ccFails - 1));      // prochain essai tout seul (connectCloudSoon) : pas avant
     D.err = e && e.code === 'env' ? e.message : T('Connexion indisponible depuis ici : SDK Firebase bloqué ou hors ligne. Ta collection et tes decks restent sur cet appareil.');
     D.authReady = true; renderAccountBtn(); renderDecks(); paintAccount(); paintSync(); collPaintHead(); edhGateSync();
     return;
   }
-  D.state = 'ready';
+  D.state = 'ready'; D.ccFails = 0; D.ccNext = 0;
   D.cloud.onUser(onUser);
 }
+/** « Compte indisponible » au démarrage (SDK Firebase injoignable : hors ligne, réseau filtrant) : réessayé tout seul au retour du réseau et au retour au premier plan,
+ *  pas plus d'une fois par délai (10 s, doublé à chaque échec, 5 min au plus) : jamais de boucle serrée. Page hors http(s) (code 'env') : jamais (le bouton
+ *  « Réessayer » de la fiche Compte reste, sans délai). */
+const CC_RETRY = { min: 10000, max: 300000 };
+function connectCloudSoon() {
+  if (D.state !== 'unavailable' || D.errCode === 'env' || Date.now() < (D.ccNext || 0)) return;
+  if (typeof document !== 'undefined' && document.hidden) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  connectCloud();
+}
+if (typeof document !== 'undefined') { addEventListener('online', connectCloudSoon); document.addEventListener('visibilitychange', () => { if (!document.hidden) connectCloudSoon(); }); }
 
 /** Autre onglet de l'appli : les decks de l'appareil (sans compte) viennent d'y changer. Fusion deck par deck : le plus récent l'emporte ; un deck créé ici et pas encore
  *  vu là-bas reste ; un deck connu ici (dernier état lu ou écrit, D.diskIds) et absent là-bas a été supprimé dans l'autre onglet. */

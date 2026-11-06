@@ -841,14 +841,26 @@ async function connectCloud() {
   D.state = 'loading'; D.err = ''; paintAccount(); paintSync();
   try { D.cloud = await loadCloud(); }
   catch (e) {
-    D.state = 'unavailable';
+    D.state = 'unavailable'; D.errCode = (e && e.code) || ''; D.ccFails = (D.ccFails || 0) + 1;
+    D.ccNext = Date.now() + Math.min(CC_RETRY.max, CC_RETRY.min * 2 ** (D.ccFails - 1));      // prochain essai tout seul (connectCloudSoon) : pas avant
     D.err = e && e.code === 'env' ? e.message : T('Connexion indisponible depuis ici : SDK Firebase bloqué ou hors ligne. Ta collection et tes decks restent sur cet appareil.');
     D.authReady = true; renderAccountBtn(); renderDecks(); paintAccount(); paintSync(); collPaintHead(); edhGateSync();
     return;
   }
-  D.state = 'ready';
+  D.state = 'ready'; D.ccFails = 0; D.ccNext = 0;
   D.cloud.onUser(onUser);
 }
+/** « Compte indisponible » au démarrage (SDK Firebase injoignable : hors ligne, réseau filtrant) : réessayé tout seul au retour du réseau et au retour au premier plan,
+ *  pas plus d'une fois par délai (10 s, doublé à chaque échec, 5 min au plus) : jamais de boucle serrée. Page hors http(s) (code 'env') : jamais (le bouton
+ *  « Réessayer » de la fiche Compte reste, sans délai). */
+const CC_RETRY = { min: 10000, max: 300000 };
+function connectCloudSoon() {
+  if (D.state !== 'unavailable' || D.errCode === 'env' || Date.now() < (D.ccNext || 0)) return;
+  if (typeof document !== 'undefined' && document.hidden) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  connectCloud();
+}
+if (typeof document !== 'undefined') { addEventListener('online', connectCloudSoon); document.addEventListener('visibilitychange', () => { if (!document.hidden) connectCloudSoon(); }); }
 
 /** Autre onglet de l'appli : les decks de l'appareil (sans compte) viennent d'y changer. Fusion deck par deck : le plus récent l'emporte ; un deck créé ici et pas encore
  *  vu là-bas reste ; un deck connu ici (dernier état lu ou écrit, D.diskIds) et absent là-bas a été supprimé dans l'autre onglet. */
