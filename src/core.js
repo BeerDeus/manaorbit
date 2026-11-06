@@ -1065,11 +1065,11 @@ function dkFormat(text) { const m = String(text || '').match(/^\/\/\s*Deck Deal\
 /** Format d'un deck : celui noté par le créateur, sinon « commander » si la liste a un en-tête Commander, sinon ''. */
 const dkFmtOf = text => dkFormat(text) || (commanderKeys(text).length ? 'commander' : '');
 /** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs : colorFit 'has'
- *  sur deckColors, identité du commandant, sinon couleurs des cartes, sinon terrains de base), metaOf (facultatif, voir deckColors) }. */
+ *  sur deckColors, identité du commandant, sinon couleurs des cartes, sinon terrains de base), eq (exactement ces couleurs : colorFit 'eq'), metaOf (facultatif, voir deckColors) }. */
 function dkMatch(text, f) {
   const fmt = f && f.fmt, colors = (f && f.colors) || '';
   if (fmt && dkFmtOf(text) !== fmt) return false;
-  if (colors && !colorFit(deckColors(text, f.metaOf ? { metaOf: f.metaOf } : undefined), colors, 'has')) return false;
+  if (colors && !colorFit(deckColors(text, f.metaOf ? { metaOf: f.metaOf } : undefined), colors, f.eq ? 'eq' : 'has')) return false;
   return true;
 }
 /** Réserve d'une liste : lignes « SB: 2 Negate », section « Sideboard » d'un export et compagnon (comp : 1, voir deckModel) : [{ key, name, qty, comp? }] (additionnée par carte). parseDeck ne les voit pas. */

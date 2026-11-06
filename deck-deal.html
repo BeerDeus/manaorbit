@@ -1355,7 +1355,7 @@ button,.btn,select,summary{touch-action:manipulation}
 /* ── Écran « Mes decks » : les decks en cartes ───────────────────────────────── */
 .dks-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dks-filters{display:flex;flex-direction:column;gap:10px}
-.dks-colors{display:flex;align-items:center;gap:8px}
+.dks-colors{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .dks-c{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;transition:transform .15s,border-color .2s,box-shadow .2s,opacity .2s}
 .dks-c .pip{width:20px;height:20px}
 .dks-c[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
@@ -8020,8 +8020,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '99db5bfb';
-const I18N_FILES = {"de":"i18n/de.7c55e26d.js","en":"i18n/en.c9604f95.js","es":"i18n/es.b0f08b25.js","it":"i18n/it.82813dfe.js","pt":"i18n/pt.3c4743d3.js"};
+const DD_BUILD = 'aeec62d1';
+const I18N_FILES = {"de":"i18n/de.98169de0.js","en":"i18n/en.dc32b18f.js","es":"i18n/es.d84acbaf.js","it":"i18n/it.e28975da.js","pt":"i18n/pt.59959353.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9316,11 +9316,11 @@ function dkFormat(text) { const m = String(text || '').match(/^\/\/\s*Deck Deal\
 /** Format d'un deck : celui noté par le créateur, sinon « commander » si la liste a un en-tête Commander, sinon ''. */
 const dkFmtOf = text => dkFormat(text) || (commanderKeys(text).length ? 'commander' : '');
 /** Un deck passe-t-il le filtre de l'écran « Mes decks » ? f = { fmt ('' = tous | 'commander' | 'standard'), colors (« WU » : le deck doit avoir toutes ces couleurs : colorFit 'has'
- *  sur deckColors, identité du commandant, sinon couleurs des cartes, sinon terrains de base), metaOf (facultatif, voir deckColors) }. */
+ *  sur deckColors, identité du commandant, sinon couleurs des cartes, sinon terrains de base), eq (exactement ces couleurs : colorFit 'eq'), metaOf (facultatif, voir deckColors) }. */
 function dkMatch(text, f) {
   const fmt = f && f.fmt, colors = (f && f.colors) || '';
   if (fmt && dkFmtOf(text) !== fmt) return false;
-  if (colors && !colorFit(deckColors(text, f.metaOf ? { metaOf: f.metaOf } : undefined), colors, 'has')) return false;
+  if (colors && !colorFit(deckColors(text, f.metaOf ? { metaOf: f.metaOf } : undefined), colors, f.eq ? 'eq' : 'has')) return false;
   return true;
 }
 /** Réserve d'une liste : lignes « SB: 2 Negate », section « Sideboard » d'un export et compagnon (comp : 1, voir deckModel) : [{ key, name, qty, comp? }] (additionnée par carte). parseDeck ne les voit pas. */
@@ -18772,8 +18772,8 @@ function initDecks() {
 /* ── dklist.js : écran « Mes decks » ──────────────────────────────────────────────────────────────
    Section Decks › Mes decks (bouton « Decks » de la barre du bas, nav.js), à côté de « À monter » et « Prix d'une liste ». Les decks y sont des cartes : image de la carte de présentation
    (choisie dans la feuille d'un deck, sinon commandant, sinon la carte la plus chère), nom, format, couleurs, valeur.
-   Filtres : format (Tous / Commander / Standard) et couleurs (le deck doit avoir toutes les couleurs cochées : core.js › colorFit 'has' sur deckColors ; dit sous les pastilles). */
-const DKS = { el: null, fmt: '', colors: new Set(), fresh: true };
+   Filtres : format (Tous / Commander / Standard) et couleurs (le deck doit avoir toutes les couleurs cochées : core.js › colorFit 'has' sur deckColors, ou « Exactement » : 'eq' ; dit sous les pastilles). */
+const DKS = { el: null, fmt: '', colors: new Set(), eq: false, fresh: true };      // eq : « Exactement » ces couleurs (colorFit 'eq'), sinon le deck a toutes ces couleurs ('has')
 const DKS_COLORS = [['W', 'Blanc'], ['U', 'Bleu'], ['B', 'Noir'], ['R', 'Rouge'], ['G', 'Vert']];
 
 function closeDecks() { if (DKS.el) DKS.el.__close(); }
@@ -18788,7 +18788,7 @@ function openDecks() {
       <div class="dks-top"><button class="sync" id="decksSync" type="button" data-act="sync" data-s="local"><i></i><span id="decksSyncTxt">${T('Sur cet appareil')}</span></button></div>
       <div class="dks-filters" id="dksFilters" hidden>
         <div class="seg" id="dksSeg" role="radiogroup" aria-label="${T('Format')}"></div>
-        <div class="dks-colors" role="group" aria-label="${T('Couleurs du deck')}">${DKS_COLORS.map(([c, n]) => `<button class="dks-c" type="button" data-c="${c}" aria-pressed="false" aria-label="${T(n)}" title="${T(n)}"><i class="pip ${c}"></i></button>`).join('')}<button class="link-btn dks-reset" type="button" data-act="reset" hidden>${T('Tout afficher')}</button></div>
+        <div class="dks-colors" role="group" aria-label="${T('Couleurs du deck')}">${DKS_COLORS.map(([c, n]) => `<button class="dks-c" type="button" data-c="${c}" aria-pressed="false" aria-label="${T(n)}" title="${T(n)}"><i class="pip ${c}"></i></button>`).join('')}<button class="fopt dks-eq" type="button" data-act="eq" aria-pressed="false" hidden>${T('Exactement')}</button><button class="link-btn dks-reset" type="button" data-act="reset" hidden>${T('Tout afficher')}</button></div>
         <p class="hint dks-rule" hidden>${T('Decks qui ont toutes ces couleurs : identité du commandant, sinon couleurs des cartes.')}</p>
       </div>
       <div class="deck-list" id="deckList"></div>
@@ -18813,7 +18813,8 @@ function openDecks() {
     if (act === 'new') return openDeckNew();
     if (act === 'sync') return openAccount();
     if (act === 'import') { b.disabled = true; importLocal(); return; }
-    if (act === 'reset') { DKS.fmt = ''; DKS.colors.clear(); $('#dksSeg', wrap).setValue(''); dksPaint(); return; }
+    if (act === 'eq') { DKS.eq = !DKS.eq; haptic('tap'); dksPaint(); return; }
+    if (act === 'reset') { DKS.fmt = ''; DKS.colors.clear(); DKS.eq = false; $('#dksSeg', wrap).setValue(''); dksPaint(); return; }
     const id = b.closest('.deck') && b.closest('.deck').dataset.id; if (!id) return;
     if (act === 'open') openDeckViewer({ id }); else if (act === 'more') openDeckSheet(id);      // toucher le deck : son viewer ; ⋯ : la feuille (image, montage, historique…) ; « Ouvrir » charge la liste dans la saisie
   });
@@ -18827,12 +18828,13 @@ function dksPaint() {
   const el = DKS.el; if (!el) return;
   const all = allDecks(), loading = !!D.hint && !D.authReady, imp = importable();
   const colors = DKS_COLORS.map(([c]) => c).filter(c => DKS.colors.has(c)).join('');
-  const shown = all.filter(d => dkMatch(d.text, { fmt: DKS.fmt, colors })), filtered = !!(DKS.fmt || colors);
+  const shown = all.filter(d => dkMatch(d.text, { fmt: DKS.fmt, colors, eq: DKS.eq })), filtered = !!(DKS.fmt || colors);
   // filtres : utiles à partir de deux decks ; une couleur qu'aucun deck n'a est grisée (sauf si elle est cochée)
   const has = new Set(all.flatMap(d => [...deckColors(d.text)]));      // core.js › deckColors : identité du commandant, sinon couleurs des cartes, sinon terrains de base
   $('#dksFilters', el).hidden = all.length < 2 && !filtered;
   $$('.dks-c', el).forEach(b => { const on = DKS.colors.has(b.dataset.c); b.setAttribute('aria-pressed', String(on)); b.disabled = !on && !has.has(b.dataset.c); });
-  $('.dks-reset', el).hidden = !filtered; $('.dks-rule', el).hidden = !colors;      // le sens du filtre de couleur (colorFit 'has'), dit dès qu'une couleur est cochée
+  $('.dks-reset', el).hidden = !filtered; $('.dks-rule', el).hidden = !colors; $('.dks-eq', el).hidden = !colors; $('.dks-eq', el).setAttribute('aria-pressed', String(DKS.eq));
+  $('.dks-rule', el).textContent = DKS.eq ? T('Decks exactement de ces couleurs : identité du commandant, sinon couleurs des cartes.') : T('Decks qui ont toutes ces couleurs : identité du commandant, sinon couleurs des cartes.');      // le sens du filtre de couleur (colorFit 'has'), dit dès qu'une couleur est cochée
   $('.dv-title span', el).textContent = loading ? '' : filtered ? TN(all.length, '{shown} sur {n} deck', '{shown} sur {n} decks', { shown: shown.length.toLocaleString(LOC()) }) : TN(all.length, '{n} deck', '{n} decks');
   if (typeof dkTabsCount === 'function') dkTabsCount();      // « Mes decks 4 » dans les onglets de la section
   let html = '';
@@ -20674,6 +20676,16 @@ function nmxAt(i) {
  *  chargé à la première recherche qui trouve peu) ; nom exact · début du nom ou d'un mot · milieu. [{ n (anglais), p? (nom imprimé, quand c'est lui qui correspond),
  *  l? (sa langue) }], une fois par carte ; nom affiché : sugHtml. again : rappelé quand un index arrive (la liste se repeint). */
 function collSuggestX(cat, text, n = 12, again) {
+  return collSuggestRaw(cat, text, n, again).map(sugOwned);
+}
+/** Carte déjà possédée : affichée et ajoutée dans la langue de tes exemplaires (la plus fournie), quel que soit le nom tapé (« Lightning Bolt » tapé, Foudre possédée → Foudre, exemplaire français). */
+function sugOwned(x) {
+  const own = COLL.map[ownKey(x.n)], l = own ? collMainLang(collLines(own)) : '';
+  if (!l || l === x.l || (l === 'en' && !x.p && !cnLang())) return x;
+  const k = ownKey(x.n), p = l === 'en' ? (cnLang() ? x.n : '') : l === FRX.l ? frOf(k) : l === cnLang() ? cnOf(x.n) : '';      // anglais possédé, appli dans une autre langue : nom anglais avec son drapeau
+  return { ...x, l, o: 1, ...(p ? { p } : { p: undefined }) };
+}
+function collSuggestRaw(cat, text, n, again) {
   const q = normPart(text); if (q.length < 2) return [];
   if (!FRX.ix) frLoad();      // noms de la langue des cartes (et de l'appli) : dès que l'index est là (la frappe suivante en profite)
   if (again) cnWhen(again);
@@ -20699,7 +20711,8 @@ const collSuggest = (cat, text, n = 12) => collSuggestX(cat, text, n).map(x => x
  *  (p, l : langue des cartes, italien…) : ce nom-là avec son drapeau. q : texte tapé (gardé pour les appelants). */
 function sugHtml(n, q, p, l) {
   const al = cnLang();
-  if (p && l && l !== al) return `${al || l !== FRX.l ? flag(l) + ' ' : ''}${esc(p)} <small class="ca-en">${esc(n)}</small>`;      // nom d'une autre langue que celle de l'appli (drapeau ; interface anglaise : langue des cartes sans drapeau, comme avant)
+  if (p && l && l !== al) return `${al || l !== FRX.l ? flag(l) + ' ' : ''}${esc(p)}${p !== n ? ` <small class="ca-en">${esc(n)}</small>` : ''}`;
+  if (!p && l && l !== 'en' && l !== al) return `${flag(l)} ${esc(n)}`;      // exemplaires possédés dans une langue sans index chargé (italien…) : drapeau, nom anglais      // nom d'une autre langue que celle de l'appli (drapeau ; interface anglaise : langue des cartes sans drapeau, comme avant)
   return cnLabel(n);
 }
 

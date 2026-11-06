@@ -87,12 +87,17 @@ const collSearch = async (p, q, want) => { await p.fill('.coll .fsearch input', 
   // saisie (Ajouter des cartes) : nom allemand d'abord, nom anglais en petit
   await p.evaluate(() => openLot()); await p.waitForSelector('#caName'); assert.equal(await p.$eval('#caName', i => i.placeholder), 'Lightning Bolt oder Blitzschlag');
   await p.fill('#caName', 'Blitz'); await p.waitForSelector('.ca-opt[data-n="Lightning Bolt"]', { timeout: 15000 });
-  assert.equal(await p.$eval('.ca-opt[data-n="Lightning Bolt"] span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Blitzschlag Lightning Bolt');
+  const opt = q => p.$eval(`.ca-opt[data-n="${q}"]`, b => [b.querySelector('span').innerText.replace(/\s+/g, ' ').trim(), b.dataset.l || '', !!b.querySelector('.flag')]);
+  assert.deepEqual(await opt('Lightning Bolt'), ['Foudre Lightning Bolt', 'fr', true], 'carte possédée (exemplaires français) : nom et langue de tes exemplaires, pas l\'allemand tapé');
   await p.fill('#caName', 'Lightning B'); await p.waitForFunction(() => { const b = document.querySelector('.ca-opt'); return b && b.dataset.n === 'Lightning Bolt'; }, null, { timeout: 8000 });
-  assert.equal(await p.$eval('.ca-opt[data-n="Lightning Bolt"] span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Blitzschlag Lightning Bolt', 'nom anglais tapé : résultat affiché en allemand');
+  assert.deepEqual(await opt('Lightning Bolt'), ['Foudre Lightning Bolt', 'fr', true], 'nom anglais tapé, carte possédée : en français');
+  await p.fill('#caName', 'Rhyst'); await p.waitForSelector('.ca-opt[data-n="Rhystic Study"]', { timeout: 8000 });
+  assert.deepEqual(await opt('Rhystic Study'), ['Rhystische Studien Rhystic Study', 'de', false], 'carte non possédée : langue de l\'appli, anglais en petit');
+  await p.fill('#caName', 'Counters'); await p.waitForSelector('.ca-opt[data-n="Counterspell"]', { timeout: 8000 });
+  assert.deepEqual(await opt('Counterspell'), ['Counterspell', 'en', true], 'possédée en anglais : nom anglais, drapeau');
   await p.fill('#caName', 'Blitz'); await p.waitForTimeout(300); await shot(p, 'de-ajouter-blitz');
   await p.evaluate(() => { closeLot(); while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForTimeout(400);
-  ok('Ajouter des cartes : « Blitz » → Blitzschlag (Lightning Bolt en petit) ; « Lightning B » affiché en allemand');
+  ok('Ajouter des cartes : carte possédée dans la langue de tes exemplaires (Foudre, Counterspell anglais), sinon langue de l\'appli (Rhystische Studien)');
 
   // decklist et import : nom allemand (appli) d'abord, nom français (cartes) toujours reconnu ; alertes : nom tapé → carte anglaise
   await p.evaluate(() => putDeckText('4 Blitzschlag\n1 Foudre\n1 Rhystische Studien', 'Test'));
@@ -129,7 +134,7 @@ const collSearch = async (p, q, want) => { await p.fill('.coll .fsearch input', 
   assert.deepEqual(await p.evaluate(() => [cnLang(), FRX.l, !!FRX.ix, CN.ix, cnPh()]), ['fr', 'fr', true, null, 'Nom français ou anglais'], 'un seul index (celui des cartes)');
   await p.evaluate(() => openLot()); await p.waitForSelector('#caName'); await p.fill('#caName', 'lightning bo');
   await p.waitForSelector('.ca-opt[data-n="Lightning Bolt"]', { timeout: 15000 });
-  assert.equal(await p.$eval('.ca-opt[data-n="Lightning Bolt"] span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Foudre Lightning Bolt', 'résultat affiché en français, anglais en petit');
+  assert.equal(await p.$eval('.ca-opt[data-n="Lightning Bolt"] span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Lightning Bolt', 'possédée en anglais : affichée en anglais (exemplaires de la collection), pas en français');
   await p.fill('#caName', 'éclair'); await p.waitForSelector('.ca-opt[data-n="Lightning Helix"]', { timeout: 8000 });
   ok('appli en français : « Foudre », « éclair » (Hélice d\'éclairs), résultats en français, un seul index');
   assert.deepEqual(errs, [], 'pas d\'erreur JS : ' + errs.join(' | '));

@@ -7,5 +7,6 @@
  "Cartes d'au moins une de ces couleurs.": "Karten mit mindestens einer dieser Farben.",
  "Exactement": "Genau",
  "Couleurs = {c}": "Farben = {c}",
- "couleurs = {c}": "Farben = {c}"
+ "couleurs = {c}": "Farben = {c}",
+ "Decks exactement de ces couleurs : identité du commandant, sinon couleurs des cartes.": "Decks mit genau diesen Farben: Farbidentität des Kommandeurs, sonst Farben der Karten."
 }

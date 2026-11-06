@@ -180,7 +180,12 @@ assert.ok((await names()).includes('Lurrus'), 'filtre Noir : le deck Lurrus est 
 assert.deepEqual((await names()).sort(), ['Edgar', 'Edgar CM', 'Lurrus', 'Rakdos'], 'Noir : Rakdos (B R), les deux Edgar (W B R), Lurrus (W B)');
 assert.equal(await txt(p, '.dks-rule'), 'Decks qui ont toutes ces couleurs : identité du commandant, sinon couleurs des cartes.');
 if (process.env.SHOTS) { await p.setViewportSize({ width: 393, height: 852 }); await p.waitForTimeout(500); await p.screenshot({ path: process.env.SHOTS + '/r5-mesdecks-noir.png' }); }      // captures à la demande (dossier choisi)
-await p.click('.dks-reset');
+assert.equal(await p.$eval('.dks-eq', e => e.hidden), false, '« Exactement » proposé dès une couleur cochée');
+await p.click('.dks-c[data-c="W"]'); await p.click('.dks-eq'); await p.waitForFunction(() => document.querySelector('.dks-eq').getAttribute('aria-pressed') === 'true');
+assert.deepEqual(await names(), ['Lurrus'], 'Blanc + Noir, Exactement : Lurrus (W B) seul, pas les Edgar (W B R)');
+assert.equal(await txt(p, '.dks-rule'), 'Decks exactement de ces couleurs : identité du commandant, sinon couleurs des cartes.');
+if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/mesdecks-exact.png' });
+await p.click('.dks-reset'); assert.equal(await p.evaluate(() => DKS.eq), false, '« Tout afficher » retire aussi « Exactement »'); assert.equal(await p.$eval('.dks-eq', e => e.hidden), true);
 ok('lot R5 : Lurrus avec seulement des Plaines → pastilles W + B (identité), trouvé par le filtre Noir ; source des couleurs dans la bulle, sens du filtre sous les pastilles');
 
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));

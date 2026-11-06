@@ -802,6 +802,16 @@ function nmxAt(i) {
  *  chargé à la première recherche qui trouve peu) ; nom exact · début du nom ou d'un mot · milieu. [{ n (anglais), p? (nom imprimé, quand c'est lui qui correspond),
  *  l? (sa langue) }], une fois par carte ; nom affiché : sugHtml. again : rappelé quand un index arrive (la liste se repeint). */
 function collSuggestX(cat, text, n = 12, again) {
+  return collSuggestRaw(cat, text, n, again).map(sugOwned);
+}
+/** Carte déjà possédée : affichée et ajoutée dans la langue de tes exemplaires (la plus fournie), quel que soit le nom tapé (« Lightning Bolt » tapé, Foudre possédée → Foudre, exemplaire français). */
+function sugOwned(x) {
+  const own = COLL.map[ownKey(x.n)], l = own ? collMainLang(collLines(own)) : '';
+  if (!l || l === x.l || (l === 'en' && !x.p && !cnLang())) return x;
+  const k = ownKey(x.n), p = l === 'en' ? (cnLang() ? x.n : '') : l === FRX.l ? frOf(k) : l === cnLang() ? cnOf(x.n) : '';      // anglais possédé, appli dans une autre langue : nom anglais avec son drapeau
+  return { ...x, l, o: 1, ...(p ? { p } : { p: undefined }) };
+}
+function collSuggestRaw(cat, text, n, again) {
   const q = normPart(text); if (q.length < 2) return [];
   if (!FRX.ix) frLoad();      // noms de la langue des cartes (et de l'appli) : dès que l'index est là (la frappe suivante en profite)
   if (again) cnWhen(again);
@@ -827,7 +837,8 @@ const collSuggest = (cat, text, n = 12) => collSuggestX(cat, text, n).map(x => x
  *  (p, l : langue des cartes, italien…) : ce nom-là avec son drapeau. q : texte tapé (gardé pour les appelants). */
 function sugHtml(n, q, p, l) {
   const al = cnLang();
-  if (p && l && l !== al) return `${al || l !== FRX.l ? flag(l) + ' ' : ''}${esc(p)} <small class="ca-en">${esc(n)}</small>`;      // nom d'une autre langue que celle de l'appli (drapeau ; interface anglaise : langue des cartes sans drapeau, comme avant)
+  if (p && l && l !== al) return `${al || l !== FRX.l ? flag(l) + ' ' : ''}${esc(p)}${p !== n ? ` <small class="ca-en">${esc(n)}</small>` : ''}`;
+  if (!p && l && l !== 'en' && l !== al) return `${flag(l)} ${esc(n)}`;      // exemplaires possédés dans une langue sans index chargé (italien…) : drapeau, nom anglais      // nom d'une autre langue que celle de l'appli (drapeau ; interface anglaise : langue des cartes sans drapeau, comme avant)
   return cnLabel(n);
 }
 

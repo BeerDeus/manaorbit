@@ -1328,7 +1328,7 @@ button,.btn,select,summary{touch-action:manipulation}
 /* ── Écran « Mes decks » : les decks en cartes ───────────────────────────────── */
 .dks-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dks-filters{display:flex;flex-direction:column;gap:10px}
-.dks-colors{display:flex;align-items:center;gap:8px}
+.dks-colors{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .dks-c{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;transition:transform .15s,border-color .2s,box-shadow .2s,opacity .2s}
 .dks-c .pip{width:20px;height:20px}
 .dks-c[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}

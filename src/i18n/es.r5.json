@@ -7,5 +7,6 @@
  "Cartes d'au moins une de ces couleurs.": "Cartas de al menos uno de estos colores.",
  "Exactement": "Exactamente",
  "Couleurs = {c}": "Colores = {c}",
- "couleurs = {c}": "colores = {c}"
+ "couleurs = {c}": "colores = {c}",
+ "Decks exactement de ces couleurs : identité du commandant, sinon couleurs des cartes.": "Mazos exactamente de estos colores: identidad de color del comandante; si no, colores de las cartas."
 }
