@@ -619,7 +619,7 @@ async function alLoad() {
   try {
     const j = JSON.parse(await readFile(AL_FILE, 'utf8'));
     for (const r of Array.isArray(j.subs) ? j.subs : []) if (r && r.id && (r.sub || (r.dm === 'only' && r.tag)) && Array.isArray(r.items)) AL.subs.set(r.id, r);      // sans sub : MP Discord seulement
-    for (const [k, h] of Object.entries(j.px || {})) if (Array.isArray(h)) AL.px.set(k, h);
+    if (j.v >= 2) for (const [k, h] of Object.entries(j.px || {})) if (Array.isArray(h)) AL.px.set(k, h);      // v 1 : relevés de l'impression par défaut de Scryfall, oubliés (le relevé du jour donne d'autres prix : sinon fausse baisse)
     if (j.last && typeof j.last === 'object') AL.last = { ...AL.last, ...j.last, err: '' };
   } catch (e) { if (e && e.code !== 'ENOENT') console.warn('Alertes : fichier illisible (' + e.message + '), repart de zéro'); }
 }
@@ -630,7 +630,7 @@ function alSaveSoon() {
     try {
       await mkdir(dirname(AL_FILE), { recursive: true });
       const tmp = AL_FILE + '.tmp';
-      await writeFile(tmp, JSON.stringify({ v: 1, last: AL.last, subs: [...AL.subs.values()], px: Object.fromEntries(AL.px) }));
+      await writeFile(tmp, JSON.stringify({ v: 2, last: AL.last, subs: [...AL.subs.values()], px: Object.fromEntries(AL.px) }));
       await rename(tmp, AL_FILE);
     } catch (e) { if (!AL.warned) { AL.warned = true; console.warn('Alertes : écriture impossible (' + e.message + ') : les listes restent en mémoire jusqu\'au prochain redémarrage'); } }
   }, 1500);
@@ -639,9 +639,19 @@ function alSaveSoon() {
 
 /** Marchés : relevés d'une carte au prix Cardmarket (clé de carte) ou TCGplayer (clé précédée de « $ », abonnement mk: 'us', prix en dollars). */
 const alHk = (rec, it) => (rec.mk === 'us' ? '$' : '') + it.nk;
-/** Prix (centimes) des relevés demandés ([clé de relevé, nom]) : Map clé → centimes, ou null si Scryfall ne connaît pas la carte / n'a pas de prix.
+/** Prix (centimes) des relevés demandés ([clé de relevé, nom]) : Map clé → centimes, ou null si la carte n'a pas de prix.
+ *  D'abord le relevé du jour du serveur (/prices.tsv : impression la moins chère, comme l'appli, l'échange en direct et la fiche d'une carte ; depuis le 6 novembre 2026),
+ *  sinon Scryfall (impression par défaut : carte absente du relevé, ou relevé pas encore là) ; Scryfall en panne avec des prix déjà trouvés : le reste compte comme sans prix.
  *  Une carte suivie aux deux marchés n'est demandée qu'une fois (prix eur et usd de la même réponse). */
 async function alFetch(list) {
+  const out = new Map(), px = await trocPxLoad().catch(() => null), rest = [];
+  for (const [k, n] of list) { const v = px ? trocPrice(n, k[0] === '$' ? 'us' : 'eu') : null; if (v > 0) out.set(k, v); else rest.push([k, n]); }
+  if (!rest.length) return out;
+  try { for (const [k, v] of await alFetchScry(rest)) out.set(k, v); }
+  catch (e) { if (!out.size) throw e; for (const [k] of rest) out.set(k, null); }
+  return out;
+}
+async function alFetchScry(list) {
   const out = new Map(), names = new Map();
   for (const [k, n] of list) { const b = k[0] === '$' ? k.slice(1) : k; if (!names.has(b)) names.set(b, n); }
   const uniq = [...names], got = new Map();

@@ -1,3 +1,12 @@
 {
-  "Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.": "Offline: searching all cards will resume when you're back online."
+  "Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.": "Offline: searching all cards will resume when you're back online.",
+  "Prix foil non disponible, prix sans foil affiché": "Foil price not available, non-foil price shown",
+  "Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.": "What you're missing to have all your tracked decks at the same time (sideboard included), plus your wish list.",
+  "{n} carte de ce deck est déjà dans ta collection.": "{n} card from this deck is already in your collection.",
+  "{n} cartes de ce deck sont déjà dans ta collection.": "{n} cards from this deck are already in your collection.",
+  "Toutes les cartes de ce deck sont déjà dans ta collection.": "All the cards from this deck are already in your collection.",
+  "Tout ajouter ({n} carte)": "Add all ({n} card)",
+  "Tout ajouter ({n} cartes)": "Add all ({n} cards)",
+  "Ajouter celle qui manque": "Add the missing one",
+  "Ajouter les {n} qui manquent": "Add the {n} missing"
 }

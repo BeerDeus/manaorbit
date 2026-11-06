@@ -173,8 +173,8 @@ const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.s
 const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0) + (BD.fmt !== 'commander' && !BD.side.has(k) ? (BD.comp.get(k) || {}).qty || 0 : 0);
 /** Cartes de la réserve (Standard : compagnon compris, comme core.js › dkCheck). */
 const bdSideN = () => bdCount(BD.side) + (BD.fmt !== 'commander' ? dkCompOut([...BD.comp.values()], [...BD.side.values()]).reduce((a, c) => a + c.qty, 0) : 0);
-/** Nom affiché : français si la carte est possédée en français (même règle que la collection), sinon anglais. */
-function bdLabel(k, name) { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || name; }
+/** Nom affiché d'une carte du deck (collection.js › cardName) : possédée → langue de tes exemplaires ; sinon langue de l'appli, sinon anglais. */
+const bdLabel = (k, name) => cardName(k, name);
 const bdCmp = (a, b) => NAME_CMP(bdLabel(a.key, a.name), bdLabel(b.key, b.name));
 const bdFmtName = f => (DK_FORMATS[f] || DK_FORMATS.standard).label;
 

@@ -131,10 +131,10 @@ function artSave() { try { localStorage.setItem(ART_KEY, JSON.stringify(artAll()
 function artSet(l, n, u, w, il) { const a = artAll(), k = artK(l, n); delete a[k]; a[k] = { u, w, ...(il && il !== l ? { il } : {}) }; const ks = Object.keys(a); for (const x of ks.slice(0, Math.max(0, ks.length - 400))) delete a[x]; artSave(); }
 function artDrop(l, n) { if (delete artAll()[artK(l, n)]) artSave(); }
 
-/** Tuile d'une impression (liste « Illustrations ») : vignette, symbole et « CMM 400 », extension, prix Cardmarket de l'édition (✦ : foil seulement), année et particularités. */
-function artTile(p, i, sel) {
-  const px = p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', code = String(p.set).toUpperCase() + ' ' + p.num;
-  return `<button type="button" class="imgv-v" data-i="${i}" aria-pressed="${i === sel}" aria-label="${esc(p.sn)} ${esc(code)}${px ? ', ' + esc(px) : ''}${p.fx.length ? ', ' + esc(p.fx.join(', ')) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set, 'inv')}${esc(code)}</span>${p.sn ? `<em class="v-sn">${esc(p.sn)}</em>` : ''}${px ? `<b class="v-px">${esc(px)}</b>` : ''}<small>${esc(p.y)}${p.fx.length ? ' · ' + esc(p.fx.join(', ')) : ''}</small></button>`;
+/** Tuile d'une impression (liste « Illustrations ») : vignette, symbole et « CMM 400 », extension, prix Cardmarket de l'édition (exemplaire foil : prix foil, à défaut le non foil avec ⚠️ ; ✦ : prix foil), année et particularités. */
+function artTile(p, i, sel, foil) {
+  const r = prPx(p, foil), px = r.t, code = String(p.set).toUpperCase() + ' ' + p.num;
+  return `<button type="button" class="imgv-v" data-i="${i}" aria-pressed="${i === sel}" aria-label="${esc(p.sn)} ${esc(code)}${px ? ', ' + esc(px) : ''}${p.fx.length ? ', ' + esc(p.fx.join(', ')) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set, 'inv')}${esc(code)}</span>${p.sn ? `<em class="v-sn">${esc(p.sn)}</em>` : ''}${px ? `<b class="v-px">${esc(px)}${pxWarn(r.w)}</b>` : ''}<small>${esc(p.y)}${p.fx.length ? ' · ' + esc(p.fx.join(', ')) : ''}</small></button>`;
 }
 
 /**
@@ -268,7 +268,7 @@ function openCardViewer(items, index) {
     const ce = it.coll && it.set, cur = baseOf(urls[0]), sel = ce ? vars.findIndex(p => p.set === it.set && p.num === it.num) : vars.findIndex(p => baseOf(p.urls[0]) === cur), pf = ce || (canSave && artGet(vl, it.ln || it.name));
     pickAt = sel;
     varsL.innerHTML = (pf ? '<button type="button" class="imgv-v def" data-i="-1" aria-label="' + (it.coll ? T('Retirer l\'édition de cet exemplaire') : T('Revenir à l\'illustration par défaut')) + '"><i>' + (it.coll ? T('Sans édition') : T('Par défaut')) + '</i></button>' : '')
-      + vars.map((p, i) => artTile(p, i, sel)).join('');
+      + vars.map((p, i) => artTile(p, i, sel, !!it.foil)).join('');
     const p = sel >= 0 ? vars[sel] : null;
     varsH.textContent = it.coll ? (p ? `${p.sn} · ${T('édition de ta carte')}` : T('Touche l\'édition de ta carte : son prix compte dans ta collection'))
       : p ? `${p.sn} · ${canSave ? T('retenue pour cette carte') : T('aperçu seulement : l\'offre garde son impression')}` : (pf ? T('Illustration par défaut') : canSave ? T('Touche une illustration') : T('Touche une illustration · aperçu seulement'));
@@ -510,7 +510,7 @@ const snapOf = d => (d ? newestSnap(d.snap, sanitizeSnap(snapsRead()[d.id])) : n
 const dvImg = it => (it.im ? it.im.replace('/small/', '/normal/') : '');
 /** Balise de l'image d'une carte du viewer : version de la langue de l'appli (imgL), sauf image d'un exemplaire possédé dans sa propre langue (ol, dvOwnIm). */
 const dvImgTag = (it, u, lazy = true) => { const l = it.ol ? '' : undefined, nm = it.name || it.n, src = imgL(nm, u, l); return `<img alt=""${lazy ? ' loading="lazy"' : ''} decoding="async"${imgOkAttr(src)} ${imgLA(nm, u, l)}>`; };
-const dvLetter = it => esc((it.n.trim()[0] || '?').toUpperCase());
+const dvLetter = it => esc((dvN(it).trim()[0] || '?').toUpperCase());
 /** Écart notable d'une carte (≥ 5 % ou ≥ 0,20 € par exemplaire) : flèche sur la vignette. */
 const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.prev * 0.05);
 /** Carte de la liste officielle des Game Changers (brackets Commander) : builder.js › isGC (base du coach, sinon Scryfall, sinon EDHREC : même EDHREC coupé), comme l'éditeur. */
@@ -533,13 +533,13 @@ function dvBits(it, snap, dl) {
   const en = ref ? (it.ow ? `<span class="dvc-l${full ? ' own' : ''}">${full ? '✓' : it.ow + '/' + it.q}</span>` : '')
     : it.s === 'ok' && it.l && snap.lang && it.l !== snap.lang ? `<span class="dvc-l">${esc(it.l.toUpperCase())}</span>` : '';
   const q = it.q > 1 ? `<span class="dvc-q">×${it.q}</span>` : '';
-  const label = `${it.n}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
+  const label = `${dvN(it)}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
   const gc = dvGC(it.k), ill = dvIllegal(it);
   return { hue, art, tag, en, q, gc, ill, label: label + (gc ? ', Game Changer' : '') + (ill ? ', ' + T('Pas légale en Commander') : '') };
 }
 function dvTile(it, i, snap, dl, sm) {
   const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, ill, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || ill || en ? `<span class="dvc-tl">${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(dvN(it))}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || ill || en ? `<span class="dvc-tl">${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
 /** Petite image Scryfall (146 × 204) d'une adresse /normal/ : cartes recouvertes des piles. Une pile entière en /normal/ décodait ~140 Mo d'images
@@ -555,7 +555,7 @@ function dvImgSizes(root, view) {
 }
 function dvStrip(it, i, snap, dl) {
   const { hue, tag, en, gc, ill, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(dvN(it))}</span>${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -569,8 +569,8 @@ function dvHero(it, idx, snap, dl) {
   const art = dvImg(it), hue = hash32(it.k) % 360, d = dl && dl.get(it.k);
   const price = it.s === 'ok' ? `<b>${esc(dvFmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(dvFmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(d.tot)))}</span>` : ''}`
     : it.s === 'own' ? '<b class="own">' + T('Dans ta collection') + '</b>' : it.s === 'nf' ? '<b class="bad">' + T('Introuvable') + '</b>' : `<b class="warn">${snap.ref ? T('Prix inconnu') : T('Aucune offre')}</b>`;
-  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? dvImgTag(it, art) : ''}</span>
-    <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(it.n)}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
+  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(dvN(it)) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? dvImgTag(it, art) : ''}</span>
+    <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(dvN(it))}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
 }
 
 /** Évolution depuis le relevé précédent : écart total et plus fortes variations. */
@@ -776,14 +776,8 @@ function dvOpenCopy() {
 }
 /** Mes decks a changé (synchro, suppression, compte) : le pied du viewer suit. */
 function dvDecksChanged() { if (DV.el && DV.adhoc) { dvSavePaint(); if (typeof dfPaint === 'function') dfPaint(); } }      // dfPaint : « + au deck » vise la copie enregistrée (deckfind.js)
-/** Noms affichés des cartes de la liste (nom tapé en français, « Foudre ») : clé anglaise → nom affiché. Les relevés ne gardent que l'anglais ; relu de la liste, une fois par texte et par index des noms. */
-function dvShown(it) {
-  if (DV.dnOf !== DV.text || DV.dnIx !== FRX.ix) {
-    DV.dnOf = DV.text; DV.dnIx = FRX.ix; DV.dn = new Map();
-    for (const raw of String(DV.text || '').split(/\r?\n/)) { const p = parseLine(raw.trim().replace(/^SB:\s*/i, '')); if (p && !p.ignored && p.dn) { DV.dn.set(p.key, p.dn); DV.dn.set(ownKey(p.name), p.dn); } }      // réserve (« SB: ») comprise
-  }
-  return DV.dn.get(String(it.k).replace(/^sb:/, '')) || '';
-}
+/** Nom affiché d'une carte du viewer (collection.js › cardName : possédée → langue de tes exemplaires ; sinon langue de l'appli ; décision du 6 novembre 2026). */
+const dvN = it => cardName(String(it.k).replace(/^sb:/, ''), it.n);
 function dvItemFor(it) {
   if (it.s === 'nf') return null;
   const dl = DV.dl && DV.dl.get(it.k), mv = dl && dvMoved(dl) ? ' · ' + T('{delta} par exemplaire', { delta: (dl.diff < 0 ? '▼ −' : '▲ +') + dvFmt(Math.abs(dl.diff)) }) : '';
@@ -794,7 +788,7 @@ function dvItemFor(it) {
     : it.s === 'own' ? T('Dans ta collection') : T('Aucune offre avec tes critères');
   const ol = !!it.ol;      // image de ta propre carte (sa langue) : pas la version de l'offre, donc ni extension ni numéro à relire sur Scryfall
   const nm = it.im ? null : zoomNamed(it.k, it.n, it.n, '');      // fiche pas encore lue (terrain de base, deck jamais cherché) : la carte par son nom
-  return { key: it.k, name: dvShown(it) || it.n, ln: it.n, wl: ol ? '' : viewLang(String(it.k).replace(/^sb:/, ''), it.ow > 0 || it.s === 'own'), small: nm ? nm.small : it.im, ...(nm && nm.big ? { big: nm.big } : {}), lang: it.ol || it.l || 'en', set: ol ? '' : it.st, num: ol ? '' : it.nu, setName: ol ? '' : it.sn, extra, plain: ol || ((it.s === 'own' || it.s === 'basic' || rf2) && !it.st) };
+  return { key: it.k, name: dvN(it), ln: it.n, wl: ol ? '' : viewLang(String(it.k).replace(/^sb:/, ''), it.ow > 0 || it.s === 'own'), small: nm ? nm.small : it.im, ...(nm && nm.big ? { big: nm.big } : {}), lang: it.ol || it.l || 'en', set: ol ? '' : it.st, num: ol ? '' : it.nu, setName: ol ? '' : it.sn, extra, plain: ol || ((it.s === 'own' || it.s === 'basic' || rf2) && !it.st) };
 }
 function dvOpenCard(i) {
   const list = [], at = new Map();
@@ -892,7 +886,7 @@ function openHand() {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
-      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? dvImgTag(it, dvImg(it), false) : ''}</span></button>`).join('')}</div>
+      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(dvN(it))}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? dvImgTag(it, dvImg(it), false) : ''}</span></button>`).join('')}</div>
         <p class="hand-sum"><b>${TN(lands, '{n} terrain', '{n} terrains')}</b> · ${TN(7 - lands, '{n} sort', '{n} sorts')}</p>
         <h3 class="cs-h">${T('Terrains en main de départ')} <small>${T('sur 7 cartes')}</small></h3>
         <div class="odds" role="img" aria-label="${odds.map((p, k) => TN(k, '{n} terrain : {p}', '{n} terrains : {p}', { p: pctTxt(p) })).join(', ')}">${odds.map((p, k) => `<div class="odd${k === lands ? ' on' : ''}"><span>${k}</span><i style="--w:${(p / max * 100).toFixed(1)}%"></i><b>${pctTxt(p)}</b></div>`).join('')}</div>

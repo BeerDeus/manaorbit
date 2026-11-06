@@ -1,3 +1,12 @@
 {
-  "Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.": "Offline: Die Suche in allen Karten geht weiter, sobald du wieder online bist."
+  "Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.": "Offline: Die Suche in allen Karten geht weiter, sobald du wieder online bist.",
+  "Prix foil non disponible, prix sans foil affiché": "Foil-Preis nicht verfügbar, Preis ohne Foil angezeigt",
+  "Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.": "Was dir fehlt, um alle verfolgten Decks gleichzeitig zu haben (Sideboard inklusive), plus deine Wunschliste.",
+  "{n} carte de ce deck est déjà dans ta collection.": "{n} Karte dieses Decks ist schon in deiner Sammlung.",
+  "{n} cartes de ce deck sont déjà dans ta collection.": "{n} Karten dieses Decks sind schon in deiner Sammlung.",
+  "Toutes les cartes de ce deck sont déjà dans ta collection.": "Alle Karten dieses Decks sind schon in deiner Sammlung.",
+  "Tout ajouter ({n} carte)": "Alle hinzufügen ({n} Karte)",
+  "Tout ajouter ({n} cartes)": "Alle hinzufügen ({n} Karten)",
+  "Ajouter celle qui manque": "Die fehlende hinzufügen",
+  "Ajouter les {n} qui manquent": "Die {n} fehlenden hinzufügen"
 }

@@ -856,6 +856,7 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .px i{font-style:normal;font-size:11px;font-weight:700;opacity:.75}
 .px b{font-family:var(--font-mono);font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
 .px.cm{color:var(--accent)}
+.px-warn{display:inline-block;padding:4px 5px;margin:-4px -3px -4px 1px;font-size:.85em;line-height:1;cursor:pointer;font-style:normal;vertical-align:baseline}      /* ⚠️ prix foil non disponible (collection.js › pxWarn) : zone de toucher agrandie sans décaler le texte */
 .px.ct{color:var(--good)}
 .px.none b{font-size:11.5px;font-weight:500;color:var(--ink-3)}
 .px.none i{color:var(--ink-3)}
@@ -1512,6 +1513,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .dv-acts .btn{flex-basis:calc(50% - 4px);min-width:min(100%,10.5em);height:auto;min-height:44px;padding:6px 10px;font-size:13.5px;line-height:1.15}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière : min-width en em, police agrandie → jamais trois lignes), la liste des cartes remonte d'autant */
 .dv-acts .dv-ana{flex-basis:100%}      /* Coach (decks Commander) : toute la ligne, en tête */
 .tr-wacts{margin-bottom:10px}
+.tr-wrule{margin:-4px 0 10px}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────
    Couche finale : n'ajoute que fonds, bordures et ombres ; aucune mise en page ne change. */
@@ -8058,8 +8060,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '28767b12';
-const I18N_FILES = {"de":"i18n/de.cbb1077d.js","en":"i18n/en.19432aba.js","es":"i18n/es.a57fb8ef.js","it":"i18n/it.2977d5fc.js","pt":"i18n/pt.c3c8d121.js"};
+const DD_BUILD = 'b78d9065';
+const I18N_FILES = {"de":"i18n/de.922920ce.js","en":"i18n/en.98182c13.js","es":"i18n/es.2bd150bc.js","it":"i18n/it.9c5fe1a6.js","pt":"i18n/pt.a78fdd07.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -8390,6 +8392,10 @@ function TN(n, one, many, v) {
 /** Nombre écrit dans la locale de l'appli (LOC) : num(1234) → « 1 234 » (français), « 1,234 » (anglais) ; num(3.125, 2) → « 3,13 » : d décimales toujours écrites
  *  (sans d : jusqu'à 3, comme toLocaleString). Jamais toFixed dans un texte (« 3.12 » en français). */
 const num = (v, d) => Number(v || 0).toLocaleString(LOC(), d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Prix d'une impression selon la finition (centimes) : { v, w }. Exemplaire foil : prix foil, à défaut le prix non foil de la même impression, marqué w (affiché avec ⚠️ :
+ *  « Prix foil non disponible, prix sans foil affiché ») ; non foil : prix non foil, à défaut le foil (impression qui n'existe qu'en foil). v null : aucun prix. Règle unique (collection, échange,
+ *  classeur, lot, scan, extension, masterset : décision du 6 novembre 2026). */
+const finPx = (eu, ef, f) => { const a = f ? ef : eu, b = f ? eu : ef; return a > 0 ? { v: a, w: false } : b > 0 ? { v: b, w: !!f } : { v: null, w: false }; };
 /** Montant tapé par l'utilisateur → nombre (unités : euros, dollars), NaN si vide ou illisible. Symboles et espaces ignorés (« 50 € », « 1 000 », « $1,234.50 ») ;
  *  séparateurs lus selon la locale de l'appli (LOC) : « 4,90 » partout, « 1,000 » = mille en anglais, « 1.000 » = mille en allemand ; les deux présents : le dernier est la virgule décimale. */
 function moneyIn(s, loc) {
@@ -11038,7 +11044,7 @@ function shareCard(x) {
   const e = edUnshare(x.e); if (e) it.e = e;      // impression exacte de ces exemplaires (classeur, liste : son image) ; absente d'un partage d'avant ou sans édition
   const fo = shNum(x.fo, 0, q); if (fo) it.fo = fo;      // foil (classeur : pochette à part) ; absent d'un partage d'avant
   const p = shNum(x.p, 0, 1e7), pf = fo ? shNum(x.pf, 0, 1e7) : 0; if (p) it.p = p; if (pf) it.pf = pf;      // prix à l'unité (centimes) de cette impression et de ses foil, publiés par le propriétaire ; absents : prix de la carte
-  const pu = shNum(x.pu, 0, 1e7), pfu = fo ? shNum(x.pfu, 0, 1e7) : 0; if (pu) it.pu = pu; if (pfu) it.pfu = pfu;      // les mêmes en dollars (propriétaire au marché TCGplayer) : lus par un visiteur du même marché seulement
+  const pu = shNum(x.pu, 0, 1e7), pfu = fo ? shNum(x.pfu, 0, 1e7) : 0; if (pu) it.pu = pu; if (pfu) it.pfu = pfu; if ((pf || pfu) && x.pfw === 1) it.pfw = 1;      // les mêmes en dollars (propriétaire au marché TCGplayer) : lus par un visiteur du même marché seulement
   const f = shStr(x.f, 160).trim(); if (f) { it.fn = f; if (it.l === (SHARE_LANGS.includes(x.fl) ? x.fl : 'fr')) it.dn = f; }      // fl : langue de f (partage d'un appareil en allemand…), français sans elle
   { const iv = shStr(x.i, 300), full = !iv || /^https:/.test(iv) ? iv : SCRY_IMG + iv; if (SHARE_IMG_RE.test(full)) it.im = full; }      // adresse complète ou raccourcie (imgShort)
   const pw = shStr(x.w, 90).trim(); if (pw) it.pw = pw;      // illustration recherchée : « Extension · CODE 123 »
@@ -11112,7 +11118,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
 // Nombres, pourcentages et « Afficher plus » écrits dans la langue de l'appli : exportés à part
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn, moneyIn, tradeMerge3 });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { num, pct, moreLabel, moreBtn, moneyIn, tradeMerge3, finPx });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
@@ -18042,7 +18048,16 @@ function localWrite(list) {
   catch (e) { toast(T('Stockage local indisponible : le deck ne sera pas conservé')); return false; }
 }
 const stripDeck = d => ({ name: d.name, text: d.text, opts: d.opts, cards: d.cards, history: d.history, createdAt: d.createdAt, updatedAt: d.updatedAt });   // les prix gardés (snap) restent dans snapsRead() pour les decks locaux
-const allDecks = () => (D.user ? D.list : D.localList);
+/** Decks supprimés dont la suppression attend encore (id → minuteur) : « Annuler » du toast les rend ; sinon removeDeck après le toast (6,5 s), ou tout de suite si l'appli passe en arrière-plan. */
+const DK_GONE = new Map();
+const allDecks = () => { const l = D.user ? D.list : D.localList; return DK_GONE.size ? l.filter(d => !DK_GONE.has(d.id)) : l; };      // deck en cours de suppression (« Annuler » du toast) : déjà caché partout
+function dkGoneFlush(id) { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); removeDeck(id); }
+function dkDelete(id) {
+  if (S.deckId === id) S.deckId = null;
+  DK_GONE.set(id, setTimeout(() => dkGoneFlush(id), 7000)); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon();
+  toast(T('Deck supprimé'), { label: T('Annuler'), fn: () => { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon(); } });
+}
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) for (const id of [...DK_GONE.keys()]) dkGoneFlush(id); });
 const findDeck = id => (id ? allDecks().find(d => d.id === id) || null : null);
 const cloudOn = () => !!(D.user && D.cloud);
 /** Decks de cet appareil pas encore envoyés dans le compte. */
@@ -18419,12 +18434,22 @@ function openDeckSheet(id) {
     };
     DK_VALP = paintVal;      // relevé du jour arrivé pendant que la feuille est ouverte (builder.js › pxRepaint) : repeinte
     paintVal(); dmLoad().then(() => { paintVal(); return dmFetch(dkValue((findDeck(id) || d).text, dmOf).missing); }).then(() => { fetched = true; paintVal(); });
-    $('#dkOwn', api.body).onclick = () => {
+    $('#dkOwn', api.body).onclick = () => {      // déjà possédées en partie (deck monté depuis la collection) : ce qui manque, ou tout, au choix ; jamais doublé sans le dire
       const cur = findDeck(id) || d, cards = parseDeck(cur.text).cards; if (!cards.length) return;
-      const before = COLL.map, n = cards.reduce((a, c) => a + c.qty, 0);
-      collAdd(cards.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); api.close(); haptic('ok');
-      toast(TN(n, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
-      collEnrich();
+      const n = cards.reduce((a, c) => a + c.qty, 0), miss = cards.map(c => ({ ...c, qty: Math.max(0, c.qty - collQty(ownKey(c.name))) })).filter(c => c.qty > 0), nm = miss.reduce((a, c) => a + c.qty, 0);
+      const add = list => {
+        const before = COLL.map, q = list.reduce((a, c) => a + c.qty, 0);
+        collAdd(list.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); haptic('ok');
+        toast(TN(q, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+        collEnrich();
+      };
+      api.close();
+      if (nm === n) { add(cards); return; }      // aucune possédée : tout, comme avant
+      openSheet(T('Ajouter ses cartes à ma collection'), cur.name, s => {
+        s.body.innerHTML = `<p class="cf-msg">${esc(nm ? TN(n - nm, '{n} carte de ce deck est déjà dans ta collection.', '{n} cartes de ce deck sont déjà dans ta collection.') : T('Toutes les cartes de ce deck sont déjà dans ta collection.'))}</p>`;
+        s.setFoot(`<button class="btn ghost" type="button" data-all>${esc(TN(n, 'Tout ajouter ({n} carte)', 'Tout ajouter ({n} cartes)'))}</button>${nm ? `<button class="btn" type="button" data-miss>${esc(TN(nm, 'Ajouter celle qui manque', 'Ajouter les {n} qui manquent'))}</button>` : `<button class="btn" type="button" data-close>${T('Annuler')}</button>`}`);
+        s.foot.addEventListener('click', e => { if (e.target.closest('[data-all]')) { s.close(); add(cards); } else if (e.target.closest('[data-miss]')) { s.close(); add(miss); } });
+      });
     };
     $('#dkDup', api.body).onclick = () => {
       const cur = findDeck(id) || d, nid = newIdFor();
@@ -18434,7 +18459,7 @@ function openDeckSheet(id) {
     const del = $('#dkDel', api.foot); let armed = 0;
     del.onclick = () => {
       if (!armed) { armed = setTimeout(() => { armed = 0; del.textContent = T('Supprimer'); del.className = 'btn ghost-danger'; }, 4000); del.textContent = T('Confirmer'); del.className = 'btn danger'; return; }
-      clearTimeout(armed); removeDeck(id); api.close(); toast(T('Deck supprimé'));
+      clearTimeout(armed); api.close(); dkDelete(id);      // annulable quelques secondes (dkDelete)
     };
   });
 }
@@ -19108,10 +19133,10 @@ function artSave() { try { localStorage.setItem(ART_KEY, JSON.stringify(artAll()
 function artSet(l, n, u, w, il) { const a = artAll(), k = artK(l, n); delete a[k]; a[k] = { u, w, ...(il && il !== l ? { il } : {}) }; const ks = Object.keys(a); for (const x of ks.slice(0, Math.max(0, ks.length - 400))) delete a[x]; artSave(); }
 function artDrop(l, n) { if (delete artAll()[artK(l, n)]) artSave(); }
 
-/** Tuile d'une impression (liste « Illustrations ») : vignette, symbole et « CMM 400 », extension, prix Cardmarket de l'édition (✦ : foil seulement), année et particularités. */
-function artTile(p, i, sel) {
-  const px = p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', code = String(p.set).toUpperCase() + ' ' + p.num;
-  return `<button type="button" class="imgv-v" data-i="${i}" aria-pressed="${i === sel}" aria-label="${esc(p.sn)} ${esc(code)}${px ? ', ' + esc(px) : ''}${p.fx.length ? ', ' + esc(p.fx.join(', ')) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set, 'inv')}${esc(code)}</span>${p.sn ? `<em class="v-sn">${esc(p.sn)}</em>` : ''}${px ? `<b class="v-px">${esc(px)}</b>` : ''}<small>${esc(p.y)}${p.fx.length ? ' · ' + esc(p.fx.join(', ')) : ''}</small></button>`;
+/** Tuile d'une impression (liste « Illustrations ») : vignette, symbole et « CMM 400 », extension, prix Cardmarket de l'édition (exemplaire foil : prix foil, à défaut le non foil avec ⚠️ ; ✦ : prix foil), année et particularités. */
+function artTile(p, i, sel, foil) {
+  const r = prPx(p, foil), px = r.t, code = String(p.set).toUpperCase() + ' ' + p.num;
+  return `<button type="button" class="imgv-v" data-i="${i}" aria-pressed="${i === sel}" aria-label="${esc(p.sn)} ${esc(code)}${px ? ', ' + esc(px) : ''}${p.fx.length ? ', ' + esc(p.fx.join(', ')) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set, 'inv')}${esc(code)}</span>${p.sn ? `<em class="v-sn">${esc(p.sn)}</em>` : ''}${px ? `<b class="v-px">${esc(px)}${pxWarn(r.w)}</b>` : ''}<small>${esc(p.y)}${p.fx.length ? ' · ' + esc(p.fx.join(', ')) : ''}</small></button>`;
 }
 
 /**
@@ -19245,7 +19270,7 @@ function openCardViewer(items, index) {
     const ce = it.coll && it.set, cur = baseOf(urls[0]), sel = ce ? vars.findIndex(p => p.set === it.set && p.num === it.num) : vars.findIndex(p => baseOf(p.urls[0]) === cur), pf = ce || (canSave && artGet(vl, it.ln || it.name));
     pickAt = sel;
     varsL.innerHTML = (pf ? '<button type="button" class="imgv-v def" data-i="-1" aria-label="' + (it.coll ? T('Retirer l\'édition de cet exemplaire') : T('Revenir à l\'illustration par défaut')) + '"><i>' + (it.coll ? T('Sans édition') : T('Par défaut')) + '</i></button>' : '')
-      + vars.map((p, i) => artTile(p, i, sel)).join('');
+      + vars.map((p, i) => artTile(p, i, sel, !!it.foil)).join('');
     const p = sel >= 0 ? vars[sel] : null;
     varsH.textContent = it.coll ? (p ? `${p.sn} · ${T('édition de ta carte')}` : T('Touche l\'édition de ta carte : son prix compte dans ta collection'))
       : p ? `${p.sn} · ${canSave ? T('retenue pour cette carte') : T('aperçu seulement : l\'offre garde son impression')}` : (pf ? T('Illustration par défaut') : canSave ? T('Touche une illustration') : T('Touche une illustration · aperçu seulement'));
@@ -19487,7 +19512,7 @@ const snapOf = d => (d ? newestSnap(d.snap, sanitizeSnap(snapsRead()[d.id])) : n
 const dvImg = it => (it.im ? it.im.replace('/small/', '/normal/') : '');
 /** Balise de l'image d'une carte du viewer : version de la langue de l'appli (imgL), sauf image d'un exemplaire possédé dans sa propre langue (ol, dvOwnIm). */
 const dvImgTag = (it, u, lazy = true) => { const l = it.ol ? '' : undefined, nm = it.name || it.n, src = imgL(nm, u, l); return `<img alt=""${lazy ? ' loading="lazy"' : ''} decoding="async"${imgOkAttr(src)} ${imgLA(nm, u, l)}>`; };
-const dvLetter = it => esc((it.n.trim()[0] || '?').toUpperCase());
+const dvLetter = it => esc((dvN(it).trim()[0] || '?').toUpperCase());
 /** Écart notable d'une carte (≥ 5 % ou ≥ 0,20 € par exemplaire) : flèche sur la vignette. */
 const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.prev * 0.05);
 /** Carte de la liste officielle des Game Changers (brackets Commander) : builder.js › isGC (base du coach, sinon Scryfall, sinon EDHREC : même EDHREC coupé), comme l'éditeur. */
@@ -19510,13 +19535,13 @@ function dvBits(it, snap, dl) {
   const en = ref ? (it.ow ? `<span class="dvc-l${full ? ' own' : ''}">${full ? '✓' : it.ow + '/' + it.q}</span>` : '')
     : it.s === 'ok' && it.l && snap.lang && it.l !== snap.lang ? `<span class="dvc-l">${esc(it.l.toUpperCase())}</span>` : '';
   const q = it.q > 1 ? `<span class="dvc-q">×${it.q}</span>` : '';
-  const label = `${it.n}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
+  const label = `${dvN(it)}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
   const gc = dvGC(it.k), ill = dvIllegal(it);
   return { hue, art, tag, en, q, gc, ill, label: label + (gc ? ', Game Changer' : '') + (ill ? ', ' + T('Pas légale en Commander') : '') };
 }
 function dvTile(it, i, snap, dl, sm) {
   const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, ill, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || ill || en ? `<span class="dvc-tl">${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(dvN(it))}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || ill || en ? `<span class="dvc-tl">${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
 /** Petite image Scryfall (146 × 204) d'une adresse /normal/ : cartes recouvertes des piles. Une pile entière en /normal/ décodait ~140 Mo d'images
@@ -19532,7 +19557,7 @@ function dvImgSizes(root, view) {
 }
 function dvStrip(it, i, snap, dl) {
   const { hue, tag, en, gc, ill, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(dvN(it))}</span>${ill ? dvIllBadge() : ''}${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -19546,8 +19571,8 @@ function dvHero(it, idx, snap, dl) {
   const art = dvImg(it), hue = hash32(it.k) % 360, d = dl && dl.get(it.k);
   const price = it.s === 'ok' ? `<b>${esc(dvFmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(dvFmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(d.tot)))}</span>` : ''}`
     : it.s === 'own' ? '<b class="own">' + T('Dans ta collection') + '</b>' : it.s === 'nf' ? '<b class="bad">' + T('Introuvable') + '</b>' : `<b class="warn">${snap.ref ? T('Prix inconnu') : T('Aucune offre')}</b>`;
-  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? dvImgTag(it, art) : ''}</span>
-    <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(it.n)}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
+  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(dvN(it)) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? dvImgTag(it, art) : ''}</span>
+    <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(dvN(it))}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
 }
 
 /** Évolution depuis le relevé précédent : écart total et plus fortes variations. */
@@ -19753,14 +19778,8 @@ function dvOpenCopy() {
 }
 /** Mes decks a changé (synchro, suppression, compte) : le pied du viewer suit. */
 function dvDecksChanged() { if (DV.el && DV.adhoc) { dvSavePaint(); if (typeof dfPaint === 'function') dfPaint(); } }      // dfPaint : « + au deck » vise la copie enregistrée (deckfind.js)
-/** Noms affichés des cartes de la liste (nom tapé en français, « Foudre ») : clé anglaise → nom affiché. Les relevés ne gardent que l'anglais ; relu de la liste, une fois par texte et par index des noms. */
-function dvShown(it) {
-  if (DV.dnOf !== DV.text || DV.dnIx !== FRX.ix) {
-    DV.dnOf = DV.text; DV.dnIx = FRX.ix; DV.dn = new Map();
-    for (const raw of String(DV.text || '').split(/\r?\n/)) { const p = parseLine(raw.trim().replace(/^SB:\s*/i, '')); if (p && !p.ignored && p.dn) { DV.dn.set(p.key, p.dn); DV.dn.set(ownKey(p.name), p.dn); } }      // réserve (« SB: ») comprise
-  }
-  return DV.dn.get(String(it.k).replace(/^sb:/, '')) || '';
-}
+/** Nom affiché d'une carte du viewer (collection.js › cardName : possédée → langue de tes exemplaires ; sinon langue de l'appli ; décision du 6 novembre 2026). */
+const dvN = it => cardName(String(it.k).replace(/^sb:/, ''), it.n);
 function dvItemFor(it) {
   if (it.s === 'nf') return null;
   const dl = DV.dl && DV.dl.get(it.k), mv = dl && dvMoved(dl) ? ' · ' + T('{delta} par exemplaire', { delta: (dl.diff < 0 ? '▼ −' : '▲ +') + dvFmt(Math.abs(dl.diff)) }) : '';
@@ -19771,7 +19790,7 @@ function dvItemFor(it) {
     : it.s === 'own' ? T('Dans ta collection') : T('Aucune offre avec tes critères');
   const ol = !!it.ol;      // image de ta propre carte (sa langue) : pas la version de l'offre, donc ni extension ni numéro à relire sur Scryfall
   const nm = it.im ? null : zoomNamed(it.k, it.n, it.n, '');      // fiche pas encore lue (terrain de base, deck jamais cherché) : la carte par son nom
-  return { key: it.k, name: dvShown(it) || it.n, ln: it.n, wl: ol ? '' : viewLang(String(it.k).replace(/^sb:/, ''), it.ow > 0 || it.s === 'own'), small: nm ? nm.small : it.im, ...(nm && nm.big ? { big: nm.big } : {}), lang: it.ol || it.l || 'en', set: ol ? '' : it.st, num: ol ? '' : it.nu, setName: ol ? '' : it.sn, extra, plain: ol || ((it.s === 'own' || it.s === 'basic' || rf2) && !it.st) };
+  return { key: it.k, name: dvN(it), ln: it.n, wl: ol ? '' : viewLang(String(it.k).replace(/^sb:/, ''), it.ow > 0 || it.s === 'own'), small: nm ? nm.small : it.im, ...(nm && nm.big ? { big: nm.big } : {}), lang: it.ol || it.l || 'en', set: ol ? '' : it.st, num: ol ? '' : it.nu, setName: ol ? '' : it.sn, extra, plain: ol || ((it.s === 'own' || it.s === 'basic' || rf2) && !it.st) };
 }
 function dvOpenCard(i) {
   const list = [], at = new Map();
@@ -19869,7 +19888,7 @@ function openHand() {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
-      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? dvImgTag(it, dvImg(it), false) : ''}</span></button>`).join('')}</div>
+      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(dvN(it))}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? dvImgTag(it, dvImg(it), false) : ''}</span></button>`).join('')}</div>
         <p class="hand-sum"><b>${TN(lands, '{n} terrain', '{n} terrains')}</b> · ${TN(7 - lands, '{n} sort', '{n} sorts')}</p>
         <h3 class="cs-h">${T('Terrains en main de départ')} <small>${T('sur 7 cartes')}</small></h3>
         <div class="odds" role="img" aria-label="${odds.map((p, k) => TN(k, '{n} terrain : {p}', '{n} terrains : {p}', { p: pctTxt(p) })).join(', ')}">${odds.map((p, k) => `<div class="odd${k === lands ? ' on' : ''}"><span>${k}</span><i style="--w:${(p / max * 100).toFixed(1)}%"></i><b>${pctTxt(p)}</b></div>`).join('')}</div>
@@ -20093,13 +20112,30 @@ if (typeof document !== 'undefined') { document.addEventListener('visibilitychan
    COLL.ed : 'cmm|400' → { eu, ef (centimes, null si inconnu), im (petite image anglaise), sn (extension), r (rareté), t (lecture) } ou { t, none: 1 } (inconnue de Scryfall). */
 const ED_TTL = 2 * DAY;
 /** Prix Cardmarket d'un exemplaire de l'édition e (centimes) : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil, à défaut le non foil ; null si inconnu. */
-const edEu = (e, f) => { const x = e && COLL.ed[e]; if (!x) return null; const a = f ? x.ef : x.eu, b = f ? x.eu : x.ef; return a > 0 ? a : b > 0 ? b : null; };
+const edEu = (e, f) => edPx(e, f).v;
+/** Même chose avec le marqueur w (foil : prix non foil faute de prix foil, core.js › finPx). */
+const edPx = (e, f) => { const x = e && COLL.ed[e]; return x && !x.none ? finPx(x.eu, x.ef, f) : { v: null, w: false }; };
 /** Prix de référence d'une carte sans édition connue (centimes, null sans prix) : builder.js › refPx (dkPx : relevé du jour, impression la moins chère du marché
  *  choisi, sinon tendance de la fiche ; foil : prix foil de la fiche, à défaut dkPx). Le même chiffre que les decks, le coach, les échanges. */
 const collRefEu = (k, f) => { const u = refPx(k, f); return u > 0 ? u : null; };
 /** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu (foil : prix foil), sinon le prix de référence de la carte (collRefEu ; null sans prix).
  *  Règle de la valeur de la collection (liste, Stats, accueil, widget, courbe, Rangement, lot) : prix de l'édition possédée quand il est connu, sinon le prix de référence. */
-const collLineEu = (k, g) => { const f = lineFoil(g), u = edEu(lineEd(g), f); if (u != null) return u; return collRefEu(k, f); };
+const collLineEu = (k, g) => collLinePx(k, g).v;
+/** Prix d'un exemplaire d'une ligne avec le marqueur w : foil sans prix foil (de son édition ; sans édition, de la fiche) → prix non foil, w (affiché avec ⚠️, pxWarn). */
+function collLinePx(k, g) {
+  const f = lineFoil(g), p = edPx(lineEd(g), f); if (p.v != null) return p;
+  const v = collRefEu(k, f), x = COLL.meta[k] || (typeof DM !== 'undefined' && DM[k]); return { v, w: !!f && v != null && !(x && x.ef > 0) };
+}
+/** Prix d'une tuile d'impression (choix d'édition, lot, Illustrations, page d'extension, masterset) : { t (texte), w } ; foil : prix foil, à défaut le non foil (w : ⚠️) ;
+ *  non foil : prix non foil, à défaut foil (impression qui n'existe qu'en foil). ✦ après le prix quand c'est un prix foil. */
+const prPx = (p, foil) => { const r = finPx(p.eu, p.ef, !!foil); return { t: r.v ? fmt(r.v, mkCur()) + ((foil ? !r.w : !(p.eu > 0)) ? ' ✦' : '') : '', w: r.w }; };
+/** Marqueur ⚠️ d'un prix foil remplacé par le prix non foil (w vrai) : touché, il dit « Prix foil non disponible, prix sans foil affiché » (toast) ; '' sinon.
+ *  Peut se trouver dans un bouton (tuile, ligne) : l'appui ne déclenche que le message (écoute en capture, plus bas). */
+const pxWarn = w => (w ? `<span class="px-warn" role="button" tabindex="0" data-pxwarn aria-label="${esc(T('Prix foil non disponible, prix sans foil affiché'))}" title="${esc(T('Prix foil non disponible, prix sans foil affiché'))}">⚠️</span>` : '');
+if (typeof document !== 'undefined') {
+  const pxWarnSay = e => { const w = e.target && e.target.closest && e.target.closest('[data-pxwarn]'); if (!w) return; if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return; e.preventDefault(); e.stopPropagation(); toast(T('Prix foil non disponible, prix sans foil affiché')); };
+  document.addEventListener('click', pxWarnSay, true); document.addEventListener('keydown', pxWarnSay, true);
+}
 /** Prix moyen d'un exemplaire de la carte (centimes), éditions comprises : valeur de la collection, tri par prix. null sans prix. */
 function collCardEu(k) {
   const x = COLL.map[k], ref = collRefEu(k, false); if (!x || !x.x) return ref;      // sans édition : le prix de référence
@@ -20239,8 +20275,8 @@ function edSheet(o) {
     const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(cmax())}</small></div>` : '')
       + (o.onSplit ? `<button type="button" class="link-btn ced-split" data-split>${T('Répartir entre plusieurs éditions')}</button>` : '');      // feuille « Répartir par édition » (edSplit)
     const tile = (p, i) => {
-      const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : p.eu > 0 ? fmt(p.eu, mkCur()) : '') : p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
-      return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
+      const e = edKey(p.set, p.num), r = prPx(p, foil), px = r.t, ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition, à défaut le non foil avec ⚠️
+      return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}${pxWarn(r.w)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
     };
     let q = '', wantQ = !!o.focusQ;      // focusQ : la feuille s'ouvre sur la recherche (bandeau du scan › « Chercher une extension »)
     const more = edQFinder(() => prints, o.find, extra => { prints.push(...extra); paint(); });      // o.find : recherche sur Scryfall quand la liste n'a rien (code, numéro)
@@ -20320,7 +20356,7 @@ function edSplit(k, g) {
   const l = lineLang(g), f = lineFoil(g), aw = lineAw(g), grp = edGroup(k, g), total = grp.total; if (total < 2) return;
   const rows = grp.lines.filter(([h]) => lineEd(h)).map(([h, q]) => ({ e: lineEd(h), q, info: null })), name = frName(k, l) || x.n;
   const rest = () => total - rows.reduce((a, r) => a + r.q, 0);
-  const pxOf = r => { const i = r.info, u = i ? (f ? (i.ef > 0 ? i.ef : i.eu) : (i.eu > 0 ? i.eu : i.ef)) : edEu(r.e, f); return u > 0 ? u : 0; };
+  const pxW = r => (r.info ? finPx(r.info.eu, r.info.ef, f) : edPx(r.e, f)), pxOf = r => pxW(r).v || 0;      // foil sans prix foil : le non foil, avec ⚠️
   haptic('tap');
   openSheet(T('Répartir par édition'), TN(total, '{name} · {n} exemplaire', '{name} · {n} exemplaires', { name }) + (l ? ' ' + langCode(l) : '') + (f ? ' · ' + T('Foil') : ''), api => {
     api.wrap.classList.add('esp-sheet');
@@ -20329,7 +20365,7 @@ function edSplit(k, g) {
       let val = r0 * ref; for (const r of rows) val += r.q * (pxOf(r) || ref);
       api.body.innerHTML = rows.map((r, i) => {
         const set = edSet(r.e), sn = setName(set) || (r.info && r.info.sn) || (COLL.ed[r.e] || {}).sn || set.toUpperCase(), px = pxOf(r);
-        return `<div class="esp-r" data-e="${esc(r.e)}"><span class="esp-ic">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}</span><span class="esp-t"><b>${esc(sn)}</b><small>${esc(edLabel(r.e))}${px ? ' · ' + esc(fmt(px, mkCur())) : ''}</small></span>
+        return `<div class="esp-r" data-e="${esc(r.e)}"><span class="esp-ic">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}</span><span class="esp-t"><b>${esc(sn)}</b><small>${esc(edLabel(r.e))}${px ? ' · ' + esc(fmt(px, mkCur())) + pxWarn(pxW(r).w) : ''}</small></span>
           <span class="qstep"><button type="button" data-i="${i}" data-d="-1" aria-label="${esc(T('Moins'))}"${r.q ? '' : ' disabled'}>−</button><b>${r.q}</b><button type="button" data-i="${i}" data-d="1" aria-label="${esc(T('Plus'))}"${r0 ? '' : ' disabled'}>+</button></span></div>`;
       }).join('')
         + `<div class="esp-r esp-none"><span class="esp-ic" aria-hidden="true"></span><span class="esp-t"><b>${T('Sans édition')}</b><small>${T('le reste')}</small></span><em>${r0}</em></div>
@@ -20884,8 +20920,11 @@ function frOf(k) {
   return (m && m.get(k)) || '';
 }
 /** Nom affiché d'une ligne de la collection : l'imprimé français pour un exemplaire FR ('' si la carte n'est pas FR ou si le catalogue ne la connaît pas).
- *  Même chose dans la langue du catalogue chargé (exemplaire allemand → nom allemand) ; frOf donne alors le nom dans cette langue. */
-const frName = (k, l) => (l && l === FRX.l ? frOf(k) : '');
+ *  Même chose dans la langue du catalogue chargé (exemplaire allemand → nom allemand) ; frOf donne alors le nom dans cette langue ; exemplaire dans la langue de l'appli : son index. */
+const frName = (k, l) => (!l ? '' : l === FRX.l ? frOf(k) : l === cnLang() && typeof cnOf === 'function' ? cnOf(k) : '');      // langue des cartes, ou celle de l'appli (son index : cardnames.js), comme la suggestion (sugOwned)
+/** Nom affiché d'une carte hors d'une ligne de la collection (decks : éditeur, viewer, analyse, image partagée ; variations de prix ; alertes) : possédée → dans la langue de
+ *  tes exemplaires (frName ; exemplaire anglais : anglais) ; pas possédée → dans la langue de l'appli (cardnames.js › cnOf), sinon anglais. Décision du 6 novembre 2026. */
+const cardName = (k, n) => { const x = COLL.map[k]; if (x) return (x.l && frName(k, x.l)) || n; return (typeof cnOf === 'function' && cnOf(n)) || n; };
 /** Langue des noms imprimés reconnus (core.js › namesLangOf) : celle des cartes cherchées, sinon français pour l'interface française ; '' : aucun catalogue (cartes anglaises). */
 const namesLang = () => namesLangOf(S.opts.lang, I18N.lang);
 /** Passe au catalogue d'une autre langue : un seul en mémoire, l'ancien est oublié (index, noms affichés, catalogue du scan, recherches du scan). */
@@ -21087,7 +21126,8 @@ function crowHtml(it) {
   if (!it.l) tags.push(langChip(it.k, '', it.n, '', g));
   const plc = plcRowTag(g); if (plc) tags.push(plc);      // emplacement et détails (places.js) : seulement si la ligne est rangée ou détaillée
   const px = [];      // prix : CM (tendance Cardmarket, estimation) au-dessus, CT (offre CardTrader la plus basse, lue à la demande) en dessous
-  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${it.e ? T('Cardmarket : prix de cette édition') : it.f ? T('Exemplaires foil : prix foil Cardmarket') : T('Cardmarket : valeur estimée (impression la moins chère)')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
+  const pw = !!it.f && Number.isFinite(it.eu) && collLinePx(it.k, g).w;      // ligne foil sans prix foil : le non foil, avec ⚠️
+  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${pw ? T('Prix foil non disponible, prix sans foil affiché') : it.e ? T('Cardmarket : prix de cette édition') : it.f ? T('Exemplaires foil : prix foil Cardmarket') : T('Cardmarket : valeur estimée (impression la moins chère)')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b>${pxWarn(pw)}</span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
   return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
@@ -21509,8 +21549,9 @@ function collViewItem(k, ln) {
   const ls = collLines(x), line = ls.find(e => e[0] === (ln || '')) || ls[0] || [x.l || '', x.q], g = line[0], l = lineLang(g), e = lineEd(g), n = line[1];
   const im = collLineImage(k, g, m.im), fr = l && l !== 'en' && im.lang === 'en' && !e ? ' · ' + T('image anglaise (pas d\'image {lang} sur Scryfall)', { lang: LANGS[l] ? T(LANGS[l]) : l }) : '';
   const own = ls.length > 1 ? TN(n, '{n} exemplaire {lang} · {total} au total', '{n} exemplaires {lang} · {total} au total', { n, lang: lineTag(g), total: x.q }) : TN(x.q, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: x.q });
-  const f = lineFoil(g), eu = e ? edEu(e, f) : null, ref = eu == null ? collRefEu(k, f) : null;      // édition connue : son prix, dit comme tel ; sinon le prix de référence (le même que la liste et les decks)
-  const px = eu != null ? ' · ' + T(f ? 'prix foil de cette édition {v}' : 'prix de cette édition {v}', { v: fmt(eu, mkCur()) }) : ref != null ? ' · ' + (f && m.ef > 0 ? T('prix foil Cardmarket {v}', { v: fmt(ref, mkCur()) }) : T('valeur estimée {p}', { p: fmt(ref, mkCur()) })) : '';
+  const f = lineFoil(g), lp = collLinePx(k, g), eu = e ? edEu(e, f) : null, ref = eu == null ? lp.v : null;      // édition connue : son prix, dit comme tel ; sinon le prix de référence (le même que la liste et les decks)
+  const px = (eu != null ? ' · ' + T(f && !lp.w ? 'prix foil de cette édition {v}' : 'prix de cette édition {v}', { v: fmt(eu, mkCur()) }) : ref != null ? ' · ' + (f && !lp.w ? T('prix foil Cardmarket {v}', { v: fmt(ref, mkCur()) }) : T('valeur estimée {p}', { p: fmt(ref, mkCur()) })) : '')
+    + (lp.w && (eu != null || ref != null) ? ' ⚠️ ' + T('Prix foil non disponible, prix sans foil affiché') : '');      // texte de la carte en grand : le message écrit, pas de bouton
   const sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '';
   return { key: k, lid: k + '|' + g, name: frName(k, l) || x.n, ln: x.n, wl: l && l !== 'en' && !e ? l : '', small: im.src, lang: im.lang, plain: true, coll: { k, g }, ...(f ? { foil: true } : {}),
     ...(e ? { set: edSet(e), num: edNum(e), setName: sn } : {}),
@@ -24100,7 +24141,7 @@ function valMovers() {
   const ref = baseRef(VAL.base); if (!ref) return null;
   const sig = [VAL.at, VAL.thr, collCount(), COLL.u, ref.t].join('|');
   if (VAL.memo && VAL.memo.sig === sig) return VAL.memo.mv;
-  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: x.n, q: x.q, eu: dkPx(k) })), ref, VAL.thr);      // prix de référence (dkPx), comme les références de valCommit
+  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: cardName(k, x.n), q: x.q, eu: dkPx(k) })), ref, VAL.thr);      // nom dans la langue de tes exemplaires, comme la liste      // prix de référence (dkPx), comme les références de valCommit
   mv.since = ref.t; mv.by = new Map(mv.list.map(x => [x.k, x])); mv.ready = VAL.at - ref.t >= VAL_EVERY;      // moins de 20 h d'écart : rien n'a pu bouger, on n'affiche pas de variation
   VAL.memo = { sig, mv }; return mv;
 }
@@ -24520,8 +24561,8 @@ function alItems() {
   if (AC.deck) {
     for (const d of allDecks()) {
       if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
-      for (const c of parseDeck(d.text).cards) {
-        const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
+      for (const c of [...parseDeck(d.text).cards, ...dkSideCards(d.text)]) {      // réserve comprise (et compagnon), comme « Je recherche » (décision du 6 novembre 2026)
+        const k = ownKey(c.key || c.name); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
         put(k, c.name, 0, d.name);
       }
@@ -24684,15 +24725,15 @@ async function openAlertSheet() {
       const last = data && data.last && data.last.at ? T('Dernier contrôle {when}', { when: relTime(data.last.at) }) + (data.last.miss ? ' · ' + T('{n} sans prix', { n: nf0(data.last.miss) }) : '') : T('Premier contrôle dans quelques minutes.');
       const rowHtml = r => {
         const tags = [...(r.d || []).map(d => T('Manque à {deck}', { deck: esc(d) })), r.h ? (r.t ? T('Cible {p}', { p: esc(fmt(r.t)) }) : (AC.watch[r.k] || {}).d ? '' : T('Suivie à la main')) : '', r.u ? T('hausse et baisse') : ''].filter(Boolean).join(' · ');
-        return `<div class="al-row" data-k="${esc(r.k)}"><span class="al-n"><b>${esc(r.n)}</b><small>${tags}</small></span>
+        return `<div class="al-row" data-k="${esc(r.k)}"><span class="al-n"><b>${esc(cardName(r.k, r.n))}</b><small>${tags}</small></span>
           <span class="al-px">${r.c ? `<b>${esc(fmt(r.c))}</b>${r.b && r.pct ? `<small class="${r.pct < 0 ? 'dn' : 'up'}">${r.pct > 0 ? '+' : '−'}${pct(Math.abs(r.pct))}</small>` : ''}` : `<small>${T('pas encore de prix')}</small>`}</span>
-          <button class="ib-x" type="button" data-rm="${esc(r.k)}" aria-label="${T(r.h ? 'Ne plus suivre {name}' : 'Exclure de la surveillance {name}', { name: esc(r.n) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+          <button class="ib-x" type="button" data-rm="${esc(r.k)}" aria-label="${T(r.h ? 'Ne plus suivre {name}' : 'Exclure de la surveillance {name}', { name: esc(cardName(r.k, r.n)) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
       };
       const dmWhy = alDscOk() && data && data.dm && data.dmErr ? data.dmErr : '';      // dernier MP impossible : la raison donnée par le serveur
       const dmErr = !dmWhy ? '' : dmWhy === 'closed' ? T('MP Discord refusés : vérifie tes réglages de confidentialité Discord.') : dmWhy === 'member' ? T('MP Discord impossibles : tu n\'es plus sur le serveur Mana Orbit.')
         : dmWhy === 'unlinked' ? T('MP Discord impossibles : ton compte Discord n\'est plus lié.') : T('Dernier MP Discord non envoyé (Discord injoignable) : nouvel essai à la prochaine alerte.');
       api.body.innerHTML = `
-        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(h.n)}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="${h.why === 'rise' ? 'up' : 'dn'}">${h.why === 'target' ? T('sous ta cible') : (h.why === 'rise' ? '+' : '−') + pct(h.pct)}</small></span></div>`).join('')}</div>` : ''}
+        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(cardName(h.k || ownKey(h.n), h.n))}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="${h.why === 'rise' ? 'up' : 'dn'}">${h.why === 'target' ? T('sous ta cible') : (h.why === 'rise' ? '+' : '−') + pct(h.pct)}</small></span></div>`).join('')}</div>` : ''}
         <div class="switch-row"><span class="t"><b>${T('Cartes manquantes de mes decks')}</b><span class="hint">${T('Toutes les cartes qu\'il te reste à acheter pour tes decks enregistrés.')}</span></span><label class="switch"><input type="checkbox" id="alDeck" ${AC.deck ? 'checked' : ''}><i></i></label></div>
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
         ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
@@ -24883,11 +24924,11 @@ function csHeadHtml(k, x, m) {
 function csLinesHtml(k, x) {
   const ls = collLines(x), name = CS.n;
   const rows = ls.map(([g, q]) => {
-    const l = lineLang(g), e = lineEd(g), f = lineFoil(g), sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '', u = collLineEu(k, g), nm = frName(k, l) || x.n;
+    const l = lineLang(g), e = lineEd(g), f = lineFoil(g), sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '', lp = collLinePx(k, g), u = lp.v, nm = frName(k, l) || x.n;
     const tagline = [langCode(l) || T('sans langue'), e ? edLabel(e) : '', f ? T('Foil') : ''].filter(Boolean).join(' · ');
     return `<div class="cs-ln${g === CS.g ? ' on' : ''}" data-g="${esc(g)}" role="group" aria-label="${esc(tagline + ' · ' + TN(q, '{n} exemplaire', '{n} exemplaires'))}">
       ${langChip(k, l, x.n, 'cs-lc', g)}
-      <span class="cs-lt"><b><span>${esc(e ? sn || edLabel(e) : T('Sans édition'))}</span>${f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}</b><small>${esc([e && sn ? edLabel(e) : '', u > 0 ? T('{p} pièce', { p: fmt(u, mkCur()) }) : T('sans prix')].filter(Boolean).join(' · '))}</small></span>
+      <span class="cs-lt"><b><span>${esc(e ? sn || edLabel(e) : T('Sans édition'))}</span>${f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}</b><small>${esc([e && sn ? edLabel(e) : '', u > 0 ? T('{p} pièce', { p: fmt(u, mkCur()) }) : T('sans prix')].filter(Boolean).join(' · '))}${u > 0 ? pxWarn(lp.w) : ''}</small></span>
       <span class="cs-lp">${plcRowTag(g) || `<button type="button" class="tag plc add" data-act="cex">${esc(T('Ranger, état…'))}</button>`}</span>
       ${edBtn({ e, f }, nm)}
       <span class="qstep"><button type="button" data-cs="dec" aria-label="${esc(T('Retirer un exemplaire de {name}', { name: nm }))}">−</button><b>${q}</b><button type="button" data-cs="inc" aria-label="${esc(T('Ajouter un exemplaire de {name}', { name: nm }))}">+</button></span></div>`;
@@ -25388,9 +25429,10 @@ function scanThumb(e) { if (e.pk && e.pk.th) return e.pk.th; const u = e.l && e.
 /** Prix sous la quantité d'une ligne du scan : « 2,40 € » ou « 2,40 € ×3 » (prix de l'édition posée, sinon de la carte ; foil au prix foil ; foil et non foil mêlés : le total). */
 function scanRowPx(e) {
   const fq = Math.min(e.fq || 0, e.q), u = scanEu(e.key, e.pk, false), uf = fq ? scanEu(e.key, e.pk, true) : 0;
-  if (fq && fq < e.q) { const tot = u * (e.q - fq) + uf * fq; return tot > 0 ? `<small class="sc-px">${esc(fmt(tot, mkCur()))}</small>` : ''; }
+  const fw = fq > 0 && uf > 0 && (e.pk && (e.pk.eu > 0 || e.pk.ef > 0) ? finPx(e.pk.eu, e.pk.ef, true).w : !((COLL.meta[e.key] || {}).ef > 0));      // foil sans prix foil : le non foil, avec ⚠️
+  if (fq && fq < e.q) { const tot = u * (e.q - fq) + uf * fq; return tot > 0 ? `<small class="sc-px">${esc(fmt(tot, mkCur()))}${pxWarn(fw)}</small>` : ''; }
   const one = fq ? uf : u; if (!(one > 0)) return '';
-  return `<small class="sc-px">${esc(fmt(one, mkCur()))}${e.q > 1 ? ' ×' + e.q : ''}</small>`;
+  return `<small class="sc-px">${esc(fmt(one, mkCur()))}${e.q > 1 ? ' ×' + e.q : ''}${pxWarn(fw)}</small>`;
 }
 /* ── Alerte de prix (Réglages du scan › Alerte de prix, scanset.js) : une carte qui vaut le seuil ou plus s'annonce sur l'aperçu (comme « Encore X ? ») ;
    « Ranger dans » la met à part (it.dp : son emplacement, section « À ranger dans … » de la liste), elle y va à l'ajout (scanKeep). Une décision par ligne (it.pa). */
@@ -27105,7 +27147,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { symFill,
 const scanPk = (k, l) => k + '|' + (l || 'en');
 /** Prix d'un exemplaire d'une impression (centimes), sinon null : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil,
  *  à défaut le non foil (comme collection.js › edEu). */
-const pkEu = (p, f) => { if (!p) return null; const a = f ? p.ef : p.eu, b = f ? p.eu : p.ef; return a > 0 ? a : b > 0 ? b : null; };
+const pkEu = (p, f) => (p ? finPx(p.eu, p.ef, f).v : null);      // core.js › finPx : foil sans prix foil → le non foil
 /** Prix d'un exemplaire du scan (centimes) : celui de son impression, sinon le prix de référence de la carte ; foil : le prix foil, à défaut le normal
  *  (comme collection.js › collLineEu) ; 0 sans prix. m : infos de la carte (COLL.meta par défaut). */
 const scanEu = (k, p, f, m = COLL.meta[k]) => {
@@ -28201,8 +28243,8 @@ const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.s
 const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0) + (BD.fmt !== 'commander' && !BD.side.has(k) ? (BD.comp.get(k) || {}).qty || 0 : 0);
 /** Cartes de la réserve (Standard : compagnon compris, comme core.js › dkCheck). */
 const bdSideN = () => bdCount(BD.side) + (BD.fmt !== 'commander' ? dkCompOut([...BD.comp.values()], [...BD.side.values()]).reduce((a, c) => a + c.qty, 0) : 0);
-/** Nom affiché : français si la carte est possédée en français (même règle que la collection), sinon anglais. */
-function bdLabel(k, name) { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || name; }
+/** Nom affiché d'une carte du deck (collection.js › cardName) : possédée → langue de tes exemplaires ; sinon langue de l'appli, sinon anglais. */
+const bdLabel = (k, name) => cardName(k, name);
 const bdCmp = (a, b) => NAME_CMP(bdLabel(a.key, a.name), bdLabel(b.key, b.name));
 const bdFmtName = f => (DK_FORMATS[f] || DK_FORMATS.standard).label;
 
@@ -32489,26 +32531,27 @@ function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, 
 const trPrice = k => dkPx(k) || (dmOf(k) || {}).eu || null;
 /** Prix d'un exemplaire d'une ligne de MA collection (clé 'fr|cmm|400*') : celui de son impression (COLL.ed, comme la valeur de la collection : collection.js › edEu), sinon trPrice ;
  *  foil : le prix foil de son impression, sinon le prix foil Cardmarket de la carte ; null si aucun prix foil n'est connu (jamais le prix non foil présenté comme prix foil). */
-function trLinePx(k, g) {
-  const e = lineEd(g);
-  if (lineFoil(g)) { const x = e && COLL.ed[e], m = dmOf(k) || {}; return x && !x.none && x.ef > 0 ? x.ef : m.ef > 0 ? m.ef : null; }
-  return (e && edEu(e, false)) || trPrice(k);
+function trLinePx(k, g) { return trLinePxW(k, g).v; }
+/** Même chose avec le marqueur w (foil sans prix foil : le prix non foil, avec ⚠️) : la règle de la collection (collection.js › collLinePx). */
+function trLinePxW(k, g) {
+  if (lineFoil(g)) return collLinePx(k, g);
+  const e = lineEd(g), v = (e && edEu(e, false)) || trPrice(k); return { v: v > 0 ? v : null, w: false };
 }
 /** Ligne de la liste chiffrée (tradeView › price(k, x)) : doublons (x.lines) → { u (à l'unité : exemplaires non foil, sinon foil ; moyenne s'ils ont plusieurs prix), v (chaque ligne à son prix ;
- *  foil sans prix foil connu : compté au prix normal), fu (foil : prix à l'unité, null s'il manque ; absent sans foil) } ; recherchées : trPrice. */
+ *  foil sans prix foil connu : compté au prix normal), fu (foil : prix à l'unité ; sans prix foil, le non foil et fw ; null sans aucun prix ; absent sans foil) } ; recherchées : trPrice. */
 function trRowPx(k, x) {
   if (!x || !x.lines) return trPrice(k);
-  let v = 0, any = false, nq = 0, nv = 0, fq = 0, fv = 0, fok = true;
+  let v = 0, any = false, nq = 0, nv = 0, fq = 0, fv = 0, fok = true, fw = false;
   for (const [g, q] of x.lines) {
-    const f = lineFoil(g), p = trLinePx(k, g), u = p > 0 ? p : f ? trLinePx(k, lineKey(lineLang(g), lineEd(g))) : null;
+    const f = lineFoil(g), pw = trLinePxW(k, g), u = pw.v;
     if (u > 0) { v += u * q; any = true; }
-    if (f) { fq += q; if (p > 0) fv += p * q; else fok = false; } else if (u > 0) { nq += q; nv += u * q; }
+    if (f) { fq += q; if (u > 0) fv += u * q; else fok = false; if (pw.w) fw = true; } else if (u > 0) { nq += q; nv += u * q; }
   }
   const fu = fq ? (fok ? Math.round(fv / fq) : null) : undefined;
-  return { u: nq ? Math.round(nv / nq) : fq === x.q ? fu : null, v: any ? v : null, ...(fq ? { fu } : {}) };
+  return { u: nq ? Math.round(nv / nq) : fq === x.q ? fu : null, v: any ? v : null, ...(fq ? { fu, ...(fw ? { fw: true } : {}) } : {}) };
 }
 /** Carte d'un partage (visiteur) : prix à l'unité de ses exemplaires non foil (celui de leur impression publié par le propriétaire : p, sinon trPrice) et de ses foil (pf, null si inconnu). */
-const trShPx = it => { const p = mkUs() ? it.pu : it.p, pf = mkUs() ? it.pfu : it.pf; return { u: p > 0 ? p : trPrice(it.k), fu: it.fo > 0 ? (pf > 0 ? pf : null) : undefined }; };      // prix publiés dans la devise du visiteur (p, pf : euros ; pu, pfu : dollars)
+const trShPx = it => { const p = mkUs() ? it.pu : it.p, pf = mkUs() ? it.pfu : it.pf; return { u: p > 0 ? p : trPrice(it.k), fu: it.fo > 0 ? (pf > 0 ? pf : null) : undefined, fw: it.fo > 0 && pf > 0 && it.pfw === 1 }; };      // pfw : prix foil non disponible chez le propriétaire, son prix non foil publié à la place      // prix publiés dans la devise du visiteur (p, pf : euros ; pu, pfu : dollars)
 /** Carte d'un partage : nom, exemplaires, langue, édition (e : « cmm/400 »), nom français, image (édition : cette impression exacte, sinon la carte ; dans la langue de l'exemplaire si Scryfall l'a), coût, type, couleurs, symboles.
  *  Édition dont l'image n'est pas encore lue : sans image (le visiteur la lit par l'extension et le numéro), jamais celle d'une autre impression. */
 function trCard(k, n, q, l, e) {
@@ -32523,11 +32566,12 @@ function trCard(k, n, q, l, e) {
 /** Contenu du partage de la liste d'échange (sans date : sert aussi d'empreinte). Trop gros : sans images ni symboles (le visiteur les lit sur Scryfall), puis tronqué.
  *  La limite tient compte du pseudo et de la photo que trPut ajoute (jusqu'à 40 000 caractères) : le document reste sous la règle des 900 000.
  *  Doublons : une carte par langue et par édition (e ; sans édition : une par langue, comme avant), fo = ses exemplaires foil (pochette foil du classeur du visiteur ; absent sans foil),
- *  p / pf = prix à l'unité de cette impression / de ses foil (trLinePx ; absents s'ils sont inconnus : le visiteur prend le prix de la carte, comme avant ; une version d'avant les ignore). */
+ *  p / pf = prix à l'unité de cette impression / de ses foil (trLinePx ; absents s'ils sont inconnus : le visiteur prend le prix de la carte, comme avant ; une version d'avant les ignore) ;
+ *  pfw = 1 : pf est le prix non foil (prix foil non disponible), montré avec ⚠️. */
 function trPayload() {
   const st = trState(), have = st.have.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => {
-    const o = trCard(x.k, x.n, q, l, e), p = e && fo < q && edEu(e, false), pf = fo && trLinePx(x.k, lineKey(l, e, true)); if (fo) o.fo = fo;
-    if (p > 0) o[mkUs() ? 'pu' : 'p'] = p; if (pf > 0) o[mkUs() ? 'pfu' : 'pf'] = pf;      // prix à l'unité de cette impression (p) et de ses foil (pf) : le visiteur n'a que le prix de la carte (impression la moins chère, non foil)
+    const o = trCard(x.k, x.n, q, l, e), p = e && fo < q && edEu(e, false), pw = fo ? trLinePxW(x.k, lineKey(l, e, true)) : { v: null }, pf = pw.v; if (fo) o.fo = fo;
+    if (p > 0) o[mkUs() ? 'pu' : 'p'] = p; if (pf > 0) { o[mkUs() ? 'pfu' : 'pf'] = pf; if (pw.w) o.pfw = 1; }      // prix à l'unité de cette impression (p) et de ses foil (pf) : le visiteur n'a que le prix de la carte (impression la moins chère, non foil)
     return o;
   })), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
   const bd = bndPayload(st, have, want);      // classeur réglé (binder.js) : cartes dans son ordre (une liste tronquée garde les épinglées), réglages pour les visiteurs
@@ -32722,16 +32766,16 @@ function trShareBoxHtml(st) {
     <div class="tr-acts small"><button class="link-btn link-inline" type="button" data-act="trnew">${T('Nouveau lien')}</button><button class="link-btn link-inline" type="button" data-act="troff">${T('Arrêter le partage')}</button></div>${live}</div>`;
 }
 /** Prix unitaire d'une ligne chiffrée (tradeView) : « ≈ 1,50 € » devant « × 3 » (lu « 1,50 € × 3 », la ligne garde sa hauteur). */
-const trPxHtml = x => (x.u != null ? `<small class="tr-px" title="${esc(T('{v} pièce', { v: fmt(x.u, mkCur()) }))}">≈ ${esc(fmt(x.u, mkCur()))}</small>` : '');
+const trPxHtml = x => (x.u != null ? `<small class="tr-px" title="${esc(T('{v} pièce', { v: fmt(x.u, mkCur()) }))}">≈ ${esc(fmt(x.u, mkCur()))}${pxWarn(!!x.fw && x.u === x.fu)}</small>` : '');      // toutes foil sans prix foil : ⚠️
 const trQxHtml = x => `<span class="tr-qx">${trPxHtml(x)}<b>× ${x.q}</b></span>`;
 /** « 5 € » sans centimes (filtre « ≥ 5 € »). */
 const trEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: mkCur(), minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(c / 100);
 /** Pastille foil d'une ligne de la liste d'échange (propriétaire et visiteur) : « ✦ Foil », « ✦ Foil × 1 · 5,00 € » quand une partie seulement l'est (leur prix à l'unité : fu,
- *  celui de la ligne étant celui des non foil) ; fu null : prix foil inconnu, dit au survol (comptées au prix normal) ; '' sans foil. */
-const trFoilTag = (fo, q, fu) => (fo > 0 ? `<span class="tag foil"${fu === null ? ` title="${esc(T('Prix foil inconnu : compté au prix normal'))}"` : ''}>✦ ${T('Foil')}${fo < q ? ' × ' + fo + (fu > 0 ? ' · ' + esc(fmt(fu, mkCur())) : '') : ''}</span>` : '');
+ *  celui de la ligne étant celui des non foil) ; fw : prix foil non disponible, le non foil à la place (⚠️) ; fu null : aucun prix ; '' sans foil. */
+const trFoilTag = (fo, q, fu, fw) => (fo > 0 ? `<span class="tag foil">✦ ${T('Foil')}${fo < q ? ' × ' + fo + (fu > 0 ? ' · ' + esc(fmt(fu, mkCur())) + pxWarn(!!fw) : '') : ''}</span>` : '');
 function trHaveRow(x) {
   const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, th = bndThumb(x, it.l, it.im), img = th.src;      // par langue, éditions confondues ; vignette : l'impression de la 1re ligne (sa 1re pochette du classeur)
-  const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q, x.fu);
+  const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q, x.fu, x.fw);
   return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, x.n, img, it.l, !!th.e)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${langs}${it.dn ? `<span class="tag">${esc(x.n)}</span>` : ''}</span></span>
     <span class="tr-q">${trQxHtml(x)}<button class="link-btn" type="button" data-act="tkeep" aria-label="${T('Garder {name} (ne plus la proposer)', { name: esc(nm) })}">${T('Garder')}</button></span></div>`;
@@ -32752,7 +32796,7 @@ function trPanelHtml() {
   TR.bv = bv && list.length ? { list, want } : null;
   return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
     <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
-    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div>` : ''}
+    ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
@@ -33091,8 +33135,8 @@ function pubRow(it) {
     : (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : it.own ? `<span class="tag good">${T('déjà à toi × {n}', { n: it.own })}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.fo > 0 ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '');
   return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(it.k, it.n, img, '', pubFixed(it))}>` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q, px.fu)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
-    <span class="tr-q">${trQxHtml({ q: it.q, u: it.fo >= it.q ? px.fu : px.u })}</span></div>`;      // prix à l'unité de l'appareil du visiteur (celui de l'impression s'il est publié : p, pf), comme sur l'onglet du propriétaire ; toutes foil : le prix foil
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q, px.fu, px.fw)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
+    <span class="tr-q">${trQxHtml({ q: it.q, u: it.fo >= it.q ? px.fu : px.u, fu: px.fu, fw: px.fw })}</span></div>`;      // prix à l'unité de l'appareil du visiteur (celui de l'impression s'il est publié : p, pf), comme sur l'onglet du propriétaire ; toutes foil : le prix foil
 }
 
 function trInit() {
@@ -33167,8 +33211,8 @@ function bndArrange(list, s, pins, cmp) {
   return (list || []).map((e, i) => [e, i, pi.has(e.k) ? pi.get(e.k) : NO]).sort((a, b) => a[2] - b[2] || (a[2] < NO ? 0 : by(a[0], b[0])) || a[1] - b[1]).map(x => x[0]);
 }
 /** Exemplaires foil dans leur propre pochette, juste après les autres de la même langue (fo : combien sont foil) ; sans foil, l'entrée telle quelle.
- *  fu : prix à l'unité des foil (pochette foil), u celui des autres ; fu absent (null) : pochette foil sans prix (jamais le prix non foil présenté comme le sien). */
-const bndFoil = list => (list || []).flatMap(({ fo, fu, ...x }) => { const f = Math.min(x.q, fo > 0 ? fo : 0), xf = 'u' in x || fu !== undefined ? { ...x, u: fu > 0 ? fu : null } : x; return !f ? [x] : f >= x.q ? [{ ...xf, foil: true }] : [{ ...x, q: x.q - f }, { ...xf, q: f, foil: true }]; });
+ *  fu : prix à l'unité des foil (pochette foil), u celui des autres ; fw : fu est le prix non foil (prix foil non disponible : ⚠️ sur la pochette) ; fu absent (null) : pochette foil sans prix. */
+const bndFoil = list => (list || []).flatMap(({ fo, fu, fw, ...x }) => { const f = Math.min(x.q, fo > 0 ? fo : 0), xf = 'u' in x || fu !== undefined ? { ...x, u: fu > 0 ? fu : null, ...(fw && fu > 0 ? { fw: true } : {}) } : x; return !f ? [x] : f >= x.q ? [{ ...xf, foil: true }] : [{ ...x, q: x.q - f }, { ...xf, q: f, foil: true }]; });
 /** Réglages lus (appareil ou partage) : couverture, tri, épingles (18), date ; valeurs inconnues → par défaut. */
 const bndClean = j => ({ who: j && typeof j.who === 'string' ? j.who : '', c: BND_COVERS.some(x => x[0] === (j && j.c)) ? j.c : 'nuit', s: BND_SORTS.some(x => x[0] === (j && j.s)) ? j.s : 'name',
   k: j && Array.isArray(j.k) ? [...new Set(j.k.filter(x => typeof x === 'string' && x && x.length <= 160))].slice(0, BND_PINS) : [], u: Math.max(0, Number(j && j.u) || 0) });
@@ -33253,7 +33297,7 @@ function bndCardHtml(x, i, mini) {
   const hue = hash32(x.k) % 360, nm = x.nm || x.n || '', im = mini ? x.sm || x.im : x.im;
   const lab = [nm, x.e ? edLabel(x.e) : '', x.foil ? T('Foil') : '', x.q > 1 ? '× ' + x.q : '', x.u > 0 ? fmt(x.u, mkCur()) : '', x.pin ? T('Épinglée') : ''].filter(Boolean).join(', ');
   return `<button type="button" class="bnd-card${x.foil ? ' foil' : ''}" data-i="${i}" data-k="${esc(x.k)}" aria-label="${esc(lab)}"${mini ? ' tabindex="-1"' : ''}><span class="bnd-art" style="--h:${hue}"><b>${esc((nm.trim()[0] || '?').toUpperCase())}</b><i>${esc(nm)}</i>${im ? `<img alt="" loading="lazy" decoding="async" draggable="false" ${cardImgA(x.k, x.n, im, x.l || '', !!(x.fix || x.e || (x.sh && x.l)))}>` : ''}</span>`
-    + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, mkCur()))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
+    + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, mkCur()))}${pxWarn(!!(x.foil && x.fw))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
 }
 /**
  * Classeur dans un élément neuf, à placer dans la page. o : { open(i, items) : carte touchée, mini : aperçu des réglages (1re page, sans navigation) }.
@@ -33448,7 +33492,7 @@ function bndOwnItems(rows, want) {
     const es = rows.map(x => { const it = trItem(x.k, x.n, x.q, ''), sm = x.p ? scrySmall(x.p.i) : it.im || ''; return { ...bndKey(x.k, x.n, '', null, x.u, x.p), nm: it.n, q: x.q, l: x.p && x.p.l || '', sm, im: bndBig(sm), ...(x.p ? { big: x.p.i, fix: true } : {}) }; });
     return bndArrange(es, c.s, [], NC);
   }
-  const es = rows.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const it = trItem(x.k, x.n, q, l), sm = bndImg(x.k, l, e, it.im); return { ...bndKey(x.k, x.n, l, x.lines, trLinePx(x.k, lineKey(l, e)), null, e), q, fo, ...(fo ? { fu: trLinePx(x.k, lineKey(l, e, true)) } : {}), l, e, sm, im: bndBig(sm), pin: c.k.includes(x.k) }; }));
+  const es = rows.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const it = trItem(x.k, x.n, q, l), sm = bndImg(x.k, l, e, it.im); return { ...bndKey(x.k, x.n, l, x.lines, trLinePx(x.k, lineKey(l, e)), null, e), q, fo, ...(fo ? (w => ({ fu: w.v, fw: w.w }))(trLinePxW(x.k, lineKey(l, e, true))) : {}), l, e, sm, im: bndBig(sm), pin: c.k.includes(x.k) }; }));
   return bndFoil(bndArrange(es, c.s, c.k, NC));      // rangées par langue et édition (l'ordre du lien), les foil séparées ensuite : le même classeur chez le visiteur
 }
 /**
@@ -35457,7 +35501,7 @@ function setvView() {
     num: (a, b) => num(a) - num(b) || a.num.localeCompare(b.num),
     name: (a, b) => nm(a).localeCompare(nm(b), LOC()),
     rar: (a, b) => (SETV_RANK[a.r] ?? 5) - (SETV_RANK[b.r] ?? 5) || num(a) - num(b),
-    price: (a, b) => (b.eu || 0) - (a.eu || 0) || num(a) - num(b),
+    price: (a, b) => (finPx(b.eu, b.ef, false).v || 0) - (finPx(a.eu, a.ef, false).v || 0) || num(a) - num(b),
     cmc: (a, b) => a.cm - b.cm || num(a) - num(b),
   }[SETV.sort] || ((a, b) => num(a) - num(b));
   return list.slice().sort(by);
@@ -35471,7 +35515,7 @@ function setvTile(x, i) {
   return `<div class="dvc setv-c" style="--h:${hash32(x.k) % 360}" data-i="${i}">
     <button class="setv-open" type="button" aria-label="${esc(name)}"><span class="dvc-art"><b>${esc((name.trim()[0] || '?').toUpperCase())}</b>${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : `<i>${esc(name)}</i>`}</span></button>
     ${ws === null ? '' : `<button class="setv-star${ws ? ' ' + ws : ''}" type="button" data-act="wish" aria-pressed="${ws === 'on'}" aria-label="${esc(ws === 'on' ? T('Retirer {name} de ta liste de souhaits', { name }) : T('Ajouter {name} à ta liste de souhaits', { name }))}"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></button>`}
-    ${own ? `<span class="dvc-q" title="${esc(T('Dans ta collection'))}">× ${own}</span>` : ''}${x.eu ? `<span class="dvc-p">${esc(fmt(x.eu, mkCur()))}</span>` : ''}</div>`;
+    ${own ? `<span class="dvc-q" title="${esc(T('Dans ta collection'))}">× ${own}</span>` : ''}${(px => (px ? `<span class="dvc-p">${esc(px)}</span>` : ''))(prPx(x, false).t)}</div>`;      // impression foil seulement : son prix foil ✦
 }
 /** Repeint la page (en-tête, réglages, grille). Le défilement est gardé. */
 function setvPaint() {
@@ -35672,7 +35716,7 @@ const msShows = code => MS.o.vars || !msOnlyVars(code);
 /** Total d'une extension pas encore lue : toutes ses cartes (variantes comprises) ou le total imprimé (sans elles) ; × 2 avec la version foil. */
 const msTotEst = code => (MS.o.vars ? setCount(code) || setPrinted(code) : setPrinted(code) || setCount(code)) * (MS.o.foil ? 2 : 1);
 /** Prix d'une case (centimes) : normale, foil, ou le prix connu de l'impression. */
-const msUnit = (x, fin) => (fin === 'f' ? (x.ef > 0 ? x.ef : 0) : fin === 'n' ? (x.eu > 0 ? x.eu : 0) : msEu(x));
+const msUnit = (x, fin) => (fin === 'f' ? finPx(x.eu, x.ef, true).v || 0 : fin === 'n' ? (x.eu > 0 ? x.eu : 0) : msEu(x));      // case foil sans prix foil : le non foil (⚠️ sur la case)
 /** Progression d'une liste de cartes, case par case (normale et foil avec la version foil) : complètes, total, prix de ce qui manque et de toute la liste
  *  (centimes, prix connus seulement ; playset : × les exemplaires manquants). */
 function msProg(code, list) {
@@ -35762,16 +35806,16 @@ function msCell(code, x, f, lab0) {
 function msTile(code, x, i, inBase, tot) {
   const name = x.dn || x.n, num = inBase && tot ? x.num + '/' + tot : '#' + x.num, lab0 = [name, num].join(' · ');
   if (!MS.o.foil) {
-    const c = msCell(code, x, '', lab0), u = msEu(x), px = u ? fmt(u, mkCur()) + (x.eu > 0 ? '' : ' ✦') : '';
+    const c = msCell(code, x, '', lab0), px = prPx(x, false).t;
     return `<div class="ms-c ${c.st}" data-i="${i}">${c.html}<span class="ms-cap"><span class="ms-num">${esc(num)}</span>${px ? `<span class="ms-px">${esc(px)}</span>` : ''}</span></div>`;
   }
   // version foil aussi : normale et foil côte à côte ; une finition que l'impression n'a pas reste en creux
   const fins = msFins(x), cells = ['n', 'f'].map(f => (fins.includes(f) ? msCell(code, x, f, lab0) : null)), sts = cells.filter(Boolean).map(c => c.st);
   const st = sts.every(v => v === 'own') ? 'own' : sts.every(v => v === 'miss') ? 'miss' : 'part';
   const half = (c, j) => (c ? `<div class="ms-h ${c.st}${j ? ' fo' : ''}">${c.html}</div>` : `<div class="ms-h none${j ? ' fo' : ''}"><span class="ms-no">${esc(j ? T('Pas de foil') : T('Foil seulement'))}</span></div>`);
-  const px = (f, v) => (fins.includes(f) && v > 0 ? `<span class="ms-px${f === 'f' ? ' fo' : ''}">${esc((f === 'f' ? '✦ ' : '') + fmt(v, mkCur()))}</span>` : '<span class="ms-px"></span>');
+  const px = f => { const r = finPx(x.eu, x.ef, f === 'f'), v = f === 'f' ? r.v : x.eu; return fins.includes(f) && v > 0 ? `<span class="ms-px${f === 'f' ? ' fo' : ''}">${esc(fmt(v, mkCur()) + (f === 'f' && !r.w ? ' ✦' : ''))}${f === 'f' ? pxWarn(r.w) : ''}</span>` : '<span class="ms-px"></span>'; };      // ✦ après le prix, comme ailleurs ; foil sans prix foil : le non foil avec ⚠️
   return `<div class="ms-c ms-pair ${st}" data-i="${i}"><div class="ms-two">${cells.map(half).join('')}</div>
-    <span class="ms-cap"><span class="ms-num">${esc(num)}</span><span class="ms-pxs">${px('n', x.eu)}${px('f', x.ef)}</span></span></div>`;
+    <span class="ms-cap"><span class="ms-num">${esc(num)}</span><span class="ms-pxs">${px('n')}${px('f')}</span></span></div>`;
 }
 /** Grille : base (« 17/277 ») puis variantes (« #301 »). */
 function msGrid(code, list, base, tot) {
@@ -35847,7 +35891,7 @@ function msViewItem(code, x, fin = '') {
   if (o && msQ(code, x, fin) > 0) { const it = typeof collViewItem === 'function' ? collViewItem(o.k, msLine(o, fin)) : null; if (it) return it; }
   const img = setvImg(x), name = x.dn || x.n, u = msUnit(x, fin), ed = code.toUpperCase() + ' ' + x.num, fo = fin === 'f';
   const it = { key: x.k, name, ln: x.n, small: scrySmall(img), big: img.replace('/normal/', '/large/'), lang: x.il || 'en', set: code, num: x.num, setName: msSetName(code), plain: !x.df, ...(fo ? { foil: true } : {}) };
-  const loose = msBasic(x) ? 0 : msLoose(x.k, fin), px = u ? T('prix Cardmarket {v}', { v: fmt(u, mkCur()) + (fo ? ' ✦' : '') }) : '';
+  const loose = msBasic(x) ? 0 : msLoose(x.k, fin), fw = fo && finPx(x.eu, x.ef, true).w, px = u ? T('prix Cardmarket {v}', { v: fmt(u, mkCur()) + (fo && !fw ? ' ✦' : '') }) + (fw ? ' ⚠️ ' + T('Prix foil non disponible, prix sans foil affiché') : '') : '';
   if (loose) {      // D : combien de ces exemplaires sans édition sont de celle-ci (compteur au-dessus du bouton, 1 par défaut)
     const one = loose < 2;
     it.extra = [fo ? TN(loose, 'Tu as {n} exemplaire foil de cette carte sans édition : est-ce celui-ci ?', 'Tu as {n} exemplaires foil de cette carte sans édition')
@@ -36122,7 +36166,7 @@ const cvwCls = () => ' cvw-' + cvwView();
 const cvwSheetOk = () => typeof openCardSheet === 'function';
 /** Prix affiché d'une ligne : Cardmarket (estimation), sinon l'offre CardTrader lue. */
 function cvwPrice(it) {
-  if (Number.isFinite(it.eu)) return fmt(it.eu, mkCur());
+  if (Number.isFinite(it.eu)) return fmt(it.eu, mkCur()) + (it.f && collLinePx(it.k, it.g ?? it.l).w ? ' ⚠️' : '');      // foil sans prix foil : le non foil (message sur la fiche de la carte)
   if (Number.isFinite(it.rp)) return fmt(it.rp, it.rc || 'EUR');
   return '';
 }
@@ -36323,8 +36367,7 @@ function lotInSet(prints, set, l) {
 }
 /** Prix d'un exemplaire (centimes) : l'édition choisie, sinon le prix de référence de la carte ; null sans prix. */
 const lotEu = c => {
-  const a = c.f ? 'ef' : 'eu', b = c.f ? 'eu' : 'ef';      // exemplaires foil : le prix foil, à défaut le normal
-  if (c.pick) return c.pick[a] > 0 ? c.pick[a] : c.pick[b] > 0 ? c.pick[b] : null;
+  if (c.pick) return finPx(c.pick.eu, c.pick.ef, !!c.f).v;      // exemplaires foil : le prix foil, à défaut le normal (core.js › finPx)
   return refPx(c.k, !!c.f) || null;      // sans édition : le prix de référence (builder.js › refPx), comme la collection
 };
 /** Grande image de la carte : l'édition choisie, sinon la dernière impression dans sa langue, sinon l'image anglaise de Scryfall. */
@@ -36399,8 +36442,8 @@ function lotEdSheet() {
     const more = edQFinder(() => c.prints, q => scryPrintsFind(c.n, lotLangOf(c), q), extra => { c.prints.push(...extra); paint(); });      // liste tronquée (terrains de base) : code ou numéro cherchés sur Scryfall
     const paint = () => {
       const keep = edQKeep(api.body); q = keep.q || q;
-      api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const px = p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
-        return `<button type="button" class="lot-ev" data-i="${i}" aria-pressed="${!!on}" aria-label="${esc(p.sn)} ${esc(String(p.set).toUpperCase())} ${esc(p.num)}${px ? ', ' + esc(px) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set)}${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span><em>${esc(p.sn)}</em>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length || p.y ? `<small>${esc([p.y, ...p.fx].filter(Boolean).join(' · '))}</small>` : ''}</button>`; }).join('')}
+      api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const r = prPx(p, c.f), px = r.t, on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
+        return `<button type="button" class="lot-ev" data-i="${i}" aria-pressed="${!!on}" aria-label="${esc(p.sn)} ${esc(String(p.set).toUpperCase())} ${esc(p.num)}${px ? ', ' + esc(px) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set)}${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span><em>${esc(p.sn)}</em>${px ? `<b>${esc(px)}${pxWarn(r.w)}</b>` : ''}${p.fx.length || p.y ? `<small>${esc([p.y, ...p.fx].filter(Boolean).join(' · '))}</small>` : ''}</button>`; }).join('')}
         <button type="button" class="lot-ev none" data-i="-1" aria-pressed="${!c.pick}"><i>${T('Sans édition')}</i></button></div>`;
       edQApply($('.lot-eds', api.body), c.prints, q, '.lot-ev'); keep.restore();
       const on = $('.lot-ev[aria-pressed="true"]:not(.ed-off)', api.body); if (on && on.scrollIntoView && !q) on.scrollIntoView({ block: 'nearest' });
@@ -38048,7 +38091,7 @@ function simgDeckSpec(o) {
   const pd = parseDeck(text), cmd = commanderKeys(text).map(k => pd.cards.find(c => c.key === k)).filter(Boolean), fk = dkFmtOf(text);
   const cv = dkCoverCard(text, dmOf), v = typeof dkEst === 'function' ? dkEst(text) : dkValue(text, dmOf);
   const colors = deckColors(text);      // la règle de Mes decks (core.js › deckColors) : identité du commandant, sinon couleurs des cartes, sinon terrains de base
-  const sub = cmd.length ? cmd.map(c => c.dn || c.name).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
+  const sub = cmd.length ? cmd.map(c => cardName(c.key, c.name)).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
   return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', ...(cv && !ownLangImg(cv.key) ? { ln: cv.name, wl: imgLang() } : {}), cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
 }
 const simgDeck = o => simgShare(simgDeckSpec(o));

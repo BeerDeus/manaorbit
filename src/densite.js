@@ -38,7 +38,7 @@ const cvwCls = () => ' cvw-' + cvwView();
 const cvwSheetOk = () => typeof openCardSheet === 'function';
 /** Prix affiché d'une ligne : Cardmarket (estimation), sinon l'offre CardTrader lue. */
 function cvwPrice(it) {
-  if (Number.isFinite(it.eu)) return fmt(it.eu, mkCur());
+  if (Number.isFinite(it.eu)) return fmt(it.eu, mkCur()) + (it.f && collLinePx(it.k, it.g ?? it.l).w ? ' ⚠️' : '');      // foil sans prix foil : le non foil (message sur la fiche de la carte)
   if (Number.isFinite(it.rp)) return fmt(it.rp, it.rc || 'EUR');
   return '';
 }

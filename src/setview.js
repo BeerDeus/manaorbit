@@ -104,7 +104,7 @@ function setvView() {
     num: (a, b) => num(a) - num(b) || a.num.localeCompare(b.num),
     name: (a, b) => nm(a).localeCompare(nm(b), LOC()),
     rar: (a, b) => (SETV_RANK[a.r] ?? 5) - (SETV_RANK[b.r] ?? 5) || num(a) - num(b),
-    price: (a, b) => (b.eu || 0) - (a.eu || 0) || num(a) - num(b),
+    price: (a, b) => (finPx(b.eu, b.ef, false).v || 0) - (finPx(a.eu, a.ef, false).v || 0) || num(a) - num(b),
     cmc: (a, b) => a.cm - b.cm || num(a) - num(b),
   }[SETV.sort] || ((a, b) => num(a) - num(b));
   return list.slice().sort(by);
@@ -118,7 +118,7 @@ function setvTile(x, i) {
   return `<div class="dvc setv-c" style="--h:${hash32(x.k) % 360}" data-i="${i}">
     <button class="setv-open" type="button" aria-label="${esc(name)}"><span class="dvc-art"><b>${esc((name.trim()[0] || '?').toUpperCase())}</b>${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : `<i>${esc(name)}</i>`}</span></button>
     ${ws === null ? '' : `<button class="setv-star${ws ? ' ' + ws : ''}" type="button" data-act="wish" aria-pressed="${ws === 'on'}" aria-label="${esc(ws === 'on' ? T('Retirer {name} de ta liste de souhaits', { name }) : T('Ajouter {name} à ta liste de souhaits', { name }))}"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></button>`}
-    ${own ? `<span class="dvc-q" title="${esc(T('Dans ta collection'))}">× ${own}</span>` : ''}${x.eu ? `<span class="dvc-p">${esc(fmt(x.eu, mkCur()))}</span>` : ''}</div>`;
+    ${own ? `<span class="dvc-q" title="${esc(T('Dans ta collection'))}">× ${own}</span>` : ''}${(px => (px ? `<span class="dvc-p">${esc(px)}</span>` : ''))(prPx(x, false).t)}</div>`;      // impression foil seulement : son prix foil ✦
 }
 /** Repeint la page (en-tête, réglages, grille). Le défilement est gardé. */
 function setvPaint() {

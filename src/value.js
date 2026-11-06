@@ -146,7 +146,7 @@ function valMovers() {
   const ref = baseRef(VAL.base); if (!ref) return null;
   const sig = [VAL.at, VAL.thr, collCount(), COLL.u, ref.t].join('|');
   if (VAL.memo && VAL.memo.sig === sig) return VAL.memo.mv;
-  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: x.n, q: x.q, eu: dkPx(k) })), ref, VAL.thr);      // prix de référence (dkPx), comme les références de valCommit
+  const mv = pxMovers(Object.entries(COLL.map).map(([k, x]) => ({ k, n: cardName(k, x.n), q: x.q, eu: dkPx(k) })), ref, VAL.thr);      // nom dans la langue de tes exemplaires, comme la liste      // prix de référence (dkPx), comme les références de valCommit
   mv.since = ref.t; mv.by = new Map(mv.list.map(x => [x.k, x])); mv.ready = VAL.at - ref.t >= VAL_EVERY;      // moins de 20 h d'écart : rien n'a pu bouger, on n'affiche pas de variation
   VAL.memo = { sig, mv }; return mv;
 }

@@ -101,7 +101,7 @@ const msShows = code => MS.o.vars || !msOnlyVars(code);
 /** Total d'une extension pas encore lue : toutes ses cartes (variantes comprises) ou le total imprimé (sans elles) ; × 2 avec la version foil. */
 const msTotEst = code => (MS.o.vars ? setCount(code) || setPrinted(code) : setPrinted(code) || setCount(code)) * (MS.o.foil ? 2 : 1);
 /** Prix d'une case (centimes) : normale, foil, ou le prix connu de l'impression. */
-const msUnit = (x, fin) => (fin === 'f' ? (x.ef > 0 ? x.ef : 0) : fin === 'n' ? (x.eu > 0 ? x.eu : 0) : msEu(x));
+const msUnit = (x, fin) => (fin === 'f' ? finPx(x.eu, x.ef, true).v || 0 : fin === 'n' ? (x.eu > 0 ? x.eu : 0) : msEu(x));      // case foil sans prix foil : le non foil (⚠️ sur la case)
 /** Progression d'une liste de cartes, case par case (normale et foil avec la version foil) : complètes, total, prix de ce qui manque et de toute la liste
  *  (centimes, prix connus seulement ; playset : × les exemplaires manquants). */
 function msProg(code, list) {
@@ -191,16 +191,16 @@ function msCell(code, x, f, lab0) {
 function msTile(code, x, i, inBase, tot) {
   const name = x.dn || x.n, num = inBase && tot ? x.num + '/' + tot : '#' + x.num, lab0 = [name, num].join(' · ');
   if (!MS.o.foil) {
-    const c = msCell(code, x, '', lab0), u = msEu(x), px = u ? fmt(u, mkCur()) + (x.eu > 0 ? '' : ' ✦') : '';
+    const c = msCell(code, x, '', lab0), px = prPx(x, false).t;
     return `<div class="ms-c ${c.st}" data-i="${i}">${c.html}<span class="ms-cap"><span class="ms-num">${esc(num)}</span>${px ? `<span class="ms-px">${esc(px)}</span>` : ''}</span></div>`;
   }
   // version foil aussi : normale et foil côte à côte ; une finition que l'impression n'a pas reste en creux
   const fins = msFins(x), cells = ['n', 'f'].map(f => (fins.includes(f) ? msCell(code, x, f, lab0) : null)), sts = cells.filter(Boolean).map(c => c.st);
   const st = sts.every(v => v === 'own') ? 'own' : sts.every(v => v === 'miss') ? 'miss' : 'part';
   const half = (c, j) => (c ? `<div class="ms-h ${c.st}${j ? ' fo' : ''}">${c.html}</div>` : `<div class="ms-h none${j ? ' fo' : ''}"><span class="ms-no">${esc(j ? T('Pas de foil') : T('Foil seulement'))}</span></div>`);
-  const px = (f, v) => (fins.includes(f) && v > 0 ? `<span class="ms-px${f === 'f' ? ' fo' : ''}">${esc((f === 'f' ? '✦ ' : '') + fmt(v, mkCur()))}</span>` : '<span class="ms-px"></span>');
+  const px = f => { const r = finPx(x.eu, x.ef, f === 'f'), v = f === 'f' ? r.v : x.eu; return fins.includes(f) && v > 0 ? `<span class="ms-px${f === 'f' ? ' fo' : ''}">${esc(fmt(v, mkCur()) + (f === 'f' && !r.w ? ' ✦' : ''))}${f === 'f' ? pxWarn(r.w) : ''}</span>` : '<span class="ms-px"></span>'; };      // ✦ après le prix, comme ailleurs ; foil sans prix foil : le non foil avec ⚠️
   return `<div class="ms-c ms-pair ${st}" data-i="${i}"><div class="ms-two">${cells.map(half).join('')}</div>
-    <span class="ms-cap"><span class="ms-num">${esc(num)}</span><span class="ms-pxs">${px('n', x.eu)}${px('f', x.ef)}</span></span></div>`;
+    <span class="ms-cap"><span class="ms-num">${esc(num)}</span><span class="ms-pxs">${px('n')}${px('f')}</span></span></div>`;
 }
 /** Grille : base (« 17/277 ») puis variantes (« #301 »). */
 function msGrid(code, list, base, tot) {
@@ -276,7 +276,7 @@ function msViewItem(code, x, fin = '') {
   if (o && msQ(code, x, fin) > 0) { const it = typeof collViewItem === 'function' ? collViewItem(o.k, msLine(o, fin)) : null; if (it) return it; }
   const img = setvImg(x), name = x.dn || x.n, u = msUnit(x, fin), ed = code.toUpperCase() + ' ' + x.num, fo = fin === 'f';
   const it = { key: x.k, name, ln: x.n, small: scrySmall(img), big: img.replace('/normal/', '/large/'), lang: x.il || 'en', set: code, num: x.num, setName: msSetName(code), plain: !x.df, ...(fo ? { foil: true } : {}) };
-  const loose = msBasic(x) ? 0 : msLoose(x.k, fin), px = u ? T('prix Cardmarket {v}', { v: fmt(u, mkCur()) + (fo ? ' ✦' : '') }) : '';
+  const loose = msBasic(x) ? 0 : msLoose(x.k, fin), fw = fo && finPx(x.eu, x.ef, true).w, px = u ? T('prix Cardmarket {v}', { v: fmt(u, mkCur()) + (fo && !fw ? ' ✦' : '') }) + (fw ? ' ⚠️ ' + T('Prix foil non disponible, prix sans foil affiché') : '') : '';
   if (loose) {      // D : combien de ces exemplaires sans édition sont de celle-ci (compteur au-dessus du bouton, 1 par défaut)
     const one = loose < 2;
     it.extra = [fo ? TN(loose, 'Tu as {n} exemplaire foil de cette carte sans édition : est-ce celui-ci ?', 'Tu as {n} exemplaires foil de cette carte sans édition')

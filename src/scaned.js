@@ -16,7 +16,7 @@
 const scanPk = (k, l) => k + '|' + (l || 'en');
 /** Prix d'un exemplaire d'une impression (centimes), sinon null : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil,
  *  à défaut le non foil (comme collection.js › edEu). */
-const pkEu = (p, f) => { if (!p) return null; const a = f ? p.ef : p.eu, b = f ? p.eu : p.ef; return a > 0 ? a : b > 0 ? b : null; };
+const pkEu = (p, f) => (p ? finPx(p.eu, p.ef, f).v : null);      // core.js › finPx : foil sans prix foil → le non foil
 /** Prix d'un exemplaire du scan (centimes) : celui de son impression, sinon le prix de référence de la carte ; foil : le prix foil, à défaut le normal
  *  (comme collection.js › collLineEu) ; 0 sans prix. m : infos de la carte (COLL.meta par défaut). */
 const scanEu = (k, p, f, m = COLL.meta[k]) => {

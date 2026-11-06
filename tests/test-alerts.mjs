@@ -6,6 +6,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createECDH, randomBytes, hkdfSync, createDecipheriv, generateKeyPairSync } from 'node:crypto';
@@ -206,7 +207,7 @@ r = await J(B3, '/api/info'); assert.equal(r.s, 401, 'CardTrader reste protégé
 {
   const now = Date.now(), FK = join(dir, 'full.json'), sub = tag => browser(tag).sub;
   const rec = (id, at, items, extra = {}) => ({ id: id.repeat(24), sub: sub('old' + id), thr: 30, at, items: items.map(n => ({ k: n.toLowerCase(), n, nk: n.toLowerCase() })), hits: [], ...extra });
-  writeFileSync(FK, JSON.stringify({ v: 1, last: { at: 0 }, px: { 'sol ring': [[now - 7200e3, 300]] }, subs: [
+  writeFileSync(FK, JSON.stringify({ v: 2, last: { at: 0 }, px: { 'sol ring': [[now - 7200e3, 300]] }, subs: [
     rec('a', now - 7200e3, ['Zzz Carte Bidon']),                                      // inactif : aucune carte au prix connu, enregistré il y a 2 h → seul évinçable
     rec('b', now - 7200e3, ['Sol Ring']),                                             // abonné : carte au prix connu
     rec('c', now - 40 * 86400e3, ['Zzz Autre Bidon'], { pushed: now - 39 * 86400e3 }),  // ancien, mais une notification a déjà abouti
@@ -276,6 +277,25 @@ r = await J(B3, '/api/info'); assert.equal(r.s, 401, 'CardTrader reste protégé
   r = await J(BU, '/api/alerts?id=' + idU); assert.equal(r.o.prices['sol ring'].c, 300, 'retour à Cardmarket : les relevés en euros'); assert.deepEqual(r.o.hits, [], 'alertes de l\'autre devise oubliées');
   assert.ok(scryReqs.slice(n0).every(q => new Set(q.ids.map(i => i.name)).size === q.ids.length), 'une carte suivie aux deux marchés : demandée une fois');
   ok('marché TCGplayer : relevés et alertes en dollars, à part des euros');
+}
+
+// 14) relevé du jour du serveur (/prices.tsv : impression la moins chère, comme l'appli) avant Scryfall ; relevés d'avant (v 1, impression par défaut) oubliés
+{
+  const data = mkdtempSync(join(tmpdir(), 'alerts-px-')), FP = join(dir, 'px.json'), now = Date.now();
+  writeFileSync(join(data, 'prices.tsv.gz'), gzipSync('#MOPX1 2026-11-06T09:00:00Z 2\nSol Ring\t120\t100\nSol Ring\t150\t140\nArcane Signet\t60\t55\n'));
+  const P = browser('pxA'), rec = { id: 'p'.repeat(24), sub: P.sub, thr: 30, at: now - 7200e3, items: [{ k: 'sol ring', n: 'Sol Ring', nk: 'sol ring' }], hits: [] };
+  writeFileSync(FP, JSON.stringify({ v: 1, last: { at: 0 }, px: { 'sol ring': [[now - 7200e3, 300], [now - 3600e3, 300]] }, subs: [rec] }));
+  set({ 'Sol Ring': '3.00', 'Mana Crypt': '100.00' });
+  await start({ ...env, ALERT_FILE: FP, EDH_DATA_DIR: data }, 18868); const BP = 'http://127.0.0.1:18868';
+  let x = await J(BP, '/api/alerts?id=' + rec.id); assert.equal(x.s, 200); assert.equal(x.o.prices['sol ring'], undefined, 'relevés d\'avant (Scryfall, impression par défaut) oubliés : pas de fausse baisse');
+  const n0 = scryReqs.length, n1 = pushed.length;
+  x = await J(BP, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: P.sub, thr: 30, items: [{ k: 'sol ring', n: 'Sol Ring' }, { k: 'mana crypt', n: 'Mana Crypt' }] }) }); assert.equal(x.s, 200); const idP = x.o.id;
+  await sleep(600); x = await check(BP, idP); assert.equal(x.o.ok, true);
+  x = await J(BP, '/api/alerts?id=' + idP); assert.equal(x.o.prices['sol ring'].c, 120, 'Sol Ring : relevé du jour (la moins chère), pas les 3,00 € de Scryfall');
+  assert.equal(x.o.prices['mana crypt'].c, 10000, 'carte absente du relevé : Scryfall');
+  assert.deepEqual(scryReqs.slice(n0).flatMap(q => q.ids.map(i => i.name)).filter(n => n === 'Sol Ring'), [], 'Sol Ring jamais demandée à Scryfall');
+  assert.equal(pushed.length, n1, 'aucune alerte au changement de source');
+  ok('alertes : relevé du jour du serveur d\'abord (le même prix que l\'appli), Scryfall pour le reste ; anciens relevés oubliés');
 }
 
 console.log('ALERTS OK'); process.exit(0);

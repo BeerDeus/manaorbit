@@ -829,6 +829,7 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .px i{font-style:normal;font-size:11px;font-weight:700;opacity:.75}
 .px b{font-family:var(--font-mono);font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
 .px.cm{color:var(--accent)}
+.px-warn{display:inline-block;padding:4px 5px;margin:-4px -3px -4px 1px;font-size:.85em;line-height:1;cursor:pointer;font-style:normal;vertical-align:baseline}      /* ⚠️ prix foil non disponible (collection.js › pxWarn) : zone de toucher agrandie sans décaler le texte */
 .px.ct{color:var(--good)}
 .px.none b{font-size:11.5px;font-weight:500;color:var(--ink-3)}
 .px.none i{color:var(--ink-3)}
@@ -1485,6 +1486,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .dv-acts .btn{flex-basis:calc(50% - 4px);min-width:min(100%,10.5em);height:auto;min-height:44px;padding:6px 10px;font-size:13.5px;line-height:1.15}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière : min-width en em, police agrandie → jamais trois lignes), la liste des cartes remonte d'autant */
 .dv-acts .dv-ana{flex-basis:100%}      /* Coach (decks Commander) : toute la ligne, en tête */
 .tr-wacts{margin-bottom:10px}
+.tr-wrule{margin:-4px 0 10px}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────
    Couche finale : n'ajoute que fonds, bordures et ombres ; aucune mise en page ne change. */

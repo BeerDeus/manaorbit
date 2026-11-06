@@ -63,8 +63,8 @@ function bndArrange(list, s, pins, cmp) {
   return (list || []).map((e, i) => [e, i, pi.has(e.k) ? pi.get(e.k) : NO]).sort((a, b) => a[2] - b[2] || (a[2] < NO ? 0 : by(a[0], b[0])) || a[1] - b[1]).map(x => x[0]);
 }
 /** Exemplaires foil dans leur propre pochette, juste après les autres de la même langue (fo : combien sont foil) ; sans foil, l'entrée telle quelle.
- *  fu : prix à l'unité des foil (pochette foil), u celui des autres ; fu absent (null) : pochette foil sans prix (jamais le prix non foil présenté comme le sien). */
-const bndFoil = list => (list || []).flatMap(({ fo, fu, ...x }) => { const f = Math.min(x.q, fo > 0 ? fo : 0), xf = 'u' in x || fu !== undefined ? { ...x, u: fu > 0 ? fu : null } : x; return !f ? [x] : f >= x.q ? [{ ...xf, foil: true }] : [{ ...x, q: x.q - f }, { ...xf, q: f, foil: true }]; });
+ *  fu : prix à l'unité des foil (pochette foil), u celui des autres ; fw : fu est le prix non foil (prix foil non disponible : ⚠️ sur la pochette) ; fu absent (null) : pochette foil sans prix. */
+const bndFoil = list => (list || []).flatMap(({ fo, fu, fw, ...x }) => { const f = Math.min(x.q, fo > 0 ? fo : 0), xf = 'u' in x || fu !== undefined ? { ...x, u: fu > 0 ? fu : null, ...(fw && fu > 0 ? { fw: true } : {}) } : x; return !f ? [x] : f >= x.q ? [{ ...xf, foil: true }] : [{ ...x, q: x.q - f }, { ...xf, q: f, foil: true }]; });
 /** Réglages lus (appareil ou partage) : couverture, tri, épingles (18), date ; valeurs inconnues → par défaut. */
 const bndClean = j => ({ who: j && typeof j.who === 'string' ? j.who : '', c: BND_COVERS.some(x => x[0] === (j && j.c)) ? j.c : 'nuit', s: BND_SORTS.some(x => x[0] === (j && j.s)) ? j.s : 'name',
   k: j && Array.isArray(j.k) ? [...new Set(j.k.filter(x => typeof x === 'string' && x && x.length <= 160))].slice(0, BND_PINS) : [], u: Math.max(0, Number(j && j.u) || 0) });
@@ -149,7 +149,7 @@ function bndCardHtml(x, i, mini) {
   const hue = hash32(x.k) % 360, nm = x.nm || x.n || '', im = mini ? x.sm || x.im : x.im;
   const lab = [nm, x.e ? edLabel(x.e) : '', x.foil ? T('Foil') : '', x.q > 1 ? '× ' + x.q : '', x.u > 0 ? fmt(x.u, mkCur()) : '', x.pin ? T('Épinglée') : ''].filter(Boolean).join(', ');
   return `<button type="button" class="bnd-card${x.foil ? ' foil' : ''}" data-i="${i}" data-k="${esc(x.k)}" aria-label="${esc(lab)}"${mini ? ' tabindex="-1"' : ''}><span class="bnd-art" style="--h:${hue}"><b>${esc((nm.trim()[0] || '?').toUpperCase())}</b><i>${esc(nm)}</i>${im ? `<img alt="" loading="lazy" decoding="async" draggable="false" ${cardImgA(x.k, x.n, im, x.l || '', !!(x.fix || x.e || (x.sh && x.l)))}>` : ''}</span>`
-    + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, mkCur()))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
+    + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, mkCur()))}${pxWarn(!!(x.foil && x.fw))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
 }
 /**
  * Classeur dans un élément neuf, à placer dans la page. o : { open(i, items) : carte touchée, mini : aperçu des réglages (1re page, sans navigation) }.
@@ -344,7 +344,7 @@ function bndOwnItems(rows, want) {
     const es = rows.map(x => { const it = trItem(x.k, x.n, x.q, ''), sm = x.p ? scrySmall(x.p.i) : it.im || ''; return { ...bndKey(x.k, x.n, '', null, x.u, x.p), nm: it.n, q: x.q, l: x.p && x.p.l || '', sm, im: bndBig(sm), ...(x.p ? { big: x.p.i, fix: true } : {}) }; });
     return bndArrange(es, c.s, [], NC);
   }
-  const es = rows.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const it = trItem(x.k, x.n, q, l), sm = bndImg(x.k, l, e, it.im); return { ...bndKey(x.k, x.n, l, x.lines, trLinePx(x.k, lineKey(l, e)), null, e), q, fo, ...(fo ? { fu: trLinePx(x.k, lineKey(l, e, true)) } : {}), l, e, sm, im: bndBig(sm), pin: c.k.includes(x.k) }; }));
+  const es = rows.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const it = trItem(x.k, x.n, q, l), sm = bndImg(x.k, l, e, it.im); return { ...bndKey(x.k, x.n, l, x.lines, trLinePx(x.k, lineKey(l, e)), null, e), q, fo, ...(fo ? (w => ({ fu: w.v, fw: w.w }))(trLinePxW(x.k, lineKey(l, e, true))) : {}), l, e, sm, im: bndBig(sm), pin: c.k.includes(x.k) }; }));
   return bndFoil(bndArrange(es, c.s, c.k, NC));      // rangées par langue et édition (l'ordre du lien), les foil séparées ensuite : le même classeur chez le visiteur
 }
 /**

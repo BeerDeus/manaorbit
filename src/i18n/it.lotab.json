@@ -1,3 +1,12 @@
 {
-  "Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.": "Offline: la ricerca tra tutte le carte riprenderà al ritorno della rete."
+  "Hors ligne : la recherche de toutes les cartes reprendra au retour du réseau.": "Offline: la ricerca tra tutte le carte riprenderà al ritorno della rete.",
+  "Prix foil non disponible, prix sans foil affiché": "Prezzo foil non disponibile, mostrato il prezzo non foil",
+  "Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.": "Ciò che ti manca per avere tutti i mazzi seguiti contemporaneamente (sideboard inclusa), più la tua lista dei desideri.",
+  "{n} carte de ce deck est déjà dans ta collection.": "{n} carta di questo mazzo è già nella tua collezione.",
+  "{n} cartes de ce deck sont déjà dans ta collection.": "{n} carte di questo mazzo sono già nella tua collezione.",
+  "Toutes les cartes de ce deck sont déjà dans ta collection.": "Tutte le carte di questo mazzo sono già nella tua collezione.",
+  "Tout ajouter ({n} carte)": "Aggiungi tutto ({n} carta)",
+  "Tout ajouter ({n} cartes)": "Aggiungi tutto ({n} carte)",
+  "Ajouter celle qui manque": "Aggiungi quella che manca",
+  "Ajouter les {n} qui manquent": "Aggiungi le {n} che mancano"
 }

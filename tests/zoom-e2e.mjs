@@ -72,7 +72,7 @@ ok('résultats CardTrader : vignette → carte en grand (français, voisines), l
 
 /* ── 2) Deck viewer : tuile sans image (terrain de base) → la carte par son nom ─────────────────────── */
 await p.evaluate(() => openDeckViewer({ text: '1 Sol Ring\n1 Arcane Signet\n10 Plains', name: 'Test' })); await p.waitForSelector('.dv.on .dvc');
-v = await tap('.dv.on .dvc[aria-label^="Sol Ring"]'); assert.equal(v.name, 'Sol Ring');
+v = await tap('.dv.on .dvc[aria-label^="Sol Ring"], .dv.on .dvc[aria-label^="Anneau solaire"]'); assert.equal(v.name, await p.evaluate(() => cardName('sol ring', 'Sol Ring')), 'nom affiché du deck (décision du 6 novembre : pas possédée → langue de l\'appli, dès que l\'index est là)');
 await closeV();
 assert.equal(await p.$eval('.dv.on .dvc[data-s="basic"] img', () => 1).catch(() => 0), 0, 'Plains sans image dans ce monde de test');
 v = await tap('.dv.on .dvc[data-s="basic"]'); assert.equal(v.name, 'Plains'); assert.match(await p.$eval('.imgv-ph', i => i.src), /api\.scryfall\.com\/cards\/named\?exact=Plains&format=image&version=small/, 'image par le nom');
@@ -153,7 +153,7 @@ await p.click('#btnRun'); await p.waitForFunction(() => S.run && S.run.status ==
 v = await tap('.row[data-key="sol ring"] .thumb'); assert.equal(v.name, 'Anneau solaire', 'résultats : titre = nom tapé');
 assert.match(await p.$eval('.imgv-ph', i => i.src), /sol-ring|Sol%20Ring/, 'image lue sur le nom anglais'); await closeV();
 await p.evaluate(() => openDeckViewer({ text: '1 Anneau solaire\n1 Arcane Signet', name: 'FR' })); await p.waitForSelector('.dv.on .dvc');
-v = await tap('.dv.on .dvc[aria-label^="Sol Ring"]'); assert.equal(v.name, 'Anneau solaire', 'deck viewer : titre = nom tapé'); await closeV();
+v = await tap('.dv.on .dvc[aria-label^="Sol Ring"], .dv.on .dvc[aria-label^="Anneau solaire"]'); assert.equal(v.name, 'Anneau solaire', 'deck viewer : titre en français (exemplaire français)'); await closeV();
 await p.evaluate(() => closeDeckViewer()); await p.waitForTimeout(300);
 ok('nom tapé en français : « Anneau solaire » en titre de la carte en grand (résultats, deck viewer), image sur le nom anglais');
 

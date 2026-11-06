@@ -64,8 +64,8 @@ function alItems() {
   if (AC.deck) {
     for (const d of allDecks()) {
       if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
-      for (const c of parseDeck(d.text).cards) {
-        const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
+      for (const c of [...parseDeck(d.text).cards, ...dkSideCards(d.text)]) {      // réserve comprise (et compagnon), comme « Je recherche » (décision du 6 novembre 2026)
+        const k = ownKey(c.key || c.name); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - ownFree(k, d.id) <= 0) continue;      // à acheter = quantité − exemplaires libres (extras.js › ownFor)
         put(k, c.name, 0, d.name);
       }
@@ -228,15 +228,15 @@ async function openAlertSheet() {
       const last = data && data.last && data.last.at ? T('Dernier contrôle {when}', { when: relTime(data.last.at) }) + (data.last.miss ? ' · ' + T('{n} sans prix', { n: nf0(data.last.miss) }) : '') : T('Premier contrôle dans quelques minutes.');
       const rowHtml = r => {
         const tags = [...(r.d || []).map(d => T('Manque à {deck}', { deck: esc(d) })), r.h ? (r.t ? T('Cible {p}', { p: esc(fmt(r.t)) }) : (AC.watch[r.k] || {}).d ? '' : T('Suivie à la main')) : '', r.u ? T('hausse et baisse') : ''].filter(Boolean).join(' · ');
-        return `<div class="al-row" data-k="${esc(r.k)}"><span class="al-n"><b>${esc(r.n)}</b><small>${tags}</small></span>
+        return `<div class="al-row" data-k="${esc(r.k)}"><span class="al-n"><b>${esc(cardName(r.k, r.n))}</b><small>${tags}</small></span>
           <span class="al-px">${r.c ? `<b>${esc(fmt(r.c))}</b>${r.b && r.pct ? `<small class="${r.pct < 0 ? 'dn' : 'up'}">${r.pct > 0 ? '+' : '−'}${pct(Math.abs(r.pct))}</small>` : ''}` : `<small>${T('pas encore de prix')}</small>`}</span>
-          <button class="ib-x" type="button" data-rm="${esc(r.k)}" aria-label="${T(r.h ? 'Ne plus suivre {name}' : 'Exclure de la surveillance {name}', { name: esc(r.n) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+          <button class="ib-x" type="button" data-rm="${esc(r.k)}" aria-label="${T(r.h ? 'Ne plus suivre {name}' : 'Exclure de la surveillance {name}', { name: esc(cardName(r.k, r.n)) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
       };
       const dmWhy = alDscOk() && data && data.dm && data.dmErr ? data.dmErr : '';      // dernier MP impossible : la raison donnée par le serveur
       const dmErr = !dmWhy ? '' : dmWhy === 'closed' ? T('MP Discord refusés : vérifie tes réglages de confidentialité Discord.') : dmWhy === 'member' ? T('MP Discord impossibles : tu n\'es plus sur le serveur Mana Orbit.')
         : dmWhy === 'unlinked' ? T('MP Discord impossibles : ton compte Discord n\'est plus lié.') : T('Dernier MP Discord non envoyé (Discord injoignable) : nouvel essai à la prochaine alerte.');
       api.body.innerHTML = `
-        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(h.n)}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="${h.why === 'rise' ? 'up' : 'dn'}">${h.why === 'target' ? T('sous ta cible') : (h.why === 'rise' ? '+' : '−') + pct(h.pct)}</small></span></div>`).join('')}</div>` : ''}
+        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(cardName(h.k || ownKey(h.n), h.n))}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="${h.why === 'rise' ? 'up' : 'dn'}">${h.why === 'target' ? T('sous ta cible') : (h.why === 'rise' ? '+' : '−') + pct(h.pct)}</small></span></div>`).join('')}</div>` : ''}
         <div class="switch-row"><span class="t"><b>${T('Cartes manquantes de mes decks')}</b><span class="hint">${T('Toutes les cartes qu\'il te reste à acheter pour tes decks enregistrés.')}</span></span><label class="switch"><input type="checkbox" id="alDeck" ${AC.deck ? 'checked' : ''}><i></i></label></div>
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
         ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
