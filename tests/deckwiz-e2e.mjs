@@ -79,7 +79,7 @@ await p.waitForSelector('#dwzGo'); await shot(p, 'assistant-2');
 assert.equal(await p.$eval('#dwzName', i => i.value), 'Edgar Markov');
 await p.click('[data-br="2"]'); await p.click('[data-bud="5000"]');
 assert.equal(await p.$eval('#dwzAuto', i => i.checked), true, '« Générer les 100 cartes tout de suite » : allumé par défaut'); await p.click('label[for="dwzAuto"]');      // ici : le coach seul (génération testée plus bas)
-assert.match(await txt(p, '.sheet-wrap:last-child .sheet-body'), /Core/);
+assert.match(await txt(p, '.sheet-wrap:last-child .sheet-body'), /2 · Préconstruit/);
 await p.click('#dwzGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges .dw-g', { timeout: 15000 });
 assert.deepEqual(await p.evaluate(() => [BD.tab, BD.cmdr.map(c => c.key), BD.wiz.br, BD.wiz.bud]), ['coach', ['edgar markov'], 2, 5000]);
 await p.waitForFunction(() => DW.core && DW.cmd.has('edgar-markov'));
