@@ -26,7 +26,7 @@ function alRead() {
   } catch (e) { /* neuf */ }
 }
 function alWrite() {
-  try { localStorage.setItem(AL_KEY, JSON.stringify({ on: AC.on, thr: AC.thr, deck: AC.deck, watch: AC.watch, mute: AC.mute, id: AC.id, at: AC.at, sig: AC.sig, dm: AC.dm, dev: AC.dev, nosub: AC.nosub })); } catch (e) { /* stockage indisponible */ }
+  lsSet(AL_KEY, JSON.stringify({ on: AC.on, thr: AC.thr, deck: AC.deck, watch: AC.watch, mute: AC.mute, id: AC.id, at: AC.at, sig: AC.sig, dm: AC.dm, dev: AC.dev, nosub: AC.nosub }));      // stockage plein : caches vidés, sinon prévenu
 }
 /** Compte connecté, lié à Discord et membre du serveur (dsclink.js) : le choix « Recevoir les alertes » s'affiche. */
 function alDscOk() { if (typeof dlOn !== 'function' || !dlOn() || !D.user) return false; const s = dlState(); return !!(s && s.l && s.m); }

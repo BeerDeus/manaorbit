@@ -18,7 +18,7 @@ function lotRead() {
     }
   } catch (e) { /* illisible : lot vide */ }
 }
-function lotSave() { try { localStorage.setItem(LOT_KEY, JSON.stringify({ list: LOT.list.slice(0, LOT_MAX), set: LOT.set, lang: LOT.lang })); } catch (e) { /* stockage plein : le lot reste pour cette session */ } }
+function lotSave() { lsSet(LOT_KEY, JSON.stringify({ list: LOT.list.slice(0, LOT_MAX), set: LOT.set, lang: LOT.lang })); }      // stockage plein : caches vidés, sinon prévenu ; le lot reste pour cette session
 
 /** Langue Scryfall des impressions à proposer pour une langue de carte ('' : celle de la carte dans la collection, sinon anglais). */
 const lotLangOf = c => c.l || collMainLang(collLines(COLL.map[c.k])) || '';
@@ -134,8 +134,7 @@ function lotAdd() {
     const inp = $('#caName', LOT.el); if (inp) inp.select(); return;
   }
   if (c.e && c.pick) edRemember(c.k, l, c.e, edInfoOf(c.pick, l));
-  if (was) collBump(was.k, was.n, -was.q, { lang: was.g, paint: false });
-  collBump(c.k, c.n, c.q, { lang: g }); lotMeta([c.k]); haptic('ok');
+  collBatch(() => { if (was) collBump(was.k, was.n, -was.q, { lang: was.g, paint: false }); collBump(c.k, c.n, c.q, { lang: g }); }); lotMeta([c.k]); haptic('ok');      // ligne corrigée : un seul enregistrement
   const x = { id: was ? was.id : 'l' + Date.now().toString(36) + (++LOT.seq), k: c.k, n: c.n, p: c.p, g, q: c.q, t: was ? was.t : Date.now(), im: c.pick ? c.pick.th : '', eu: lotEu(c) };
   if (was) LOT.list = LOT.list.map(y => (y.id === was.id ? x : y)); else LOT.list.unshift(x);
   LOT.edit = ''; lotSave();
@@ -198,7 +197,7 @@ function lotSuggest() {
  *  it.e (édition décidée au scan, scaned.js ; '' : sans) : telle quelle, impression it.p si connue (sinon relue pour son image et son prix) ;
  *  sans it.e (téléphone d'avant les éditions au scan) : l'extension collante du lot si la carte y existe. */
 async function lotFromScan(items) {
-  const set = LOT.set, out = [];
+  const set = LOT.set, out = [], bumps = [];
   for (const it of items) {
     const c = { k: it.k, n: it.n, p: '', l: it.l || '', q: it.q, e: '', pick: null, prints: [], ...(it.f ? { f: true } : {}) };      // f : exemplaires foil (scan)
     if (typeof it.e === 'string') {
@@ -207,9 +206,10 @@ async function lotFromScan(items) {
     } else if (set) { try { c.prints = await scryArtPrints(c.n, lotLangOf(c) || 'en'); const x = lotInSet(c.prints, set, lotLangOf(c)); if (x) { c.pick = x; c.e = edKey(x.set, x.num); } } catch (e) { /* hors ligne : sans édition */ } }
     const g = lotLine(c), l = lineLang(g);
     if (c.pick) edRemember(c.k, l, c.e, edInfoOf(c.pick, l));
-    collBump(c.k, c.n, c.q, { lang: g, paint: false });
+    bumps.push([c.k, c.n, c.q, g]);
     out.push({ id: 'l' + Date.now().toString(36) + (++LOT.seq), k: c.k, n: c.n, p: '', g, q: c.q, t: Date.now(), im: c.pick ? c.pick.th : '', eu: lotEu(c) });
   }
+  collBatch(() => { for (const [k, n, q, g] of bumps) collBump(k, n, q, { lang: g, paint: false }); });      // toutes les cartes : un seul enregistrement de la collection (et un seul envoi)
   for (const x of out) {      // la même carte, même ligne, que la dernière du lot (« + » au scan, scan mobile) : un seul exemplaire de plus sur cette ligne
     const top = LOT.list[0];
     if (top && top.k === x.k && top.g === x.g) { top.q = Math.min(999, top.q + x.q); top.t = x.t; if (x.im) top.im = x.im; } else LOT.list.unshift(x);

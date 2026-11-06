@@ -6,8 +6,9 @@
  *  lg (formats où elle est légale), la (jour de cette lecture), gc (Game Changer d'après Scryfall) }), gardée sur l'appareil (prix du deck, couleurs, images, légalité, viewer).
  *  Fiches d'avant le 5 novembre (sans lg) : gardées telles quelles, complétées à la prochaine lecture de leur deck (dmMissing). */
 const DM = {}; let dmReady = null, dmT = 0;
+const DM_V = { n: 0 };      // version des fiches des decks (DM), montée à chaque changement : valeur de la collection gardée (collection.js › collValue)
 function dmLoad() {
-  if (!dmReady) dmReady = Cache.get('dm:meta', 30 * DAY).then(c => { if (c && typeof c === 'object') for (const k in c) if (!DM[k]) DM[k] = c[k]; renderDecks(); }).catch(() => {});
+  if (!dmReady) dmReady = Cache.get('dm:meta', 30 * DAY).then(c => { if (c && typeof c === 'object') for (const k in c) if (!DM[k]) DM[k] = c[k]; DM_V.n++; renderDecks(); }).catch(() => {});
   return dmReady;
 }
 const dmSave = () => { clearTimeout(dmT); dmT = 0; Cache.set('dm:meta', DM); };
@@ -25,7 +26,7 @@ function metaPut(k, m) {
   if (!k || !m || typeof m !== 'object') return false;
   if (COLL.meta[k]) { COLL.meta[k] = { ...COLL.meta[k], ...m }; if (typeof collMetaSave === 'function') collMetaSave(); return true; }
   if (!DM[k] && m.tl === undefined) return false;
-  DM[k] = { ...(DM[k] || {}), ...m }; dmSaveSoon(); return true;
+  DM[k] = { ...(DM[k] || {}), ...m }; DM_V.n++; dmSaveSoon(); return true;
 }
 /** Fiche lue sur Scryfall (scryCollection) pour une carte : gardée entière (cartes des decks) ; carte possédée : seuls les champs qui manquaient à sa fiche de la
  *  collection, et sa légalité (relue), y sont ajoutés (son prix reste celui de la collection). */
@@ -42,7 +43,7 @@ const metaFull = m => !!m && m.tl !== undefined && m.lg !== undefined;
 function cardLegal(k, fmt = 'commander') {
   if (BASIC_NAMES.has(k)) return true;
   const f = LG_FMT.find(x => x[1] === fmt), m = cardMeta(k);
-  if (f && m && typeof m.lg === 'string' && m.lg) return m.lg.includes(f[0]);
+  if (f && lgKnows(m, f)) return m.lg.includes(f[0]);      // fiche lue avant l'ajout de ce format : inconnu, la base du coach ou rien
   const r = fmt === 'commander' && typeof DW !== 'undefined' && DW.byKey ? DW.byKey.get(k) : null;
   return r ? !(r[6] & 16) : null;
 }

@@ -10,7 +10,6 @@
    serveur, hors ligne sans copie ou moins de 2 relevés : la variation connue (prix de référence de la semaine d'avant, VAL.base). Relevé du serveur des alertes en plus.
    Texte Oracle et légalités : Scryfall /cards/named (+ texte imprimé dans la langue de la carte), lus à l'ouverture, gardés 7 jours ; hors ligne sans copie : section absente. */
 const CS = { api: null, k: '', o: {}, n: '', g: '', m: null, or: undefined, h: undefined, hw: 0, srv: null, srvAt: 0, ct: '', ctErr: '', t: 0 };
-const CS_FMT = [['standard', 'Standard'], ['pioneer', 'Pioneer'], ['modern', 'Modern'], ['legacy', 'Legacy'], ['vintage', 'Vintage'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['oathbreaker', 'Oathbreaker'], ['brawl', 'Brawl'], ['historic', 'Historic']];      // noms des formats : tels quels dans toutes les langues
 const CS_LEGAL = { legal: T('Légale'), not_legal: T('Non légale'), banned: T('Interdite'), restricted: T('Restreinte') };
 const CS_RAR = { common: T('Commune'), uncommon: T('Peu commune'), rare: T('Rare'), mythic: T('Mythique'), special: T('Spéciale') };
 const CS_OR_TTL = 7 * DAY;      // texte et légalités : une interdiction peut tomber dans la semaine
@@ -95,7 +94,7 @@ function csOracleHtml() {
   const face = (f, en) => `<div class="cs-face">${f.n && (r.en.length > 1 || !en) ? `<b>${esc(f.n)}</b>` : ''}${f.tl ? `<small>${esc(f.tl)}${en && f.mc ? ' · ' + esc(f.mc) : ''}</small>` : ''}${f.t ? `<p>${csText(f.t)}</p>` : ''}</div>`;
   const loc = r.loc && r.loc.f.some(f => f.t) ? `<div class="cs-txt" lang="${esc(SCRY_LANG[r.loc.l] || r.loc.l)}"><span class="cs-tl">${flag(r.loc.l)}${esc(T('Texte imprimé'))}</span>${r.loc.f.map(f => face(f, false)).join('')}</div>` : '';
   const en = r.en.some(f => f.t || f.tl) ? `<div class="cs-txt" lang="en"><span class="cs-tl">${flag('en')}${esc(T('Oracle (anglais)'))}</span>${r.en.map(f => face(f, true)).join('')}</div>` : '';
-  const lg = CS_FMT.filter(([f]) => r.lg[f]).map(([f, name]) => { const s = CS_LEGAL[r.lg[f]] ? r.lg[f] : 'not_legal'; return `<span class="cs-lgi ${s}"><b>${name}</b><small>${esc(CS_LEGAL[s])}</small></span>`; }).join('');
+  const lg = LG_FMT.filter(([, f]) => r.lg[f]).map(([, f, name]) => { const s = CS_LEGAL[r.lg[f]] ? r.lg[f] : 'not_legal'; return `<span class="cs-lgi ${s}"><b>${name}</b><small>${esc(CS_LEGAL[s])}</small></span>`; }).join('');
   if (!loc && !en && !lg) return '';
   return `<section class="cs-sec cs-or"><h3 class="cs-h">${T('Texte et légalités')}</h3>${loc}${en}${lg ? `<div class="cs-lg" role="list" aria-label="${esc(T('Légalités par format'))}">${lg}</div>` : ''}</section>`;
 }
@@ -159,11 +158,11 @@ function csHistSvg(pts, W) {
   const pad = (max - min) * 0.14 || max * 0.03 || 1, lo = min - pad, hi = max + pad, f = n => n.toFixed(1);
   const X = t => pl + (W - pl - pr) * (t1 > t0 ? (t - t0) / (t1 - t0) : 1), Y = v => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo));
   const xy = pts.map(x => f(X(x.t)) + ',' + f(Y(x.v))), last = pts[pts.length - 1], grid = max === min ? [max] : [max, min];
-  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T('Prix « à partir de » du {d0} au {d1} : de {v0} à {v1}', { d0: valDate(t0), d1: valDate(t1), v0: fmt(pts[0].v, mkCur()), v1: fmt(last.v, mkCur()) }))}">
+  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T('Prix « à partir de » du {d0} au {d1} : de {v0} à {v1}', { d0: dateShort(t0), d1: dateShort(t1), v0: fmt(pts[0].v, mkCur()), v1: fmt(last.v, mkCur()) }))}">
     ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 11 : -4))}" class="vl-txt">${esc(fmt(v, mkCur()))}</text>`).join('')}
     <path d="M${f(X(t0))},${f(H - pb)} L${xy.join(' L')} L${f(X(t1))},${f(H - pb)} Z" class="vl-area"/><polyline points="${xy.join(' ')}" class="vl-line" fill="none"/>
     <circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="3.4" class="vl-dot"/>
-    <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(valDate(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(valDate(t1))}</text></svg>`;
+    <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(dateShort(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(dateShort(t1))}</text></svg>`;
 }
 /** Variation sur 7 jours (relevé d'au moins 7 jours avant le dernier ; sinon pas encore de recul) et sur toute la période (30 jours au plus), plus bas, plus haut. */
 function csHistStats(pts) {
@@ -179,7 +178,7 @@ function csHistHtml() {
   return `<div class="cs-hist"><div class="cs-hh"><b>${esc(T('Évolution du prix'))}</b><small>${esc(T('Tendance Cardmarket'))}</small></div>
     <div class="cs-hc">${csHistSvg(pts, CS.hw)}</div>
     <div class="vl-ds">${valDeltaHtml(esc(TN(7, '{n} jour', '{n} jours')), s.d7)}${valDeltaHtml(esc(allLab), s.dAll)}</div>
-    <p class="cs-hmm"><span>${esc(T('Plus bas {p} le {d}', { p: fmt(s.lo.v, mkCur()), d: valDate(s.lo.t) }))}</span><span>${esc(T('Plus haut {p} le {d}', { p: fmt(s.hi.v, mkCur()), d: valDate(s.hi.t) }))}</span></p>
+    <p class="cs-hmm"><span>${esc(T('Plus bas {p} le {d}', { p: fmt(s.lo.v, mkCur()), d: dateShort(s.lo.t) }))}</span><span>${esc(T('Plus haut {p} le {d}', { p: fmt(s.hi.v, mkCur()), d: dateShort(s.hi.t) }))}</span></p>
     <p class="hint">${esc(T('Prix « à partir de » : l\'impression la moins chère de la carte, non foil. Une édition précise ou un foil peut valoir bien plus.'))}</p></div>`;
 }
 /** Courbe redessinée à la largeur réelle de la fiche (un pixel du dessin = un pixel de l'écran : textes à leur taille sur téléphone comme sur ordinateur). */
@@ -198,12 +197,12 @@ function csPxHtml(k, x, m) {
   }).join('');
   const px = COLL.px[k], canCt = !!x && !mkUs() && !BASIC_NAMES.has(k) && !S.demo && (CTX.proxy || !!S.token) && !collOffline();      // hors ligne : seulement l'offre déjà lue
   const ctv = CS.ct === 'run' ? `<span class="cs-ctv"><span class="cs-spin" aria-hidden="true"></span>${esc(T('Lecture…'))}</span>`
-    : px && Number.isFinite(px.p) ? `<span class="cs-ctv"><b>${esc(fmt(px.p, px.c || 'EUR'))}</b><small>${esc(pxAgo(px.t))}</small></span>`
-    : px && px.p === null && px.t ? `<span class="cs-ctv"><b>${esc(T('aucune offre'))}</b><small>${esc(pxAgo(px.t))}</small></span>` : '';
+    : px && Number.isFinite(px.p) ? `<span class="cs-ctv"><b>${esc(fmt(px.p, px.c || 'EUR'))}</b><small>${esc(relTime(px.t))}</small></span>`
+    : px && px.p === null && px.t ? `<span class="cs-ctv"><b>${esc(T('aucune offre'))}</b><small>${esc(relTime(px.t))}</small></span>` : '';
   const ctBtn = canCt && CS.ct !== 'run' && (!px || Date.now() - px.t > PX_TTL || !ctv) ? `<button type="button" class="btn ghost small" data-cs="ct">${esc(T('Voir les offres'))}</button>` : '';
   const ct = canCt || ctv ? `<div class="cs-ct"><span class="px ct"><i>CT</i></span><span class="cs-ctl"><b>CardTrader</b><small>${esc(T('offre la moins chère · {lang}', { lang: langCode(pxLangOf(x || {})) }))}</small></span>${ctv}${ctBtn}</div>${CS.ct === 'err' && CS.ctErr ? `<p class="hint warn">${esc(CS.ctErr)}</p>` : ''}` : '';
   const v = x ? collCardVal(k) : 0, mv = csMove(k), hist = csHistHtml();
-  const move = hist ? hist : mv ? `<p class="cs-mv ${mv.d > 0 ? 'vu' : 'vd'}">${esc(T('Depuis le {d} : {a} → {b}', { d: valDate(mv.t), a: fmt(mv.u0, mkCur()), b: fmt(mv.u1, mkCur()) }))} <b>${mv.d > 0 ? '▲' : '▼'} ${esc(valPct(mv.pct))}</b></p>`
+  const move = hist ? hist : mv ? `<p class="cs-mv ${mv.d > 0 ? 'vu' : 'vd'}">${esc(T('Depuis le {d} : {a} → {b}', { d: dateShort(mv.t), a: fmt(mv.u0, mkCur()), b: fmt(mv.u1, mkCur()) }))} <b>${mv.d > 0 ? '▲' : '▼'} ${esc(valPct(mv.pct))}</b></p>`
     : x ? `<p class="hint">${esc(T('Variation du prix : connue après une semaine de relevés.'))}</p>` : '';
   const srv = CS.srv ? `<p class="hint">${esc(T('Relevé des alertes {when} : {c}', { when: CS.srvAt ? relTime(CS.srvAt) : '', c: fmt(CS.srv.c, mkCur()) }))}${CS.srv.b > 0 ? ' · ' + esc(T('habituel {b}', { b: fmt(CS.srv.b, mkCur()) })) : ''}</p>` : '';
   return `<section class="cs-sec"><h3 class="cs-h">${T('Prix')}</h3>

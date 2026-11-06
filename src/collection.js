@@ -4,7 +4,20 @@
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, big: 0, tooBig: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', ru: 0, pv: 0, dv: 0, valMemo: null, wt: null, batch: 0, batchO: null, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, big: 0, tooBig: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+/** Dernier état du compte connu de cet appareil (COLL.base ; null : inconnu → fusion par union) et son texte, gardé tant qu'elle ne change pas : chaque « + » réécrit
+ *  la collection sur l'appareil (collWrite) sans refaire le texte de la base, et un texte du compte déjà connu (écho de notre envoi, compte inchangé) n'est pas
+ *  relu. Jamais modifiée sur place : toujours remplacée (COLL.base = …, ou collBaseSet quand son texte est connu).
+ *  Au démarrage, seul son texte est lu (collBaseLazy) : analysée à la première fusion qui en a besoin (≈ 0,2 s de moins dans init() à 5 000 cartes, CPU ×4). */
+const COLL_B = { d: null, t: null, lazy: false };
+Object.defineProperty(COLL, 'base', { enumerable: true, get: () => { if (COLL_B.lazy) { COLL_B.lazy = false; COLL_B.d = collDocFromText(COLL_B.t); } return COLL_B.d; }, set: d => { COLL_B.lazy = false; COLL_B.d = d || null; COLL_B.t = null; } });
+function collBaseSet(d, t) { COLL_B.lazy = false; COLL_B.d = d || null; COLL_B.t = d && typeof t === 'string' ? t : null; }
+/** Base connue par son texte seulement (stockage de l'appareil) : analysée au premier COLL.base. */
+function collBaseLazy(t) { COLL_B.d = null; COLL_B.t = t; COLL_B.lazy = true; }
+const collHasBase = () => COLL_B.lazy || !!COLL_B.d;
+const collBaseText = () => (COLL_B.t != null ? COLL_B.t : COLL_B.d ? (COLL_B.t = collDocText(COLL_B.d)) : null);
+/** Collection d'un texte du compte : la base si c'est le sien (sans relire 900 Ko), sinon le texte lu. */
+const collDocOf = t => (COLL_B.t != null && t === COLL_B.t && COLL.base ? COLL.base : collDocFromText(t));
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct' && !mkUs()) COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }      // marché TCGplayer : jamais CardTrader
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -24,13 +37,15 @@ function collRead() {
     const r = JSON.parse(localStorage.getItem(COLL_KEY) || 'null');
     if (r && typeof r.t === 'string') {
       COLL.disk = r.t; collDocSet(collDocFromText(r.t)); COLL.u = Number(r.u) || 0; COLL.s = typeof r.s === 'string' ? r.s : '';
-      COLL.base = COLL.s && typeof r.b === 'string' ? collDocFromText(r.b) : null;                  // dernier état du compte connu de cet appareil (null : inconnu → fusion par union)
+      COLL.wt = { t: r.t, dv: COLL.dv, map: COLL.map, prox: COLL.prox, places: COLL.places };      // texte lu : collUnsynced le compare à celui de la base, sans l'analyser
+      if (COLL.s && typeof r.b === 'string') collBaseLazy(r.b); else COLL.base = null;      // dernier état du compte connu de cet appareil (null : inconnu → fusion par union), analysé à la première fusion
     }
   } catch (e) { /* illisible : on repart d'une collection vide */ }
 }
 function collWrite() {
-  try { const t = collDocText(collDocNow()); localStorage.setItem(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collDocText(COLL.base) } : {}) })); COLL.disk = t; return true; }
-  catch (e) { toast(T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil')); return false; }
+  const t = collDocText(collDocNow()), b = collBaseText(); COLL.wt = { t, dv: COLL.dv, map: COLL.map, prox: COLL.prox, places: COLL.places };
+  if (!lsSet(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(b != null ? { b } : {}) }), { msg: T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil') })) return false;      // plein : prix réels et relevés vidés d'abord (core.js › lsSet)
+  COLL.disk = t; return true;
 }
 /** Autre onglet de l'appli (PWA et navigateur, deux onglets) : la collection gardée sur l'appareil vient d'y changer. Fusion à trois avec ce qui est ici, d'après
  *  le dernier état lu ou écrit par cet onglet (COLL.disk) : sans elle, le prochain enregistrement d'ici effaçait ce que l'autre onglet avait ajouté. Fusion différente
@@ -41,7 +56,7 @@ function collStorage(e) {
   if (!r || typeof r.t !== 'string' || r.t === COLL.disk) return;
   const theirs = collDocFromText(r.t), before = collDocNow(), next = mergeDoc3(typeof COLL.disk === 'string' ? collDocFromText(COLL.disk) : null, before, theirs);
   COLL.disk = r.t; COLL.u = Math.max(COLL.u || 0, Number(r.u) || 0);
-  if (typeof r.s === 'string' && r.s && (!COLL.s || r.s === COLL.s)) { COLL.s = r.s; if (typeof r.b === 'string') COLL.base = collDocFromText(r.b); }      // même compte : son dernier état du compte (envoi fait là-bas)
+  if (typeof r.s === 'string' && r.s && (!COLL.s || r.s === COLL.s)) { COLL.s = r.s; if (typeof r.b === 'string' && r.b !== COLL_B.t) collBaseLazy(r.b); }      // même compte : son dernier état du compte (envoi fait là-bas)
   collDocSet(next);
   if (!sameDoc(next, theirs)) collWrite();
   if (!sameDoc(before, next)) { COLL.seq++; collPaint(); paintCollSection(); refreshDeck(); trSoon(); collEnrich(); homeSoon(); }
@@ -88,7 +103,7 @@ async function collMetaLoad() {
 }
 let metaT = 0;
 function collMetaFlush() { clearTimeout(metaT); metaT = 0; Cache.set(COLL_META_KEY, COLL.meta); Cache.set(COLL_LI_KEY, COLL.li); Cache.set(COLL_ED_KEY, COLL.ed); }
-function collMetaSave() { clearTimeout(metaT); metaT = setTimeout(collMetaFlush, 800); }
+function collMetaSave() { COLL.pv++; clearTimeout(metaT); metaT = setTimeout(collMetaFlush, 800); }
 // appli mise en arrière-plan ou fermée juste après une lecture : l'enregistrement en attente part tout de suite
 if (typeof document !== 'undefined') { document.addEventListener('visibilitychange', () => { if (document.hidden && metaT) collMetaFlush(); }); addEventListener('pagehide', () => { if (metaT) collMetaFlush(); }); }
 
@@ -134,8 +149,15 @@ function collCardVal(k) {
   let v = 0; for (const [g, q] of collLines(x)) { const u = collLineEu(k, g); if (u > 0) v += u * q; }
   return v;
 }
-/** Valeur de la collection (centimes). */
-function collValue() { let v = 0; for (const k in COLL.map) v += collCardVal(k); return v; }
+/** Valeur de la collection (centimes), gardée tant que rien ne change : en-tête, accueil, widget, Moi, badges la redemandent après chaque « + » (une passe sur toutes
+ *  les cartes chacun). Clé : COLL.seq (cartes ; repeint après des prix : collPaint, collPaintSoon, pxRepaintColl), COLL.pv (infos et prix gardés : collMetaSave,
+ *  edPut, prcOver), marché, relevé du jour (PXT), base du coach, fiches des decks (DM_V). */
+function collValue() {
+  const c = COLL.valMemo, px = typeof PXT !== 'undefined' ? PXT : null, dw = typeof DW !== 'undefined' ? DW.byKey : null, dm = typeof DM_V !== 'undefined' ? DM_V.n : 0;
+  if (c && c.seq === COLL.seq && c.pv === COLL.pv && c.map === COLL.map && c.meta === COLL.meta && c.ed === COLL.ed && c.mk === MK.id && c.px === px && c.dw === dw && c.dm === dm) return c.v;
+  let v = 0; for (const k in COLL.map) v += collCardVal(k);
+  COLL.valMemo = { seq: COLL.seq, pv: COLL.pv, map: COLL.map, meta: COLL.meta, ed: COLL.ed, mk: MK.id, px, dw, dm, v }; return v;
+}
 /** Éditions des lignes de la collection ; stale : seulement celles jamais lues ou lues depuis plus de 2 jours. */
 function collEds(stale) {
   const out = new Set(), now = Date.now(), old = e => { const x = COLL.ed[e]; return !!x && !x.none && x.st === undefined; };      // lue avant le filtre « Style » : relue une fois, même fraîche
@@ -144,7 +166,7 @@ function collEds(stale) {
   return [...out];
 }
 /** Garde les infos d'éditions lues (scryEditions, ou une impression des illustrations : { eu, ef, im, sn, r }). */
-function edPut(e, x) { if (!e) return; COLL.ed[e] = x ? { eu: x.eu ?? null, ef: x.ef ?? null, im: x.im || '', sn: x.sn || '', r: x.r || '', ...(typeof x.st === 'string' ? { st: x.st } : {}), t: Date.now() } : { t: Date.now(), none: 1 }; }      // st : styles de l'impression (core.js › styOf ; absent : lue avant le filtre « Style », relue par collEds)
+function edPut(e, x) { if (!e) return; COLL.pv++; COLL.ed[e] = x ? { eu: x.eu ?? null, ef: x.ef ?? null, im: x.im || '', sn: x.sn || '', r: x.r || '', ...(typeof x.st === 'string' ? { st: x.st } : {}), t: Date.now() } : { t: Date.now(), none: 1 }; }      // st : styles de l'impression (core.js › styOf ; absent : lue avant le filtre « Style », relue par collEds)
 /** Lit les éditions à relire (jamais lues, ou de plus de 2 jours ; all : toutes) puis repeint. Silencieux en cas d'échec (le prix de référence reste affiché). */
 async function edRefresh(all, signal) {
   if (COLL.edRun) return COLL.edRun;
@@ -468,12 +490,20 @@ function collSetLang(k, l, from) {
 
 /** Toute modification passe par ici : enregistre, envoie au compte, met à jour la page de saisie et la recherche en cours. */
 function collChanged(o = {}) {
-  COLL.u = Date.now(); COLL.seq++; collWrite(); if (typeof prgSoon === 'function') prgSoon('coll');      // nouveaux badges de collection (progress.js) : changement fait ici
+  if (COLL.batch) { COLL.dv++; const b = COLL.batchO || { push: false, paint: false }; COLL.batchO = { push: b.push || o.push !== false, paint: b.paint || o.paint !== false }; return; }      // dans collBatch : un seul à la fin
+  COLL.u = Date.now(); COLL.seq++; COLL.dv++; collWrite(); if (typeof prgSoon === 'function') prgSoon('coll');      // nouveaux badges de collection (progress.js) : changement fait ici
   if (o.push !== false) { const t = Date.now(); COLL.chg = COLL.chg.filter(x => t - x < COLL_PUSH.win); COLL.chg.push(t); collPushSoon(); }
   if (o.paint !== false) collPaint(); else collPaintHead();
   paintCollSection(); refreshDeck(); alSoon(); trSoon(); edSoon();
   if (typeof csSoon === 'function') csSoon();      // fiche d'une carte ouverte (cardsheet.js) : ses exemplaires suivent
   if (S.run && S.view === 'results') scheduleRecompute(true);
+}
+/** N changements d'un coup (cartes du scan, du scan mobile, retraits du lot) : fn fait ses collBump, puis un seul collChanged (un enregistrement, un envoi, un repeint)
+ *  au lieu d'un par carte (5 000 cartes : chaque enregistrement réécrit tout le texte de la collection). fn est synchrone. */
+function collBatch(fn) {
+  COLL.batch++;
+  try { return fn(); }
+  finally { if (!--COLL.batch && COLL.batchO) { const o = COLL.batchO; COLL.batchO = null; collChanged(o); } }
 }
 /** Après un changement : prix des éditions jamais lues (import, scan, choix d'une illustration), en un lot, un peu plus tard. */
 let edT = 0;
@@ -505,7 +535,9 @@ function collBump(k, name, d, o) {
 const collClone = m => { const o = {}; for (const k in m) o[k] = { ...m[k] }; return o; };
 const collDocClone = d => collDoc(collClone(d.map), collClone(d.prox), collClone(d.places));
 /** Cet appareil a-t-il des changements pas encore dans le compte ? */
-const collUnsynced = () => !COLL.base || !sameDoc(collDocNow(), COLL.base);
+const collUnsynced = () => { if (!collHasBase()) return true; const t = collNowText(); return !(t != null && t === COLL_B.t) && !sameDoc(collDocNow(), COLL.base); };      // même texte que la base : rien à envoyer, sans comparer carte par carte
+/** Texte de la collection de cet appareil s'il n'a pas bougé depuis le dernier enregistrement (collWrite), sinon null. */
+function collNowText() { const w = COLL.wt; return w && w.dv === COLL.dv && w.map === COLL.map && w.prox === COLL.prox && w.places === COLL.places ? w.t : null; }
 const collOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 /** Taille du texte de la collection (plafond du compte, core.js › COLL_LIM) : celui gardé sur l'appareil (collWrite), sans tout réécrire à chaque « + ». */
 const collLen = () => (typeof COLL.disk === 'string' ? COLL.disk : collDocText(collDocNow())).length;
@@ -545,7 +577,7 @@ async function collPush() {
     await D.cloud.txColl(uid, rdoc => {
       if (acctHeld(uid) || (!rdoc && acctLost('collection', uid))) throw Object.assign(new Error('compte effacé ?'), { code: 'held' });      // effacé entre-temps : on ne le recrée pas
       had = !!rdoc;
-      const remote = rdoc && typeof rdoc.text === 'string' ? collDocFromText(rdoc.text) : collDoc();
+      const remote = rdoc && typeof rdoc.text === 'string' ? (COLL.s === uid ? collDocOf(rdoc.text) : collDocFromText(rdoc.text)) : collDoc();      // compte inchangé depuis notre dernière synchro : sa base, sans relire le texte
       used = collDocClone(collDocNow());
       merged = mergeDoc3(rdoc && COLL.s === uid ? COLL.base : null, used, remote);
       if (rdoc ? sameDoc(merged, remote) : sameDoc(merged, collDoc())) { wrote = null; return null; }              // le compte a déjà tout
@@ -557,7 +589,7 @@ async function collPush() {
     if (had || wrote) acctSaw('collection', uid);
     if (wrote) COLL.ru = Math.max(COLL.ru, wrote.updatedAt);
     const before = collDocNow(), next = mergeDoc3(used, before, merged);                                                // + ce qui a été touché ici pendant l'envoi
-    COLL.s = uid; COLL.base = merged; collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.big = COLL.tooBig = 0; COLL.live = true; collWrite();
+    COLL.s = uid; collBaseSet(merged, wrote && wrote.text); collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.big = COLL.tooBig = 0; COLL.live = true; collWrite();
     if (!sameDoc(before, next)) collRemoteApplied(before, next);
     if (collUnsynced()) COLL.again = true;
     collAsideSoon();
@@ -609,9 +641,9 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
   COLL.live = true; COLL.cloud = 'ok'; COLL.err = '';
   if (data && typeof data.text === 'string') {
     acctSaw('collection', uid);
-    const remote = collDocFromText(data.text), first = COLL.s !== uid, known = !first && !!COLL.base, before = collDocNow();
+    const first = COLL.s !== uid, remote = first ? collDocFromText(data.text) : collDocOf(data.text), known = !first && collHasBase(), before = collDocNow();      // écho de notre envoi : texte déjà connu
     const next = mergeDoc3(first ? null : COLL.base, before, remote);
-    COLL.ru = Math.max(COLL.ru, ru); COLL.s = uid; COLL.base = remote; collDocSet(next); collWrite();
+    COLL.ru = Math.max(COLL.ru, ru); COLL.s = uid; collBaseSet(remote, data.text); collDocSet(next); collWrite();
     if (!sameDoc(before, next)) collRemoteApplied(before, next, { first: first || !known, had: Object.keys(before.map).length });
     if (!sameDoc(next, remote)) collPushSoon();                          // il reste ici des changements pas encore dans le compte
   } else if (!data && acctLost('collection', uid)) { /* vu ici puis disparu : compte supprimé ailleurs ? rien n'est renvoyé (decks.js vérifie) */ }
@@ -735,16 +767,12 @@ function openCollPrices() {
     const paint = () => {
       const f = { lang: sel.value, scope: $('#pxScope', api.body)._v || 'old' }; targets = pxTargets(f);
       const pool = pxTargets({ lang: f.lang, scope: 'all' }), have = pool.filter(t => COLL.px[t.key] && COLL.px[t.key].t), last = have.reduce((a, t) => Math.max(a, COLL.px[t.key].t), 0);
-      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(targets.length, '<b>{n}</b> carte à lire sur {total}', '<b>{n}</b> cartes à lire sur {total}', { total: nf0(pool.length) })}</div><span>${have.length ? TN(have.length, '{n} déjà lue · dernière lecture {ago}', '{n} déjà lues · dernière lecture {ago}', { ago: pxAgo(last) }) : T('Aucun prix lu pour l\'instant')}</span>`;
+      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(targets.length, '<b>{n}</b> carte à lire sur {total}', '<b>{n}</b> cartes à lire sur {total}', { total: nf0(pool.length) })}</div><span>${have.length ? TN(have.length, '{n} déjà lue · dernière lecture {ago}', '{n} déjà lues · dernière lecture {ago}', { ago: relTime(last) }) : T('Aucun prix lu pour l\'instant')}</span>`;
       go.disabled = !targets.length; go.textContent = targets.length ? T('Lire {n} prix', { n: nf0(targets.length) }) : T('Rien à lire');
     };
     sel.onchange = paint; paint();
     go.onclick = () => { if (!targets.length) return; const all = $('#pxScope', api.body)._v === 'all'; api.close(); haptic('ok'); pxRun(targets, { fresh: all }); };      // « Toutes » : relecture voulue, on ignore le cache de 10 min du serveur
   });
-}
-function pxAgo(t) {
-  const m = Math.round((Date.now() - t) / 60000);
-  return m < 2 ? T('à l\'instant') : m < 90 ? T('il y a {n} min', { n: m }) : m < 36 * 60 ? T('il y a {n} h', { n: Math.round(m / 60) }) : T('il y a {n} j', { n: Math.round(m / 1440) });
 }
 
 /* ── Infos Scryfall ───────────────────────────────────────────────────────────────────────────── */
@@ -1150,7 +1178,7 @@ function collBigInfo() {
 function collDownload(body, ext, type, n = collCount(), part = false) {
   try {
     const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + new Date().toISOString().slice(0, 10) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + dayIso(Date.now()) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
     toast(TN(n, 'Collection exportée ({n} carte)', 'Collection exportée ({n} cartes)'));
   } catch (e) { toast(T('Export impossible sur ce navigateur')); }
 }

@@ -88,7 +88,7 @@ async function mobTake(d) {
   const flush = async () => {
     if (!run.length) return; const r = run; run = [];
     if (LOT.el) await lotFromScan(r);
-    else { for (const x of r) collBump(x.k, x.n, x.q, { lang: lineKey(x.l, x.e), paint: false }); collEnrich(); }      // page fermée entre-temps : la collection quand même
+    else { collBatch(() => { for (const x of r) collBump(x.k, x.n, x.q, { lang: lineKey(x.l, x.e), paint: false }); }); collEnrich(); }      // page fermée entre-temps : la collection quand même
   };
   for (const x of ok) { if (x.q > 0) { run.push(x); continue; } await flush(); lotTakeBack(x.k, x.n, x.l, -x.q, x.e); }
   await flush();
@@ -99,7 +99,8 @@ async function mobTake(d) {
 }
 /** Correction venue du téléphone (« − », retrait, autre langue, autre édition) : q exemplaires de la carte (langue l, édition e si le téléphone la donne)
  *  sortent du lot (les plus récents d'abord) et de la collection. */
-function lotTakeBack(k, n, l, q, e) {
+function lotTakeBack(k, n, l, q, e) { collBatch(() => lotTakeBack1(k, n, l, q, e)); }      // un seul enregistrement de la collection
+function lotTakeBack1(k, n, l, q, e) {
   let left = q; const g = e === undefined ? null : lineKey(lotLangOf({ k, l }), e);
   for (const x of LOT.list) {
     if (!left) break;

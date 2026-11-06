@@ -39,7 +39,7 @@ function trRead() {
     TR.base = j.b && typeof j.b === 'object' ? trParse(j.b) : null;      // dernier état commun avec le compte (fusion à trois, trUser)
   } catch (e) { /* neuf */ }
 }
-function trWrite() { try { const raw = JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who, b: TR.base }); localStorage.setItem(TR_KEY, raw); TR.disk = raw; } catch (e) { /* stockage indisponible */ } }
+function trWrite() { const raw = JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who, b: TR.base }); if (lsSet(TR_KEY, raw)) TR.disk = raw; }      // stockage plein : caches vidés, sinon prévenu (core.js › lsSet)
 /** Autre onglet de l'appli : souhaits et réglages de l'échange changés là-bas. Fusion à trois (tradeMerge3) d'après le dernier état lu ou écrit ici ; autre compte : repris tel quel. */
 function trStorage(e) {
   if (e.key !== TR_KEY || e.newValue == null || e.newValue === TR.disk) return;

@@ -557,7 +557,11 @@ function loadCloud() {
     if (typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) {
       throw Object.assign(new Error(tcl('Ouvre l\'app via http(s) (proxy local ou ton hébergement) pour te connecter.')), { code: 'env' });
     }
-    const [app, auth, fs] = await Promise.all([import(FB_BASE + 'firebase-app.js'), import(FB_BASE + 'firebase-auth.js'), import(FB_BASE + 'firebase-firestore.js')]);
+    // joignable d'abord (fetch : un échec n'est jamais gardé) : un import() qui échoue reste en échec pour toute la vie de la page (Chromium), et « Réessayer »
+    // comme le nouvel essai tout seul au retour du réseau (decks.js › connectCloudSoon) n'aboutissaient jamais sans recharger la page
+    const urls = ['app', 'auth', 'firestore'].map(n => FB_BASE + 'firebase-' + n + '.js');
+    await Promise.all(urls.map(u => fetch(u).then(r => { if (!r.ok) throw Object.assign(new Error('SDK Firebase injoignable'), { code: 'unavailable' }); })));
+    const [app, auth, fs] = await Promise.all(urls.map(u => import(u)));
     return makeCloud({ app, auth, fs });
   })();
   cloudP.catch(() => { cloudP = null; });

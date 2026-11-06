@@ -780,7 +780,7 @@ function updateRow(el, c, v, st) {
 function renderSellers(animate) {
   const r = curRes(), host = $('#sellers'); const nameOf = k => { const c = S.deck.cards.find(x => x.key === k) || {}; return c.dn || c.name || k; };
   host.innerHTML = r.sellers.map((g, i) => {
-    const items = g.items.slice().sort((a, b) => nameOf(a.key).localeCompare(nameOf(b.key))).map(it =>
+    const items = g.items.slice().sort((a, b) => NAME_CMP(nameOf(a.key), nameOf(b.key))).map(it =>
       `<div class="gi"><span>${it.n > 1 ? it.n + ' × ' : ''}${esc(nameOf(it.key))}${it.offer.lang ? flag(it.offer.lang) : ''}</span><span>${fmt(it.offer.price * it.n, it.offer.cur)}</span></div>`).join('');
     return `<div class="group" style="--i:${animate ? i : 0}${animate ? '' : ';animation:none'}"><div class="group-head"><div class="who"><b>${esc(g.seller)}</b><span class="tag">${esc(g.country || '?')}</span>${g.hub ? '<span class="tag good">Zero</span>' : ''}</div><div class="sum">${fmt(g.subtotal, g.items[0].offer.cur)}<small>${TN(g.count, '{n} carte', '{n} cartes')}</small></div></div>${items}</div>`;
   }).join('') || `<p class="hint">${T('Aucune offre retenue pour le moment.')}</p>`;
@@ -793,7 +793,7 @@ function updateAlerts() {
   const items = [];
   if (S.run.error) items.push({ k: 'bad', html: esc(S.run.error.msg) + (S.run.error.action ? ` <button type="button" data-act="${S.run.error.action}">${esc(S.run.error.label)}</button>` : '') });
   if (S.run.status === 'cancelled') items.push({ k: '', html: T('Recherche arrêtée : les résultats sont partiels.') });
-  if (S.run.status === 'done' && S.run.cacheAge >= 90) { const m = Math.round(S.run.cacheAge / 60), ago = m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''); items.push({ k: '', html: `${T('Prix lus il y a {ago} (cache du serveur).', { ago })} <button type="button" data-act="refresh">${T('Actualiser les prix')}</button>` }); }
+  if (S.run.status === 'done' && S.run.cacheAge >= 90) { const ago = relTime(Date.now() - S.run.cacheAge * 1000); items.push({ k: '', html: `${T('Prix lus {ago} (cache du serveur).', { ago })} <button type="button" data-act="refresh">${T('Actualiser les prix')}</button>` }); }
   if (S.run.status !== 'running') {
     let none = 0, noneLn = 0, nohub = 0, nf = [], short = 0, enNone = 0, enHub = 0, stale = 0;
     for (const c of S.deck.cards) {

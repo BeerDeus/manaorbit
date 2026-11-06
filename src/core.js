@@ -891,27 +891,26 @@ function readDeck(id, d) {
   out.id = String(id); return out;
 }
 
-/** « à l'instant », « il y a 3 h », « hier », « 12 sept. » */
+/** Date courte dans la langue de l'appli : « 12 sept. » (courbes de valeur et de prix, relevés d'un deck, au-delà d'une semaine dans relTime). */
+const dateShort = ts => new Date(ts).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
+/** Ancienneté en mots, la seule règle de l'appli pour « il y a… » (mots de la langue de l'appli : Intl.RelativeTimeFormat) : « à l'instant », « il y a 5 minutes »,
+ *  « il y a 3 heures », « hier », « il y a 4 jours », puis la date (« 12 sept. »). ts : horodatage (ms), ou jour 'AAAA-MM-JJ' (mise à jour d'un deck EDHREC) :
+ *  au jour près (« aujourd'hui », « hier », « il y a 5 jours »), puis en semaines, mois, années (« il y a 3 semaines », « il y a 1 an ») ; '' si illisible. */
 function relTime(ts, now) {
   now = now || Date.now();
+  const rtf = () => new Intl.RelativeTimeFormat(LOC(), { numeric: 'auto' });
+  if (typeof ts === 'string') {
+    const t = /^\d{4}-\d\d-\d\d$/.test(ts) ? Date.parse(ts + 'T12:00:00Z') : NaN; if (!Number.isFinite(t)) return '';
+    const d = Math.max(0, Math.floor((now - t) / 86400000));
+    return d < 14 ? rtf().format(-d, 'day') : d < 60 ? rtf().format(-Math.floor(d / 7), 'week') : d < 365 ? rtf().format(-Math.floor(d / 30.44), 'month') : rtf().format(-Math.floor(d / 365.25), 'year');
+  }
   const s = Math.round((now - ts) / 1000);
   if (!Number.isFinite(s)) return '';
   if (s < 45) return T('à l\'instant');
-  const rtf = new Intl.RelativeTimeFormat(LOC(), { numeric: 'auto' });
-  if (s < 3600) return rtf.format(-Math.max(1, Math.round(s / 60)), 'minute');
-  if (s < 86400) return rtf.format(-Math.round(s / 3600), 'hour');
-  if (s < 7 * 86400) return rtf.format(-Math.round(s / 86400), 'day');
-  return new Date(ts).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
-}
-
-/** Ancienneté d'une date 'AAAA-MM-JJ' en mots : « aujourd'hui », « hier », « il y a 5 jours », « il y a 3 semaines », « il y a 2 mois », « il y a 1 an » ('' si illisible). */
-function agoDay(day, now) {
-  const t = Date.parse(String(day || '') + 'T12:00:00Z'); if (!Number.isFinite(t)) return '';
-  const d = Math.max(0, Math.floor(((now || Date.now()) - t) / 86400000));
-  if (d < 1) return T('aujourd\'hui'); if (d < 2) return T('hier'); if (d < 14) return T('il y a {n} jours', { n: d });
-  if (d < 60) return T('il y a {n} semaines', { n: Math.floor(d / 7) });
-  if (d < 365) { const m = Math.floor(d / 30.44); return m === 1 ? T('il y a 1 mois') : T('il y a {n} mois', { n: m }); }      // « mois » : même mot au singulier et au pluriel en français, pas en anglais
-  const y = Math.floor(d / 365.25); return TN(y, 'il y a {n} an', 'il y a {n} ans', { n: y });
+  if (s < 3600) return rtf().format(-Math.max(1, Math.round(s / 60)), 'minute');
+  if (s < 86400) return rtf().format(-Math.round(s / 3600), 'hour');
+  if (s < 7 * 86400) return rtf().format(-Math.round(s / 86400), 'day');
+  return dateShort(ts);
 }
 
 /** Identifiant de document : valable pour Firestore, sans dépendre d'une API. */
@@ -920,6 +919,31 @@ function newDeckId() {
   try { const b = new Uint8Array(20); crypto.getRandomValues(b); for (const x of b) out += a[x % a.length]; }
   catch (e) { for (let i = 0; i < 20; i++) out += a[Math.floor(Math.random() * a.length)]; }
   return out;
+}
+
+/* ── Stockage de l'appareil : écriture commune ───────────────────────────────────────────────────── */
+/** Caches de localStorage relus seuls sur le réseau (rien de perdu) : vidés d'abord quand le stockage est plein. Prix réels CardTrader de la collection
+ *  (collection.js › PX_KEY), relevés de prix des decks (viewer.js › SNAPS_KEY : ceux des decks du compte sont aussi dans le compte ; un deck sans compte perd
+ *  sa variation, refaite au prochain relevé), offres CardTrader des incontournables (staples.js › STP_CT_KEY). */
+const LS_CACHES = ['deckdeal:px:v1', 'deckdeal:snaps:v1', 'deckdeal:stp:ct'];
+const LS_WARNED = new Set();
+const lsFull = e => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+/** localStorage.setItem commun. Stockage plein (QuotaExceededError) : caches reconstructibles vidés (LS_CACHES), nouvel essai ; échec encore : prévenu une
+ *  seule fois par message et par session (toast). o.msg : message propre à la donnée, dit aussi quand le stockage est refusé (navigation privée) ; sans lui,
+ *  le message général, seulement quand le stockage est plein (refusé : la donnée reste pour la session, comme avant). o.st : stockage (tests Node).
+ *  → true si la valeur est enregistrée. */
+function lsSet(key, value, o = {}) {
+  const st = o.st || (typeof localStorage !== 'undefined' ? localStorage : null);
+  let err = null;
+  try { st.setItem(key, value); return true; } catch (e) { err = e; }
+  if (lsFull(err)) {
+    let freed = false;
+    for (const k of LS_CACHES) if (k !== key) { try { if (st.getItem(k) != null) { st.removeItem(k); freed = true; } } catch (e) { /* ignore */ } }
+    if (freed) { try { st.setItem(key, value); return true; } catch (e) { err = e; } }
+  }
+  const msg = o.msg || (lsFull(err) ? T('Stockage plein : une partie de tes données n\'a pas pu être enregistrée sur cet appareil') : '');
+  if (msg && !LS_WARNED.has(msg)) { LS_WARNED.add(msg); if (typeof toast === 'function') toast(msg); }
+  return false;
 }
 
 /* Export Node pour les tests. */
@@ -1695,8 +1719,15 @@ function styOf(c) {
 }
 /** Une impression de styles y (« fa,bl », '' classique) passe-t-elle le filtre sty (Set, un style au moins) ? Styles inconnus (null, undefined : édition pas encore lue ou absente) : non. */
 const styIn = (y, sty) => typeof y === 'string' && [...sty].some(s => y.split(',').includes(s));
-/** Formats du filtre « Format » : [lettre gardée dans COLL.meta[k].lg, clé Scryfall (legalities), nom]. Restreinte (Vintage) : jouable, donc légale. */
-const LG_FMT = [['s', 'standard', 'Standard'], ['p', 'pioneer', 'Pioneer'], ['m', 'modern', 'Modern'], ['l', 'legacy', 'Legacy'], ['v', 'vintage', 'Vintage'], ['c', 'commander', 'Commander'], ['a', 'pauper', 'Pauper']];
+/** Formats, la seule liste (filtre « Format » de la collection, fiche d'une carte, légalité d'une carte d'un deck), dans cet ordre : [lettre gardée dans
+ *  COLL.meta[k].lg, clé Scryfall (legalities), nom (le même dans toutes les langues), jour de l'ajout du format (fiches lues avant : sa lettre manque, relue)].
+ *  Restreinte (Vintage) : jouable, donc légale. */
+const LG_FMT = [['s', 'standard', 'Standard'], ['p', 'pioneer', 'Pioneer'], ['m', 'modern', 'Modern'], ['l', 'legacy', 'Legacy'], ['v', 'vintage', 'Vintage'], ['a', 'pauper', 'Pauper'], ['c', 'commander', 'Commander'],
+  ['o', 'oathbreaker', 'Oathbreaker', 20763], ['b', 'brawl', 'Brawl', 20763], ['h', 'historic', 'Historic', 20763]];
+/** Jour (depuis 1970) du dernier format ajouté : formats lus avant (COLL.meta[k].la) à relire. */
+const LG_NEW = Math.max(...LG_FMT.map(x => x[3] || 0));
+/** La fiche m dit-elle la légalité dans le format f (entrée de LG_FMT) ? Lue avant l'ajout du format : non (sa lettre manque). */
+const lgKnows = (m, f) => !!m && typeof m.lg === 'string' && !!m.lg && (!f[3] || (m.la || 0) >= f[3]);
 /** Formats où une carte est jouable (legalities de Scryfall) : « smlvc ». */
 const lgOf = L => (L && typeof L === 'object' ? LG_FMT.filter(([, k]) => L[k] === 'legal' || L[k] === 'restricted').map(x => x[0]).join('') : '');
 /** Tranches de prix à l'unité (centimes ; borne basse comprise, haute non comprise). */
@@ -1756,6 +1787,8 @@ const filterActive = f => !!f && !!((f.q || '').trim() || (f.colors && f.colors.
 /* ── Valeur de la collection dans le temps : relevés quotidiens, variations de prix carte par carte ─────────────── */
 const VAL_MAX = 400;
 const dayOf = t => Math.floor((t - new Date(t).getTimezoneOffset() * 60000) / 86400000);     // jour calendaire local
+/** Jour local 'AAAA-MM-JJ' (noms des fichiers d'export : la date du jour sur l'appareil, pas celle de Greenwich : avant 1 h du matin à Paris, la veille). */
+const dayIso = t => new Date(dayOf(t) * 86400000).toISOString().slice(0, 10);
 /** Règle du relevé gardée avec lui : r = 1 (prix de référence de l'appli : édition possédée, sinon relevé du jour, impression la moins chère ; absent : relevé d'avant,
  *  tendance de l'impression par défaut), vo (jour du changement de règle : la même collection à l'ancienne règle, pour raccorder la courbe : value.js › valHist). */
 const histRule = h => ({ ...(h.r === 1 ? { r: 1 } : {}), ...(Number.isFinite(h.vo) && h.vo > 0 ? { vo: Math.round(h.vo) } : {}) });
@@ -1797,7 +1830,7 @@ function pxMovers(items, ref, thr = 25) {
     const pct = d / u0 * 100;
     if (Math.abs(pct) >= thr && Math.abs(d) >= 20) out.list.push({ k: i.k, n: i.n, q: i.q, u0, u1, d, lot: d * i.q, pct });
   }
-  out.list.sort((a, b) => Math.abs(b.lot) - Math.abs(a.lot) || a.n.localeCompare(b.n));
+  out.list.sort((a, b) => Math.abs(b.lot) - Math.abs(a.lot) || NAME_CMP(a.n, b.n));
   return out;
 }
 
@@ -2116,7 +2149,7 @@ function edhDetail(r) {
   };
   for (const id of c.ids) one(id, 1);
   for (let j = e.off[d.i], z = e.off[d.i + 1]; j < z; j++) one(e.ids[j], e.qty[j]);
-  missing.sort((a, b) => ((b.u || 0) * b.q - (a.u || 0) * a.q) || a.n.localeCompare(b.n));
+  missing.sort((a, b) => ((b.u || 0) * b.q - (a.u || 0) * a.q) || NAME_CMP(a.n, b.n));
   Object.defineProperties(r, { missing: { value: missing, configurable: true }, owned: { value: owned, configurable: true }, gc: { value: gcs, configurable: true }, full: { value: full, configurable: true }, fullNo: { value: fullNo, configurable: true } });
 }
 /** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir, colorFit 'in'), colsEq (vrai : exactement ces couleurs, colorFit 'eq'), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
@@ -2161,7 +2194,7 @@ function edhRank(edh, qty, o = {}) {
   }
   const exact = EDH_SORT_BY, sort = exact[o.sort] ? o.sort : 'have', then = o.then && o.then !== sort && exact[o.then] ? o.then : '';
   const by = then ? (a, b) => (EDH_SORT_STEP[sort](a) - EDH_SORT_STEP[sort](b)) || exact[then](a, b) || exact[sort](a, b) : exact[sort];
-  return rows.sort((a, b) => by(a, b) || (a.cmd.rank - b.cmd.rank) || a.cmd.names[0].localeCompare(b.cmd.names[0]));
+  return rows.sort((a, b) => by(a, b) || (a.cmd.rank - b.cmd.rank) || NAME_CMP(a.cmd.names[0], b.cmd.names[0]));
 }
 /** Tris des decks EDHREC : have (le plus de cartes possédées), miss, cost (le moins cher à compléter), pop (meilleur rang : celui du mois si le fichier en a un). */
 const EDH_SORT_BY = {
@@ -2234,8 +2267,8 @@ function collStats(items, src) {
     st.curve[Math.min(i.cm ?? 0, 7)] += i.q;
     const c = i.cl || ''; if (!c) st.colors.C += i.q; else if (c.length > 1) st.colors.M += i.q; else if (st.colors[c] != null) st.colors[c] += i.q; else st.colors.C += i.q;
   }
-  st.top = valued.slice().sort((a, b) => b.lot - a.lot || b.up - a.up || a.n.localeCompare(b.n));           // « les plus chères » par lot (prix × exemplaires) : toutes, l'écran en affiche par tranches
-  st.topUnit = valued.sort((a, b) => b.up - a.up || b.lot - a.lot || a.n.localeCompare(b.n));                // …ou par prix de la carte
+  st.top = valued.slice().sort((a, b) => b.lot - a.lot || b.up - a.up || NAME_CMP(a.n, b.n));           // « les plus chères » par lot (prix × exemplaires) : toutes, l'écran en affiche par tranches
+  st.topUnit = valued.sort((a, b) => b.up - a.up || b.lot - a.lot || NAME_CMP(a.n, b.n));                // …ou par prix de la carte
   return st;
 }
 
@@ -2528,7 +2561,7 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
   if (idx && idx.list) scan(idx.list, (e, s) => put(e.n, '', s));
   if (CN.ix && CN.ix !== FRX.ix) scan(CN.ix.list, (e, s) => put(e.en, e.n, s));      // langue de l'appli, puis langue des cartes
   if (FRX.ix) scan(FRX.ix.list, (e, s) => put(e.en, e.n, s));
-  return [...out.values()].sort((a, b) => b.score - a.score || a.n.localeCompare(b.n)).slice(0, n);
+  return [...out.values()].sort((a, b) => b.score - a.score || NAME_CMP(a.n, b.n)).slice(0, n);
 }
 /** Départage une lecture française et une lecture anglaise du même texte : la plus sûre ; à égalité (nom identique dans les deux langues) le français, langue de la plupart des cartes. */
 const bestOf = (fr, en) => (fr && (!en || fr.score >= en.score) ? fr : en || null);
@@ -2825,10 +2858,10 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { T, TN, LOC, I18N, I18N_LANGS, i18nPick, i18nHas, i18nLangs,collToCsv, cmOffer, cmUrl, cmText, cmParts, CM_MAX, deckMissing, deckUse, tradeLists, tradeWant, tradeMatch, tradeView, shareCard, shareBd, readShare, SHARE_IMG_RE, scrySmall, imgShort, isLandType, libraryOf, drawHand, handLandOdds,
     parseLine, dropCard, restoreLines, sortCards, ctCardUrl, ctShare, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
-    sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
+    sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, dateShort, dayIso, newDeckId, HISTORY_MAX, lsSet, LS_CACHES, LS_WARNED,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
@@ -2851,6 +2884,6 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { langEdLines, edShare, edUnshare });
 // Filtres avancés de la collection (search.js) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STYLES, styOf, styIn });
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, LG_FMT, lgOf, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, LG_FMT, LG_NEW, lgKnows, lgOf, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });
 // Plafond de la collection dans le compte (collection.js › collPush) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COLL_LIM, collSizeLevel, collSizePct, collSizeHold });

@@ -104,7 +104,7 @@ function setvView() {
   const list = filterItems(all, SETV.f), num = x => parseInt(x.num, 10) || 0, nm = x => x.dn || x.n;
   const by = {
     num: (a, b) => num(a) - num(b) || a.num.localeCompare(b.num),
-    name: (a, b) => nm(a).localeCompare(nm(b), LOC()),
+    name: (a, b) => NAME_CMP(nm(a), nm(b)),
     rar: (a, b) => (SETV_RANK[a.r] ?? 5) - (SETV_RANK[b.r] ?? 5) || num(a) - num(b),
     price: (a, b) => (finPx(b.eu, b.ef, false).v || 0) - (finPx(a.eu, a.ef, false).v || 0) || num(a) - num(b),
     cmc: (a, b) => a.cm - b.cm || num(a) - num(b),

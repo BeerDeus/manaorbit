@@ -594,7 +594,7 @@ const sheetText = pg => pg.evaluate(() => document.querySelector('#sheetRoot').t
     assert.ok(!(await pg.$('#alerts button[data-act="refresh"]')), 'cache récent : pas d\'alerte');
     age = 600; await rerun(pg); await pg.waitForTimeout(100); await done(pg); await pg.waitForTimeout(500);
     const al = (await pg.textContent('#alerts')).replace(/\s+/g, ' '); console.log('alerte cache :', al.trim());
-    assert.match(al, /Prix lus il y a 10 min/); const btn = await pg.$('#alerts button[data-act="refresh"]'); assert.ok(btn); assert.equal(upProducts(), n0);
+    assert.match(al, /Prix lus il y a 10 minutes/); const btn = await pg.$('#alerts button[data-act="refresh"]'); assert.ok(btn); assert.equal(upProducts(), n0);
     await pg.screenshot({ path: 'shots/live-12-cache.png' });
     age = 0; await btn.click(); await pg.waitForTimeout(100); await done(pg); await pg.waitForTimeout(500);
     assert.equal(w.posts.at(-1).fresh, true, '« Actualiser les prix » demande une lecture fraîche'); assert.equal(upProducts() - n0, w.posts.at(-1).bps.length, 'tout est relu chez CardTrader');

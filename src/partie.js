@@ -574,9 +574,10 @@ function partieStats(items, o = {}) {
     }
   }
   for (const { me } of mine.slice().reverse()) { run = me.vainqueur ? run + 1 : 0; if (run > out.best) out.best = run; }      // du plus ancien au plus récent
-  const by = (a, b) => b.n - a.n || b.wins - a.wins || String(a.nom).localeCompare(String(b.nom));
+  const nmCmp = (a, b) => (typeof NAME_CMP === 'function' ? NAME_CMP(String(a), String(b)) : String(a).localeCompare(String(b)));      // NAME_CMP (core.js) ; seul sous Node (tests) : localeCompare
+  const by = (a, b) => b.n - a.n || b.wins - a.wins || nmCmp(a.nom, b.nom);
   out.rate = out.wins / out.n; out.duree = Math.round(out.duree / out.n); out.tours = Math.round((out.tours / out.n) * 10) / 10; out.rang = Math.round((out.rang / out.n) * 10) / 10;
-  out.decks = [...decks.values()].sort((a, b) => b.n - a.n || b.last - a.last); out.adv = [...adv.values()].sort((a, b) => b.n - a.n || b.theirs - a.theirs || String(a.nom).localeCompare(String(b.nom))); out.cmds = [...cmds.values()].sort(by);
+  out.decks = [...decks.values()].sort((a, b) => b.n - a.n || b.last - a.last); out.adv = [...adv.values()].sort((a, b) => b.n - a.n || b.theirs - a.theirs || nmCmp(a.nom, b.nom)); out.cmds = [...cmds.values()].sort(by);
   return out;
 }
 /** File des envois : [{ q (identifiant), k ('res' : résultat du créateur | 'claim' : « c'était moi »), id, r, pos? (claim), c?, key? (salle d'attente), u (compte qui l'envoie ;

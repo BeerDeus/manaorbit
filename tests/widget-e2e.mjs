@@ -228,6 +228,7 @@ const errsAll = [];
   // prix de référence d'il y a 9 jours (VAL.base, comme après un relevé) : 1,00 · 7,00 · 0,40 € ; prix du jour 1,50 · 9,00 · 0,40 € → marché +1,00 × 2 + 2,00 = +3,00 €
   await p.evaluate(() => {
     COLL.meta['sol ring'] = { ...(COLL.meta['sol ring'] || {}), eu: 150 }; COLL.meta['craterhoof behemoth'] = { ...(COLL.meta['craterhoof behemoth'] || {}), eu: 900 }; COLL.meta['arcane signet'] = { ...(COLL.meta['arcane signet'] || {}), eu: 40 };
+    collMetaSave();      // comme le relevé (value.js › valCommit) : prix gardés, valeur de la collection recalculée (collValue : COLL.pv)
     VAL.base = { cur: { t: Date.now() - 9 * 86400000, p: { 'sol ring': 100, 'craterhoof behemoth': 700, 'arcane signet': 40 } }, prev: null }; VAL.memo = null; homeSoon(0);
   });
   await p.waitForFunction(() => window.__mo.calls.length >= 2, null, { timeout: 6000 });

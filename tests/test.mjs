@@ -184,6 +184,47 @@ test('relTime : paliers', () => {
   assert.match(C.relTime(now - 4 * 86400000, now), /4 jours/);
   assert.match(C.relTime(now - 40 * 86400000, now), /\d+ \p{L}+\.?/u);
   assert.equal(C.relTime(NaN, now), '');
+  // jour 'AAAA-MM-JJ' (decks EDHREC : mis à jour) : au jour près, puis semaines, mois, années (ex-agoDay)
+  const day = new Date(now).toISOString().slice(0, 10), back = n => new Date(now - n * 86400000).toISOString().slice(0, 10);
+  assert.match(C.relTime(day, now), /aujourd/); assert.equal(C.relTime(back(1), now), 'hier'); assert.match(C.relTime(back(5), now), /il y a 5 jours/);
+  assert.match(C.relTime(back(21), now), /il y a 3 semaines/); assert.match(C.relTime(back(70), now), /il y a 2 mois/); assert.match(C.relTime(back(800), now), /il y a 2 ans/);
+  assert.equal(C.relTime('pas une date', now), ''); assert.equal(C.relTime(now - 40 * 86400000, now), C.dateShort(now - 40 * 86400000), 'au-delà d\'une semaine : la date courte, la même que les courbes');
+});
+
+test('dayIso : jour local des fichiers d\'export, pas celui de Greenwich', () => {
+  const t = new Date(2026, 10, 6, 0, 30).getTime();      // 0 h 30 à l'heure de l'appareil
+  assert.equal(C.dayIso(t), '2026-11-06');
+  assert.equal(C.dayIso(new Date(2026, 10, 6, 23, 50).getTime()), '2026-11-06');
+});
+
+test('LG_FMT : une seule liste de formats (filtre Format, fiche d\'une carte), fiches lues avant un format ajouté', () => {
+  assert.deepEqual(C.LG_FMT.map(x => x[2]), ['Standard', 'Pioneer', 'Modern', 'Legacy', 'Vintage', 'Pauper', 'Commander', 'Oathbreaker', 'Brawl', 'Historic']);
+  assert.equal(new Set(C.LG_FMT.map(x => x[0])).size, C.LG_FMT.length, 'lettres distinctes');
+  assert.equal(C.lgOf({ commander: 'legal', brawl: 'legal', standard: 'not_legal', vintage: 'restricted' }), 'vcb');
+  const brawl = C.LG_FMT.find(x => x[1] === 'brawl'), cmd = C.LG_FMT.find(x => x[1] === 'commander');
+  assert.equal(C.lgKnows({ lg: 'c', la: C.LG_NEW - 3 }, brawl), false, 'lue avant Brawl : légalité inconnue');
+  assert.equal(C.lgKnows({ lg: 'c', la: C.LG_NEW - 3 }, cmd), true);
+  assert.equal(C.lgKnows({ lg: 'cb', la: C.LG_NEW }, brawl), true);
+});
+
+test('lsSet : stockage plein → caches reconstructibles vidés, nouvel essai, sinon prévenu une seule fois', () => {
+  const full = () => Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+  const mem = (cap) => { const m = new Map(); const size = () => [...m].reduce((a, [k, v]) => a + k.length + v.length, 0);
+    return { m, getItem: k => (m.has(k) ? m.get(k) : null), removeItem: k => m.delete(k), setItem(k, v) { const old = m.get(k); m.set(k, String(v)); if (size() > cap) { if (old == null) m.delete(k); else m.set(k, old); throw full(); } } }; };
+  const said = []; globalThis.toast = m => said.push(m); C.LS_WARNED.clear();
+  try {
+    const st = mem(300); st.setItem('deckdeal:px:v1', 'x'.repeat(150)); st.setItem('deckdeal:snaps:v1', 'y'.repeat(60));
+    assert.equal(C.lsSet('deckdeal:lot:v1', 'z'.repeat(120), { st }), true, 'place faite');
+    assert.equal(st.getItem('deckdeal:px:v1'), null, 'prix réels vidés'); assert.equal(st.getItem('deckdeal:snaps:v1'), null, 'relevés des decks vidés');
+    assert.equal(st.getItem('deckdeal:lot:v1').length, 120); assert.deepEqual(said, [], 'rien à dire : enregistré');
+    assert.equal(C.lsSet('deckdeal:trade:v1', 'w'.repeat(400), { st }), false, 'trop gros même après la purge');
+    assert.equal(C.lsSet('deckdeal:alert:v1', 'w'.repeat(400), { st }), false);
+    assert.equal(said.length, 1, 'prévenu une seule fois'); assert.match(said[0], /^Stockage plein/);
+    assert.equal(C.lsSet('deckdeal:coll:v1', 'w'.repeat(400), { st, msg: 'Collection non enregistrée' }), false);
+    assert.deepEqual(said.slice(1), ['Collection non enregistrée'], 'message propre à la donnée, une fois');
+    const off = { getItem: () => null, removeItem() {}, setItem() { throw Object.assign(new Error('refusé'), { name: 'SecurityError' }); } };
+    assert.equal(C.lsSet('deckdeal:lot:v1', '1', { st: off }), false); assert.equal(said.length, 2, 'stockage refusé (navigation privée) : silencieux sans message propre');
+  } finally { delete globalThis.toast; C.LS_WARNED.clear(); }
 });
 
 test('sanitizeOpts / newDeckId', () => {
