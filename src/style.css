@@ -1321,6 +1321,8 @@ button,.btn,select,summary{touch-action:manipulation}
 .dk-val b{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .dk-val span{font-size:12.5px;color:var(--ink-3)}
 .bd-val{font-family:var(--font-display);font-size:17px;font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.bd-valw{display:flex;align-items:baseline;gap:6px}
+.bd-valw>span{font-size:13px;color:var(--ink-3)}
 .deck-pips{flex:none;display:inline-flex;gap:3px}
 .pip{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.28)}
 .pip.W{background:#f6f0cf}.pip.U{background:#3f8fe0}.pip.B{background:#4b3f52}.pip.R{background:#e0533d}.pip.G{background:#3a9a5e}

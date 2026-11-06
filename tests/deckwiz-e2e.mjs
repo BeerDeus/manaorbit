@@ -147,6 +147,7 @@ await p.waitForSelector('.bd.on');
 await p.waitForSelector('.ds-sheet', { timeout: 15000 });
 await p.waitForSelector('.ds-v', { timeout: 30000 });
 const vers = await p.$$eval('.ds-v', l => l.map(x => x.querySelector('.ds-vh b').textContent + ' ' + x.querySelector('.ds-vn').textContent.replace(/\s+/g, '')));
+const vers0k = await p.$eval('.ds-v[data-ds-pick="0"] .ds-vk', e => e.textContent.split(' · ')[0]);      // « valeur 18,35 € »
 assert.ok(vers.length >= 3 && /^Équilibrée \d+\/100$/.test(vers[0]) && vers.some(v => /^Plus agressive/.test(v)) && vers.some(v => /^Plus contrôle/.test(v)), 'versions : ' + vers.join(' | '));
 { const sc = await p.$$eval('.ds-v .ds-vn', l => l.map(x => parseInt(x.textContent, 10))), top = Math.max(...sc), uniq = sc.filter(v => v === top).length === 1;      // « Meilleure note » : seulement quand une version est seule en tête
   assert.equal(await p.$$eval('.ds-v em', l => l.length), uniq ? 1 : 0, 'meilleure note signalée seulement si une version est seule en tête : ' + sc.join(', ')); }
@@ -160,8 +161,15 @@ for (const k of ['sol ring', 'demonic tutor', 'rhystic study', 'llanowar elves',
 assert.equal(gen.prof.gc, 0); assert.ok(gen.prof.cents <= 10000, 'sous le budget de 100 €');
 assert.equal(gen.prof.land, await p.evaluate(() => dwTargets(dwProfile(), dwCmdOf(), DW.cmd.get('edgar-markov')).land[1]), 'terrains : la cible');
 assert.ok(gen.plains > 0 && gen.swamp > 0 && gen.mountain > 0, 'terrains de base des trois couleurs');
-assert.match(await p.$eval('#toast', t => t.textContent), /Version « Équilibrée » · note \d+\/100 · \d+ \/ 100/);
-assert.match(await txt(p, '.bd .ds-score'), /^\d+ \/100 Note du coach/, 'note du coach dans l\'onglet Coach');
+// une seule note et une seule valeur (audit U7 : 58 sur la version, 51 dans le Coach ; 49,80 € puis ≈ 10,55 €+ puis 49,85 €) : version, message, onglet Coach, en-tête, rapport
+{ const toastT = await p.$eval('#toast', t => t.textContent), m = /^Deck créé · note (\d+)\/100 · \d+\/100 cartes(.*)$/.exec(toastT);
+  assert.ok(m, 'message court : ' + toastT); assert.equal(m[2], 'Annuler', 'bouton du message');
+  assert.equal(m[1], vers[0].replace(/^Équilibrée (\d+)\/100$/, '$1'), 'note du message = note de la version choisie');
+  assert.equal((await txt(p, '.bd .ds-score .ds-n')).replace(/\s/g, ''), m[1] + '/100', 'note du Coach = note de la version');
+  const vk = vers0k.replace(/\s+/g, ' '), head = (await txt(p, '#bdSum .bd-val')).replace(/\s+/g, ' ');
+  assert.equal('valeur ' + head.replace(/^≈ /, ''), vk, 'valeur de la version = valeur estimée de l\'en-tête : ' + vk + ' / ' + head);
+  assert.match(await txt(p, '#bdSum .bd-valw'), /^valeur estimée ≈ /, 'en-tête : la valeur dite pour ce qu\'elle est');
+  assert.deepEqual(await p.evaluate(() => { const d = I18N.dict; I18N.dict = { 'Annuler (défaire)': 'Rückgängig', 'Annuler': 'Abbrechen' }; const r = [tUndo(), T('Annuler')]; I18N.dict = d; return r; }), ['Rückgängig', 'Abbrechen'], 'allemand : « Rückgängig » dans le message, « Abbrechen » ailleurs'); }
 await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); });
 await p.waitForFunction(() => BD.main.size === 0, null, { timeout: 5000 }); ok('génération annulée : deck vide');
 await p.click('[data-act="dw-auto"]'); await p.waitForSelector('.ds-v', { timeout: 30000 }); await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet') && BD.main.size > 3);

@@ -389,6 +389,9 @@ async function dsBuild(undoTo, seed) {
       if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? TN(n, 'Essais en partie : {v} · {n} série de 1 500 parties', 'Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs, face à 3 adversaires)', { v: v.name }));
     } });
     if (!res || !alive()) return quit();
+    set('ok', 'run', '', 0.93, T('Vérification…'));
+    await dsMetaFor(res); if (!alive()) return quit();
+    for (const r of res) { const X = { id: BD.id, main: r.main, cmdr: BD.cmdr, wiz: dsWizOf(r, empty) }; r.sc = dsScore(X) || r.sc; r.prof = dwProfile(X); }      // note et valeur avec les fiches des cartes et les réglages du deck une fois la version choisie : les chiffres que l'onglet Coach, l'en-tête et le rapport montreront
     for (const r of res) set(r.v.id, 'done', T('note {n} · {p}', { n: r.sc.total, p: fmt(r.prof.cents, cur) }) + (r.sim ? ' · ' + T('{p} % de mains gardées', { p: r.sim.keep7 }) : '') + (r.kept + r.fixed ? ' · ' + TN(r.kept + r.fixed, '{n} échange', '{n} échanges') : '') + (r.draws > 1 ? ' · ' + TN(r.draws, '{n} tirage', '{n} tirages') : ''));
     set('ok', 'done', '', 1, T('Terminé'));
     if (!res.length) { quit(); api.close(); return; }
@@ -397,6 +400,24 @@ async function dsBuild(undoTo, seed) {
     done = true; DS.last = res; dsChoose(api, res, before, empty);
   } catch (e) { console.error(e); quit(); if (sheets.includes(api)) api.close(); toast(T('La construction a échoué : réessaie.')); }
   finally { if (!done && BD.el === el) { BD.pace = BD.wide = BD.gen = false; BD.avoid = null; BD.landRes = 0; } }
+}
+/** Fiches des cartes des versions (coût de mana, type, prix) lues avant la note finale : l'onglet Coach les lit dès l'ouverture du deck. Sans elles, la note et la valeur
+ *  des versions (base du coach seule) n'étaient pas celles du Coach juste après (58 puis 51 : symboles de mana des sorts ; 49,80 € puis 49,85 € : prix de la fiche).
+ *  5 s au plus (hors ligne, limite Scryfall : la note des versions reste celle de la base). */
+async function dsMetaFor(res) {
+  if (typeof dmFetch !== 'function') return;
+  const by = new Map(); for (const r of res) for (const c of r.main.values()) if (!by.has(c.key)) by.set(c.key, c);
+  for (const c of BD.cmdr) by.set(c.key, c);
+  await Promise.race([Promise.resolve().then(async () => { await dmLoad(); await dmFetch([...by.values()], false); }).catch(() => null), new Promise(r => setTimeout(r, 5000))]);
+}
+/** Réglages du deck une fois la version r choisie (dsApply) : ceux du joueur, le style et la graine de la version (pas le budget réduit de la version « moins chère »). */
+function dsWizOf(r, empty) {
+  const w = { ...(BD.wiz || dwDefaults()) };
+  if (r.v.arch) w.arch = r.v.arch; else delete w.arch;
+  if (r.v.style) w.style = r.v.style; else delete w.style;      // style de la version : le coach continue à suggérer dans cet esprit
+  if (r.wiz && r.wiz.seed) w.seed = r.wiz.seed;
+  if (empty) w.gen = 1;
+  return w;
 }
 /** « Autre proposition » : tout reconstruire avec une nouvelle graine (mêmes réglages) ; le deck d'avant reste annulable. */
 function dsAgain(before) { const orig = before || dsClone(BD.main); BD.main = new Map(); dsBuild(orig, dsSeed()); }
@@ -415,7 +436,7 @@ function dsChoose(api, res, before, empty) {
   api.body.innerHTML = `<p class="hint">${T('Le coach a construit plusieurs versions avec tes réglages. Choisis celle qui te ressemble ; tu pourras tout ajuster ensuite.')}</p><div class="ds-vs">${res.map((r, i) => `<button class="ds-v${r.sc.total === best ? ' best' : ''}" type="button" data-ds-pick="${i}">
       <span class="ds-vh"><b>${esc(r.v.name)}</b>${r.sc.total === best ? `<em>${T('Meilleure note')}</em>` : ''}<span class="ds-vn ds-${dsLevel(r.sc.total)}">${r.sc.total}<small>/100</small></span></span>
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}
-      <span class="ds-vk">${esc([fmt(r.prof.cents, cur), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
+      <span class="ds-vk">${esc([T('valeur {p}', { p: fmt(r.prof.cents, cur) }), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
       ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }) + (r.sim.elim10 != null && !r.sim.blind ? ' · ' + T('un adversaire éliminé avant le tour 11 : {p}', { p: dsimPct(r.sim.kill10) }) : ''))}</span>` : ''}
       <span class="ds-vr">${esc(roles.map(x => dsRoleLabel(x) + ' ' + r.prof[x]).join(' · '))}</span>
       ${dsStoryLine(r.story) ? `<span class="ds-vd">${esc(dsStoryLine(r.story))}</span>` : ''}${r.common != null ? `<span class="ds-vd">${esc(T('{p} % des sorts en commun avec la version équilibrée', { p: Math.round(r.common * 100) }))}</span>` : ''}</button>`).join('')}</div>`;
@@ -429,14 +450,11 @@ function dsChoose(api, res, before, empty) {
 /** Version choisie : mise dans l'éditeur, style gardé dans les réglages du deck (cibles du coach), annulable. */
 function dsApply(r, before, empty) {
   if (!BD.el) return;
-  BD.main = dsClone(r.main); BD.wiz = BD.wiz || dwDefaults();
-  if (r.v.arch) BD.wiz.arch = r.v.arch; else delete BD.wiz.arch;
-  if (r.v.style) BD.wiz.style = r.v.style; else delete BD.wiz.style;      // style de la version : le coach continue à suggérer dans cet esprit
-  if (r.wiz && r.wiz.seed) BD.wiz.seed = r.wiz.seed;
-  if (empty) BD.wiz.gen = 1;
+  BD.main = dsClone(r.main); BD.wiz = dsWizOf(r, empty);
   dwPersist(BD.id); BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
-  const n = r.prof.n, cur = mkCur(), msg = T('Version « {v} » · note {s}/100', { v: r.v.name, s: r.sc.total }) + ' · ' + T('{t} / 100', { t: n }) + (r.prof.cents ? ' · ' + T('valeur {p}', { p: fmt(r.prof.cents, cur) }) : '');
-  toast(n < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+  const n = r.prof.n, sc = (dsScore(BD) || r.sc).total;      // la note que l'onglet Coach affiche au même moment (la valeur est dans l'en-tête de l'éditeur)
+  const msg = (empty ? T('Deck créé · note {s}/100', { s: sc }) : T('Deck complété · note {s}/100', { s: sc })) + (n < 100 ? ' · ' + T('{n}/{size} cartes', { n, size: 100 }) : '');      // court : le reste (manque, budget) est dans les prochaines étapes du Coach
+  toast(msg, { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
 }
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { DS_PARTS });
 // détail de la note ouvert ou fermé dans le Coach : gardé d'un rafraîchissement à l'autre

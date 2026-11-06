@@ -189,7 +189,10 @@ function tween(el, to) {
   el._raf = requestAnimationFrame(step);
 }
 let toastT;
-/** act : { label, fn } → bouton dans le toast (ex. Annuler), affiché plus longtemps. */
+/** Libellé du bouton d'un toast qui défait ce qui vient d'être fait : « Annuler » en français, mais sa propre clé (« Rückgängig » en allemand, « Undo » en anglais),
+ *  distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen »). */
+const tUndo = () => { const k = 'Annuler (défaire)'; return I18N.dict && Object.prototype.hasOwnProperty.call(I18N.dict, k) ? T(k) : T('Annuler'); };
+/** act : { label, fn } → bouton dans le toast (ex. tUndo()), affiché plus longtemps. */
 function toast(msg, act) {
   const t = $('#toast'); t.textContent = msg; t.classList.toggle('act', !!act);
   if (act) {
