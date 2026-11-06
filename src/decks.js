@@ -15,8 +15,8 @@ function localRead() {
   } catch (e) { return []; }
 }
 function localWrite(list) {
-  try { const raw = JSON.stringify(list); localStorage.setItem(LOCAL_KEY, raw); D.disk = raw; D.diskIds = list.map(d => d.id); return true; }
-  catch (e) { toast(T('Stockage local indisponible : le deck ne sera pas conservé')); return false; }
+  const raw = JSON.stringify(list); if (!lsSet(LOCAL_KEY, raw, { msg: T('Stockage local indisponible : le deck ne sera pas conservé') })) return false;      // plein : caches vidés d'abord (core.js › lsSet)
+  D.disk = raw; D.diskIds = list.map(d => d.id); return true;
 }
 const stripDeck = d => ({ name: d.name, text: d.text, opts: d.opts, cards: d.cards, history: d.history, createdAt: d.createdAt, updatedAt: d.updatedAt });   // les prix gardés (snap) restent dans snapsRead() pour les decks locaux
 /** Decks supprimés dont la suppression attend encore (id → minuteur) : « Annuler » du toast les rend ; sinon removeDeck après le toast (6,5 s), ou tout de suite si l'appli passe en arrière-plan. */
@@ -259,7 +259,7 @@ function profLoad(uid) {
   PROF.name = ''; PROF.photo = '';
   try { const o = JSON.parse(localStorage.getItem(PROF_KEY) || 'null'); if (uid && o && o.uid === uid) { PROF.name = profClean(o.name); PROF.photo = profPhotoOk(o.photo) ? o.photo : ''; } } catch (e) { /* stockage indisponible */ }
 }
-function profStore() { try { if (PROF.uid) localStorage.setItem(PROF_KEY, JSON.stringify({ uid: PROF.uid, name: PROF.name, photo: PROF.photo })); else localStorage.removeItem(PROF_KEY); } catch (e) { /* ignore */ } }
+function profStore() { if (PROF.uid) lsSet(PROF_KEY, JSON.stringify({ uid: PROF.uid, name: PROF.name, photo: PROF.photo })); else try { localStorage.removeItem(PROF_KEY); } catch (e) { /* ignore */ } }      // stockage plein : caches vidés, sinon prévenu
 /** Changement de compte : profil de l'appareil, puis celui du compte (jamais renvoyé tout seul : écrit seulement quand on l'enregistre). */
 function profUser(user) {
   if (PROF.unsub) { try { PROF.unsub(); } catch (e) { /* ignore */ } PROF.unsub = null; }

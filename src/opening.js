@@ -30,8 +30,8 @@ function opnClean(o) {
   return { id: o.id, name: String(o.name || '').slice(0, 60) || T('Ouverture'), at: Number(o.at) || Date.now(), paid: Number.isFinite(o.paid) && o.paid >= 0 ? Math.round(o.paid) : null, st: !!o.st, rows };
 }
 function opnSave() {
-  try { if (OPN.cur) localStorage.setItem(OPN_CUR_KEY, JSON.stringify(OPN.cur)); else localStorage.removeItem(OPN_CUR_KEY); }
-  catch (e) { toast(T('Stockage plein : la session n\'a pas pu être enregistrée sur cet appareil')); }
+  if (OPN.cur) lsSet(OPN_CUR_KEY, JSON.stringify(OPN.cur), { msg: T('Stockage plein : la session n\'a pas pu être enregistrée sur cet appareil') });      // plein : caches vidés d'abord (core.js › lsSet)
+  else try { localStorage.removeItem(OPN_CUR_KEY); } catch (e) { /* ignore */ }
 }
 /** Classes de la page : html.opn-on (session en cours), html.streamer (mode streamer : css/opening.css cache ce qui ne doit pas passer à l'écran). */
 function opnFlags() { const r = document.documentElement, was = r.classList.contains('streamer'); r.classList.toggle('opn-on', !!OPN.cur); r.classList.toggle('streamer', streamOn()); if (was !== streamOn() && typeof amDot === 'function') amDot(); }      // amis (friends.js) : point des demandes masqué / remis tout de suite

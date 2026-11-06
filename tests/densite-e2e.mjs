@@ -133,6 +133,21 @@ const ROWS = '.coll.on .coll-list > .crow';
   // stockage indisponible : le choix vaut pour la session, rien ne casse
   await p.evaluate(() => { Storage.prototype.__set = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new Error('quota'); }; cvwSet('compact'); Storage.prototype.setItem = Storage.prototype.__set; });
   await p.waitForSelector('.coll-list.cvw-compact > .crow.cvw-c');
+  // stockage plein (core.js › lsSet) : caches relus sur le réseau vidés d'abord, la donnée écrite ; toujours plein : un seul message pour toutes les écritures
+  const full = await p.evaluate(() => {
+    const set0 = Storage.prototype.setItem, plein = () => new DOMException('plein', 'QuotaExceededError'), said = [], toast0 = window.toast;
+    set0.call(localStorage, 'deckdeal:px:v1', JSON.stringify({ 'sol ring': { p: 120, c: 'EUR', t: Date.now() } }));
+    Storage.prototype.setItem = function (k, v) { if (this.getItem('deckdeal:px:v1') != null) throw plein(); return set0.call(this, k, v); };
+    window.toast = m => said.push(m); LS_WARNED.clear();
+    try {
+      TR.wish['zz plein'] = { n: 'ZZ Plein', q: 1 }; trWrite();
+      const one = { px: localStorage.getItem('deckdeal:px:v1'), trade: (localStorage.getItem('deckdeal:trade:v1') || '').includes('ZZ Plein'), said: said.length };
+      Storage.prototype.setItem = () => { throw plein(); };
+      trWrite(); lotSave(); alWrite(); engWrite();
+      return { ...one, after: said };
+    } finally { Storage.prototype.setItem = set0; window.toast = toast0; delete TR.wish['zz plein']; trWrite(); LS_WARNED.clear(); }
+  });
+  assert.deepEqual(full, { px: null, trade: true, said: 0, after: ['Stockage plein : une partie de tes données n\'a pas pu être enregistrée sur cet appareil', 'Stockage plein : les cartes réservées n\'ont pas pu être enregistrées'] }, 'stockage plein : ' + JSON.stringify(full));
   ok('feuille « Affichage de la liste », grille 3 par ligne (intertitres, toucher), choix gardé au rechargement, détaillée inchangée, stockage en panne');
   await p.context().close();
 }

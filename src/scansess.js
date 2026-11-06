@@ -26,7 +26,7 @@ function sssSnap() {
   if (!items.length && !pq.length) return null;
   return { v: 1, ctx: SC.ctx, at: Date.now(), items, pq, sets: [...SC.sets], setN: SC.setN, stick: SC.stick, mid: SC.mid, dest: SC.ctx === 'coll' ? { x: SCD.x, p: SCD.p } : null };
 }
-function sssPut(s) { try { localStorage.setItem(SSS_KEY + s.ctx, JSON.stringify(s)); } catch (e) { /* stockage plein ou bloqué : la session reste en mémoire */ } }
+function sssPut(s) { lsSet(SSS_KEY + s.ctx, JSON.stringify(s)); }      // stockage plein : caches vidés, sinon prévenu ; refusé : la session reste en mémoire
 function sssDrop(ctx) { if (!ctx) return; try { localStorage.removeItem(SSS_KEY + ctx); } catch (e) { /* ignore */ } }
 /** Enregistre le scan ouvert tout de suite (vide : la session de ce contexte est effacée). */
 function sssSave() {

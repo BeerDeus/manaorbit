@@ -41,6 +41,10 @@ Règle de rédaction (`core.js`, vérifiée par `tests/test-i18n-langs.mjs`) :
 - **Pourcentage** : `pct(v)` (v en points : « 78 % » en français, « 78% » en anglais, clé `'{n} %'`) ; jamais `+ ' %'` ni `${v} %` hors de `T`. `pctTxt(p)` (viewer.js) : p en fraction, « < 1 % » et « 100 % » aux bords.
 - **Afficher plus** : `moreBtn(shown, total, step, attrs)` (rien quand tout est montré ; attrs : `data-act="…"`, classe par défaut `btn ghost block coll-more`) et `moreLabel(left, step)` pour repeindre le libellé ; un seul libellé partout, « Afficher 30 de plus (45 autres) ». Chaque écran garde sa taille de tranche.
 
+## Stockage de l'appareil
+
+- Une donnée de l'utilisateur écrite dans localStorage passe par `lsSet(clé, valeur, { msg })` (`core.js`) : stockage plein (`QuotaExceededError`), les caches relus sur le réseau (`LS_CACHES` : prix réels CardTrader, relevés de prix des decks, offres des incontournables) sont vidés puis l'écriture réessayée ; sinon un message, une seule fois par session (`msg` propre à la donnée, sinon le message général). Un nouveau cache reconstructible gardé dans localStorage s'ajoute à `LS_CACHES`.
+
 ## Tests
 
     cd tests && npm ci && cd ..

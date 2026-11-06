@@ -43,11 +43,9 @@ function collRead() {
   } catch (e) { /* illisible : on repart d'une collection vide */ }
 }
 function collWrite() {
-  try {
-    const t = collDocText(collDocNow()), b = collBaseText(); COLL.wt = { t, dv: COLL.dv, map: COLL.map, prox: COLL.prox, places: COLL.places };
-    localStorage.setItem(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(b != null ? { b } : {}) })); COLL.disk = t; return true;
-  }
-  catch (e) { toast(T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil')); return false; }
+  const t = collDocText(collDocNow()), b = collBaseText(); COLL.wt = { t, dv: COLL.dv, map: COLL.map, prox: COLL.prox, places: COLL.places };
+  if (!lsSet(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(b != null ? { b } : {}) }), { msg: T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil') })) return false;      // plein : prix réels et relevés vidés d'abord (core.js › lsSet)
+  COLL.disk = t; return true;
 }
 /** Autre onglet de l'appli (PWA et navigateur, deux onglets) : la collection gardée sur l'appareil vient d'y changer. Fusion à trois avec ce qui est ici, d'après
  *  le dernier état lu ou écrit par cet onglet (COLL.disk) : sans elle, le prochain enregistrement d'ici effaçait ce que l'autre onglet avait ajouté. Fusion différente

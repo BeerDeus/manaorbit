@@ -186,6 +186,26 @@ test('relTime : paliers', () => {
   assert.equal(C.relTime(NaN, now), '');
 });
 
+test('lsSet : stockage plein → caches reconstructibles vidés, nouvel essai, sinon prévenu une seule fois', () => {
+  const full = () => Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+  const mem = (cap) => { const m = new Map(); const size = () => [...m].reduce((a, [k, v]) => a + k.length + v.length, 0);
+    return { m, getItem: k => (m.has(k) ? m.get(k) : null), removeItem: k => m.delete(k), setItem(k, v) { const old = m.get(k); m.set(k, String(v)); if (size() > cap) { if (old == null) m.delete(k); else m.set(k, old); throw full(); } } }; };
+  const said = []; globalThis.toast = m => said.push(m); C.LS_WARNED.clear();
+  try {
+    const st = mem(300); st.setItem('deckdeal:px:v1', 'x'.repeat(150)); st.setItem('deckdeal:snaps:v1', 'y'.repeat(60));
+    assert.equal(C.lsSet('deckdeal:lot:v1', 'z'.repeat(120), { st }), true, 'place faite');
+    assert.equal(st.getItem('deckdeal:px:v1'), null, 'prix réels vidés'); assert.equal(st.getItem('deckdeal:snaps:v1'), null, 'relevés des decks vidés');
+    assert.equal(st.getItem('deckdeal:lot:v1').length, 120); assert.deepEqual(said, [], 'rien à dire : enregistré');
+    assert.equal(C.lsSet('deckdeal:trade:v1', 'w'.repeat(400), { st }), false, 'trop gros même après la purge');
+    assert.equal(C.lsSet('deckdeal:alert:v1', 'w'.repeat(400), { st }), false);
+    assert.equal(said.length, 1, 'prévenu une seule fois'); assert.match(said[0], /^Stockage plein/);
+    assert.equal(C.lsSet('deckdeal:coll:v1', 'w'.repeat(400), { st, msg: 'Collection non enregistrée' }), false);
+    assert.deepEqual(said.slice(1), ['Collection non enregistrée'], 'message propre à la donnée, une fois');
+    const off = { getItem: () => null, removeItem() {}, setItem() { throw Object.assign(new Error('refusé'), { name: 'SecurityError' }); } };
+    assert.equal(C.lsSet('deckdeal:lot:v1', '1', { st: off }), false); assert.equal(said.length, 2, 'stockage refusé (navigation privée) : silencieux sans message propre');
+  } finally { delete globalThis.toast; C.LS_WARNED.clear(); }
+});
+
 test('sanitizeOpts / newDeckId', () => {
   assert.deepEqual(C.sanitizeOpts(null), { lang: 'fr', cond: 'Slightly Played', foil: 'no', mode: 'zero', ship: 280, fallbackEn: true });
   const ids = new Set(Array.from({ length: 200 }, () => C.newDeckId())); assert.equal(ids.size, 200);

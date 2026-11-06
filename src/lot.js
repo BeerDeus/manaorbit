@@ -18,7 +18,7 @@ function lotRead() {
     }
   } catch (e) { /* illisible : lot vide */ }
 }
-function lotSave() { try { localStorage.setItem(LOT_KEY, JSON.stringify({ list: LOT.list.slice(0, LOT_MAX), set: LOT.set, lang: LOT.lang })); } catch (e) { /* stockage plein : le lot reste pour cette session */ } }
+function lotSave() { lsSet(LOT_KEY, JSON.stringify({ list: LOT.list.slice(0, LOT_MAX), set: LOT.set, lang: LOT.lang })); }      // stockage plein : caches vidés, sinon prévenu ; le lot reste pour cette session
 
 /** Langue Scryfall des impressions à proposer pour une langue de carte ('' : celle de la carte dans la collection, sinon anglais). */
 const lotLangOf = c => c.l || collMainLang(collLines(COLL.map[c.k])) || '';

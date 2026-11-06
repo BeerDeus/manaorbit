@@ -12,7 +12,7 @@ function xsRead() {
   try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); XS.engU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.eng = {}; }
 }
 function buyWrite() { try { if (XS.buy) localStorage.setItem(BUY_KEY, JSON.stringify(XS.buy)); else localStorage.removeItem(BUY_KEY); } catch (e) { /* stockage indisponible : le panier à valider ne survivra pas au rechargement */ } }
-function engWrite() { try { localStorage.setItem(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) })); } catch (e) { toast(T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées')); } }
+function engWrite() { lsSet(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) }), { msg: T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées') }); }      // plein : caches vidés d'abord (core.js › lsSet)
 
 /* ── « J'ai acheté » ──────────────────────────────────────────────────────────────────────────── */
 /** Après un remplissage de panier : garde les cartes réellement ajoutées (replace : panier vidé avant). */

@@ -8090,8 +8090,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '1afaefde';
-const I18N_FILES = {"de":"i18n/de.08c2f2e1.js","en":"i18n/en.efdd5ee6.js","es":"i18n/es.0c4b6d05.js","it":"i18n/it.48581fe0.js","pt":"i18n/pt.b70f84b7.js"};
+const DD_BUILD = '57af9a0b';
+const I18N_FILES = {"de":"i18n/de.43e9b6ad.js","en":"i18n/en.7f470149.js","es":"i18n/es.b716cef3.js","it":"i18n/it.d67875e8.js","pt":"i18n/pt.0a68575c.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9241,6 +9241,31 @@ function newDeckId() {
   try { const b = new Uint8Array(20); crypto.getRandomValues(b); for (const x of b) out += a[x % a.length]; }
   catch (e) { for (let i = 0; i < 20; i++) out += a[Math.floor(Math.random() * a.length)]; }
   return out;
+}
+
+/* ── Stockage de l'appareil : écriture commune ───────────────────────────────────────────────────── */
+/** Caches de localStorage relus seuls sur le réseau (rien de perdu) : vidés d'abord quand le stockage est plein. Prix réels CardTrader de la collection
+ *  (collection.js › PX_KEY), relevés de prix des decks (viewer.js › SNAPS_KEY : ceux des decks du compte sont aussi dans le compte ; un deck sans compte perd
+ *  sa variation, refaite au prochain relevé), offres CardTrader des incontournables (staples.js › STP_CT_KEY). */
+const LS_CACHES = ['deckdeal:px:v1', 'deckdeal:snaps:v1', 'deckdeal:stp:ct'];
+const LS_WARNED = new Set();
+const lsFull = e => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+/** localStorage.setItem commun. Stockage plein (QuotaExceededError) : caches reconstructibles vidés (LS_CACHES), nouvel essai ; échec encore : prévenu une
+ *  seule fois par message et par session (toast). o.msg : message propre à la donnée, dit aussi quand le stockage est refusé (navigation privée) ; sans lui,
+ *  le message général, seulement quand le stockage est plein (refusé : la donnée reste pour la session, comme avant). o.st : stockage (tests Node).
+ *  → true si la valeur est enregistrée. */
+function lsSet(key, value, o = {}) {
+  const st = o.st || (typeof localStorage !== 'undefined' ? localStorage : null);
+  let err = null;
+  try { st.setItem(key, value); return true; } catch (e) { err = e; }
+  if (lsFull(err)) {
+    let freed = false;
+    for (const k of LS_CACHES) if (k !== key) { try { if (st.getItem(k) != null) { st.removeItem(k); freed = true; } } catch (e) { /* ignore */ } }
+    if (freed) { try { st.setItem(key, value); return true; } catch (e) { err = e; } }
+  }
+  const msg = o.msg || (lsFull(err) ? T('Stockage plein : une partie de tes données n\'a pas pu être enregistrée sur cet appareil') : '');
+  if (msg && !LS_WARNED.has(msg)) { LS_WARNED.add(msg); if (typeof toast === 'function') toast(msg); }
+  return false;
 }
 
 /* Export Node pour les tests. */
@@ -11146,7 +11171,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { T, TN, LOC, I18N, I18N_LANGS, i18nPick, i18nHas, i18nLangs,collToCsv, cmOffer, cmUrl, cmText, cmParts, CM_MAX, deckMissing, deckUse, tradeLists, tradeWant, tradeMatch, tradeView, shareCard, shareBd, readShare, SHARE_IMG_RE, scrySmall, imgShort, isLandType, libraryOf, drawHand, handLandOdds,
     parseLine, dropCard, restoreLines, sortCards, ctCardUrl, ctShare, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
-    sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
+    sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX, lsSet, LS_CACHES, LS_WARNED,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
@@ -18115,8 +18140,8 @@ function localRead() {
   } catch (e) { return []; }
 }
 function localWrite(list) {
-  try { const raw = JSON.stringify(list); localStorage.setItem(LOCAL_KEY, raw); D.disk = raw; D.diskIds = list.map(d => d.id); return true; }
-  catch (e) { toast(T('Stockage local indisponible : le deck ne sera pas conservé')); return false; }
+  const raw = JSON.stringify(list); if (!lsSet(LOCAL_KEY, raw, { msg: T('Stockage local indisponible : le deck ne sera pas conservé') })) return false;      // plein : caches vidés d'abord (core.js › lsSet)
+  D.disk = raw; D.diskIds = list.map(d => d.id); return true;
 }
 const stripDeck = d => ({ name: d.name, text: d.text, opts: d.opts, cards: d.cards, history: d.history, createdAt: d.createdAt, updatedAt: d.updatedAt });   // les prix gardés (snap) restent dans snapsRead() pour les decks locaux
 /** Decks supprimés dont la suppression attend encore (id → minuteur) : « Annuler » du toast les rend ; sinon removeDeck après le toast (6,5 s), ou tout de suite si l'appli passe en arrière-plan. */
@@ -18359,7 +18384,7 @@ function profLoad(uid) {
   PROF.name = ''; PROF.photo = '';
   try { const o = JSON.parse(localStorage.getItem(PROF_KEY) || 'null'); if (uid && o && o.uid === uid) { PROF.name = profClean(o.name); PROF.photo = profPhotoOk(o.photo) ? o.photo : ''; } } catch (e) { /* stockage indisponible */ }
 }
-function profStore() { try { if (PROF.uid) localStorage.setItem(PROF_KEY, JSON.stringify({ uid: PROF.uid, name: PROF.name, photo: PROF.photo })); else localStorage.removeItem(PROF_KEY); } catch (e) { /* ignore */ } }
+function profStore() { if (PROF.uid) lsSet(PROF_KEY, JSON.stringify({ uid: PROF.uid, name: PROF.name, photo: PROF.photo })); else try { localStorage.removeItem(PROF_KEY); } catch (e) { /* ignore */ } }      // stockage plein : caches vidés, sinon prévenu
 /** Changement de compte : profil de l'appareil, puis celui du compte (jamais renvoyé tout seul : écrit seulement quand on l'enregistre). */
 function profUser(user) {
   if (PROF.unsub) { try { PROF.unsub(); } catch (e) { /* ignore */ } PROF.unsub = null; }
@@ -20130,11 +20155,9 @@ function collRead() {
   } catch (e) { /* illisible : on repart d'une collection vide */ }
 }
 function collWrite() {
-  try {
-    const t = collDocText(collDocNow()), b = collBaseText(); COLL.wt = { t, dv: COLL.dv, map: COLL.map, prox: COLL.prox, places: COLL.places };
-    localStorage.setItem(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(b != null ? { b } : {}) })); COLL.disk = t; return true;
-  }
-  catch (e) { toast(T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil')); return false; }
+  const t = collDocText(collDocNow()), b = collBaseText(); COLL.wt = { t, dv: COLL.dv, map: COLL.map, prox: COLL.prox, places: COLL.places };
+  if (!lsSet(COLL_KEY, JSON.stringify({ t, u: COLL.u, s: COLL.s, ...(b != null ? { b } : {}) }), { msg: T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil') })) return false;      // plein : prix réels et relevés vidés d'abord (core.js › lsSet)
+  COLL.disk = t; return true;
 }
 /** Autre onglet de l'appli (PWA et navigateur, deux onglets) : la collection gardée sur l'appareil vient d'y changer. Fusion à trois avec ce qui est ici, d'après
  *  le dernier état lu ou écrit par cet onglet (COLL.disk) : sans elle, le prochain enregistrement d'ici effaçait ce que l'autre onglet avait ajouté. Fusion différente
@@ -24416,7 +24439,7 @@ function xsRead() {
   try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); XS.engU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.eng = {}; }
 }
 function buyWrite() { try { if (XS.buy) localStorage.setItem(BUY_KEY, JSON.stringify(XS.buy)); else localStorage.removeItem(BUY_KEY); } catch (e) { /* stockage indisponible : le panier à valider ne survivra pas au rechargement */ } }
-function engWrite() { try { localStorage.setItem(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) })); } catch (e) { toast(T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées')); } }
+function engWrite() { lsSet(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) }), { msg: T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées') }); }      // plein : caches vidés d'abord (core.js › lsSet)
 
 /* ── « J'ai acheté » ──────────────────────────────────────────────────────────────────────────── */
 /** Après un remplissage de panier : garde les cartes réellement ajoutées (replace : panier vidé avant). */
@@ -24670,7 +24693,7 @@ function alRead() {
   } catch (e) { /* neuf */ }
 }
 function alWrite() {
-  try { localStorage.setItem(AL_KEY, JSON.stringify({ on: AC.on, thr: AC.thr, deck: AC.deck, watch: AC.watch, mute: AC.mute, id: AC.id, at: AC.at, sig: AC.sig, dm: AC.dm, dev: AC.dev, nosub: AC.nosub })); } catch (e) { /* stockage indisponible */ }
+  lsSet(AL_KEY, JSON.stringify({ on: AC.on, thr: AC.thr, deck: AC.deck, watch: AC.watch, mute: AC.mute, id: AC.id, at: AC.at, sig: AC.sig, dm: AC.dm, dev: AC.dev, nosub: AC.nosub }));      // stockage plein : caches vidés, sinon prévenu
 }
 /** Compte connecté, lié à Discord et membre du serveur (dsclink.js) : le choix « Recevoir les alertes » s'affiche. */
 function alDscOk() { if (typeof dlOn !== 'function' || !dlOn() || !D.user) return false; const s = dlState(); return !!(s && s.l && s.m); }
@@ -28143,7 +28166,7 @@ function sssSnap() {
   if (!items.length && !pq.length) return null;
   return { v: 1, ctx: SC.ctx, at: Date.now(), items, pq, sets: [...SC.sets], setN: SC.setN, stick: SC.stick, mid: SC.mid, dest: SC.ctx === 'coll' ? { x: SCD.x, p: SCD.p } : null };
 }
-function sssPut(s) { try { localStorage.setItem(SSS_KEY + s.ctx, JSON.stringify(s)); } catch (e) { /* stockage plein ou bloqué : la session reste en mémoire */ } }
+function sssPut(s) { lsSet(SSS_KEY + s.ctx, JSON.stringify(s)); }      // stockage plein : caches vidés, sinon prévenu ; refusé : la session reste en mémoire
 function sssDrop(ctx) { if (!ctx) return; try { localStorage.removeItem(SSS_KEY + ctx); } catch (e) { /* ignore */ } }
 /** Enregistre le scan ouvert tout de suite (vide : la session de ce contexte est effacée). */
 function sssSave() {
@@ -32692,7 +32715,7 @@ function trRead() {
     TR.base = j.b && typeof j.b === 'object' ? trParse(j.b) : null;      // dernier état commun avec le compte (fusion à trois, trUser)
   } catch (e) { /* neuf */ }
 }
-function trWrite() { try { const raw = JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who, b: TR.base }); localStorage.setItem(TR_KEY, raw); TR.disk = raw; } catch (e) { /* stockage indisponible */ } }
+function trWrite() { const raw = JSON.stringify({ ...trDoc(), u: TR.u, sig: TR.sig, who: TR.who, b: TR.base }); if (lsSet(TR_KEY, raw)) TR.disk = raw; }      // stockage plein : caches vidés, sinon prévenu (core.js › lsSet)
 /** Autre onglet de l'appli : souhaits et réglages de l'échange changés là-bas. Fusion à trois (tradeMerge3) d'après le dernier état lu ou écrit ici ; autre compte : repris tel quel. */
 function trStorage(e) {
   if (e.key !== TR_KEY || e.newValue == null || e.newValue === TR.disk) return;
@@ -36600,7 +36623,7 @@ function lotRead() {
     }
   } catch (e) { /* illisible : lot vide */ }
 }
-function lotSave() { try { localStorage.setItem(LOT_KEY, JSON.stringify({ list: LOT.list.slice(0, LOT_MAX), set: LOT.set, lang: LOT.lang })); } catch (e) { /* stockage plein : le lot reste pour cette session */ } }
+function lotSave() { lsSet(LOT_KEY, JSON.stringify({ list: LOT.list.slice(0, LOT_MAX), set: LOT.set, lang: LOT.lang })); }      // stockage plein : caches vidés, sinon prévenu ; le lot reste pour cette session
 
 /** Langue Scryfall des impressions à proposer pour une langue de carte ('' : celle de la carte dans la collection, sinon anglais). */
 const lotLangOf = c => c.l || collMainLang(collLines(COLL.map[c.k])) || '';
@@ -38629,8 +38652,8 @@ function opnClean(o) {
   return { id: o.id, name: String(o.name || '').slice(0, 60) || T('Ouverture'), at: Number(o.at) || Date.now(), paid: Number.isFinite(o.paid) && o.paid >= 0 ? Math.round(o.paid) : null, st: !!o.st, rows };
 }
 function opnSave() {
-  try { if (OPN.cur) localStorage.setItem(OPN_CUR_KEY, JSON.stringify(OPN.cur)); else localStorage.removeItem(OPN_CUR_KEY); }
-  catch (e) { toast(T('Stockage plein : la session n\'a pas pu être enregistrée sur cet appareil')); }
+  if (OPN.cur) lsSet(OPN_CUR_KEY, JSON.stringify(OPN.cur), { msg: T('Stockage plein : la session n\'a pas pu être enregistrée sur cet appareil') });      // plein : caches vidés d'abord (core.js › lsSet)
+  else try { localStorage.removeItem(OPN_CUR_KEY); } catch (e) { /* ignore */ }
 }
 /** Classes de la page : html.opn-on (session en cours), html.streamer (mode streamer : css/opening.css cache ce qui ne doit pas passer à l'écran). */
 function opnFlags() { const r = document.documentElement, was = r.classList.contains('streamer'); r.classList.toggle('opn-on', !!OPN.cur); r.classList.toggle('streamer', streamOn()); if (was !== streamOn() && typeof amDot === 'function') amDot(); }      // amis (friends.js) : point des demandes masqué / remis tout de suite

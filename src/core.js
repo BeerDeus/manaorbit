@@ -922,6 +922,31 @@ function newDeckId() {
   return out;
 }
 
+/* ── Stockage de l'appareil : écriture commune ───────────────────────────────────────────────────── */
+/** Caches de localStorage relus seuls sur le réseau (rien de perdu) : vidés d'abord quand le stockage est plein. Prix réels CardTrader de la collection
+ *  (collection.js › PX_KEY), relevés de prix des decks (viewer.js › SNAPS_KEY : ceux des decks du compte sont aussi dans le compte ; un deck sans compte perd
+ *  sa variation, refaite au prochain relevé), offres CardTrader des incontournables (staples.js › STP_CT_KEY). */
+const LS_CACHES = ['deckdeal:px:v1', 'deckdeal:snaps:v1', 'deckdeal:stp:ct'];
+const LS_WARNED = new Set();
+const lsFull = e => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+/** localStorage.setItem commun. Stockage plein (QuotaExceededError) : caches reconstructibles vidés (LS_CACHES), nouvel essai ; échec encore : prévenu une
+ *  seule fois par message et par session (toast). o.msg : message propre à la donnée, dit aussi quand le stockage est refusé (navigation privée) ; sans lui,
+ *  le message général, seulement quand le stockage est plein (refusé : la donnée reste pour la session, comme avant). o.st : stockage (tests Node).
+ *  → true si la valeur est enregistrée. */
+function lsSet(key, value, o = {}) {
+  const st = o.st || (typeof localStorage !== 'undefined' ? localStorage : null);
+  let err = null;
+  try { st.setItem(key, value); return true; } catch (e) { err = e; }
+  if (lsFull(err)) {
+    let freed = false;
+    for (const k of LS_CACHES) if (k !== key) { try { if (st.getItem(k) != null) { st.removeItem(k); freed = true; } } catch (e) { /* ignore */ } }
+    if (freed) { try { st.setItem(key, value); return true; } catch (e) { err = e; } }
+  }
+  const msg = o.msg || (lsFull(err) ? T('Stockage plein : une partie de tes données n\'a pas pu être enregistrée sur cet appareil') : '');
+  if (msg && !LS_WARNED.has(msg)) { LS_WARNED.add(msg); if (typeof toast === 'function') toast(msg); }
+  return false;
+}
+
 /* Export Node pour les tests. */
 /* ── Langue des offres, repli anglais, récapitulatif ──────────────────────────────────────── */
 /** Offres dans la langue demandée s'il y en a, sinon toutes (repli). Évite qu'une offre EN moins chère masque une offre FR. */
@@ -2825,7 +2850,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { T, TN, LOC, I18N, I18N_LANGS, i18nPick, i18nHas, i18nLangs,collToCsv, cmOffer, cmUrl, cmText, cmParts, CM_MAX, deckMissing, deckUse, tradeLists, tradeWant, tradeMatch, tradeView, shareCard, shareBd, readShare, SHARE_IMG_RE, scrySmall, imgShort, isLandType, libraryOf, drawHand, handLandOdds,
     parseLine, dropCard, restoreLines, sortCards, ctCardUrl, ctShare, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
-    sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
+    sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX, lsSet, LS_CACHES, LS_WARNED,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
