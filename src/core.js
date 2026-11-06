@@ -1570,6 +1570,15 @@ const placesText = places => Object.keys(places || {}).sort().map(id => { const 
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
+/** Plafond du texte de la collection dans le compte (document Firestore ≤ 1 Mo, firestore.rules : 900 000 caractères ≈ 22 000 lignes) ; avertissement dès 80 %.
+ *  Objet (pas une constante) : les tests le baissent pour ne pas écrire 900 Ko. */
+const COLL_LIM = { max: 900000, warn: 0.8 };
+/** Taille du texte de la collection → '' (loin du plafond), 'warn' (80 % ou plus), 'over' (au-delà : plus d'envoi au compte). */
+const collSizeLevel = (len, lim = COLL_LIM) => (len > lim.max ? 'over' : len >= lim.max * lim.warn ? 'warn' : '');
+/** Part du plafond utilisée, en points (« 87 % ») ; jamais 100 tant que ça passe, jamais moins de 101 au-delà. */
+const collSizePct = (len, lim = COLL_LIM) => { const p = Math.round(100 * len / lim.max); return len > lim.max ? Math.max(101, p) : Math.min(99, p); };
+/** Envoi au compte retenu : au-delà du plafond, ou refusé à cette taille (compte + appareil trop gros) et pas encore réduit. big : taille refusée (0 : aucune). */
+const collSizeHold = (len, big, lim = COLL_LIM) => len > lim.max || (big > 0 && len >= big);
 function collDocFromText(text) {
   const main = [], px = [], places = {};
   for (const ln of String(text || '').split('\n')) {
@@ -2843,3 +2852,5 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Filtres avancés de la collection (search.js) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STYLES, styOf, styIn });
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, LG_FMT, lgOf, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });
+// Plafond de la collection dans le compte (collection.js › collPush) : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COLL_LIM, collSizeLevel, collSizePct, collSizeHold });

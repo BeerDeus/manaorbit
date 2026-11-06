@@ -4,7 +4,7 @@
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, big: 0, tooBig: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct' && !mkUs()) COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }      // marché TCGplayer : jamais CardTrader
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -507,6 +507,8 @@ const collDocClone = d => collDoc(collClone(d.map), collClone(d.prox), collClone
 /** Cet appareil a-t-il des changements pas encore dans le compte ? */
 const collUnsynced = () => !COLL.base || !sameDoc(collDocNow(), COLL.base);
 const collOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+/** Taille du texte de la collection (plafond du compte, core.js › COLL_LIM) : celui gardé sur l'appareil (collWrite), sans tout réécrire à chaque « + ». */
+const collLen = () => (typeof COLL.disk === 'string' ? COLL.disk : collDocText(collDocNow())).length;
 /** Envoi groupé. Un envoi = une transaction : 1 lecture + 1 écriture, et 1 lecture de plus pour chaque appareil qui suit le compte (quota Firestore).
  *  Changement isolé : parti 0,7 s après le dernier. Rafale (n changements en win ms : scan mobile reçu sur le PC, page « Ajouter des cartes ») :
  *  au plus un envoi toutes les burst ms, chacun emportant tout ce qui s'est accumulé. Jamais perdu : tout est déjà sur l'appareil (collWrite),
@@ -534,6 +536,8 @@ async function collPush() {
   if (!cloudOn() || !D.cloud.txColl || acctHeld(D.user.uid)) return;                  // compte en cours de suppression (ici ou ailleurs) : rien ne part
   if (COLL.pushing) { COLL.again = true; return; }
   if (collOffline()) { COLL.cloud = 'offline'; collPaintHead(); return; }
+  const len = collLen();
+  if (collSizeHold(len, COLL.big)) { COLL.cloud = 'error'; COLL.tooBig = len > COLL_LIM.max ? len : COLL.tooBig || len; COLL.err = T('Collection trop grosse pour le compte'); collPaintHead(); return; }      // trop grosse : ni lecture du compte ni analyse de 900 Ko à chaque « + » ; repart dès qu'elle a baissé
   const uid = D.user.uid, id = ++COLL.runId;
   let used = null, merged = null, wrote = null, had = false;
   COLL.pushing = id; COLL.pushAt = Date.now(); COLL.again = false; COLL.cloud = 'sync'; COLL.err = ''; collPaintHead();
@@ -546,14 +550,14 @@ async function collPush() {
       merged = mergeDoc3(rdoc && COLL.s === uid ? COLL.base : null, used, remote);
       if (rdoc ? sameDoc(merged, remote) : sameDoc(merged, collDoc())) { wrote = null; return null; }              // le compte a déjà tout
       wrote = { text: collDocText(merged), count: Object.keys(merged.map).length, updatedAt: Math.max(Date.now(), (Number(rdoc && rdoc.updatedAt) || 0) + 1) };      // count : cartes, sans les proxys
-      if (wrote.text.length > 900000) throw Object.assign(new Error('Collection trop grosse'), { code: 'too-big' });
+      if (collSizeLevel(wrote.text.length) === 'over') throw Object.assign(new Error('Collection trop grosse'), { code: 'too-big', len: wrote.text.length });      // firestore.rules : 900 000 caractères
       return wrote;
     });
     if (D.uid !== uid) return;
     if (had || wrote) acctSaw('collection', uid);
     if (wrote) COLL.ru = Math.max(COLL.ru, wrote.updatedAt);
     const before = collDocNow(), next = mergeDoc3(used, before, merged);                                                // + ce qui a été touché ici pendant l'envoi
-    COLL.s = uid; COLL.base = merged; collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.live = true; collWrite();
+    COLL.s = uid; COLL.base = merged; collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.big = COLL.tooBig = 0; COLL.live = true; collWrite();
     if (!sameDoc(before, next)) collRemoteApplied(before, next);
     if (collUnsynced()) COLL.again = true;
     collAsideSoon();
@@ -562,7 +566,7 @@ async function collPush() {
     const c = err && err.code;
     if (c === 'held') return;                                             // decks.js vérifie le compte, puis déconnecte ou relance la synchro
     if (c === 'permission-denied') { COLL.cloud = 'error'; COLL.err = T('Règles Firestore à publier pour la collection'); }
-    else if (c === 'too-big') { COLL.cloud = 'error'; COLL.err = T('Collection trop grosse pour le compte'); }
+    else if (c === 'too-big') { COLL.cloud = 'error'; COLL.err = T('Collection trop grosse pour le compte'); COLL.big = collLen(); COLL.tooBig = err.len || COLL.big; }      // plus d'envoi tant qu'elle n'a pas baissé (collSizeHold)
     else if (c === 'unavailable' || collOffline()) { COLL.cloud = 'offline'; collRetry(COLL_RETRY.off); }
     else { COLL.cloud = 'error'; COLL.err = T('Synchronisation impossible'); collRetry(COLL_RETRY.err); }
   } finally {
@@ -586,7 +590,7 @@ const collSyncNow = () => { collPull(); if (collUnsynced() || COLL.cloud !== 'ok
 function collUser(user) {
   if (COLL.unsub) { try { COLL.unsub(); } catch (e) { /* ignore */ } COLL.unsub = null; }
   clearTimeout(COLL.retryT); clearTimeout(COLL.liveT); clearTimeout(COLL.pushT); COLL.runId++; COLL.pushing = 0; COLL.deferred = null; COLL.again = false;
-  COLL.cloud = 'off'; COLL.err = ''; COLL.live = false; COLL.ru = 0;
+  COLL.cloud = 'off'; COLL.err = ''; COLL.live = false; COLL.ru = 0; COLL.big = COLL.tooBig = 0;
   if (!user || !D.cloud || !D.cloud.watchColl) { collPaintHead(); return; }
   if (COLL.s && COLL.s !== user.uid && collAside(COLL.s)) { collPaint(); paintCollSection(); }      // copie d'un autre compte : mise de côté, jamais envoyée d'office (voir collAside)
   COLL.cloud = 'sync';
@@ -1124,6 +1128,7 @@ function crowHtml(it) {
 function collSyncInfo() {
   if (!collCount()) return null;
   if (D.user) {
+    const big = collBigInfo(); if (big && (big.k === 'bad' || COLL.cloud === 'ok')) return big;
     if (COLL.cloud === 'ok') return { k: 'ok', t: T('Sauvegardée dans ton compte'), acts: [] };
     if (COLL.cloud === 'offline') return { k: 'warn', t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')]] };
     if (COLL.cloud === 'error') return { k: 'bad', t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')]] };
@@ -1132,6 +1137,13 @@ function collSyncInfo() {
   if (D.state === 'unavailable') return { k: 'bad', t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [] };
   if (!D.authReady) return null;
   return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
+}
+/** Collection près du plafond du compte (80 %) ou au-delà : bandeau qui dit quoi faire (big : affiché même en simple avertissement) ; null : loin du plafond. */
+function collBigInfo() {
+  const acts = [['export', T('Exporter')]];
+  if (COLL.cloud === 'error' && COLL.tooBig) return { k: 'bad', big: true, acts, t: T('Pas sauvegardée dans ton compte : ta collection est trop grosse ({p} de la place permise). Elle reste sur cet appareil ; retire des cartes pour qu\'elle reparte, ou exporte-la pour en garder une copie.', { p: pct(collSizePct(COLL.tooBig)) }) };
+  const len = collLen(); if (collSizeLevel(len) !== 'warn') return null;
+  return { k: 'warn', big: true, acts, t: T('Collection presque trop grosse pour ton compte ({p} de la place permise) : au-delà, elle ne sera plus sauvegardée. Retire des cartes ou exporte-la pour en garder une copie.', { p: pct(collSizePct(len)) }) };
 }
 /** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
  *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
@@ -1208,7 +1220,7 @@ function collPaintHead(tick) {
   if (!tick) $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul ; tick : cartes, exemplaires et valeur inchangés
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
   if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
-  if (!si || si.k === 'ok' || !(si.k === 'bad' && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
+  if (!si || si.k === 'ok' || !((si.k === 'bad' || si.big) && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
   if (GLANCE.api) paintGlance();
   const stt = $('.coll-status', el), e = COLL.enrich;
@@ -1729,10 +1741,19 @@ function openCollImport(initial) {
       a.body.innerHTML = html; a.setFoot(foot);
       a.wrap.addEventListener('click', e => { const b = e.target.closest('[data-ci]'); if (b) { a.close(); on(b.dataset.ci); } });
     });
+    /** Taille de la collection après cet import, quand elle passerait au-delà du plafond du compte (connecté, pas déjà au-delà) ; 0 sinon. */
+    const bigAfter = (p, m) => { if (!D.user || collSizeLevel(collLen()) === 'over') return 0; const n = collDocText(collDoc(mergeColl(COLL.map, p.items, m), COLL.prox, COLL.places)).length; return collSizeLevel(n) === 'over' ? n : 0; };
+    /** Import, après avoir prévenu s'il rend la collection trop grosse pour le compte ; later : une autre fiche vient de se fermer. */
+    const runChecked = (p, m, later) => {
+      const n = bigAfter(p, m); if (!n) { run(p, m); return; }
+      const open = () => { haptic('tap'); ask(T('Collection trop grosse pour ton compte'), `<p class="cf-msg"><span>${T('Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.', { p: pct(collSizePct(n)) })}</span><span>${T('Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.')}</span></p>`,
+        `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ci="go">${T('Importer quand même')}</button>`, c => { if (c === 'go') run(p, m); }); };
+      if (later) setTimeout(open, reduceMotion() ? 0 : 300); else open();
+    };
     // « Remplacer ma collection » : jamais sans le dire, avec le nombre de cartes qui partent
     const askReplace = p => { const had = collCount(); haptic('tap');
       ask(T('Remplacer ta collection ?'), `<p class="cf-msg"><span>${TN(had, 'Ta collection compte <b>{n}</b> carte différente.', 'Ta collection compte <b>{n}</b> cartes différentes.')} ${TN(p.items.length, 'Elle sera remplacée par l\'unique carte de ce fichier.', 'Elle sera remplacée par les {n} cartes de ce fichier.')}</span><span>${T('Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.')}</span></p>`,
-        `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ci="replace">${T('Remplacer')}</button>`, () => run(p, 'replace')); };
+        `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ci="replace">${T('Remplacer')}</button>`, () => runChecked(p, 'replace', true)); };
     go.onclick = () => {
       if (!parsed || !parsed.items.length) return;
       const p = parsed, m = mode();
@@ -1741,10 +1762,10 @@ function openCollImport(initial) {
         haptic('tap');
         ask(T('Déjà dans ta collection ?'), `<p class="cf-msg"><span>${TN(collAlready(p.items), '<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l\'ajouter le compterait deux fois.', '<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.', { t: nf0(p.copies) })}</span><span>${T('Tu as déjà importé ce fichier ? Remplace plutôt ta collection par son contenu.')}</span></p><button class="link-btn ci-rep" type="button" data-ci="replace">${T('Remplacer ma collection…')}</button>`,
           `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ci="add">${T('Ajouter quand même')}</button>`,
-          c => { if (c === 'add') run(p, 'add'); else setTimeout(() => askReplace(p), reduceMotion() ? 0 : 300); });
+          c => { if (c === 'add') runChecked(p, 'add', true); else setTimeout(() => askReplace(p), reduceMotion() ? 0 : 300); });
         return;
       }
-      run(p, m);
+      runChecked(p, m);
     };
     if (initial) { ta.value = initial; paint(); }
   });

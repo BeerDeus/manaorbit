@@ -1,0 +1,8 @@
+{
+  "Pas sauvegardée dans ton compte : ta collection est trop grosse ({p} de la place permise). Elle reste sur cet appareil ; retire des cartes pour qu'elle reparte, ou exporte-la pour en garder une copie.": "Não salva na sua conta: sua coleção é grande demais ({p} do espaço permitido). Ela fica neste aparelho; remova cartas para que volte a sincronizar, ou exporte-a para guardar uma cópia.",
+  "Collection presque trop grosse pour ton compte ({p} de la place permise) : au-delà, elle ne sera plus sauvegardée. Retire des cartes ou exporte-la pour en garder une copie.": "Coleção quase grande demais para sua conta ({p} do espaço permitido): além disso, ela não será mais salva. Remova cartas ou exporte-a para guardar uma cópia.",
+  "Collection trop grosse pour ton compte": "Coleção grande demais para sua conta",
+  "Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.": "Com este arquivo, sua coleção passaria do espaço permitido na sua conta ({p}): ela não seria mais salva, apenas guardada neste aparelho.",
+  "Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.": "Importe parte do arquivo ou remova cartas da sua coleção antes. Exportar sua coleção guarda uma cópia.",
+  "Importer quand même": "Importar mesmo assim"
+}
