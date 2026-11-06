@@ -52,6 +52,7 @@ Règle de rédaction (`core.js`, vérifiée par `tests/test-i18n-langs.mjs`) :
     node tests/coll-e2e.mjs           # un seul test
 
 - Navigateur : Chromium via `playwright-core` ; chemin du binaire dans `CHROMIUM` (défaut `/opt/pw-browsers/chromium`).
+- Essai réel CardTrader en session cloud (token d'un compte de test enregistré comme secret réseau de l'environnement pour api.cardtrader.com, injecté par le proxy) : lancer le serveur avec `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt CARDTRADER_TOKEN=proxy-injected-placeholder-token node server/proxy.mjs` (sans `NODE_USE_ENV_PROXY`, le `fetch` de Node part en direct et CardTrader répond 401) ; dans la page, un token client factice d'au moins 20 caractères (`S.token`, contrôle `userTok` du serveur). Lecture seulement : jamais de panier ni de commande.
 - Ne jamais lancer deux tests en même temps (ports fixes 188xx/189xx).
 - `tests/setup-env.mjs` (importé en premier par chaque test) place le dossier courant à la racine et fait servir au proxy une **copie temporaire** de `pwa/` sans les fichiers générés (`PWA_DIR`) : aucun test ne touche au vrai `pwa/`.
 - `rules-test.mjs` vérifie `firestore.rules` contre l'émulateur Firestore (Java 21), chaque branche permise et refusée. Lancé par la CI (`.github/workflows/rules.yml`, quand les règles ou leur test changent ; `RULES_REQUIRED=1` y fait d'un test ignoré un échec). En local :
