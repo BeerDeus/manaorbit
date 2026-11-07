@@ -7372,6 +7372,13 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 .mo-act.danger b,.mo-act.danger>.i{color:var(--bad)}
 .mo-act.on b{color:var(--good)}
 .mo-h{margin:18px 2px 8px;font-size:13px;font-weight:650;color:var(--ink-2)}
+/* Mes decks vide : ce qu'on peut faire, nommé (dklist.js) */
+.dks-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 16px}
+.dks-empty b{font-size:15px;color:var(--ink)}
+.dks-empty-b{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%}
+.dks-empty-b .btn{flex:1 1 auto;height:44px;padding:0 16px;gap:7px;white-space:nowrap}      /* côte à côte s'ils tiennent, sinon l'un sous l'autre : jamais un libellé sur deux lignes */
+.dks-empty-b .btn .i{width:18px;height:18px}
+.dks-empty span{font-size:13px;line-height:1.4}
 
 /* zoom.css : vignettes qui ouvrent la carte en grand (zoom.js) : curseur, zone de toucher d'au moins 44 px, focus au clavier */
 .thumb[data-zoom]{cursor:zoom-in;overflow:visible}                                     /* pas de rognage : la zone de toucher déborde (::before) */
@@ -8118,8 +8125,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '2dd28cc8';
-const I18N_FILES = {"de":"i18n/de.2a22c559.js","en":"i18n/en.1c492376.js","es":"i18n/es.569743f7.js","it":"i18n/it.1825c34d.js","pt":"i18n/pt.d05999e0.js"};
+const DD_BUILD = 'fe3f640f';
+const I18N_FILES = {"de":"i18n/de.cf54ee1e.js","en":"i18n/en.75f2bd35.js","es":"i18n/es.00e19e6b.js","it":"i18n/it.c02f102c.js","pt":"i18n/pt.c2a247c7.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -19099,6 +19106,7 @@ function openDecks() {
     const act = b.dataset.act;
     if (act === 'close') return wrap.__close();
     if (act === 'new') return openDeckNew();
+    if (act === 'price') return dkTabGo('price');      // Mes decks vide : « Prix d'une liste », où coller une liste puis l'enregistrer
     if (act === 'sync') return openAccount();
     if (act === 'import') { b.disabled = true; importLocal(); return; }
     if (act === 'eq') { DKS.eq = !DKS.eq; haptic('tap'); dksPaint(); return; }
@@ -19130,7 +19138,7 @@ function dksPaint() {
   else {
     if (imp.length) html += `<div class="import-row"><span>${TN(imp.length, '{n} deck sur cet appareil', '{n} decks sur cet appareil')}</span><button class="btn" type="button" data-act="import">${T('Importer')}</button></div>`;
     html += shown.map(deckCard).join('');
-    if (!all.length) html += '<div class="deck-empty">' + T('Aucun deck pour le moment. Touche « + » pour en créer un, ou colle une liste puis « Enregistrer ».') + '</div>';
+    if (!all.length) html += `<div class="deck-empty dks-empty"><b>${T('Aucun deck pour le moment')}</b><div class="dks-empty-b"><button class="btn" type="button" data-act="new"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>${T('Créer un deck')}</button><button class="btn ghost" type="button" data-act="price"><svg class="i" aria-hidden="true"><use href="#i-cart"/></svg>${T('Prix d\'une liste')}</button></div><span>${T('Une liste toute prête ? Colle-la dans l\'onglet « Prix d\'une liste », puis touche « Enregistrer ».')}</span></div>`;      // le « + » et l'onglet où coller une liste, nommés
     else if (!shown.length) html += '<div class="deck-empty">' + T('Aucun deck ne correspond à ces filtres.') + '</div>';
   }
   const host = $('#deckList', el);

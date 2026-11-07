@@ -152,7 +152,6 @@
   "Tous": "All",
   "{shown} sur {n} deck": "{shown} of {n} deck",
   "{shown} sur {n} decks": "{shown} of {n} decks",
-  "Aucun deck pour le moment. Touche « + » pour en créer un, ou colle une liste puis « Enregistrer ».": "No decks yet. Tap \"+\" to create one, or paste a list and tap \"Save\".",
   "Aucun deck ne correspond à ces filtres.": "No deck matches these filters.",
   "Fermer": "Close",
   "Carte précédente": "Previous card",

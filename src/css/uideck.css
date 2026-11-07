@@ -26,3 +26,10 @@
 .mo-act.danger b,.mo-act.danger>.i{color:var(--bad)}
 .mo-act.on b{color:var(--good)}
 .mo-h{margin:18px 2px 8px;font-size:13px;font-weight:650;color:var(--ink-2)}
+/* Mes decks vide : ce qu'on peut faire, nommé (dklist.js) */
+.dks-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 16px}
+.dks-empty b{font-size:15px;color:var(--ink)}
+.dks-empty-b{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%}
+.dks-empty-b .btn{flex:1 1 auto;height:44px;padding:0 16px;gap:7px;white-space:nowrap}      /* côte à côte s'ils tiennent, sinon l'un sous l'autre : jamais un libellé sur deux lignes */
+.dks-empty-b .btn .i{width:18px;height:18px}
+.dks-empty span{font-size:13px;line-height:1.4}

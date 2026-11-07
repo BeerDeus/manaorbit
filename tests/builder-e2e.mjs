@@ -26,7 +26,7 @@ await p.waitForTimeout(500);
 
 /* ── A) Commander : création complète ─────────────────────────────────────────────────────── */
 assert.ok(await p.isVisible('#btnDecks'), 'bouton « Decks » de la barre du bas toujours là (le + doit être accessible)'); await decks(p);
-assert.match(await txt(p, '#deckList'), /Touche « \+ »/, 'invitation quand aucun deck'); assert.equal(await p.$$eval('.deck', n => n.length), 0);
+assert.match(await txt(p, '#deckList'), /^Aucun deck pour le moment Créer un deck Prix d'une liste /, 'invitation quand aucun deck : Créer un deck, Prix d\'une liste'); assert.equal(await p.$$eval('.deck', n => n.length), 0);
 await newDeck(p, 'Vampires Boros', 'commander');
 assert.equal(await txt(p, '#bdTitle'), 'Vampires Boros'); assert.match(await txt(p, '#bdSub'), /Commander · 0\/100/);
 assert.match(await txt(p, '#bdSum'), /Aucun commandant/); assert.equal(await p.$eval('#bdSave', b => b.disabled), true, 'pas de sauvegarde sans commandant');

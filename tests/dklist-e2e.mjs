@@ -219,6 +219,17 @@ await p.evaluate(() => openDeckViewer({ id: 'd8' })); await p.waitForSelector('.
 await p.waitForSelector('.dv.on .dv-acts .dv-ana', { timeout: 5000 }); ok('liste sans en-tête, commandant en tête (canCommand) : Coach proposé');
 await p.evaluate(() => closeDeckViewer()); await p.waitForTimeout(300);
 
+// Mes decks vide : « Créer un deck » et « Prix d'une liste » (où coller une liste puis l'enregistrer), nommés
+{
+  const { p: q, errs: e2 } = await newPage(browser, world, {}); await q.waitForTimeout(500);
+  await q.evaluate(() => openDecks()); await q.waitForSelector('.dks.on .dks-empty');
+  assert.equal(await txt(q, '.dks-empty b'), 'Aucun deck pour le moment');
+  assert.deepEqual(await q.$$eval('.dks-empty .btn', b => b.map(x => x.textContent.trim())), ['Créer un deck', 'Prix d\'une liste']);
+  assert.match(await txt(q, '.dks-empty span'), /Colle-la dans l'onglet « Prix d'une liste », puis touche « Enregistrer »/);
+  await q.click('.dks-empty [data-act="price"]'); await q.waitForFunction(() => !document.querySelector('.dks') && S.view === 'input', null, { timeout: 3000 });
+  assert.deepEqual(e2, []); await q.context().close();
+  ok('Mes decks vide : Créer un deck, Prix d\'une liste (l\'onglet où coller une liste)');
+}
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));
 await browser.close(); world.stop();
 console.log('DKLIST E2E OK');
