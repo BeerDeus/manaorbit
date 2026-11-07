@@ -819,7 +819,6 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .coll-controls[hidden],.coll-fwrap[hidden]{display:none}
 .coll-top{display:flex;align-items:center;gap:10px}
 .coll-top .seg{flex:1;min-width:0}
-.coll-px{flex:none}.coll-px .i{width:21px;height:21px}      /* prix réels : pièce € (sprite i-coin) */
 .coll-fwrap{display:flex;flex-direction:column;gap:8px}
 .coll-sort{align-self:flex-start}
 .coll-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-radius:12px;font-size:12.5px;line-height:1.35;background:var(--surface-2);color:var(--ink-2)}
@@ -5531,7 +5530,7 @@ button.opn-pick>.row-px{grid-column:3;grid-row:1/span 2;align-self:center}
 /* ── Mode streamer : rien de la vraie collection ni du compte à l'écran (le contenu, lui, est remplacé par opening.js) ── */
 html.streamer #hmTrade{display:none}                                                          /* lien d'échange, QR code, listes d'amis */
 html.streamer .dv.coll .coll-sync,html.streamer .dv.coll .coll-status,html.streamer .dv.coll .coll-alert{display:none!important}      /* synchro, lecture (« 120 / 3 000 »), prix qui ont bougé */
-html.streamer .dv.coll [data-act="import"],html.streamer .dv.coll [data-act="export"],html.streamer .dv.coll .coll-dot{display:none}
+html.streamer .dv.coll [data-act="import"],html.streamer .dv.coll [data-act="menu"],html.streamer .dv.coll .coll-dot{display:none}      /* « … » de la collection : importer, exporter, prix réels (collection.js › openCollMenu) */
 html.streamer .rc-facts>div:nth-child(-n+2){display:none}                                     /* récap du scan : « Nouvelles / Déjà possédées » */
 html.streamer .sc-item.pr .tag.good,html.streamer .lot-name em{display:none}                 /* « possédée », « 3 dans ta collection » */
 html.streamer .ca-opt i{visibility:hidden}                                                    /* exemplaires possédés dans les suggestions */
@@ -7346,6 +7345,18 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 @media (min-width:700px){.trc-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}}
 @media (prefers-reduced-motion:reduce){.trc-card.new .trc-art,.trc-tick,.trc-ln.pop,.trc-net .dot{animation:none}.trc-mark,.trc-art,.trc-ln{transition:none}}
 
+/* ── uicol.css : pistes d'interface de l'audit du 6 novembre (collection, scan, Ajouter des cartes, recherches enregistrées, premier lancement) ── */
+
+/* « … » de « Ma collection » (collection.js › openCollMenu) : une action par ligne, son nom et ce qu'elle fait */
+.cm-opts{display:flex;flex-direction:column;gap:8px}
+.cm-opt{display:flex;align-items:center;gap:14px;min-height:60px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cm-opt>.i{flex:none;width:24px;height:24px;color:var(--accent)}
+.cm-opt span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cm-opt b{font-size:15px;font-weight:650}
+.cm-opt small{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
+.cm-opt:active{background:var(--surface-2)}
+.cm-opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
 /* zoom.css : vignettes qui ouvrent la carte en grand (zoom.js) : curseur, zone de toucher d'au moins 44 px, focus au clavier */
 .thumb[data-zoom]{cursor:zoom-in;overflow:visible}                                     /* pas de rognage : la zone de toucher déborde (::before) */
 .thumb[data-zoom] img{border-radius:inherit}
@@ -8092,8 +8103,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '72aa4e51';
-const I18N_FILES = {"de":"i18n/de.402df391.js","en":"i18n/en.3a8120cf.js","es":"i18n/es.4ca61341.js","it":"i18n/it.81841b53.js","pt":"i18n/pt.4bf8f30f.js"};
+const DD_BUILD = '581a8619';
+const I18N_FILES = {"de":"i18n/de.d96e85d6.js","en":"i18n/en.ae4069e2.js","es":"i18n/es.cac69c38.js","it":"i18n/it.bb593d85.js","pt":"i18n/pt.dc6ab71f.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -21528,7 +21539,7 @@ function collPaintBody(keep) {
   const v = collAll(), all = v.all, none = !all.length;
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
-  $('.coll-px', el).hidden = none || mkUs(); $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
+  $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
   $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); if (typeof cvwPaint === 'function') cvwPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // cvwPaint : tri, vue, réglages de l'échange (densite.js)
   if (!keep && typeof cvwHead === 'function') cvwHead();      // carte de valeur : onglet Stats seulement      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
@@ -21569,6 +21580,24 @@ function collMore() {
   const left = sorted.length - COLL.shown;
   if (left > 0) btn.textContent = moreLabel(left, COLL_PAGE); else btn.remove();
 }
+/** « … » de « Ma collection » (audit du 6 novembre, U5) : les actions rares, chacune avec son nom et ce qu'elle fait (les icônes seules ↓ ↑ € se lisaient mal) ;
+ *  « + » (Ajouter des cartes) reste dans l'en-tête. Sans carte : Importer et ManaBox seulement ; prix réels : pas sur le marché TCGplayer (mkUs). */
+function openCollMenu() {
+  const n = collCount(), row = (k, ic, t, sub) => `<button type="button" class="cm-opt" data-cm="${k}"><svg class="i" aria-hidden="true"><use href="#${ic}"/></svg><span><b>${t}</b><small>${sub}</small></span></button>`;
+  haptic('tap');
+  openSheet(T('Ma collection'), n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(collCopies(), '{n} exemplaire', '{n} exemplaires') : '', api => {
+    api.wrap.classList.add('cm-sheet');
+    api.body.innerHTML = `<div class="cm-opts">${row('import', 'i-download', T('Importer un fichier'), T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».'))}
+      ${n ? row('export', 'i-upload', T('Exporter ma collection'), T('Un fichier CSV ou texte : à garder, ou à ouvrir dans une autre appli.')) : ''}
+      ${n && !mkUs() ? row('prices', 'i-coin', T('Prix réels CardTrader'), T('L\'offre la moins chère de chaque carte, à la place de l\'estimation Cardmarket.')) : ''}
+      ${row('swg', 'i-swap', T('Venir de ManaBox'), T('Le guide en 2 minutes : exporter, puis importer ici.'))}</div>`;
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('[data-cm]'); if (!b) return;
+      const k = b.dataset.cm; api.close();
+      if (k === 'import') openCollImport(); else if (k === 'export') collExport(); else if (k === 'prices') openCollPrices(); else if (k === 'swg') swgOpen({ from: 'coll' });
+    });
+  });
+}
 function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */
 /** Trois sections sur le même écran (barre du bas, nav.js) : « Ma collection » (Cartes · Stats), « Échange » (liste d'échange seule)
@@ -21585,8 +21614,7 @@ function openCollection(tab) {
   const md = COLL.mode, title = md === 'trade' ? T('Échange') : md === 'decks' ? T('Decks') : T('Ma collection');
   const wrap = document.createElement('div'); wrap.className = `dv coll sec m-${md}${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', title);
   const tools = md === 'coll' ? `<button class="icon-btn" type="button" data-act="add" aria-label="${T('Ajouter des cartes')}" title="${T('Ajouter des cartes')}"><svg class="i"><use href="#i-plus"/></svg></button>
-        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier')}" title="${T('Importer un fichier')}"><svg class="i"><use href="#i-download"/></svg></button>
-        <button class="icon-btn" type="button" data-act="export" aria-label="${T('Exporter ma collection')}" title="${T('Exporter')}"><svg class="i"><use href="#i-upload"/></svg></button>`
+        <button class="icon-btn" type="button" data-act="menu" aria-haspopup="dialog" aria-label="${T('Importer, exporter…')}" title="${T('Importer, exporter…')}"><svg class="i"><use href="#i-more"/></svg></button>`
     : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="dv-title"><b>${title}</b>${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}<span></span></div>
@@ -21596,7 +21624,7 @@ function openCollection(tab) {
       <div class="coll-sync" hidden></div>
       <div class="coll-status" hidden></div>
       <div class="coll-alert" hidden></div>
-      <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div><button class="icon-btn coll-px" type="button" data-act="prices" aria-label="${T('Lire les prix réels des cartes (CardTrader)')}" title="${T('Prix réels')}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg></button></div>
+      <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div></div>
         <div class="coll-fwrap"><div id="collF"></div><div class="coll-srow"><label class="sortsel coll-sort"><span>${T('Trier')}</span><select id="collSort" aria-label="${T('Trier la collection')}">${SORT_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>${md === 'coll' && typeof msBarHtml === 'function' ? msBarHtml() : ''}</div><div class="coll-when" id="collWhen" hidden></div></div></div>
       <div class="coll-main"></div></div></div>`;
   COLL.el = wrap; const prevFocus = document.activeElement;
@@ -21647,6 +21675,7 @@ function openCollection(tab) {
       const act = b.dataset.act;
       if (act === 'close') wrap.__close();
       else if (act === 'add') openLot();
+      else if (act === 'menu') openCollMenu();
       else if (act === 'ed') { const r = b.closest('.crow'); if (r && r.dataset.k) collEdPick(r.dataset.k, rowG(r)); }
       else if (act === 'scan') openScan();
       else if (act === 'dnew') openDeckNew();
@@ -37266,8 +37295,8 @@ const HELP_MAIL = 'contact@manaorbit.app', HELP_SUBJECT = 'Mana Orbit · avis'; 
 /** Questions et réponses de l'aide (texte français, traduit par T ; HTML fixe, aucune donnée de l'utilisateur). Réponse en fonction : texte qui dépend de l'appli (langue des noms lus au scan, nmT). */
 const HELP_QA = [
   ['Cardmarket ou CardTrader : quels prix ?', 'Par défaut, Mana Orbit affiche le <b>prix tendance Cardmarket</b>, relevé chaque jour : gratuit et sans compte, idéal pour estimer. <b>CardTrader</b> donne les vraies offres des vendeurs (état, langue, port) et remplit ton panier, avec ton token CardTrader (Réglages). Le choix se fait dans Decks › « Prix d\'une liste » › Critères › <b>Prix</b> ; sans token, choisir CardTrader explique comment l\'obtenir.'],
-  ['Comment ajouter mes cartes ?', () => nmT('Touche <b>Collection</b> dans la barre du bas, puis les boutons du haut : <b>Importer</b> un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en français ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis les boutons du haut : <b>Importer</b> un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en {lang} ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis les boutons du haut : <b>Importer</b> un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte ; <b>+</b> pour chercher une carte par son nom.')],
-  ['Je viens de ManaBox (ou Moxfield…) : comment tout récupérer ?', 'Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer un fichier</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class="link-btn hp-swg" type="button" data-help="switch">Venir de ManaBox</button>'],
+  ['Comment ajouter mes cartes ?', () => nmT('Touche <b>Collection</b> dans la barre du bas, puis, en haut : <b>…</b> › <b>Importer un fichier</b> pour un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en français ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis, en haut : <b>…</b> › <b>Importer un fichier</b> pour un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en {lang} ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis, en haut : <b>…</b> › <b>Importer un fichier</b> pour un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte ; <b>+</b> pour chercher une carte par son nom.')],
+  ['Je viens de ManaBox (ou Moxfield…) : comment tout récupérer ?', 'Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>…</b> › <b>Importer un fichier</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class="link-btn hp-swg" type="button" data-help="switch">Venir de ManaBox</button>'],
   ['Comment scanner tout un paquet ?', 'Dans le scan, active <b>Auto</b> (en bas à droite) : pose les cartes l\'une après l\'autre, le nom dans la bande ; chacune s\'ajoute dès que son nom est lu deux fois de suite, sans toucher l\'écran ; retire-la (ou montre la suivante) pour continuer. <b>Éditions</b> : choisis celle de la 1re carte, les suivantes la prennent si elles existent dans les extensions du scan ; une carte d\'une autre extension te demande la sienne. Pour un deck ou un classeur, les <b>réglages</b> du scan proposent de tout choisir à la fin, en voyant les illustrations (ou de scanner sans édition). Une seule langue dans le paquet : impose-la dans les réglages, c\'est plus rapide.'],
   ['Comment est calculée la valeur de ma collection ?', 'Pour chaque carte, le <b>prix tendance Cardmarket</b> (relevé par Scryfall) multiplié par tes exemplaires. C\'est une estimation : l\'édition, l\'état et le foil ne changent rien, et une carte sans prix n\'est pas comptée. Les prix sont relus une fois par jour au plus ; la courbe garde un relevé par jour. Dans « Prix d\'une liste », le prix Cardmarket est un « à partir de » : la tendance de l\'impression la moins chère.'],
   ['Quels decks puis-je construire avec ma collection ?', '<b>Decks</b> › Idées de decks compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d\'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).'],
@@ -37908,7 +37937,7 @@ function swgOpen(o) {
     api.body.innerHTML = `<p class="swg-lead">${helpNb(T('Ta collection te suit : exporte-la en CSV depuis ManaBox, puis importe le fichier ici.'))}</p>
       <ol class="swg-steps">
         ${step(1, T('Dans ManaBox'), helpNb(T('Onglet <b>Collection</b> : menu en haut à droite › <b>Export</b>. Choisis <b>CSV</b> si l\'appli le demande, confirme avec <b>Export</b>, puis enregistre le fichier (Fichiers, Drive…) ou envoie-le-toi.')), helpNb(T('Un seul classeur ? Le même menu, depuis le classeur.')))}
-        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>Importer</b> (la flèche vers le bas, en haut de l\'écran) › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
+        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>…</b> (en haut à droite) › <b>Importer un fichier</b> › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
         ${step(3, T('Vérifie et importe'), helpNb(T('L\'aperçu compte tes cartes et signale les noms inconnus. <b>Ajouter</b> ou <b>Remplacer ma collection</b>, puis <b>Importer</b> : images et prix arrivent tout seuls.')))}
       </ol>
       <h3 class="cs-h">${T('Ce qui est gardé')}</h3>
@@ -38997,8 +39026,8 @@ function opnCollHead(el) {
 function opnCollBody(el, host) {
   if (!streamOn() || COLL.mode === 'decks' || !host) return false;
   opnMeta();      // prix et images des cartes pas encore lues (rechargement hors ligne…)
-  const px = $('.coll-px', el), fw = $('.coll-fwrap', el), ct = $('.coll-controls', el);
-  if (px) px.hidden = true; if (fw) fw.hidden = true; if (ct) ct.hidden = COLL.mode !== 'coll';      // ni prix réels, ni recherche, ni filtres : la session seule
+  const fw = $('.coll-fwrap', el), ct = $('.coll-controls', el);
+  if (fw) fw.hidden = true; if (ct) ct.hidden = COLL.mode !== 'coll';      // ni prix réels, ni recherche, ni filtres : la session seule
   const rows = OPN.cur.rows.slice().sort((a, b) => ((opnEu(b) || 0) * b.q - (opnEu(a) || 0) * a.q) || b.t - a.t);      // les plus chères d'abord
   host.innerHTML = COLL.mode === 'trade' ? `<div class="dv-empty opn-hide">${OPN_EYE}<b>${T('Échange masqué')}</b><p>${T('Mode streamer : ta liste d\'échange, ton lien et ton QR code reviennent à la fin de la session.')}</p><button class="btn ghost" type="button" data-opn="sheet">${T('Session en cours')}</button></div>`
     : COLL.tab === 'stats' ? opnStatsHtml(rows)
@@ -45835,8 +45864,8 @@ const TOUR_STEPS = [
   { id: 'live', at: 'trade', ok: () => typeof trocEntry === 'function' && !!(CTX.proxy && CTX.troc && D.user), el: () => tourIn('.trc-entry') || tourIn('.tr-box'),      // sans compte : sautée (rien à montrer, la ligne serait « Connecte-toi »)
     t: () => T('Échange en direct'),
     x: () => T('Cette icône lance un échange face à face, chacun sur son téléphone : vous choisissez vos cartes, validez, et vos collections suivent.') },
-  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="import"]'),      // quelques cartes : le bouton de la collection
-    t: () => T('Importer un fichier'), x: () => tourImportX() },
+  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="menu"]'),      // quelques cartes : « … » de la collection (Importer un fichier, Exporter, Prix réels)
+    t: () => T('Importer un fichier'), x: () => tourImportX(), x2: () => T('Touche « … », en haut à droite, puis « Importer un fichier ».') },
   { id: 'masterset', v: 2, at: 'list', ok: () => typeof msBarHtml === 'function', el: () => tourIn('.coll-ms:not([hidden])') || tourIn('#collSeg [data-v="list"]'),
     t: () => T('Masterset'),
     x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, dans l\'ordre : en couleur tes cartes, en noir et blanc celles qui manquent. La roue crantée règle foil et variantes.')

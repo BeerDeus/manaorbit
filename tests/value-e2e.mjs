@@ -2,7 +2,7 @@
 // (seuil 10 / 25 / 50 %), bannière d'alerte (ignorer, mémorisé), pastilles ▲▼ dans la liste, sous-titre de l'accueil, actualisation manuelle, hors ligne.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, collTool } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18940 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -15,7 +15,7 @@ const alertTxt = () => p.$eval('.coll-alert', e => e.hidden ? '' : e.innerText.r
 
 /* ── collection : Sol Ring ×2, Swords, Wrath, Craterhoof, Arcane Signet (prix CM 1,50 · 1,90 · 1,50 · 9,00 · 0,40) ─────────────── */
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await collTool(p, 'import'); await p.waitForSelector('#ciText');
 await p.fill('#ciText', '2 Sol Ring\n1 Swords to Plowshares\n1 Wrath of God\n1 Craterhoof Behemoth\n1 Arcane Signet'); await p.waitForTimeout(150); await p.click('#ciGo');
 await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length >= 5, null, { timeout: 8000 });
 

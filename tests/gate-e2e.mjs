@@ -5,7 +5,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, collTool } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18985 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -81,11 +81,12 @@ assert.ok(await visible(p, '#collSeg'), 'onglets visibles avec une collection vi
 assert.deepEqual(await p.$$eval('#collSeg .seg-opt', b => b.map(x => x.dataset.v)), ['list', 'places', 'stats'], 'Ma collection : Cartes · Rangement · Stats (Échange et Decks dans la barre du bas)');
 assert.match(await txt(p, '.coll-main .dv-empty'), /^Pas encore de cartes Scanne tes cartes pour débuter\. Scanner des cartes Importer un fichier Ajouter des cartes Pour 1 000 cartes ou plus/);
 assert.deepEqual(await p.$$eval('.coll-main .coll-cta .btn', b => b.map(x => [x.dataset.act, x.classList.contains('ghost')].join())), ['scan,false', 'import,true', 'add,true'], 'Scanner en premier (bouton plein)');
-assert.equal(await visible(p, '.coll-px'), false, 'pas de bouton « € » sans carte'); assert.equal(await visible(p, '.coll-fwrap'), false, 'ni recherche, ni filtres, ni tri');
+await p.click('.coll.on .coll-tools [data-act="menu"]'); await p.waitForSelector('.sheet-wrap.open.cm-sheet');
+assert.deepEqual(await p.$$eval('.cm-sheet .cm-opt', b => b.map(x => x.dataset.cm)), ['import', 'swg'], '« … » sans carte : ni Exporter ni Prix réels'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open')); assert.equal(await visible(p, '.coll-fwrap'), false, 'ni recherche, ni filtres, ni tri');
 await shot(p, '1-cartes-vide');
 await p.click('.coll-main [data-act="add"]'); await p.waitForSelector('.lot.on #caName', { timeout: 5000 }); await p.keyboard.press('Escape');
 await p.waitForFunction(() => !document.querySelector('.lot'), null, { timeout: 5000 }); assert.ok(await p.$('.coll.on'), 'la collection reste ouverte');
-ok('Cartes : « Pas encore de cartes », Scanner des cartes / Importer un fichier / Ajouter des cartes (écran « Ajouter des cartes » ouvert), ni € ni filtres');
+ok('Cartes : « Pas encore de cartes », Scanner des cartes / Importer un fichier / Ajouter des cartes (écran « Ajouter des cartes » ouvert), « … » sans Exporter ni Prix réels, ni filtres');
 await tab(p, 'stats');
 assert.match(await txt(p, '.coll-main .dv-empty'), /^Pas encore de stats .* Scanner des cartes$/); assert.ok(await p.$('.coll-main [data-act="scan"]'));
 await shot(p, '1b-stats-vide');
@@ -180,11 +181,10 @@ await A.ctx.close();
   ok('appli : Decks › À monter → écran de connexion');
   // import de 10 cartes : le coup d'œil ne calcule rien des decks EDHREC sans compte, il mène à l'écran de connexion
   const hits0 = edhHits;
-  await g.click('#nav [data-nav="coll"]'); await g.waitForSelector('.coll.m-coll.on'); await g.click('.coll.m-coll .coll-tools [data-act="import"]'); await g.waitForSelector('#ciText');
+  await g.click('#nav [data-nav="coll"]'); await g.waitForSelector('.coll.m-coll.on'); await collTool(g, 'import', '.coll.m-coll'); await g.waitForSelector('#ciText');
   await g.fill('#ciText', ['Sol Ring', 'Swords to Plowshares', 'Arcane Signet', 'Wrath of God', 'Craterhoof Behemoth', 'Command Tower', 'Llanowar Elves', "Ranger's Hawk", 'Edgar Markov', 'Phantom Card'].map(n => '1 ' + n).join('\n')); await g.waitForTimeout(200); await g.click('#ciGo');
   await g.waitForSelector('.sheet-wrap.open .gl-tiles', { timeout: 6000 }); await g.waitForSelector('.gl-edh');
   assert.equal(await txt(g, '.gl-edh'), 'Decks EDHREC à finir avec tes cartes : réservés aux comptes Voir'); assert.equal(edhHits, hits0, 'coup d\'œil sans compte : fichier EDHREC non téléchargé');
-  assert.equal(await g.$eval('.coll.m-coll .coll-px', e => !!e.offsetParent), true, 'avec des cartes : bouton « € » de retour');
   await g.click('.gl-edh [data-g="decks"]'); await sheetGone(g); await g.waitForSelector('.gate[data-gate="out"]');
   assert.equal(await g.evaluate(() => EDH.budget), 0, 'pas de filtre « ≤ 60 € » posé derrière l\'écran');
   ok('coup d\'œil après import, sans compte : « Decks EDHREC à finir… réservés aux comptes », Voir → écran de connexion, rien de téléchargé');

@@ -96,8 +96,8 @@ const TOUR_STEPS = [
   { id: 'live', at: 'trade', ok: () => typeof trocEntry === 'function' && !!(CTX.proxy && CTX.troc && D.user), el: () => tourIn('.trc-entry') || tourIn('.tr-box'),      // sans compte : sautée (rien à montrer, la ligne serait « Connecte-toi »)
     t: () => T('Échange en direct'),
     x: () => T('Cette icône lance un échange face à face, chacun sur son téléphone : vous choisissez vos cartes, validez, et vos collections suivent.') },
-  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="import"]'),      // quelques cartes : le bouton de la collection
-    t: () => T('Importer un fichier'), x: () => tourImportX() },
+  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="menu"]'),      // quelques cartes : « … » de la collection (Importer un fichier, Exporter, Prix réels)
+    t: () => T('Importer un fichier'), x: () => tourImportX(), x2: () => T('Touche « … », en haut à droite, puis « Importer un fichier ».') },
   { id: 'masterset', v: 2, at: 'list', ok: () => typeof msBarHtml === 'function', el: () => tourIn('.coll-ms:not([hidden])') || tourIn('#collSeg [data-v="list"]'),
     t: () => T('Masterset'),
     x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, dans l\'ordre : en couleur tes cartes, en noir et blanc celles qui manquent. La roue crantée règle foil et variantes.')

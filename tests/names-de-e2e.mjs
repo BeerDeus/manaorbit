@@ -4,7 +4,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome, slug } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, slug, collTool } from './e2e-world.mjs';
 
 const SHOTS = process.env.SHOTS || ''; if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const shot = async (p, n) => { if (SHOTS) { await p.waitForTimeout(350); await p.screenshot({ path: `${SHOTS}/${n}.png` }); } };
@@ -71,7 +71,7 @@ ok('langue des cartes changée : anglais → aucun catalogue ; retour à l\'alle
 
 /* ── 2) import d'une liste allemande ───────────────────────────────────────────────────────── */
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await collTool(p, 'import'); await p.waitForSelector('#ciText');
 assert.equal(await p.$eval('#ciLang', s => s.value), 'en', 'langue de ces cartes : celle de l\'utilisateur (anglais choisi)'); await p.selectOption('#ciLang', 'de'); assert.equal(await p.$eval('#ciText', t => t.placeholder), '3 Sol Ring\n1 Blitzschlag');
 assert.match(await txt(p, '.ci-lhint'), /a German name counts as a German card/);
 await p.fill('#ciText', '2 Blitzschlag\n1 Zorn Gottes\n1 Rhystische Studien\n3 Sol Ring');

@@ -4,7 +4,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync } from 'node:fs';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome, slug, signInFake } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, slug, signInFake, collTool } from './e2e-world.mjs';
 
 const SHOTS = process.env.FR_SHOTS || 'shots';
 mkdirSync(SHOTS, { recursive: true });
@@ -86,7 +86,7 @@ ok('relevé du serveur : vignettes sans requête (catalogue français), au lieu 
 
 /* ── 2) import de collection en français : langue des cartes, noms à vérifier avant l'import ─────── */
 await p.click('#btnBack'); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await collTool(p, 'import'); await p.waitForSelector('#ciText');
 assert.equal(await p.$eval('#ciLang', s => s.value), 'fr', 'langue de ces cartes : celle de l\'interface');
 const LIST = ['2 Anneau solaire', '1 Retour au pays', '1 Cachet d\'ésotérisme', '1 Colère de Dieu', '1 Béhémoth caveur de cratères', '1 Tour de commandement', '1 Elfes de Llanowar', '1 Faucon du rôdeur', '1 Edgar Markov', '1 Foudre', '1 Rhystik Study', '1 Éclair fourchu'];
 await p.fill('#ciText', LIST.join('\n'));
@@ -136,7 +136,7 @@ assert.equal(await p.evaluate(() => !!COLL.map['eclair fourchu']), false); asser
 ok('Supprimer : la ligne inconnue sort de la collection (annulable)');
 
 /* ── 5) cartes sans langue → en une fois ; saisie « Anneau solaire » ──────────────────────────── */
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText'); await p.selectOption('#ciLang', ''); await p.fill('#ciText', '2 Counterspell'); await p.waitForTimeout(200); await p.click('#ciGo'); await sheetGone();
+await collTool(p, 'import'); await p.waitForSelector('#ciText'); await p.selectOption('#ciLang', ''); await p.fill('#ciText', '2 Counterspell'); await p.waitForTimeout(200); await p.click('#ciGo'); await sheetGone();
 await p.waitForSelector('.coll-nolang'); assert.match(await txt(p, '.coll-nolang'), /^1 carte sans langue → Français Anglais/);
 await p.click('.coll-nolang [data-l="en"]'); await p.waitForFunction(() => !document.querySelector('.coll-nolang'));
 assert.equal(await p.evaluate(() => COLL.map.counterspell.l), 'en'); assert.match(await txt(p, '#toast'), /1 carte passée en anglais/);

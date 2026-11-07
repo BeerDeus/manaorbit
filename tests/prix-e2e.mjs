@@ -1,7 +1,7 @@
 // E2E « Prix réels » de la collection : offre CardTrader la moins chère par carte, filtre de langue, lots, valeur, arrêt, persistance.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, collTool } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18930 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -9,7 +9,7 @@ const { p, errs } = await newPage(browser, world);
 const tags = k => p.$$eval(`.crow[data-k="${k}"] .px`, t => t.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 const idle = () => p.waitForFunction(() => !COLL.pxRun, null, { timeout: 40000 });
 const langsReq = bp => world.log.filter(l => l.path === 'marketplace/products' && Number(l.q.blueprint_id) === bp).map(l => l.q.language);
-const openPx = async () => { await p.click('.coll-px'); await p.waitForSelector('.sheet-wrap.open #pxLang'); };
+const openPx = async () => { await collTool(p, 'prices'); await p.waitForSelector('.sheet-wrap.open #pxLang'); };
 const sumTxt = () => txt(p, '#pxSum');
 
 // collection : 2 Sol Ring (fr), Swords (sans langue → langue de la recherche), Craterhoof (en), Ranger's Hawk (fr, aucune offre), Edgar Markov (fr) + 10 Plains (ignorés)
@@ -17,7 +17,8 @@ await p.evaluate(() => { COLL.map = { 'sol ring': { n: 'Sol Ring', q: 2, l: 'fr'
 world.en[104] = 700;                                    // Craterhoof : 7,00 € en anglais (estimation Cardmarket 9,00 €)
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length >= 5, null, { timeout: 8000 }).catch(async e => { console.log('DEBUG', await p.evaluate(() => JSON.stringify({ map: COLL.map, meta: COLL.meta, rows: document.querySelectorAll('.crow').length, st: document.querySelector('.coll-status').textContent, enr: COLL.enrichErr }))); throw e; });
-assert.equal(await p.$$eval('.coll-px', b => b.length), 1); assert.match(await p.getAttribute('.coll-px', 'aria-label'), /prix réels/i);
+await p.click('.coll.on .coll-tools [data-act="menu"]'); await p.waitForSelector('.sheet-wrap.open.cm-sheet');
+assert.match(await txt(p, '.cm-sheet .cm-opt[data-cm="prices"]'), /^Prix réels CardTrader L'offre la moins chère de chaque carte/, '« … » › Prix réels CardTrader, avec ce qu\'il fait'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
 await p.screenshot({ path: 'shots/px-0-bouton.png' });
 
 /* 1) feuille : filtre de langue avec les effectifs, portée, critères repris de la recherche */

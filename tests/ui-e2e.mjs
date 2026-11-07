@@ -2,7 +2,7 @@
 // reflet du total, fondu des onglets de la collection, illustration de collection vide.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, closeSheets } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, closeSheets, collTool } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18940 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -58,7 +58,7 @@ ok('vues : sens des transitions (fwd / back) et reflet du total');
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 assert.equal(await p.$$eval('.empty-art i', e => e.length), 3, 'collection vide : trois cartes en éventail'); assert.match(await txt(p, '.dv-empty'), /Pas encore de cartes Scanne/);
 ok('collection vide : illustration');
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await collTool(p, 'import'); await p.waitForSelector('#ciText');
 await p.fill('#ciText', '1 Sol Ring\n1 Llanowar Elves'); await p.waitForTimeout(150); await p.click('#ciGo');
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 2);
 await p.waitForTimeout(500); if (await p.$('.sheet-wrap.open')) { await p.keyboard.press('Escape'); await p.waitForTimeout(500); }

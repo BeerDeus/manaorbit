@@ -9,7 +9,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { chromium, startWorld, newPage, ok, txt, toHome, signInFake, openMe, closeSheets } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, txt, toHome, signInFake, openMe, closeSheets, collTool } from './e2e-world.mjs';
 const SHOTS = process.env.PARTAGE_SHOTS || 'shots'; mkdirSync(SHOTS, { recursive: true });
 
 const world = await startWorld({ port: 19250 });
@@ -38,7 +38,7 @@ const PNG_SIG = '137,80,78,71,13,10,26,10';
   const { p, errs } = await newPage(browser, world); errsAll.push(errs);
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
   assert.ok(await p.$('.coll.on .coll-swg'), 'collection vide : « Venir de ManaBox »');
-  await p.click('.coll.on .coll-tools [data-act="import"]'); await p.waitForSelector('.sheet-wrap.open #ciFile');
+  await collTool(p, 'import'); await p.waitForSelector('.sheet-wrap.open #ciFile');
   assert.match(await txt(p, '.sheet-wrap.open .ci-swg'), /Ta collection est dans une autre appli \? Venir de ManaBox/);
   await p.click('.sheet-wrap.open [data-swg="open"]'); await sheetOpen(p, 'swg-sheet');
   assert.equal(await txt(p, '.swg-sheet .sheet-head h2'), 'Venir de ManaBox');

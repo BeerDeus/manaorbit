@@ -1,0 +1,11 @@
+/* ── uicol.css : pistes d'interface de l'audit du 6 novembre (collection, scan, Ajouter des cartes, recherches enregistrées, premier lancement) ── */
+
+/* « … » de « Ma collection » (collection.js › openCollMenu) : une action par ligne, son nom et ce qu'elle fait */
+.cm-opts{display:flex;flex-direction:column;gap:8px}
+.cm-opt{display:flex;align-items:center;gap:14px;min-height:60px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cm-opt>.i{flex:none;width:24px;height:24px;color:var(--accent)}
+.cm-opt span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cm-opt b{font-size:15px;font-weight:650}
+.cm-opt small{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
+.cm-opt:active{background:var(--surface-2)}
+.cm-opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

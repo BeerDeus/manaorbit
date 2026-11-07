@@ -1395,7 +1395,7 @@ function collPaintBody(keep) {
   const v = collAll(), all = v.all, none = !all.length;
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
-  $('.coll-px', el).hidden = none || mkUs(); $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
+  $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
   $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); if (typeof cvwPaint === 'function') cvwPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // cvwPaint : tri, vue, réglages de l'échange (densite.js)
   if (!keep && typeof cvwHead === 'function') cvwHead();      // carte de valeur : onglet Stats seulement      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
@@ -1436,6 +1436,24 @@ function collMore() {
   const left = sorted.length - COLL.shown;
   if (left > 0) btn.textContent = moreLabel(left, COLL_PAGE); else btn.remove();
 }
+/** « … » de « Ma collection » (audit du 6 novembre, U5) : les actions rares, chacune avec son nom et ce qu'elle fait (les icônes seules ↓ ↑ € se lisaient mal) ;
+ *  « + » (Ajouter des cartes) reste dans l'en-tête. Sans carte : Importer et ManaBox seulement ; prix réels : pas sur le marché TCGplayer (mkUs). */
+function openCollMenu() {
+  const n = collCount(), row = (k, ic, t, sub) => `<button type="button" class="cm-opt" data-cm="${k}"><svg class="i" aria-hidden="true"><use href="#${ic}"/></svg><span><b>${t}</b><small>${sub}</small></span></button>`;
+  haptic('tap');
+  openSheet(T('Ma collection'), n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(collCopies(), '{n} exemplaire', '{n} exemplaires') : '', api => {
+    api.wrap.classList.add('cm-sheet');
+    api.body.innerHTML = `<div class="cm-opts">${row('import', 'i-download', T('Importer un fichier'), T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».'))}
+      ${n ? row('export', 'i-upload', T('Exporter ma collection'), T('Un fichier CSV ou texte : à garder, ou à ouvrir dans une autre appli.')) : ''}
+      ${n && !mkUs() ? row('prices', 'i-coin', T('Prix réels CardTrader'), T('L\'offre la moins chère de chaque carte, à la place de l\'estimation Cardmarket.')) : ''}
+      ${row('swg', 'i-swap', T('Venir de ManaBox'), T('Le guide en 2 minutes : exporter, puis importer ici.'))}</div>`;
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('[data-cm]'); if (!b) return;
+      const k = b.dataset.cm; api.close();
+      if (k === 'import') openCollImport(); else if (k === 'export') collExport(); else if (k === 'prices') openCollPrices(); else if (k === 'swg') swgOpen({ from: 'coll' });
+    });
+  });
+}
 function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */
 /** Trois sections sur le même écran (barre du bas, nav.js) : « Ma collection » (Cartes · Stats), « Échange » (liste d'échange seule)
@@ -1452,8 +1470,7 @@ function openCollection(tab) {
   const md = COLL.mode, title = md === 'trade' ? T('Échange') : md === 'decks' ? T('Decks') : T('Ma collection');
   const wrap = document.createElement('div'); wrap.className = `dv coll sec m-${md}${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', title);
   const tools = md === 'coll' ? `<button class="icon-btn" type="button" data-act="add" aria-label="${T('Ajouter des cartes')}" title="${T('Ajouter des cartes')}"><svg class="i"><use href="#i-plus"/></svg></button>
-        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier')}" title="${T('Importer un fichier')}"><svg class="i"><use href="#i-download"/></svg></button>
-        <button class="icon-btn" type="button" data-act="export" aria-label="${T('Exporter ma collection')}" title="${T('Exporter')}"><svg class="i"><use href="#i-upload"/></svg></button>`
+        <button class="icon-btn" type="button" data-act="menu" aria-haspopup="dialog" aria-label="${T('Importer, exporter…')}" title="${T('Importer, exporter…')}"><svg class="i"><use href="#i-more"/></svg></button>`
     : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="dv-title"><b>${title}</b>${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}<span></span></div>
@@ -1463,7 +1480,7 @@ function openCollection(tab) {
       <div class="coll-sync" hidden></div>
       <div class="coll-status" hidden></div>
       <div class="coll-alert" hidden></div>
-      <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div><button class="icon-btn coll-px" type="button" data-act="prices" aria-label="${T('Lire les prix réels des cartes (CardTrader)')}" title="${T('Prix réels')}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg></button></div>
+      <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div></div>
         <div class="coll-fwrap"><div id="collF"></div><div class="coll-srow"><label class="sortsel coll-sort"><span>${T('Trier')}</span><select id="collSort" aria-label="${T('Trier la collection')}">${SORT_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>${md === 'coll' && typeof msBarHtml === 'function' ? msBarHtml() : ''}</div><div class="coll-when" id="collWhen" hidden></div></div></div>
       <div class="coll-main"></div></div></div>`;
   COLL.el = wrap; const prevFocus = document.activeElement;
@@ -1514,6 +1531,7 @@ function openCollection(tab) {
       const act = b.dataset.act;
       if (act === 'close') wrap.__close();
       else if (act === 'add') openLot();
+      else if (act === 'menu') openCollMenu();
       else if (act === 'ed') { const r = b.closest('.crow'); if (r && r.dataset.k) collEdPick(r.dataset.k, rowG(r)); }
       else if (act === 'scan') openScan();
       else if (act === 'dnew') openDeckNew();

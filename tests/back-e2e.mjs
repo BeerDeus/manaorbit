@@ -1,7 +1,7 @@
 // E2E : bouton Retour du téléphone : ferme l'écran ouvert ; sur l'accueil, double Retour pour quitter ; couleurs d'un deck.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, collTool } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18970 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -34,7 +34,7 @@ await back(); await p.waitForFunction(() => !document.querySelector('.dks'), nul
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 await back(); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 }); assert.equal(p.url(), url, 'même page');
 // 2) feuille au-dessus de la collection : Retour ferme la feuille d'abord, puis la collection
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll [data-act="import"]'); await p.waitForSelector('.sheet-wrap.open');
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await collTool(p, 'import'); await p.waitForSelector('.sheet-wrap.open');
 await back(); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 }); assert.ok(await p.$('.coll.on'), 'la collection reste ouverte');
 await back(); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 });
 // 3) « Ajouter des cartes » au-dessus de la collection : Retour (et Échap) ferme seulement cette page
