@@ -2,5 +2,10 @@
   "Ouvrir dans Prix d'une liste": "Abrir em Preço de uma lista",
   "La liste de ce deck dans l'onglet Prix d'une liste : la modifier, chercher des offres": "A lista deste deck na aba Preço de uma lista: editá-la, procurar ofertas",
   "Plus d'actions": "Mais ações",
-  "7 cartes au hasard et les chances d'avoir 2 à 4 terrains": "7 cartas ao acaso e as chances de ter de 2 a 4 terrenos"
+  "7 cartes au hasard et les chances d'avoir 2 à 4 terrains": "7 cartas ao acaso e as chances de ter de 2 a 4 terrenos",
+  "Supprimer ce deck": "Excluir este deck",
+  "Annulable quelques secondes": "Pode ser desfeito por alguns segundos",
+  "{n} exemplaire de ta collection réservé pour ce deck.": "{n} cópia da sua coleção reservada para este deck.",
+  "{n} exemplaires de ta collection réservés pour ce deck.": "{n} cópias da sua coleção reservadas para este deck.",
+  "Réserve ses cartes de ta collection pour ce deck.": "Reserva as cartas dele da sua coleção para este deck."
 }

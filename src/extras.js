@@ -114,8 +114,8 @@ function engBindSwitch(id, cb, hint) {
   const paint = () => {
     const n = engCount(id); cb.checked = engIsOn(id);
     hint.textContent = cb.checked
-      ? TN(n, '{n} exemplaire de ta collection réservé pour ce deck : ils ne sont plus déduits du panier des autres decks.', '{n} exemplaires de ta collection réservés pour ce deck : ils ne sont plus déduits du panier des autres decks.')
-      : T('Réserve les cartes de ta collection qui sont dans ce deck : elles ne seront plus déduites du panier de tes autres decks.');
+      ? TN(n, '{n} exemplaire de ta collection réservé pour ce deck.', '{n} exemplaires de ta collection réservés pour ce deck.')
+      : T('Réserve ses cartes de ta collection pour ce deck.');
   };
   paint();
   cb.onchange = () => {

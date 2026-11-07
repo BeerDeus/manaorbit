@@ -366,14 +366,15 @@ function openDeckSheet(id) {
     api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Infos du deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
       <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Mettre dans Je recherche')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
-      ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
+      <div class="mo-acts dk-acts">${typeof plcFetchSheet === 'function' ? `<button class="mo-act dk-find" type="button" id="dkFind"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><b>${T('Où trouver mes cartes')}</b><small>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</small></span></button>` : ''}
+        <button class="mo-act" type="button" id="dkDup"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span><b>${T('Dupliquer ce deck')}</b></span></button>
+        <button class="mo-act" type="button" id="dkOwn"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span><b>${T('Ajouter ses cartes à ma collection')}</b></span></button>
+        <button class="mo-act danger" type="button" id="dkDel"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg><span><b>${T('Supprimer ce deck')}</b><small>${T('Annulable quelques secondes')}</small></span></button></div>
       <div class="sec-title">${T('Historique des prix')}</div>
       ${series.length >= 2 ? chartSvg(series, Math.max(220, (api.body.clientWidth || 376) - 36)) + `<div class="chart-cap"><span>${esc(dateShort(same[0].at))}</span><span>${T('{n} relevés · de {min} à {max}', { n: series.length, min: esc(fmt(Math.min(...series))), max: esc(fmt(Math.max(...series))) })}</span><span>${esc(dateShort(lastE.at))}</span></div>` : ''}
-      ${rows ? `<div class="hist">${rows}</div>` : '<p class="hint">' + T('Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.') + '</p>'}
-      <button class="link-btn link-inline" type="button" id="dkDup">${T('Dupliquer ce deck')}</button>
-      <button class="link-btn link-inline" type="button" id="dkOwn">${T('Ajouter ses cartes à ma collection')}</button>`;
-    api.setFoot(`<button class="btn ghost-danger" type="button" id="dkDel">${T('Supprimer')}</button><button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
+      ${rows ? `<div class="hist">${rows}</div>` : '<p class="hint">' + T('Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.') + '</p>'}`;      // actions du deck en liste (Où trouver mes cartes, Dupliquer, Ajouter ses cartes, Supprimer en rouge) avant l'historique : visibles sans défiler
+    api.setFoot(`<button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
     $('#dkOpen', api.foot).onclick = () => { api.close(); loadDeck(id); };
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // « Infos du deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
@@ -426,11 +427,7 @@ function openDeckSheet(id) {
       putDeck(nid, deckDoc({ ...cur, name: (cur.name + ' ' + T('(copie)')).slice(0, 120), history: [], createdAt: Date.now() }));
       api.close(); toast(T('Deck dupliqué'));
     };
-    const del = $('#dkDel', api.foot); let armed = 0;
-    del.onclick = () => {
-      if (!armed) { armed = setTimeout(() => { armed = 0; del.textContent = T('Supprimer'); del.className = 'btn ghost-danger'; }, 4000); del.textContent = T('Confirmer'); del.className = 'btn danger'; return; }
-      clearTimeout(armed); api.close(); dkDelete(id);      // annulable quelques secondes (dkDelete)
-    };
+    $('#dkDel', api.body).onclick = () => { haptic('tap'); api.close(); dkDelete(id); };      // un appui : annulable 7 s (« Annuler » du message, dkDelete)
   });
 }
 

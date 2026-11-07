@@ -2,5 +2,10 @@
   "Ouvrir dans Prix d'une liste": "Open in Price a list",
   "La liste de ce deck dans l'onglet Prix d'une liste : la modifier, chercher des offres": "This deck's list in the Price a list tab: edit it, find offers",
   "Plus d'actions": "More actions",
-  "7 cartes au hasard et les chances d'avoir 2 à 4 terrains": "7 random cards and the odds of drawing 2 to 4 lands"
+  "7 cartes au hasard et les chances d'avoir 2 à 4 terrains": "7 random cards and the odds of drawing 2 to 4 lands",
+  "Supprimer ce deck": "Delete this deck",
+  "Annulable quelques secondes": "Can be undone for a few seconds",
+  "{n} exemplaire de ta collection réservé pour ce deck.": "{n} copy from your collection reserved for this deck.",
+  "{n} exemplaires de ta collection réservés pour ce deck.": "{n} copies from your collection reserved for this deck.",
+  "Réserve ses cartes de ta collection pour ce deck.": "Reserves its cards from your collection for this deck."
 }

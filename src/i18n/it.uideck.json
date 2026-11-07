@@ -2,5 +2,10 @@
   "Ouvrir dans Prix d'une liste": "Apri in Prezzo di una lista",
   "La liste de ce deck dans l'onglet Prix d'une liste : la modifier, chercher des offres": "La lista di questo mazzo nella scheda Prezzo di una lista: modificarla, cercare offerte",
   "Plus d'actions": "Altre azioni",
-  "7 cartes au hasard et les chances d'avoir 2 à 4 terrains": "7 carte a caso e le probabilità di avere da 2 a 4 terre"
+  "7 cartes au hasard et les chances d'avoir 2 à 4 terrains": "7 carte a caso e le probabilità di avere da 2 a 4 terre",
+  "Supprimer ce deck": "Elimina questo mazzo",
+  "Annulable quelques secondes": "Annullabile per qualche secondo",
+  "{n} exemplaire de ta collection réservé pour ce deck.": "{n} copia della tua collezione riservata a questo mazzo.",
+  "{n} exemplaires de ta collection réservés pour ce deck.": "{n} copie della tua collezione riservate a questo mazzo.",
+  "Réserve ses cartes de ta collection pour ce deck.": "Riserva le sue carte della tua collezione per questo mazzo."
 }

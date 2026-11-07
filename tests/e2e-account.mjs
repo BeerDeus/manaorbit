@@ -153,11 +153,13 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await p.click('#dkDup'); await sheetGone(p); await p.waitForTimeout(200);
   assert.equal(await p.$$eval('.deck-name', n => n.map(x => x.textContent).sort().join('|')), 'Renommé|Renommé (copie)'); ok('dupliquer');
   await p.click('.deck:first-child .deck-more'); await sheetOpen(p);
-  await p.click('#dkDel'); assert.equal(await T(p, '#dkDel'), 'Confirmer'); await p.click('#dkDel'); await sheetGone(p); await p.waitForTimeout(200);
-  assert.equal(await p.$$eval('.deck', n => n.length), 1); ok('supprimer en deux temps');
+  assert.deepEqual(await p.$$eval('.sheet-wrap.open .mo-act b', n => n.map(x => x.textContent)), ['Où trouver mes cartes', 'Dupliquer ce deck', 'Ajouter ses cartes à ma collection', 'Supprimer ce deck'], 'actions du deck en liste');
+  assert.equal(await p.$eval('#dkDel', b => b.classList.contains('danger')), true, 'Supprimer en rouge'); assert.deepEqual(await p.$$eval('.sheet-wrap.open .sheet-foot .btn', n => n.map(x => x.textContent)), ['Ouvrir'], 'pied : Ouvrir seul');
+  await p.click('#dkDel'); await sheetGone(p); await p.waitForTimeout(200);
+  assert.equal(await p.$$eval('.deck', n => n.length), 1); ok('supprimer en un appui (annulable)');
   assert.match(await T(p, '#toast'), /Deck supprimé/); await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.deck').length === 2);
   assert.equal(await p.evaluate(() => DK_GONE.size), 0); ok('« Annuler » du toast : le deck revient (suppression pas encore faite)');
-  await p.click('.deck:first-child .deck-more'); await sheetOpen(p); await p.click('#dkDel'); await p.click('#dkDel'); await sheetGone(p); await p.waitForTimeout(200);
+  await p.click('.deck:first-child .deck-more'); await sheetOpen(p); await p.click('#dkDel'); await sheetGone(p); await p.waitForTimeout(200);
   assert.equal(await p.$$eval('.deck', n => n.length), 1); const goneId = await p.evaluate(() => [...DK_GONE.keys()][0]); assert.ok(goneId, 'suppression en attente');
   await p.evaluate(() => { for (const id of [...DK_GONE.keys()]) dkGoneFlush(id); }); assert.equal(await p.evaluate(id => DK_GONE.size === 0 && !findDeck(id), goneId), true); ok('suppression faite à la fin du délai (ou en arrière-plan)');
   // plus de 4 decks
