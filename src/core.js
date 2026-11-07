@@ -1204,8 +1204,8 @@ function dkValue(text, metaOf, pxOf) {
 /** Taille d'un deck comptée comme le viewer et l'éditeur (dkCheck) : tous les exemplaires, commandant et terrains de base compris, réserve et compagnon à part (deckModel).
  *  size : 100 si le format Commander est connu (noté par le créateur ou en-tête « Commander »), sinon 0. → { n, size } */
 function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
-/** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
-function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
+/** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck, le viewer et l'enregistrement. n : nombre déjà compté (viewer), sinon celui du texte. */
+function dkCountText(text, n) { const c = dkCount(text), k = n == null ? c.n : n; return c.size ? T('{n}/{size} cartes', { n: num(k), size: c.size }) : TN(k, '{n} carte', '{n} cartes'); }
 /** Couleurs d'un deck d'après ses seuls terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. Dernier recours de deckColors. */
 function dkColors(text) {
   const md = text && typeof text === 'object' ? text : deckModel(text), have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };

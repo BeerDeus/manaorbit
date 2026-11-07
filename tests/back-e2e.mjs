@@ -1,7 +1,7 @@
 // E2E : bouton Retour du téléphone : ferme l'écran ouvert ; sur l'accueil, double Retour pour quitter ; couleurs d'un deck.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, dvAct } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18970 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -59,12 +59,13 @@ await p.context().close();
   const { p: q, errs: e2 } = await newPage(browser, world, { init: own }); await q.waitForTimeout(600);
   await toHome(q); await q.click('#btnDecks'); await q.waitForSelector('.dks.on .deck'); await q.click('.deck [data-act="open"]'); await q.waitForSelector('.dv.on[aria-label^="Deck viewer"]');
   await q.waitForFunction(() => /6,50/.test((document.querySelector('.dv-eur') || {}).textContent || ''), null, { timeout: 8000 });
-  assert.equal((await q.waitForFunction(() => !document.querySelector('.dv-amt[data-tw]')), await txt(q, '.dv-eur')), '≈ 6,50 €'); assert.equal(await txt(q, '.dv[aria-label^="Deck viewer"] .dv-title span'), '4 cartes · toutes possédées');
+  assert.equal((await q.waitForFunction(() => !document.querySelector('.dv-amt[data-tw]')), await txt(q, '.dv-eur')), '≈ 6,50 €'); assert.equal(await txt(q, '.dv[aria-label^="Deck viewer"] .dv-title span'), '4/100 cartes · toutes possédées');
   assert.match(await txt(q, '.dv-cmd'), /Commandant Edgar Markov.*Dans ta collection/i); assert.equal(await q.$eval('.dv-foot [data-act="refresh"]', e => e.hidden), true, 'tout est possédé : pas de recherche d\'offres');
   assert.equal(await txt(q, '.dvc-l.own'), '✓'); assert.equal(await q.$eval('.dv-g[data-g="land"] .dvc', e => e.dataset.s), 'basic', 'terrains de base à part, sans prix');
-  assert.equal(await q.$eval('.dv-foot [data-act="edit"]', e => e.hidden), false); ok('deck 100 % possédé : viewer en valeur estimée, commandant, ✓, pas de « Chercher les offres »');
-  // « Revenir à la liste » charge le deck ; tout étant possédé, la recherche d'offres reste désactivée
-  await q.click('.dv-foot [data-act="edit"]'); await q.waitForFunction(() => !document.querySelector('.dv'), null, { timeout: 3000 });
+  assert.equal(await q.$eval('.dv-foot [data-act="edit"]', e => e.hidden), true, 'ouvert depuis Mes decks : pas de « Revenir à la liste »'); assert.equal(await q.$eval('.dv-foot', e => e.hidden), true, 'pied vide : caché');
+  ok('deck 100 % possédé : viewer en valeur estimée, commandant, ✓, pas de « Chercher les offres »');
+  // « Ouvrir dans Prix d'une liste » (menu « Plus ») charge le deck ; tout étant possédé, la recherche d'offres reste désactivée
+  await dvAct(q, '.dv-load'); await q.waitForFunction(() => !document.querySelector('.dv'), null, { timeout: 3000 });
   assert.equal(await q.$eval('#btnRun', b => b.disabled), true); assert.match(await txt(q, '#btnRunLabel'), /Tout est dans ta collection/); ok('modifier la liste : charge le deck, rien à chercher');
   assert.deepEqual(e2, [], 'aucune erreur console'); await q.context().close();
 }

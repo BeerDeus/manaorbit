@@ -16,7 +16,7 @@ export const OPEN = {
   'home-value': '', 'coll-places': "openCollection('places')", 'coll-value': `openCollection('stats'); ${W(500)}; document.querySelector('.coll .vl-box').scrollIntoView({ block: 'center' })`,
   'price-list': "dkTabGo('price')", 'viewer-sum': `openDeckViewer({ id: ${DK} })`, 'badge-sheet': `prgSheet(); ${W(600)}; document.querySelector('.prg-sheet .prg-b .prg-ic').click()`,
   'deck-sheet': `openDecks(); ${W(500)}; openDeckSheet(${DK})`, 'deck-cover': `openDeckSheet(${DK}); ${W(500)}; document.getElementById('dkEdit').click(); ${W(500)}; document.getElementById('dkCover').click()`,
-  'viewer-hand': `openDeckViewer({ id: ${DK} }); ${W(900)}; document.querySelector('.dvw [data-act="hand"]').click()`, 'deck-share': `openDeckViewer({ id: ${DK} }); ${W(900)}; document.querySelector('.dvw .dv-head [data-act="share"]').click()`,
+  'viewer-hand': `openDeckViewer({ id: ${DK} }); ${W(900)}; dvAct('hand')`, 'deck-share': `openDeckViewer({ id: ${DK} }); ${W(900)}; document.querySelector('.dvw .dv-head [data-act="share"]').click()`,
   'deck-build': `openBuilder({ id: ${DK} })`, 'coll-import': `openCollection('list'); ${W(500)}; document.querySelector('.coll [data-act="import"]').click()`, 'help-switch': `openHelp(); ${W(500)}; swgOpen({ from: 'help' })`,
   'card-add': CS('[data-cs="add"]'), 'card-deck': CS('[data-cs="adddeck"]'), 'card-ed': CS('.cs-ln [data-act="ed"]'), 'card-copy': CS('.cs-ln [data-act="cex"]'),
   'filt-set': `openCollection('list'); ${W(500)}; document.querySelector('.coll .fbtn').click(); ${W(300)}; document.querySelector('.coll .fset').click()`,

@@ -1517,9 +1517,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .imgv-wish.on{background:rgba(255,212,121,.16);border-color:#ffd479;color:#ffd479}
 .imgv-wish[hidden]{display:none}
 .set-ver{margin:14px 0 0;text-align:center;font-family:var(--font-code);font-size:11.5px}
-.dv-acts{margin-top:2px}.dv-acts .btn,.tr-wacts .btn{flex:1 1 auto;height:44px;font-size:14px}
-.dv-acts .btn{flex-basis:calc(50% - 4px);min-width:min(100%,10.5em);height:auto;min-height:44px;padding:6px 10px;font-size:13.5px;line-height:1.15}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière : min-width en em, police agrandie → jamais trois lignes), la liste des cartes remonte d'autant */
-.dv-acts .dv-ana{flex-basis:100%}      /* Coach (decks Commander) : toute la ligne, en tête */
+.tr-wacts .btn{flex:1 1 auto;height:44px;font-size:14px}
 .tr-wacts{margin-bottom:10px}
 .tr-wrule{margin:-4px 0 10px}
 .al-entry{margin:0 0 12px}
@@ -7346,6 +7344,35 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 @media (min-width:700px){.trc-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}}
 @media (prefers-reduced-motion:reduce){.trc-card.new .trc-art,.trc-tick,.trc-ln.pop,.trc-net .dot{animation:none}.trc-mark,.trc-art,.trc-ln{transition:none}}
 
+/* ── Viewer d'un deck : deux actions principales, une rangée légère, le reste dans « Plus » (viewer.js › dvActsHtml, dvMenu) ── */
+.dvw>.dv-head .dv-title{flex:1 1 auto}      /* titre sur toute la largeur : le partage reste au bord droit, même après un nom court */
+.dv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.dv-acts.one{grid-template-columns:1fr}
+.dv-acts:empty{display:none}
+.dv-acts .btn{min-width:0;height:auto;min-height:46px;padding:6px 10px;gap:7px;font-size:14.5px;line-height:1.15}
+.dv-acts .btn .i{flex:none;width:18px;height:18px}
+.dv-acts .btn span{min-width:0;text-align:center}
+@media (max-width:379px){.dv-acts .btn .i{display:none}}      /* 360 px : « Deck bearbeiten » tient sur une ligne sans l'icône (jamais coupé) */
+.dv-acts2{display:flex;align-items:center;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin:2px -6px -6px}
+.dv-lt{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 6px;border:0;border-radius:10px;background:none;color:var(--accent);font:inherit;font-size:13.5px;font-weight:600;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dv-lt .i{flex:none;width:17px;height:17px}
+.dv-lt:active{background:var(--accent-soft)}
+.dv-lt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dv-lt.dv-more{margin-left:auto;color:var(--ink-2)}
+/* Liste d'actions d'une feuille (menu « Plus » du viewer, feuille ⋯ d'un deck) : une ligne par action, la dangereuse en rouge */
+.mo-acts{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);overflow:hidden}
+.mo-act{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mo-act:first-child{border-top:0}
+.mo-act:active{background:var(--surface-2)}
+.mo-act:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mo-act>.i{flex:none;width:20px;height:20px;color:var(--accent)}
+.mo-act>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mo-act b{font-size:15px;font-weight:600}
+.mo-act small{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
+.mo-act.danger b,.mo-act.danger>.i{color:var(--bad)}
+.mo-act.on b{color:var(--good)}
+.mo-h{margin:18px 2px 8px;font-size:13px;font-weight:650;color:var(--ink-2)}
+
 /* zoom.css : vignettes qui ouvrent la carte en grand (zoom.js) : curseur, zone de toucher d'au moins 44 px, focus au clavier */
 .thumb[data-zoom]{cursor:zoom-in;overflow:visible}                                     /* pas de rognage : la zone de toucher déborde (::before) */
 .thumb[data-zoom] img{border-radius:inherit}
@@ -8092,8 +8119,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '72aa4e51';
-const I18N_FILES = {"de":"i18n/de.402df391.js","en":"i18n/en.3a8120cf.js","es":"i18n/es.4ca61341.js","it":"i18n/it.81841b53.js","pt":"i18n/pt.4bf8f30f.js"};
+const DD_BUILD = 'f328d13a';
+const I18N_FILES = {"de":"i18n/de.97b3b5bc.js","en":"i18n/en.1f28e328.js","es":"i18n/es.6c5ad084.js","it":"i18n/it.a5180054.js","pt":"i18n/pt.fc081b68.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9527,8 +9554,8 @@ function dkValue(text, metaOf, pxOf) {
 /** Taille d'un deck comptée comme le viewer et l'éditeur (dkCheck) : tous les exemplaires, commandant et terrains de base compris, réserve et compagnon à part (deckModel).
  *  size : 100 si le format Commander est connu (noté par le créateur ou en-tête « Commander »), sinon 0. → { n, size } */
 function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
-/** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
-function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
+/** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck, le viewer et l'enregistrement. n : nombre déjà compté (viewer), sinon celui du texte. */
+function dkCountText(text, n) { const c = dkCount(text), k = n == null ? c.n : n; return c.size ? T('{n}/{size} cartes', { n: num(k), size: c.size }) : TN(k, '{n} carte', '{n} cartes'); }
 /** Couleurs d'un deck d'après ses seuls terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. Dernier recours de deckColors. */
 function dkColors(text) {
   const md = text && typeof text === 'object' ? text : deckModel(text), have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
@@ -19475,8 +19502,8 @@ const DV_SORT_KEY = 'deckdeal:dv-sort';
 const DV = { anim: false, el: null, sort: 'mana', snap: null, deckId: null, name: '', live: false, adhoc: false, pub: false, prevFocus: null, flat: [], f: newFilter(), framed: null, fb: null, text: '', loading: false, sb: [], saveName: '', savedId: '', savedName: '' };
 try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type', 'role'].includes(v)) DV.sort = v; } catch (e) { /* stockage indisponible */ }
 
-/** Deck Commander (bloc « Commander » ou format noté) : bouton « Coach » (deckana.js). */
-const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
+/** Deck Commander (bloc « Commander », format noté, ou commandant en tête d'une liste sans en-tête : commandersOf, règle canCommand) : bouton « Coach » (deckana.js). */
+const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0 || !!(DV.snap && DV.snap.items.some(i => i.cmd)); } catch (e) { return false; } };
 /** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {
   const ks = commanderKeys(text).filter(k => cards.some(c => c.key === k));
@@ -19713,6 +19740,38 @@ function dvIllHtml(items) {
   const l = dvIllNames(items); if (!l.length) return '';
   return `<p class="dv-ill" role="note">${dvIllBadge()}<span>${esc(TN(l.length, 'Pas légale en Commander : {list}', 'Pas légales en Commander : {list}', { list: l.slice(0, 6).join(', ') + (l.length > 6 ? '…' : '') }))}</span></p>`;
 }
+/** Actions du viewer, par ordre d'importance : { act, cls, ic (icône), l (libellé), t (aide), main (action principale possible) }.
+ *  Principales : Éditer le deck et Coach (sinon Où trouver mes cartes) ; le reste dans une rangée légère et le menu « Plus » (dvMenu). */
+function dvActs() {
+  const A = [], mine = !DV.pub && !!DV.deckId && !DV.live;
+  if (mine && typeof openBuilder === 'function') A.push({ act: 'builder', cls: 'dv-bld', ic: 'edit', l: T('Éditer le deck'), main: 1 });
+  if (typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander()) A.push({ act: 'analyse', cls: 'dv-ana', ic: 'sliders', l: T('Coach'), t: T('Note, échanges conseillés et simulation de parties'), main: 1 });
+  if (typeof plcFetchSheet === 'function') A.push({ act: 'fetch', cls: 'dv-fetch', ic: 'check', l: T('Où trouver mes cartes'), t: DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement'), main: 1 });
+  A.push({ act: 'hand', cls: 'dv-hand', ic: 'stack', l: T('Main de départ'), t: T('7 cartes au hasard et les chances d\'avoir 2 à 4 terrains') });
+  if (dvPubOk()) A.push({ act: 'pub', cls: 'dv-pubb', ic: 'globe', l: typeof dvPubOn === 'function' && dvPubOn() ? '✓ ' + T('Publié') : T('Publier'), t: T('Publier ce deck dans la communauté (Decks › Idées de decks)') });
+  if (dvMissing().length) A.push({ act: 'cm', cls: 'dv-cm', ic: 'copy', l: T('Copier pour Cardmarket'), t: T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket') });
+  if (typeof ctWishSheet === 'function' && !mkUs() && !DV.live) A.push({ act: 'ctw', cls: 'dv-ctw', ic: 'ext', l: T('Envoyer sur CardTrader'), t: T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck') });
+  if (mine && !DV.back) A.push({ act: 'edit', cls: 'dv-load', ic: 'cart', l: T('Ouvrir dans Prix d\'une liste'), t: T('La liste de ce deck dans l\'onglet Prix d\'une liste : la modifier, chercher des offres') });
+  const main = A.filter(a => a.main).slice(0, 2), rest = A.filter(a => !main.includes(a)), light = rest.filter(a => a.main), menu = rest.filter(a => !a.main);
+  if (menu.length === 1) light.push(menu.pop());      // une seule action de plus : dans la rangée, pas derrière « Plus »
+  return { main, light, menu };
+}
+/** Bouton d'action (rangée principale : plein pour Coach, sinon le premier ; rangée légère : texte seul). */
+const dvActBtn = (a, cls) => `<button class="${cls}${a.cls ? ' ' + a.cls : ''}" type="button" data-act="${a.act}"${a.t ? ` title="${esc(a.t)}"` : ''}><svg class="i" aria-hidden="true"><use href="#i-${a.ic}"/></svg><span>${esc(a.l)}</span></button>`;
+function dvActsHtml() {
+  const { main, light, menu } = dvActs(), lead = main.find(a => a.act === 'analyse') || main[0];
+  return `<div class="dv-acts${main.length === 1 ? ' one' : ''}">${main.map(a => dvActBtn(a, a === lead ? 'btn' : 'btn ghost')).join('')}</div>
+    ${light.length || menu.length ? `<div class="dv-acts2">${light.map(a => dvActBtn(a, 'dv-lt')).join('')}${menu.length ? `<button class="dv-lt dv-more" type="button" data-act="more" aria-haspopup="dialog" aria-label="${T('Plus d\'actions')}" title="${T('Plus d\'actions')}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg><span>${T('Plus')}</span></button>` : ''}</div>` : ''}`;
+}
+/** Menu « Plus » : les autres actions du deck, en liste (icône, libellé, aide). */
+function dvMenu() {
+  const { menu } = dvActs(); if (!menu.length) return;
+  openSheet(DV.name, T('Plus d\'actions'), api => {
+    api.wrap.classList.add('dvm-sheet');
+    api.body.innerHTML = `<div class="mo-acts">${menu.map(a => `<button class="mo-act${a.cls ? ' ' + a.cls : ''}" type="button" data-act="${a.act}"><svg class="i" aria-hidden="true"><use href="#i-${a.ic}"/></svg><span><b>${esc(a.l)}</b>${a.t ? `<small>${esc(a.t)}</small>` : ''}</span></button>`).join('')}</div>`;
+    api.body.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; haptic('tap'); api.close(); dvAct(b.dataset.act); });
+  });
+}
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
 function dvFrame(snap) {
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
@@ -19723,7 +19782,7 @@ function dvFrame(snap) {
   DV.dl = snapDeltas(items, snap.pv);
   const sbN = DV.sb.reduce((a, i) => a + i.q, 0), sbTxt = sbN ? ' · ' + T('réserve {n}', { n: sbN }) : '';
   const todo = ref ? items.reduce((a, i) => a + (i.s === 'basic' ? 0 : Math.max(0, i.q - (i.ow || 0))), 0) : 0;
-  const cardsTxt = TN(copies, '{n} carte', '{n} cartes');
+  const cardsTxt = dkCountText(DV.text, copies);      // « 7/100 cartes » pour un deck Commander, comme Mes decks et la feuille du deck
   $('.dv-title span', el).textContent = DV.pub ? `${cardsTxt}${sbTxt} · ${DV.by ? T('partagé par {name}', { name: DV.by }) : T('partagé, lecture seule')}` : ref ? `${cardsTxt} · ${todo ? T('{n} à trouver', { n: todo }) : T('toutes possédées')}${none ? ' · ' + T('{n} sans prix', { n: none }) : ''}${sbTxt}`
     : `${cardsTxt}${own ? ' · ' + TN(own, '{n} possédée', '{n} possédées') : ''}${miss ? ' · ' + TN(miss, '{n} introuvable', '{n} introuvables') : ''}${none ? ' · ' + T('{n} sans offre', { n: none }) : ''}${sbTxt}`;
   $('.dv-body', el).innerHTML = `<div class="dv-side"><section class="dv-sum">
@@ -19731,7 +19790,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
-      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Éditer le deck')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › Idées de decks)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${T('Copier pour Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
+      ${dvActsHtml()}
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
     <div class="dv-main"><div id="dvCmd"></div>
     <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
@@ -19849,15 +19908,16 @@ function dvRender() {
   if (!snap) {
     DV.framed = null;
     $('.dv-body', el).innerHTML = '<div class="dv-empty"><b>' + T('Ce deck est vide') + '</b><p>' + T('Ajoute des cartes à la liste pour les voir ici.') + '</p></div>';
-    $('.dv-title span', el).textContent = ''; foot.hidden = !DV.deckId; edit.hidden = DV.live || !DV.deckId; refresh.hidden = true; close.hidden = !DV.live && !DV.adhoc; dvSavePaint(); return;
+    $('.dv-title span', el).textContent = ''; foot.hidden = !DV.back && !DV.live && !DV.adhoc; edit.hidden = !DV.back; refresh.hidden = true; close.hidden = !DV.live && !DV.adhoc; dvSavePaint(); return;
   }
   if (DV.framed !== snap) { const px = $('.dv-piles', el); DV.left = px ? px.scrollLeft : 0; dvFrame(snap); DV.framed = snap; dvPubPaint(); }      // cadre refait : la position dans les piles est reprise par dvGroups
   dvGroups();
   // relevé de référence : « Chercher les offres » seulement s'il reste des cartes à acheter (tout possédé : rien à chercher)
   const ref = !!snap.ref, todo = ref && snap.items.some(i => i.s !== 'basic' && i.q > (i.ow || 0));
   refresh.textContent = ref ? T('Chercher les offres') : T('Actualiser');
-  foot.hidden = false; edit.hidden = DV.live || !DV.deckId; refresh.hidden = DV.live || !DV.deckId || (ref && !todo);
-  close.hidden = !DV.live && !DV.adhoc;
+  edit.hidden = !DV.back; refresh.hidden = DV.live || !DV.deckId || (ref && !todo);
+  close.hidden = !DV.live && !DV.adhoc; close.textContent = DV.live ? T('Revenir à la liste') : T('Fermer');      // recherche en cours : le viewer referme sur Prix d'une liste
+  foot.hidden = edit.hidden && refresh.hidden && close.hidden && !DV.adhoc;      // rien à y mettre (deck tout possédé, ouvert depuis Mes decks) : pas de pied vide
   dvSavePaint();
 }
 
@@ -19921,11 +19981,12 @@ function dvFetchId() {
   const c = DV.adhoc ? dvCopy() : null; return c && findDeck(c.id) ? c.id : null;
 }
 /** Ouvre le viewer d'un deck enregistré ({ id }), de la recherche en cours ({ live: true }) ou d'une liste quelconque ({ text, name } : deck EDHREC ;
- *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name). */
-function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {}) {
+ *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name ;
+ *  back : ouvert depuis Prix d'une liste, « Revenir à la liste » en pied ; sinon « Ouvrir dans Prix d'une liste » dans le menu « Plus »). */
+function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from, back } = {}) {
   closeDeckViewer(); closeCardImage();
   const adhoc = !id && !live && typeof text === 'string', d = id ? findDeck(id) : null;
-  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
+  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null; DV.back = !!back && !!id && !live;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
   DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }
@@ -19956,22 +20017,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
       const m = bar.dataset.m; const go = () => { const g = $(`.dv-g[data-g="m${m}"]`, wrap); if (g) { $('.dv-scroll', wrap).scrollTo({ top: g.offsetTop - 56, behavior: reduceMotion() ? 'auto' : 'smooth' }); } };
       if (DV.sort !== 'mana') { DV.sort = 'mana'; $('#dvSeg', wrap).setValue('mana'); dvGroups(); } haptic('tap'); return go();
     }
-    const b = e.target.closest('button[data-act]'); if (!b) return;
-    const act = b.dataset.act, deck = DV.deckId;
-    if (act === 'close') wrap.__close();
-    else if (act === 'hand') openHand();
-    else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.saveName || DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : DV.savedId && findDeck(DV.savedId) ? DV.savedId : null, from: DV.from });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
-    else if (act === 'builder' && deck) { wrap.__close(); setTimeout(() => openBuilder({ id: deck }), 200); }      // éditeur du deck (builder.js), déplacé ici depuis la fiche du deck
-    else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
-    else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
-    else if (act === 'cm') cmCopy(dvMissing());
-    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
-    else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
-    else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
-    else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
-    else if (act === 'save') dvSave();
-    else if (act === 'open') dvOpenCopy();
-    else if (act === 'pub' && deck) openPubSheet(deck);
+    const b = e.target.closest('button[data-act]'); if (b) dvAct(b.dataset.act);
   });
   document.body.appendChild(wrap); holdApp(); dvRender();
   dvMetaLoad(wrap);
@@ -19980,6 +20026,25 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
   if (!DV.pub) haptic('tap');      // ouvert par un lien au chargement : pas de geste, le navigateur refuserait la vibration
   if (typeof tipSoon === 'function') tipSoon(1200);      // astuce (tour.js) : « Où trouver mes cartes »
 }
+/** Action du viewer (boutons, menu « Plus »). */
+function dvAct(act) {
+  const wrap = DV.el, deck = DV.deckId; if (!wrap) return;
+  if (act === 'close') wrap.__close();
+  else if (act === 'more') dvMenu();
+  else if (act === 'hand') openHand();
+  else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.saveName || DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : DV.savedId && findDeck(DV.savedId) ? DV.savedId : null, from: DV.from });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
+  else if (act === 'builder' && deck) { wrap.__close(); setTimeout(() => openBuilder({ id: deck }), 200); }      // éditeur du deck (builder.js), déplacé ici depuis la fiche du deck
+  else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
+  else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
+  else if (act === 'cm') cmCopy(dvMissing());
+  else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
+  else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
+  else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
+  else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
+  else if (act === 'save') dvSave();
+  else if (act === 'open') dvOpenCopy();
+  else if (act === 'pub' && deck) openPubSheet(deck);
+}
 /** « Actualiser » : recharge le deck, relit les prix (cache serveur ignoré) puis propose de revenir au viewer. */
 async function refreshDeckPrices(id) {
   const d = findDeck(id); if (!d) return;
@@ -19987,7 +20052,7 @@ async function refreshDeckPrices(id) {
   loadDeck(id, true);
   await startRun(true);
   const cur = findDeck(id), now = snapOf(cur);
-  if (S.run && S.run.status === 'done' && now && now.at > before) toast(T('Prix actualisés'), { label: T('Voir le deck'), fn: () => openDeckViewer({ id }) });
+  if (S.run && S.run.status === 'done' && now && now.at > before) toast(T('Prix actualisés'), { label: T('Voir le deck'), fn: () => openDeckViewer({ id, back: true }) });
 }
 
 /** Cartes qui manquent au deck affiché (deck + réserve − collection libre ; deck public : tout le deck, la collection du visiteur n'est pas lue ici). */
@@ -23848,12 +23913,16 @@ async function openPubSheet(deckId) {
     const onProf = () => again(); document.addEventListener('profchange', onProf); const close = api.close; api.close = () => { document.removeEventListener('profchange', onProf); close(); };
   });
 }
-/** Bouton « Publier » du viewer : « ✓ Publié » si le deck l'est déjà. */
+/** Deck du viewer déjà publié par ce compte ? */
+const dvPubOn = () => !!(PD.mine && PD.mineUid === (D.user && D.user.uid) && PD.mine.has(DV.deckId));
+/** « Publier » du viewer (rangée ou menu « Plus ») : « ✓ Publié » si le deck l'est déjà. */
 function dvPubPaint() {
-  const b = DV.el && $('.dv-pubb', DV.el); if (!b) return;
-  const on = !!(PD.mine && PD.mineUid === (D.user && D.user.uid) && PD.mine.has(DV.deckId));
-  b.innerHTML = `<svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${on ? '✓ ' + T('Publié') : T('Publier')}`;
-  b.classList.toggle('on', on);
+  const on = dvPubOn();
+  for (const b of [DV.el && $('.dv-pubb', DV.el), $('.dvm-sheet .dv-pubb')]) {
+    if (!b) continue;
+    const l = $('b', b) || $('span', b); if (l) l.textContent = on ? '✓ ' + T('Publié') : T('Publier');
+    b.classList.toggle('on', on);
+  }
 }
 /** Le viewer peut-il proposer « Publier » ? Deck de Mes decks, au format Commander. */
 const dvPubOk = () => !!(DV.deckId && !DV.live && !DV.pub && !DV.adhoc && findDeck(DV.deckId) && dkFmtOf(DV.text) === 'commander');

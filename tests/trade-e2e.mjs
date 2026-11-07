@@ -3,7 +3,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { chromium, startWorld, newPage, ok, txt, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, txt, toInput, toHome, dvAct } from './e2e-world.mjs';
 const Q = createRequire(import.meta.url)('../src/qr.js');
 const SHOTS = process.env.TRADE_SHOTS || 'shots';      // captures 390 px (TRADE_SHOTS : autre dossier)
 
@@ -342,10 +342,10 @@ const tradeId = [...shares.keys()][0];
   await p.click('.sheet [data-close].icon-btn'); await p.waitForTimeout(450);
   // manquantes du deck pour Cardmarket : deck − collection, sans terrains de base
   await p.evaluate(() => { window.__clip = []; navigator.clipboard.writeText = t => { window.__clip.push(t); return Promise.resolve(); }; });
-  await p.click('.dv.on [data-act="cm"]'); await p.waitForTimeout(200);
+  await dvAct(p, '[data-act="cm"]'); await p.waitForTimeout(200);
   assert.equal((await p.evaluate(() => window.__clip))[0], '1 Edgar Markov\n1 Craterhoof Behemoth\n1 Command Tower\n1 Arcane Signet', 'Cardmarket : les manquantes du deck (Sol Ring et Swords possédées, Plaines exclues)');
   // main de départ côté propriétaire
-  await p.click('.dv.on [data-act="hand"]'); await p.waitForSelector('.hand-grid');
+  await dvAct(p, '[data-act="hand"]'); await p.waitForSelector('.hand-grid');
   assert.equal(await p.$$eval('.hand-c', n => n.length), 7); await p.waitForTimeout(700); await p.screenshot({ path: 'shots/trade-5-main.png' });
   assert.match(await txt(p, '.sheet-head'), /15 cartes dans la bibliothèque · 11 terrains/, 'commandant hors bibliothèque ; Command Tower + 10 Plaines');
   assert.equal(await p.$$eval('.odd', n => n.length), 8); assert.equal(await p.$$eval('.odd.on', n => n.length), 1);
@@ -366,7 +366,7 @@ const tradeId = [...shares.keys()][0];
   assert.match(await txt(V.p, '.dv.on .dv-title'), /Edgar v2/); assert.match(await txt(V.p, '.dv.on .dv-title'), /partagé par Martin b/); assert.match(await V.p.$eval('.dv.on .pub-report a', e => e.getAttribute('href')), /^mailto:.*signalement/, 'deck partagé : lien « Signaler ce partage »');
   assert.ok(!(await V.p.$('.dv.on [data-act="share"]')) && await V.p.$eval('.dv.on [data-act="edit"]', b => b.hidden), 'ni partage ni modification pour le visiteur');
   await V.p.waitForFunction(() => document.querySelectorAll('.dv.on .dvc').length >= 6, null, { timeout: 8000 }); await V.p.waitForTimeout(500); await V.p.screenshot({ path: 'shots/trade-6-deck-public.png' });
-  await V.p.click('.dv.on [data-act="hand"]'); await V.p.waitForSelector('.hand-grid'); assert.equal(await V.p.$$eval('.hand-c', n => n.length), 7);
+  await dvAct(V.p, '[data-act="hand"]'); await V.p.waitForSelector('.hand-grid'); assert.equal(await V.p.$$eval('.hand-c', n => n.length), 7);
   await V.p.click('.sheet [data-close].icon-btn'); await V.p.waitForTimeout(450);
   await V.p.click('.dv.on [data-act="close"]'); await V.p.waitForTimeout(400);
   assert.equal(new URL(V.p.url()).search, '', 'fermer retire ?p= de l\'adresse');

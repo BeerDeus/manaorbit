@@ -125,7 +125,7 @@ const SCREENS_ALL = [
   ['echange-direct-historique', () => trocHistSheet(), '.sheet-wrap.open'],
   ['deck-menu', () => { openDecks(); openDeckSheet('deckA'); }, '.sheet-wrap.open'],
   ['deck-editeur', () => openBuilder({ id: 'deckA' }), '.dv.bd.on'],
-  ['deck-main-depart', () => openDeckViewer({ id: 'deckA' }), '.sheet-wrap.open', { click: '.dv.on [data-act="hand"]' }],
+  ['deck-main-depart', () => { openDeckViewer({ id: 'deckA' }); dvAct('hand'); }, '.sheet-wrap.open'],
   ['partie-en-cours', () => puOpen(partieStart(partieAddPlace(partieNew({ moi: { nom: 'Moi' } }), { nom: 'Léa' }))), '.dv.pu.on'],
   ['partie-mes-parties', () => puHist(), '.sheet-wrap.open, .dv.on'],
   ['partie-standard', () => puOpen(partieNew({ jeu: 'standard', moi: { nom: 'Moi' } })), '.dv.pu.on .pu-jeu'],
