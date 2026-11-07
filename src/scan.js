@@ -293,10 +293,10 @@ function scanPaintList() {
     const f = r && (keep.a ? $(`[data-a="${keep.a}"]`, r) : keep.cls ? $('.' + CSS.escape(keep.cls), r) : null); if (f) f.focus({ preventScroll: true });
   }
   const go = $('.sc-head [data-act="done"]', el);
-  go.disabled = !t.n; go.textContent = SC.deck ? T('Au deck') : T('Ajouter');      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
+  go.disabled = !t.n; go.textContent = SC.deck ? T('Au deck') : t.n ? TN(t.n, 'Ajouter {n} carte', 'Ajouter {n} cartes') : T('Ajouter');      // le nombre : « Ajouter » seul se confondait avec le mode (audit du 6 novembre)      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
   const td = scanEdTodo(), nTodo = td.n - td.load;
   let val = 0; for (const x of SC.items.values()) { if (x.maybe) continue; const fq = Math.min(x.fq || 0, x.q); val += scanEu(x.key, x.pk, false) * (x.q - fq) + scanEu(x.key, x.pk, true) * fq; }      // foil : au prix foil
-  head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, mkCur()) : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : scanFull() ? T('Carte entière dans le cadre') : T('Nom de la carte dans la bande'));
+  head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, mkCur()) : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : scanFull() ? T('Place la carte entière dans le cadre') : T('Place le nom dans la bande'));
   if (SC.remote) { go.disabled = false; go.textContent = T('Terminer'); mobSync(); scanPaintRemote(); }      // scan mobile : chaque carte (et chaque correction) part vers le PC
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
   if (SC.recap) SC.recap();
@@ -309,11 +309,12 @@ function scanPaintList() {
 const scanDeckPlace = () => (SC.deck && typeof BD !== 'undefined' && BD.el ? T('Deck : {name}', { name: BD.name.trim() || T('Deck') }) : '');
 function scanPaintTools() {
   const el = SC.el; if (!el) return;
-  const b = $('.sc-edm', el); if (b) { b.innerHTML = `<span class="sc-edm-t">${esc(scsEdLabel())}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg>${typeof MS_GEAR === 'string' ? MS_GEAR : ''}`; b.setAttribute('aria-label', T('Réglages du scan') + ' · ' + scsEdLabel()); b.title = scsEdLabel(); }      // roue (masterset.js) : pastille réduite à côté de « Ranger dans »
+  const b = $('.sc-edm', el); if (b) { b.innerHTML = `<svg class="i sc-edm-i" aria-hidden="true"><use href="#i-info"/></svg><span class="sc-edm-t"><small>${T('Éditions')}</small><b>${esc(scsEdVal())}</b></span>${typeof MS_GEAR === 'string' ? MS_GEAR : ''}`; b.title = scsEdLabel(); }      // (i) : touchée, la liste des choix, chacun expliqué (scanset.js › scsChoose)      // roue (masterset.js) : pastille réduite à côté de « Ranger dans »
   const d = $('.sc-dest', el), dk = scanDeckPlace();
   if (d && dk) { d.hidden = false; d.innerHTML = `<i style="--c:#c79bff"></i><span>${esc(dk)}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + dk); }      // mode deck : l'emplacement du deck, pas celui du scan
   else if (d) { d.hidden = !scdSet(); d.innerHTML = `<i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span>${esc(scdLabel())}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + scdLabel()); }      // pastille « Ranger dans » : seulement si le scan range ailleurs
-  if (b && d) b.classList.toggle('ico', !d.hidden);      // « Ranger dans » affiché : plus la place pour « Éditions : comme la 1re » (coupé en « comme ») → la roue des réglages seule
+  if (b && d) b.classList.toggle('ico', !d.hidden);
+  if (b) b.setAttribute('aria-label', (b.classList.contains('ico') ? T('Réglages du scan') : T('Éditions des cartes scannées')) + ' · ' + scsEdLabel());      // « Ranger dans » affiché : plus la place pour « Éditions : même extension » → la roue des réglages seule
   auSync();      // scan automatique : interrupteur, cercle, lecture en continu (scanauto.js)
   sssSoon();      // « Ranger dans » gardé avec la session (scansess.js)
 }
@@ -990,7 +991,7 @@ function artAttach(m, src) {
   const sig = artSig(src), sym = typeof symSig === 'function' ? symSig(src) : null; return sig ? { ...m, sig, ...(sym ? { sym } : {}) } : m;
 }
 /** Consigne sous la caméra, selon le cadrage. */
-const camHint = () => (scanFull() ? T('Carte entière dans le cadre, à 15 cm environ') : CAM_HINT);      // un peu loin : la mise au point tient (trop près, sous la distance minimale de l'objectif, elle cherche)
+const camHint = () => (scanFull() ? T('Place la carte entière dans le cadre, à 15 cm environ') : CAM_HINT);      // un peu loin : la mise au point tient (trop près, sous la distance minimale de l'objectif, elle cherche)
 const auHint = () => (scanFull() ? T('Dans le cadre, à 15 cm environ : elle s\'ajoute seule') : T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'));
 /** Cadrage changé (réglages) ou écran ouvert : cadre de l'écran, légendes ; caméra native replacée sur la nouvelle zone. */
 async function scanFrameApply() {
@@ -1191,7 +1192,7 @@ async function scanWarm() {
   } catch (e) { /* hors ligne ou CDN bloqué : le premier appui retentera et dira pourquoi */ }
   finally { SC.warm = false; SC.workEnd = performance.now(); if (SC.el && SC.session === s) { othWarm(); fvWarm(); } }      // autres langues : téléchargées après le moteur OCR (la 1re lecture d'abord)
 }
-const CAM_HINT = T('Nom de la carte dans la bande, puis appuie sur le cercle');
+const CAM_HINT = T('Place le nom dans la bande, puis touche le cercle');
 /* — Appli Android (Capacitor) : appareil photo natif, comme les applis photo (aperçu Camera1 du plugin camera-preview placé derrière la page, sous la bande du guide),
    et lecture du texte par ML Kit sur le téléphone. Dans un navigateur ou la PWA : getUserMedia + Tesseract, inchangés. — */
 const NAT = { on: false };
@@ -1302,7 +1303,15 @@ function scanPhotos(files, cam) {
   list.forEach((f, i) => scanEnqueue({ label: cam ? T('Carte {n}', { n: ++SC.cap }) : T('Photo {n}', { n: i + 1 }) + (f.name && f.name.length <= 24 ? ' · ' + f.name : ''), file: f }));
 }
 
-function closeScan() { if (SC.el) SC.el.__close('keep'); }      // scan rouvert par-dessus lui-même : sans question, la session reste gardée
+function closeScan() { if (SC.el) SC.el.__close('keep'); }
+/** Sans appareil photo (le cercle est caché) : « Taper un nom ». Scan ordinaire et vide : « Ajouter des cartes » (lot.js) ; ouvert depuis cet écran : on y revient ;
+ *  sinon (deck, scan mobile, prix rapide, cartes déjà dans le scan) : la carte tapée rejoint le scan, comme une carte lue (scanTyped). */
+function scanTypeName() {
+  const el = SC.el; if (!el) return; haptic('tap');
+  if (SC.lot && LOT.el) { el.__close('keep'); setTimeout(() => { const i = LOT.el && $('#caName', LOT.el); if (i) i.focus(); }, 300); return; }
+  if (!SC.deck && !SC.remote && !SC.pm && !SC.items.size && !SC.pend.length) { el.__close('keep'); openLot(); return; }
+  openCollAdd({ pick: c => scanTyped(0, c) });
+}      // scan rouvert par-dessus lui-même : sans question, la session reste gardée
 /** o.lot : scan ouvert depuis « Ajouter des cartes » : « Ajouter » envoie les cartes dans le lot (extension collante) au lieu de la collection seule.
  *  o.remote : « Scan mobile » (téléphone) : chaque carte reconnue part tout de suite vers le lot du PC (mobscan.js), rien n'est ajouté ici ; « Terminer » ferme. */
 function openScan(o) {
@@ -1315,21 +1324,22 @@ function openScan(o) {
       <p class="sc-nocam">${T('Pas d\'appareil photo : utilise « Photos » ci-dessous.')}</p>
       <div class="sc-tools"><button class="sc-ic" type="button" data-act="close" aria-label="${T('Fermer le scan')}"><svg class="i"><use href="#i-back"/></svg></button><h2 class="sc-ttl">${T('Scanner des cartes')}</h2>
         <span class="sc-tr"><button class="sc-ic sc-lamp" type="button" data-act="lamp" aria-pressed="false" aria-label="${T('Allumer la lampe')}" hidden><svg class="i"><use href="#i-bolt"/></svg></button><button class="sc-ic sc-set" type="button" data-act="scset" aria-label="${T('Réglages du scan')}"><svg class="i"><use href="#i-gear"/></svg></button><button class="sc-ic sc-help" type="button" data-act="note" aria-label="${T('Afficher l\'aide')}" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-help"/></svg></button></span></div>
-      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Ajouter')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix')}</button></div><button type="button" class="sc-dest" data-act="scdest" hidden></button><button type="button" class="sc-edm" data-act="scset"></button></div></div>
+      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Collection')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix rapide')}</button></div><button type="button" class="sc-dest" data-act="scdest" hidden></button><button type="button" class="sc-edm" data-act="sced" aria-haspopup="dialog"></button></div></div>
     <div class="sc-remote" hidden aria-live="polite"></div>
     <div class="sc-cat coll-status" hidden></div>
     <div class="sc-note" hidden><p class="hint">${nmT('Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (français d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.',
       'Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu ({lang} d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.',
       'Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (en anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.')}</p><p class="hint sc-note-full">${T('Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l\'édition exacte est posée d\'office, et la langue imprimée sur la carte retenue. Cartes d\'avant 2014 : l\'édition se choisit comme d\'habitude.')}</p><button class="sc-x" type="button" data-act="note" aria-label="${T('Fermer l\'aide')}"><svg class="i"><use href="#i-close"/></svg></button></div>
-    <div class="dv-foot sc-head"><div class="sc-headt"><b class="sc-count">${T('Scanner des cartes')}</b><span class="sc-sub">${T('Nom de la carte dans la bande')}</span></div><div class="sc-total" aria-live="polite" hidden></div><button class="btn" type="button" data-act="done" disabled>${T('Ajouter')}</button></div>
+    <div class="dv-foot sc-head"><div class="sc-headt"><b class="sc-count">${T('Scanner des cartes')}</b><span class="sc-sub">${T('Place le nom dans la bande')}</span></div><div class="sc-total" aria-live="polite" hidden></div><button class="btn" type="button" data-act="done" disabled>${T('Ajouter')}</button></div>
     <p class="sc-diag" hidden></p>
     <div class="dv-scroll sc-list"></div>
     <div class="sc-bar">
       <label class="sc-photo"><span class="sc-bi"><svg class="i"><use href="#i-image"/></svg></span>${T('Photos')}<input type="file" id="scFile" accept="image/*" multiple></label>
-      <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button>
+      <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button><button class="btn sc-type" type="button" data-act="type"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>${T('Taper un nom')}</button>
       <span class="sc-bslot"><button class="sc-auto" type="button" role="switch" data-act="auto" aria-checked="false" hidden><span class="sc-sw" aria-hidden="true"><i></i></span>${T('Auto')}</button></span></div>`;
   if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
   SC.lot = !!(o && o.lot); SC.deck = !!(o && o.deck); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.alt = []; SC.calt = null; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.show = SC_SHOW; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  if (SC.deck) $('.sc-amode', wrap).textContent = T('Deck');      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
   sssResume();      // session gardée de ce contexte : reprise (scansess.js)
   SC.paq = []; if (SCS.pa && typeof pxTable === 'function') pxTable().then(() => { if (SC.el === wrap) scanPaintList(); }, () => {});      // alerte de prix : prix « à partir de » de chaque carte (fichier du jour), sans attendre Scryfall
   auReset();
@@ -1369,6 +1379,8 @@ function openScan(o) {
       else if (act === 'ssnew') sssNew();      // bandeau « Scan repris » (scansess.js)
       else if (act === 'ssok') { SC.resume = null; scanPaintList(); }
       else if (act === 'scset') scsSheet();
+      else if (act === 'sced') { if (b.classList.contains('ico')) scsSheet(); else { haptic('tap'); scsChoose('ed', scanPaintTools); } }      // pastille des éditions : leurs choix expliqués ; réduite à la roue (« Ranger dans » affiché) : les réglages
+      else if (act === 'type') scanTypeName();
       else if (act === 'scdest') { if (scanDeckPlace()) toast(T('Les cartes du deck sont rangées dans « {place} » à son enregistrement.', { place: scanDeckPlace() })); else scdPick(scanPaintTools); }
       else if (act === 'pmode') { const on = b.dataset.v === '1'; if (on !== SC.pm) { haptic('tap'); scanPriceMode(on); } }
       else if (act === 'done') { if (SC.remote) scanEdDone(() => wrap.__close()); else if (SC.deck && typeof bdScanDone === 'function' && BD.el) bdScanDone(); else scanRecap(); }      // cartes sans édition : confirmation (scaned.js)

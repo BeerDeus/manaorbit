@@ -65,7 +65,8 @@
 /* pastille du réglage des éditions (en bas de l'image) */
 .sc-edm{flex:1;min-width:0;min-height:36px;display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 12px;border-radius:18px;line-height:1.1;border:1px solid rgba(255,255,255,.16);background:rgba(10,14,30,.66);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#dfe4f5;font:inherit;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-edm .i{width:14px;height:14px;transform:rotate(90deg)}
-.sc-edm-t{min-width:0;overflow:hidden;white-space:normal;text-align:center;text-wrap:balance;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}      /* « Éditions : comme la 1re » sur deux lignes plutôt que « Éditions : com… » */
+.sc-edm .sc-edm-i{flex:none;width:15px;height:15px;transform:none;opacity:.85}      /* (i) : touchée, la pastille ouvre les choix expliqués */
+.sc-edm-t{min-width:0;overflow:hidden;white-space:normal;text-align:center;text-wrap:balance;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}      /* « Éditions : même extension » sur deux lignes plutôt que coupé */
 .sc-edm .ms-gear{display:none}
 .sc-edm.ico{flex:none;width:36px;padding:0}      /* à côté de « Ranger dans » : la roue seule (le texte se coupait en « comme ») */
 .sc-edm.ico .sc-edm-t,.sc-edm.ico>.i:not(.ms-gear){display:none}

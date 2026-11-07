@@ -40,6 +40,21 @@ assert.match(await txt(p, '.sc-nocam'), /Aucun appareil photo/); assert.equal(aw
 await p.screenshot({ path: 'shots/scan-0-ouverture.png' }); assert.equal(await p.$('#scCam'), null, 'plus de bouton « Appareil » : « Photos » propose aussi l\'appareil photo du téléphone'); assert.match(await p.getAttribute('#scFile', 'accept'), /image/);
 assert.equal(await p.$('#scLang'), null, 'plus de choix de langue'); assert.equal(await p.$('#scMode'), null, 'plus de mode « plusieurs cartes »'); assert.equal(await p.$('#scAuto'), null, 'plus de lecture automatique');
 ok('écran de scan : sans appareil photo, message clair, « Photos » disponible, plus de langue ni de mode multiple');
+// sans appareil photo : le cercle caché, « Taper un nom » à sa place (audit du 6 novembre) ; modes « Collection | Prix rapide »
+assert.equal(await p.isVisible('.sc-shot'), false, 'pas de cercle de prise sans appareil photo'); assert.equal(await txt(p, '.sc-type'), 'Taper un nom');
+assert.deepEqual(await p.$$eval('.sc-seg button', b => b.map(x => x.textContent)), ['Collection', 'Prix rapide'], 'le mode ne dit plus « Ajouter » (le bouton du bas le dit)');
+assert.equal(await txt(p, '.sc-edm'), 'Éditions Même extension'); assert.ok(await p.$('.sc-edm .sc-edm-i'), '(i) dans la pastille des éditions');
+await p.click('.sc-edm'); await p.waitForSelector('.sheet-wrap.open .scs-ed[data-v="scan"]');
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /L'édition \(extension, numéro\) donne l'illustration et le prix exacts de chaque carte\./, 'pastille : les choix des éditions, expliqués');
+assert.match(await txt(p, '.sheet-wrap.open .scs-ed[data-v="scan"]'), /^Même extension Booster, boîte : tu choisis l'édition de la 1re carte/);
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+await p.click('.sc-pmode'); await p.click('.sc-type'); await p.waitForSelector('.sheet-wrap.open #caName');
+assert.ok(await p.$('.scan.on'), 'prix rapide : « Taper un nom » ajoute la carte au scan (feuille « Ajouter une carte »), le scan reste');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap')); await p.click('.sc-amode');
+await p.click('.sc-type'); await p.waitForSelector('.lot.on #caName', { timeout: 5000 }); await p.waitForFunction(() => !document.querySelector('.scan'));
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.lot'));
+await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); await p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
+ok('sans appareil photo : « Taper un nom » à la place du cercle (scan vide : « Ajouter des cartes » ; prix rapide : la carte rejoint le scan) ; « Collection | Prix rapide » ; « Éditions : même extension » (i) → choix expliqués');
 // aide : fermée au départ, « ? » l'ouvre, × la referme ; fermée à chaque ouverture du scan
 assert.equal(await p.isVisible('.sc-note'), false, 'aide fermée au départ'); assert.equal(await p.getAttribute('.sc-help', 'aria-pressed'), 'false');
 await p.click('.sc-help'); assert.equal(await p.isVisible('.sc-note'), true); assert.equal(await p.getAttribute('.sc-help', 'aria-pressed'), 'true');
@@ -91,7 +106,7 @@ await p.click('.sc-item[data-k="wrath of god"] [data-a="inc"]');
 await p.click('.sc-item[data-k="llanowar elves"] [data-a="del"]');
 assert.equal((await items(p)).find(x => x.name === 'Wrath of God').q, 2); assert.ok(!(await items(p)).some(x => x.name === 'Llanowar Elves'));
 const want = (await items(p)).filter(x => !x.maybe), total = want.reduce((a, x) => a + x.q, 0);
-assert.match(await txt(p, '.scan .sc-count'), new RegExp(`^${total} cartes$`)); assert.equal(await txt(p, '.scan .dv-foot [data-act="done"]'), 'Ajouter');
+assert.match(await txt(p, '.scan .sc-count'), new RegExp(`^${total} cartes$`)); assert.equal(await txt(p, '.scan .dv-foot [data-act="done"]'), `Ajouter ${total} cartes`, 'le bouton dit combien');
 // fiche récap : le tap sur « Ajouter » ouvre d'abord les stats ; « Retour » garde le scan ouvert
 await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet .rc-facts', { timeout: 3000 });
 await p.waitForFunction(() => !/…/.test(document.querySelector('.rc-sheet .rc-val b').textContent), null, { timeout: 5000 });
@@ -158,7 +173,7 @@ await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
 const bars = await p.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(), st = r('.sc-stage'), ft = r('.scan .dv-foot'), bar = r('.sc-bar'), ls = r('.sc-list'); return { ftBelowStage: ft.top >= st.bottom - 1, barBelowFoot: bar.top > ft.bottom - 1, barBelowList: bar.top >= ls.bottom - 1 }; });
 assert.deepEqual(bars, { ftBelowStage: true, barBelowFoot: true, barBelowList: true }, 'en-tête de la liste (« Ajouter ») juste sous la caméra, bouton de capture + Photos tout en bas');
 assert.match(await txt(p, '.scan .dv-foot'), /Ajouter/); assert.match(await txt(p, '.sc-bar'), /Photos/); assert.doesNotMatch(await txt(p, '.sc-bar'), /Appareil/); assert.ok(await p.$('.sc-bar #scShot, .sc-bar .sc-shot, .sc-bar [data-act="shot"]'), 'bouton rond dans la barre du bas');
-{ const bb = await p.$eval('.sc-shot', e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }); assert.ok(bb[0] >= 80 && bb[0] === bb[1], 'déclencheur agrandi (84 px), rond : ' + bb); }
+{ const bb = await p.$eval('.sc-shot', e => { const st = document.querySelector('.sc-stage'), cam = st.dataset.cam; st.dataset.cam = 'on'; const r = e.getBoundingClientRect(); st.dataset.cam = cam; return [Math.round(r.width), Math.round(r.height)]; }); assert.ok(bb[0] >= 80 && bb[0] === bb[1], 'déclencheur agrandi (84 px), rond : ' + bb); }
 const shot = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 320; c.height = 56; const g = c.getContext('2d'); g.fillStyle = '#e8dcc0'; g.fillRect(0, 0, 320, 56); g.fillStyle = '#111'; g.font = '30px serif'; g.fillText('So1 Rinq', 12, 38); return c.toDataURL('image/jpeg', .8); });
 await p.evaluate(s => scanAdd({ key: 'sol ring', name: 'Sol Ring', score: 0.78, raw: 'So1 Rinq', card: 'en' }, 1, true, s), shot);
 await p.waitForSelector('.sc-item.maybe .sc-pic img'); assert.match(await p.$eval('.sc-item.maybe .sc-pic img', i => i.src), /^data:image\/jpeg/, 'photo prise affichée sur la carte à vérifier'); assert.match(await txt(p, '.sc-item.maybe small'), /ta photo ci-dessus/i);
@@ -218,7 +233,7 @@ const c2 = await newPage(cam, world, { goto: false, perms: ['camera'] }); await 
 await toHome(c2.p); await c2.p.click('#btnColl'); await c2.p.waitForSelector('.coll.on'); await c2.p.click('#nav [data-nav="scan"]'); await c2.p.waitForSelector('.scan.on');
 await c2.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 });
 await c2.p.waitForFunction(() => document.querySelector('.sc-video').videoWidth > 0, null, { timeout: 8000 });
-assert.match(await txt(c2.p, '.sc-hint'), /appuie sur le cercle/);
+assert.match(await txt(c2.p, '.sc-hint'), /^Place le nom dans la bande, puis touche le cercle$/); assert.equal(await c2.p.isVisible('.sc-shot'), true); assert.equal(await c2.p.isVisible('.sc-type'), false, 'caméra : le cercle, pas « Taper un nom »');
 // détecte une carte dans la bande (carte claire sur la table sombre) ; garde les canvas de capture pour vérifier qu'ils sont vidés
 await c2.p.evaluate(() => {
   window.__present = () => { const b = scanGuideBox(), c = document.createElement('canvas'); c.width = 32; c.height = 8; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(document.querySelector('.sc-video'), b.x, b.y, b.w, b.h, 0, 0, 32, 8); const d = x.getImageData(0, 0, 32, 8).data; let t = 0; for (let i = 1; i < d.length; i += 4) t += d[i]; return t / 256; };

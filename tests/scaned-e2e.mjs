@@ -111,15 +111,15 @@ ok('« Ajouter quand même » ; « Sans édition » choisi à la main ne redeman
 
 /* ── 5) réglages du scan : carte par carte (rien demandé, écran « Éditions à choisir » à la fin), sans édition, langue imposée, compte ───────────── */
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
-assert.match(await txt(p, '.sc-edm'), /Éditions : comme la 1re/);
-await p.click('.sc-edm'); await p.waitForSelector('.scs-sheet .scs-pick[data-pick="ed"]');
+assert.equal(await txt(p, '.sc-edm'), 'Éditions Même extension');
+await p.click('.sc-set'); await p.waitForSelector('.scs-sheet .scs-pick[data-pick="ed"]');
 await p.click('.scs-pick[data-pick="ed"]'); await p.waitForSelector('.sheet .scs-ed[data-v="card"]'); await p.click('.sheet .scs-ed[data-v="card"]');      // tuile « Éditions » : la liste des choix
 assert.equal(await p.evaluate(() => SCS.ed), 'card'); assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:scanset')).s.ed), 'card', 'gardé sur l\'appareil');
 await p.waitForFunction(() => /Carte par carte/.test(document.querySelector('.scs-pick[data-pick="ed"] b').textContent), null, { timeout: 3000 });
 await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), true); assert.ok(await p.$('.scs-sheet [data-s="delay"]'), 'automatique : délai et même carte proposés');
 await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), false);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
-assert.match(await txt(p, '.sc-edm'), /Éditions : à la fin/);
+assert.equal(await txt(p, '.sc-edm'), 'Éditions Carte par carte');
 await add('Sol Ring'); await settle(); await add('Arcane Signet'); await settle(); await add("Ranger's Hawk"); await settle(); await add('Command Tower'); await settle();
 L = await lines();
 assert.deepEqual([L['sol ring'], L['arcane signet'], L['rangers hawk blb|200'], L['command tower']], ['pend ×1', 'pend ×1', 'solo ×1', 'pend ×1'], 'carte par carte : extension unique posée, rien d\'autre');
@@ -158,7 +158,7 @@ ok('réglages : sans édition (rien lu), retour au réglage normal, langue impos
 await signInFake(p); await p.waitForFunction(async () => { const d = (await D.cloud.pullMeta(D.uid, 'prefs')).data; return d && d.scan && d.scan.ed === 'scan'; }, null, { timeout: 5000 });
 await p.evaluate(async () => { await D.cloud.saveMeta(D.uid, 'prefs', { scan: { ...scsClean(SCS), ed: 'card', snd: true }, updatedAt: Date.now() + 5000 }); scsUser(D.user); });
 await p.waitForFunction(() => SCS.ed === 'card' && SCS.snd === true, null, { timeout: 5000 });
-assert.match(await txt(p, '.sc-edm'), /à la fin/, 'écran de scan ouvert : suit les réglages du compte');
+assert.match(await txt(p, '.sc-edm'), /Carte par carte/, 'écran de scan ouvert : suit les réglages du compte');
 await p.evaluate(() => scsSet({ ed: 'scan', snd: false }));
 ok('réglages du scan dans le compte : envoyés au compte vide, ceux du compte (plus récents) appliqués');
 
@@ -277,7 +277,7 @@ assert.deepEqual(await p.evaluate(() => { const f = SC.el.querySelector('.sc-fly
 await p.evaluate(() => { document.documentElement.classList.remove('nat-cam'); delete document.documentElement.dataset.theme; });
 // « Ranger dans » affiché : la pastille des éditions devient la roue des réglages (le texte se coupait en « comme »)
 await p.evaluate(() => { SCD.p = plcCreate('binder', 'Classeur du scan'); scanPaintTools(); });
-assert.equal(await p.evaluate(() => { const b = SC.el.querySelector('.sc-edm'); return [b.classList.contains('ico'), !!b.querySelector('.ms-gear'), getComputedStyle(b.querySelector('.sc-edm-t')).display, b.getAttribute('aria-label')].join(); }), 'true,true,none,Réglages du scan · Éditions : comme la 1re');
+assert.equal(await p.evaluate(() => { const b = SC.el.querySelector('.sc-edm'); return [b.classList.contains('ico'), !!b.querySelector('.ms-gear'), getComputedStyle(b.querySelector('.sc-edm-t')).display, b.getAttribute('aria-label')].join(); }), 'true,true,none,Réglages du scan · Éditions : même extension');
 await p.evaluate(() => { SCD.p = ''; scanPaintTools(); }); assert.equal(await p.evaluate(() => SC.el.querySelector('.sc-edm').classList.contains('ico')), false);
 ok('cadre « carte entière » ≈ 48 % (carte vers 15 cm), textes hors du cadre ; symbole de l\'édition trouvée : du bas du cadre à sa ligne, qui s\'éclaire (pastille blanche dans l\'appli en thème sombre) ; « Ranger dans » : roue des réglages');
 await scanClose(p);
