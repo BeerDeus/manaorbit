@@ -25,5 +25,7 @@
   "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Sign in with the same account on this computer and on your phone: cards scanned with the phone show up here.",
   "{n} recherches enregistrées au plus : supprimes-en une d'abord (« … » à côté de son nom)": "{n} saved searches at most: delete one first (“…” next to its name)",
   "Prix rapide : estime une carte sans l'ajouter à ta collection.": "Quick price: price a card without adding it to your collection.",
-  "Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l'ajouter. Chaque estimation compte.": "Use Quick price (at the top of the scanner, next to “Collection”) to price a card without adding it. Every estimate counts."
+  "Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l'ajouter. Chaque estimation compte.": "Use Quick price (at the top of the scanner, next to “Collection”) to price a card without adding it. Every estimate counts.",
+  "Tout passer": "Skip all",
+  "Continuer sans compte": "Continue without an account"
 }

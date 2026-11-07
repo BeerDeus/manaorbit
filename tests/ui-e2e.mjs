@@ -138,14 +138,14 @@ ok('premier lancement à 1280, 1890 (sans animation), 820, 844 × 390 et 360 px 
   assert.equal(await q.evaluate(() => !!document.querySelector('.ob')), false, 'lien CardTrader : Compte et réglages › Prix (champ du token)'); await closeSheets(q);
   // hors ligne (réseau coupé, ou service de compte injoignable) : message humain, « Plus tard » seul ; retour du réseau : Google revient
   await step3('ready'); await S4.ctx.setOffline(true); await q.waitForSelector('#obSave .ob-save-off');
-  assert.deepEqual(await acts(), ['Plus tard']); const off = await txt(q, '#obSave .ob-save-off');
+  assert.deepEqual(await acts(), ['Continuer sans compte']); assert.equal(await q.$eval('#obSave [data-ob="done"]', b => b.classList.contains('ghost')), false, 'hors ligne : « Continuer sans compte », bouton principal'); const off = await txt(q, '#obSave .ob-save-off');
   assert.match(off, /^Pas de connexion pour l'instant\. Ta collection reste sur cet appareil/); assert.doesNotMatch(off, /Firebase|SDK/);
   await S4.ctx.setOffline(false); await q.waitForSelector('#obSave [data-ob="google"]');
   await q.click('#obSave [data-ob="done"]'); await q.waitForFunction(() => !document.querySelector('.ob'));
-  await step3('unavailable'); assert.deepEqual(await acts(), ['Plus tard'], 'Firebase indisponible : « Plus tard » seulement'); assert.doesNotMatch(await txt(q, '#obSave'), /Firebase|SDK/);
+  await step3('unavailable'); assert.deepEqual(await acts(), ['Continuer sans compte'], 'Firebase indisponible : « Continuer sans compte » seulement'); assert.doesNotMatch(await txt(q, '#obSave'), /Firebase|SDK/);
   await q.keyboard.press('Escape'); await q.waitForFunction(() => !document.querySelector('.ob'));
   assert.deepEqual(S4.errs, []); await S4.ctx.close(); }
-ok('premier lancement, étape 3 : « Sauvegarde ta collection » (Google avec son logo, refus et fenêtre fermée, chargement, e-mail, token CardTrader en lien), hors ligne : « Plus tard » seul');
+ok('premier lancement, étape 3 : « Sauvegarde ta collection » (Google avec son logo, refus et fenêtre fermée, chargement, e-mail, token CardTrader en lien), hors ligne : « Continuer sans compte » seul (bouton principal)');
 
 // feuille Compte : « Continuer avec Google » en premier, avec son logo ; l'e-mail ensuite ; œil du mot de passe
 { const S5 = await newPage(browser, world, { ctx: { viewport: { width: 393, height: 852 } } }), q = S5.p;

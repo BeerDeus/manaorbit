@@ -7010,6 +7010,8 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 .tour-pill.new .tour-pill-t{flex:1 1 0;font-size:14.5px}
 .tour-pill-a{flex:1 0 100%;display:flex;justify-content:flex-end;align-items:center;gap:6px}
 .tour-pill-a .link-btn{color:var(--ink-2)}
+.tour-pill.inline{position:relative;left:auto;bottom:auto;z-index:1;width:auto;max-width:none;transform:translateY(8px)}      /* téléphone : l'offre de la visite dans la page, sous l'orbe (tour.js › tourPillShow), sans rien cacher */
+.tour-pill.inline.on{transform:none}
 @media (prefers-reduced-motion:reduce){.tour-pill{transition:none}}
 
 /* Aide : « Visite guidée » en tête de « Comment ça marche » */
@@ -8123,8 +8125,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'fd5a36ca';
-const I18N_FILES = {"de":"i18n/de.99d8fc80.js","en":"i18n/en.adbbe72a.js","es":"i18n/es.faf20d09.js","it":"i18n/it.8508e33b.js","pt":"i18n/pt.fa528b1b.js"};
+const DD_BUILD = 'cf596370';
+const I18N_FILES = {"de":"i18n/de.61b64fa9.js","en":"i18n/en.aabb4c70.js","es":"i18n/es.4dc211fa.js","it":"i18n/it.f731d00b.js","pt":"i18n/pt.7941e23d.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -34704,9 +34706,9 @@ function amInit() {
 
 /* ── onboard.js : premier lancement ───────────────────────────────────────────────────────────────
    Trois écrans, une seule fois, seulement sur un appareil vierge (ni collection, ni deck, ni token) :
-   1. Bienvenue · 2. Ta collection (importer un fichier, scanner, plus tard) · 3. Sauvegarde ta collection : « Continuer avec Google » en une touche
-   (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne ou service de compte
-   injoignable : un mot et « Plus tard » seulement ; déjà connecté : « C'est parti ». Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
+   1. Bienvenue · 2. Ta collection (importer un fichier, ajouter, scanner ; « Continuer sans ajouter de cartes » : l'étape suivante) · 3. Sauvegarde ta collection :
+   « Continuer avec Google » en une touche (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne
+   ou service de compte injoignable : un mot et « Continuer sans compte » (bouton principal) ; déjà connecté : « C'est parti ». « Tout passer » (en haut, étapes 1 et 2) : l'appli tout de suite. Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
    lien discret « Tu as un token CardTrader ? »).
    4. Notifications (evpush.js), seulement si elles ont un sens ici (serveur qui les propose, fenêtre d'autorisation possible : evpAskable) : à quoi elles servent,
    « Activer les notifications » ouvre la fenêtre native (Android, navigateur ; iPhone : app installée seulement), « Plus tard » ; jamais redemandé ensuite
@@ -34729,7 +34731,7 @@ function obOpen() {
   const el = OB.el = document.createElement('div');
   el.className = 'ob'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', T('Bienvenue dans Mana Orbit'));
   el.innerHTML = `<div class="ob-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    <button class="link-btn ob-skip" type="button" data-ob="skip">${T('Passer')}</button>
+    <button class="link-btn ob-skip" type="button" data-ob="skip">${T('Tout passer')}</button>
     <div class="ob-track">
       <section class="ob-s" aria-label="${T('Bienvenue')}">
         <div class="ob-lang" role="group" aria-label="${T('Langue')}">${i18nLangs().map(([c, n]) => `<button type="button" class="ob-chip${c === I18N.lang ? ' on' : ''}" data-ob="lang:${c}" aria-pressed="${c === I18N.lang}">${esc(n)}</button>`).join('')}</div>
@@ -34828,7 +34830,7 @@ function obSavePaint() {
   const had = box.contains(document.activeElement); box.dataset.k = k;
   const later = `<button class="btn ghost block" type="button" data-ob="done">${T('Plus tard')}</button>`;
   if (k === 'in') box.innerHTML = `<p class="ob-save-ok">${T('Tu es connecté : ta collection est sauvegardée sur ton compte.')}</p><button class="btn block" type="button" data-ob="done">${T('C\'est parti')}</button>`;
-  else if (k === 'off') box.innerHTML = `<p class="ob-save-off" role="status">${T('Pas de connexion pour l\'instant. Ta collection reste sur cet appareil : tu pourras la sauvegarder plus tard dans Compte et réglages.')}</p>${later}`;
+  else if (k === 'off') box.innerHTML = `<p class="ob-save-off" role="status">${T('Pas de connexion pour l\'instant. Ta collection reste sur cet appareil : tu pourras la sauvegarder plus tard dans Compte et réglages.')}</p><button class="btn block" type="button" data-ob="done">${T('Continuer sans compte')}</button>`;      // hors ligne : rien d'autre à faire ici, le bouton principal continue
   else box.innerHTML = `${googleBtnHtml(`data-ob="google"${k === 'wait' ? ' disabled aria-busy="true"' : ''}`, true)}
     <button class="link-btn" type="button" data-ob="account">${T('Autres options (e-mail)')}</button>
     <div class="auth-msg" id="obMsg" role="alert" hidden></div>
@@ -46212,7 +46214,8 @@ function tourPillShow(kind) {
     if (a === 'go') tourStart({ from: TOUR.pillK, since: TOUR.pillK === 'news' ? since : 0, mode: TOUR.pillK === 'more' ? 'adv' : TOUR.pillK === 'new' && tourFew() ? 'basic' : '' });      // nouveautés : seulement les étapes ajoutées depuis la version déjà vue ; nouvel utilisateur : l'essentiel
     else if (a === 'later') toast(T('La visite t\'attend dans « Comment ça marche ? », en bas de l\'accueil.'));
   });
-  document.body.appendChild(el);
+  const hero = kind === 'new' && !(typeof homeDeskOn === 'function' && homeDeskOn()) ? $('#viewHome > .hm-hero') : null;      // téléphone : dans la page, sous l'orbe (en bas de l'écran, elle cachait « Venir de ManaBox » de « Pour commencer »)
+  if (hero) { el.classList.add('inline'); hero.after(el); } else document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => { if (TOUR.pill === el) el.classList.add('on'); }));
 }
 function tourPillHide(now) {

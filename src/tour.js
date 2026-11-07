@@ -409,7 +409,8 @@ function tourPillShow(kind) {
     if (a === 'go') tourStart({ from: TOUR.pillK, since: TOUR.pillK === 'news' ? since : 0, mode: TOUR.pillK === 'more' ? 'adv' : TOUR.pillK === 'new' && tourFew() ? 'basic' : '' });      // nouveautés : seulement les étapes ajoutées depuis la version déjà vue ; nouvel utilisateur : l'essentiel
     else if (a === 'later') toast(T('La visite t\'attend dans « Comment ça marche ? », en bas de l\'accueil.'));
   });
-  document.body.appendChild(el);
+  const hero = kind === 'new' && !(typeof homeDeskOn === 'function' && homeDeskOn()) ? $('#viewHome > .hm-hero') : null;      // téléphone : dans la page, sous l'orbe (en bas de l'écran, elle cachait « Venir de ManaBox » de « Pour commencer »)
+  if (hero) { el.classList.add('inline'); hero.after(el); } else document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => { if (TOUR.pill === el) el.classList.add('on'); }));
 }
 function tourPillHide(now) {

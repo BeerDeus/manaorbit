@@ -77,8 +77,11 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   const { p } = await page({ path: '?onboarding&tour' });
   await p.waitForSelector('.ob.on');
   assert.equal(await p.$('.tour-pill'), null, 'rien pendant le premier lancement');
+  assert.equal((await p.textContent('.ob-skip')).trim(), 'Tout passer', 'en haut : « Tout passer » (en bas : « Continuer sans ajouter de cartes », l\'étape suivante)');
   await p.click('.ob [data-ob="skip"]');
   await pillOn(p, '.tour-pill.new.on');
+  assert.deepEqual(await p.evaluate(() => { const t = document.querySelector('.tour-pill'), r = t.getBoundingClientRect(), s = document.querySelector('#hmStart'), sr = s.getBoundingClientRect();
+    return [t.parentNode.id, t.previousElementSibling.className, getComputedStyle(t).position, r.bottom <= sr.top]; }), ['viewHome', 'hm-hero', 'relative', true], 'téléphone : dans la page, sous l\'orbe, au-dessus de « Pour commencer » (ne cache plus « Venir de ManaBox »)');
   assert.match(await p.textContent('.tour-pill'), /Une petite visite pour trouver l'essentiel.\?/);
   assert.deepEqual(Object.keys(await st(p)).sort(), ['offer', 'shownAt', 'ver'], 'offre « new » montrée');
   // une feuille passe devant : la pastille se cache, puis revient
