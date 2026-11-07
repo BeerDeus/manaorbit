@@ -21,3 +21,9 @@
 .sc-edm .sc-edm-t{display:flex;flex-direction:column;align-items:flex-start;text-align:left;-webkit-line-clamp:unset}      /* « Éditions » en petit, le choix dessous (« Même extension ») */
 .sc-edm .sc-edm-t small{font-size:10.5px;font-weight:600;opacity:.75}
 .sc-edm .sc-edm-t b{font-size:12.5px;white-space:normal;line-height:1.1}
+
+/* « Ajouter des cartes » (lot.js) : l'appareil photo calé à droite (il suivait la largeur du titre) ; « ✓ N dans ta collection » après un ajout */
+.lot .dv-head>[data-act="scan"]{margin-left:auto}
+.lot-name em.lot-done{font-weight:700;transform-origin:0 50%;animation:lotDone .5s var(--spring,ease-out)}
+@keyframes lotDone{0%{transform:scale(.85);opacity:.3}60%{transform:scale(1.06)}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.lot-name em.lot-done{animation:none}}

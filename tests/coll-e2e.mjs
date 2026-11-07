@@ -103,7 +103,7 @@ assert.equal((await rows()).length, 2); assert.match(await txt(p, '#toast'), /Sw
 await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3); ok('+ / −, retrait à zéro et Annuler');
 await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('.lot #caName'); await p.fill('#caName', 'arca');      // « Ajouter des cartes » (lot.js) : choisir, puis « Ajouter »
 await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt span', s => s.map(x => x.textContent)), ['Arcane Signet']);
-await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Arcane Signet · 1 dans ta collection/);
+await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForSelector('.lot-name em.lot-done'); assert.match(await txt(p, '.lot-name'), /^Arcane Signet ✓ 1 dans ta collection$/);
 await p.fill('#caName', 'ring'); await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt i', s => s.map(x => x.textContent)), ['× 3'], 'quantité déjà possédée affichée');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 }); await p.waitForSelector('.coll.on');
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4); assert.match(await txt(p, '.coll .dv-title span'), /^4 cartes · 10 ex\./);

@@ -26,6 +26,7 @@ const nb = s => s.replace(/\s/g, ' ');
 await p.waitForTimeout(400); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('.lot.on #caName');
 assert.match(await txt(p, '.lot-empty'), /Les cartes ajoutées apparaissent ici/);
+const camGap = () => p.$eval('.lot .dv-head [data-act="scan"]', b => Math.round(b.parentNode.getBoundingClientRect().right - b.getBoundingClientRect().right)), gap0 = await camGap();
 
 /* ── 1) choisir une carte, son édition (symbole, extension, prix), la quantité → Ajouter ─────────────────────── */
 await choose('sol r', 'Sol Ring'); await edReady();
@@ -60,9 +61,11 @@ assert.match(await txt(p, '.lot-sticky'), /Extension proposée Double Masters 20
 await p.click('.lot-card [data-act="qp"]'); assert.equal(await txt(p, '.lot-card .qstep b'), '2');
 await p.click('#lotAdd'); await p.waitForFunction(() => document.querySelectorAll('.lot-it').length === 1);
 assert.deepEqual(await coll('sol ring'), { fr: 2, 'fr|2x2|101': 2 }, 'langue de la carte (FR), édition choisie');
-assert.match(await txt(p, '#caStatus'), /Sol Ring · 4 dans ta collection/);
+assert.match(await txt(p, '.lot-name em'), /^✓ 4 dans ta collection$/, 'un seul retour : « ✓ 4 dans ta collection » sous le nom'); assert.equal(await p.$eval('#caStatus', s => s.hidden), true, 'ni bandeau en plus (audit du 6 novembre : il y en avait trois)');
+await p.click('.lot-card [data-act="qp"]'); assert.equal(await p.$('.lot-name em.lot-done'), null, 'carte suivante préparée : le ✓ tombe'); await p.click('.lot-card [data-act="qm"]');
 let r = await lotRows(); assert.deepEqual(r[0].tags.slice(0, 2), ['Double Masters 2022 #101', '× 2']); assert.equal(nb(r[0].px), '7,00 €');
-assert.match(await txt(p, '.lot .dv-title span'), /^2 cartes dans ce lot · 7,00 €$/);
+assert.match(await txt(p, '.lot .dv-title span'), /^2 cartes ajoutées · 7,00 €$/); assert.equal(await camGap(), gap0, 'appareil photo calé à droite : il ne bouge plus avec le titre');
+assert.deepEqual(await p.$$eval('.lot-lh > *', l => l.map(e => e.textContent)), ['Dernières ajoutées', 'Vider la liste']);
 ok('carte choisie : édition (symbole, extension, prix), quantité, ajoutée à la collection et au lot');
 
 /* ── 2) extension collante : proposée d'office si la carte y existe, sinon « Choisir l'édition » ─────────────── */
@@ -89,7 +92,7 @@ r = await lotRows(); assert.equal(r.length, 3); assert.ok(r[1].tags.includes('×
 await p.click('.lot-it:nth-child(1) [data-act="drop"]'); await p.waitForFunction(() => document.querySelectorAll('.lot-it').length === 2);
 assert.equal(await coll('llanowar elves'), null, 'retirée du lot : retirée de la collection'); assert.match(await txt(p, '#toast'), /Llanowar Elves retirée/);
 await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.lot-it').length === 3); assert.deepEqual(await coll('llanowar elves'), { '': 1 });
-await p.click('.lot-lh [data-act="new"]'); await p.waitForFunction(() => !document.querySelector('.lot-it'));
+await p.click('.lot-lh [data-act="new"]'); await p.waitForFunction(() => !document.querySelector('.lot-it')); assert.match(await txt(p, '#toast'), /^Liste vidée : les cartes restent dans ta collection/);
 assert.deepEqual(await coll('sol ring'), { fr: 2, 'fr|2x2|101': 2 }, 'nouveau lot : la collection ne bouge pas');
 await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.lot-it').length === 3);
 ok('ligne du lot modifiée (langue, quantité) ou retirée (annulable) ; nouveau lot (annulable), la collection garde ses cartes');

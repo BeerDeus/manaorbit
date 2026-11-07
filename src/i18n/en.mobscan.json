@@ -5,7 +5,6 @@
   "{n} cartes reçues du téléphone": "{n} cards received from the phone",
   "{name} reçue du téléphone": "{name} received from the phone",
   "Scan mobile": "Mobile scan",
-  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici, dans ce lot.": "Sign in with the same account on this computer and on your phone: cards scanned with the phone show up here, in this batch.",
   "Règles Firestore à publier (document « scan ») : le scan mobile ne peut pas encore passer par ton compte.": "Firestore rules to publish (“scan” document): mobile scan can't go through your account yet.",
   "Connexion au compte perdue : les cartes arriveront au retour du réseau.": "Connection to the account lost: cards will arrive when the network is back.",
   "Compte injoignable pour l'instant : réessaie dans un instant.": "Account unreachable for now: try again in a moment.",

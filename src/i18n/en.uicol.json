@@ -18,5 +18,9 @@
   "Même extension": "Same set",
   "Éditions des cartes scannées": "Printings of scanned cards",
   "L'édition (extension, numéro) donne l'illustration et le prix exacts de chaque carte.": "The printing (set, number) gives each card its exact artwork and price.",
-  "Taper un nom": "Type a name"
+  "Taper un nom": "Type a name",
+  "Dernières ajoutées": "Recently added",
+  "Vider la liste": "Clear the list",
+  "Liste vidée : les cartes restent dans ta collection": "List cleared: the cards stay in your collection",
+  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Sign in with the same account on this computer and on your phone: cards scanned with the phone show up here."
 }

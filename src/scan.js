@@ -396,7 +396,7 @@ function scanRecap() {
 function scanKeep(rows, name) {
   const n = rows.reduce((a, x) => a + x.q, 0); if (!n) return;
   if (typeof opnTake === 'function' && opnTake(rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e, !!x.f), p: x.e ? x.p : null, eu: x.eu, im: x.im })), { toast: true })) return;      // session d'ouverture : les cartes vont dans la session, ajoutées à la collection à la fin
-  if (SC.lot && LOT.el) { lotFromScan(rows).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n }))); return; }
+  if (SC.lot && LOT.el) { lotFromScan(rows).then(() => toast(TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection', { n }))); return; }
   for (const x of rows) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
   const add = rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: x.dp ? lineKey(x.l, x.e, !!x.f, { p: x.dp }) : scdLine(x.l, x.e, x.f) })), before = COLL.map, px0 = COLL.prox;      // mises à part (alerte de prix) : dans leur emplacement
   const apart = rows.filter(x => x.dp), nAp = apart.reduce((a, x) => a + x.q, 0), where = (scdPlace() ? ' · ' + plcName(scdPlace()) : '') + (nAp ? ' · ' + T('{n} dans « {place} »', { n: nAp, place: plcName(apart[0].dp) }) : '');

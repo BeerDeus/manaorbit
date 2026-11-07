@@ -143,7 +143,7 @@ assert.equal(await p.evaluate(() => COLL.map.counterspell.l), 'en'); assert.matc
 ok('« 1 carte sans langue → Anglais » : en une fois, annulable');
 await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('#caName'); await p.fill('#caName', 'anneau sol');
 await p.waitForSelector('.ca-opt'); assert.equal(await p.$eval('.ca-opt span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Anneau solaire Sol Ring');
-await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Anneau solaire · 3 dans ta collection/);
+await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForSelector('.lot-name em.lot-done'); assert.match(await txt(p, '.lot-name'), /^Anneau solaire Sol Ring ✓ 3 dans ta collection$/);
 assert.deepEqual(await p.evaluate(() => COLL.map['sol ring'].l), 'fr', 'nom français choisi : exemplaire français');
 await p.fill('#caName', 'Retour au'); await p.waitForSelector('.ca-opt'); assert.match(await txt(p, '.ca-opt'), /Retour au pays Swords to Plowshares/);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 });
