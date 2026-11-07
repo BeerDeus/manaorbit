@@ -1,10 +1,8 @@
 /* ── Éditeur de deck, onglet « Ajouter » : rangement, ajout groupé, sélection par appui long (bdadd.js) ─────────────── */
 .bd-plc{min-height:48px}
 .bd-ctl .fbar{margin-top:0}
-.bd-bulk{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
-.bd-bulk-t{display:flex;flex-direction:column;gap:3px;min-width:0}
-.bd-bulk-t b{font-size:14.5px;color:var(--ink)}
-.bd-bulk-t small{font-size:12.5px;line-height:1.35;color:var(--ink-2)}
+.bd-bulk{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px}      /* bouton secondaire sous la liste (plus d'encart plein en tête) */
+.bd-bulk small{font-size:12.5px;line-height:1.35;color:var(--ink-3);padding:0 4px}
 .bd-bulk .btn{gap:8px}
 .bd-bulk .btn .i{width:18px;height:18px}
 .bd-lp-hint{margin:-2px 0 2px;font-size:12.5px}

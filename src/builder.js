@@ -540,9 +540,9 @@ function bdAddHtml() {
   const own = has ? bdOwn(words) : [];
   const shown = own.slice(0, BD.shown), mine = new Set(own.map(it => it.k));
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
-  h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées »
   if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + (own.length > 1 && !BD.sel && BD.tgt !== 'cmdr' && !bdLpKnown() ? `<p class="hint bd-lp-hint">${T('Appui long sur une carte : en choisir plusieurs.')}</p>` : '') + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');      // astuce : jusqu'au premier appui long (bdadd.js)
   h += moreBtn(shown.length, own.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
+  h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées » : sous la liste de la collection, à partir de 2 cartes qui peuvent entrer (bdadd.js)
   if (q.length >= 2 && !flt) {      // toutes les cartes Magic : sans filtre seulement (rangement, couleur… ne valent que pour la collection)
     if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
     else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;

@@ -75,14 +75,15 @@ function bdLineQty(k) {
   let n = 0; for (const [g, q] of collLines(x)) if (fltLineOk(srchLine(k, g), f)) n += q;
   return n;
 }
-/** Bloc « N cartes listées · Ajouter les N cartes listées » (filtre ou recherche en cours, cible Deck ou Réserve). */
+/** « Ajouter les N cartes listées » (filtre ou recherche en cours, cible Deck ou Réserve) : bouton secondaire sous la liste, seulement quand au moins 2 cartes
+ *  listées peuvent encore entrer (bdBulkPlan : déjà dans le deck, hors des couleurs… écartées) ; recalculé à chaque repeinte, donc après chaque ajout. Une seule : son « + » suffit. */
 function bdBulkHtml(own, any) {
-  if (!any || !own.length || BD.tgt === 'cmdr' || BD.sel) return '';
-  const n = own.length, cmd = BD.fmt === 'commander';
+  if (!any || own.length < 2 || BD.tgt === 'cmdr' || BD.sel) return '';
+  const n = bdBulkPlan(own.map(it => ({ k: it.k, name: it.n })), bdLineQty).add.length; if (n < 2) return '';
+  const cmd = BD.fmt === 'commander';
   const how = cmd ? (BD.cmdr.length ? T('Un exemplaire de chaque ; celles déjà dans le deck ou hors des couleurs du commandant sont écartées.') : T('Choisis d\'abord ton commandant : les cartes hors de ses couleurs seront écartées.'))
     : BD.tgt === 'side' ? T('Les exemplaires que tu as, 4 au plus, dans la réserve (15 cartes au plus).') : T('Les exemplaires que tu as, 4 au plus (terrains de base : tous).');
-  return `<div class="bd-bulk"><div class="bd-bulk-t"><b>${esc(TN(n, '{n} carte listée', '{n} cartes listées', { n: nf0(n) }))}</b><small>${esc(how)}</small></div>
-    <button class="btn block" type="button" data-act="bulk"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>${esc(TN(n, 'Ajouter la carte listée', 'Ajouter les {n} cartes listées', { n: nf0(n) }))}</span></button></div>`;
+  return `<div class="bd-bulk"><button class="btn ghost block" type="button" data-act="bulk"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>${esc(TN(n, 'Ajouter la carte listée', 'Ajouter les {n} cartes listées', { n: nf0(n) }))}</span></button><small>${esc(how)}</small></div>`;
 }
 
 /* ── Ajout groupé ─────────────────────────────────────────────────────────────────────────────── */
