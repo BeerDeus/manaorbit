@@ -246,6 +246,26 @@ await p.waitForSelector('.tr-top .tr-sum em', { timeout: 15000 });      // valeu
   await D.p.context().close();
 }
 
+/* ── 6) foil sans prix foil : ⚠️ dit son message (nom de la vignette, ⚠️ touchable par-dessus la ligne), vues compacte et grille ─────────────── */
+{
+  const { p } = await open({ coll: '2 Edgar Markov (FOIL) *EN*\n1 Sol Ring *FR*' });
+  await toColl(p);
+  for (const [v, row, at] of [['compact', '.crow.cvw-c[data-k="edgar markov"]', '.cvw-p'], ['grid', '.crow.cvw-g[data-k="edgar markov"]', '.cvw-gm i']]) {
+    if (v === 'grid') await p.evaluate(() => cvwSet('grid'));
+    await p.waitForSelector(`${row} ${at} [data-pxwarn]`, { timeout: 8000 });
+    assert.match(await p.$eval(`${row} .cvw-hit`, b => b.getAttribute('aria-label')), /^Ouvrir la fiche de Edgar Markov · × 2 · .+ · Prix foil non disponible, prix sans foil affiché$/, v + ' : la vignette le dit');
+    assert.doesNotMatch(await p.$eval(`${row} .cvw-hit`, b => b.getAttribute('aria-label')), /⚠️/);
+    const hit = await p.$eval(`${row} [data-pxwarn]`, w => { const r = w.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && !!e.closest('[data-pxwarn]'); });
+    assert.equal(hit, true, v + ' : ⚠️ au-dessus du bouton de la vignette');
+    await p.evaluate(() => document.getElementById('toast').classList.remove('on'));
+    await p.click(`${row} [data-pxwarn]`); await p.waitForFunction(() => /Prix foil non disponible, prix sans foil affiché/.test(document.querySelector('#toast').textContent) && document.querySelector('#toast').classList.contains('on'));
+    await p.waitForTimeout(300); assert.equal(await p.$('.sheet-wrap.open'), null, v + ' : ⚠️ touché, le message seul (la fiche ne s\'ouvre pas)');
+    assert.doesNotMatch(await p.$eval('.crow[data-k="sol ring"] .cvw-hit', b => b.getAttribute('aria-label')), /Prix foil/, 'carte non foil : rien');
+  }
+  ok('foil sans prix foil (compacte, grille) : « Prix foil non disponible, prix sans foil affiché » dans le nom de la vignette, ⚠️ touchable par-dessus');
+  await p.context().close();
+}
+
 for (const e of errsAll) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));
 await browser.close(); world.stop();
 console.log('DENSITE E2E OK');

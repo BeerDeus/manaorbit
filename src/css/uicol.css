@@ -27,3 +27,8 @@
 .lot-name em.lot-done{font-weight:700;transform-origin:0 50%;animation:lotDone .5s var(--spring,ease-out)}
 @keyframes lotDone{0%{transform:scale(.85);opacity:.3}60%{transform:scale(1.06)}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.lot-name em.lot-done{animation:none}}
+
+/* ⚠️ des vues compacte et grille (densite.js › cvwRow) : par-dessus le bouton de la vignette, touché il dit son message (collection.js › pxWarn) */
+.cvw-c .px-warn,.cvw-g .px-warn{position:relative;z-index:2;pointer-events:auto}
+.cvw-c .px-warn::before,.cvw-g .px-warn::before{content:"";position:absolute;inset:-9px -7px}
+.cvw-g .cvw-gm i:has(.px-warn){position:relative;z-index:2}      /* son opacité en fait un contexte d'empilement : sans ça, ⚠️ restait sous le bouton */
