@@ -22,5 +22,8 @@
   "Dernières ajoutées": "Zuletzt hinzugefügt",
   "Vider la liste": "Liste leeren",
   "Liste vidée : les cartes restent dans ta collection": "Liste geleert: Die Karten bleiben in deiner Sammlung",
-  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Melde dich auf diesem Computer und deinem Handy mit demselben Konto an: Mit dem Handy gescannte Karten erscheinen hier."
+  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Melde dich auf diesem Computer und deinem Handy mit demselben Konto an: Mit dem Handy gescannte Karten erscheinen hier.",
+  "{n} recherches enregistrées au plus : supprimes-en une d'abord (« … » à côté de son nom)": "Höchstens {n} gespeicherte Suchen: Lösche zuerst eine („…“ neben ihrem Namen)",
+  "Prix rapide : estime une carte sans l'ajouter à ta collection.": "Schnellpreis: Bewerte eine Karte, ohne sie deiner Sammlung hinzuzufügen.",
+  "Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l'ajouter. Chaque estimation compte.": "Nutze Schnellpreis (oben im Scan, neben „Sammlung“), um eine Karte zu bewerten, ohne sie hinzuzufügen. Jede Schätzung zählt."
 }

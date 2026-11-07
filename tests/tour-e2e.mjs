@@ -424,10 +424,13 @@ const tipCheckGeo = (g, tag) => {
   await p.evaluate(() => openPublicTrade(readShare('trade', { have: [trCard('sol ring', 'Sol Ring', 1, '')], want: [], by: 'Léa', at: Date.now() }), false, 'AbcDef123456'));
   await p.waitForSelector('.pubv.on [data-am="add"]'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Ajouter en ami : une seule fois');
   await p.evaluate(() => TR.pub.el.__close()); await p.waitForTimeout(300);
-  await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await p.waitForTimeout(3000); assert.equal(await p.$('.tip'), null, 'scan : une seule fois');
+  await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');      // scan rouvert : l'astuce suivante, le mode Prix rapide (audit du 6 novembre)
+  await tipOn(p, /Prix rapide.:.estime une carte sans l'ajouter à ta collection\./, 8000); assert.match(await p.evaluate(() => TIP.tgt.className), /sc-pmode/);
+  await p.waitForTimeout(2300); await p.evaluate(() => SC.el.__close('done')); await tipGone(p);
+  await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await p.waitForTimeout(3000); assert.equal(await p.$('.tip'), null, 'scan : une seule fois chacune');
   await p.evaluate(() => SC.el.__close('done')); await p.waitForTimeout(300);
   await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('#collSeg'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Stats : une seule fois');
-  ok('astuces : chacune une seule fois (écrans rouverts)');
+  ok('astuces : chacune une seule fois (écrans rouverts) ; scan rouvert : « Prix rapide : estime une carte… » sur le mode, une fois');
   // Cartes : le rond de l'édition d'une ligne (« . » : espace insécable du français avant « : », tourNb)
   await p.click('#collSeg [data-v="list"]');
   await tipOn(p, /Touche ce rond.: l'édition exacte de ta carte, et foil ✦ ou non\./); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'édition');
@@ -461,7 +464,7 @@ const tipCheckGeo = (g, tag) => {
   assert.match(await p.evaluate(() => TIP.tgt.className), /sc-auto/);
   await p.waitForTimeout(1800); await p.keyboard.press('Shift'); await tipGone(p);
   await p.evaluate(() => SC.el.__close('done')); await p.waitForTimeout(400);
-  assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'auto', 'bnd', 'ed', 'fset', 'msopt', 'opn', 'rng', 'simg', 'want']);
+  assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'auto', 'bnd', 'ed', 'fset', 'msopt', 'opn', 'pq', 'rng', 'simg', 'want']);
   ok('astuces de la version 2 : rond de l\'édition (Cartes), filtre Extension (filtres ouverts), options du masterset, « Ranger ces cartes… » (emplacement ouvert), mode Auto du scan');
   // fiche « Niveau et badges » (une feuille) : toucher un badge
   await p.evaluate(() => { navGo('home'); prgSheet(); }); await p.waitForSelector('.prg-sheet.open .prg-grid');
@@ -472,7 +475,7 @@ const tipCheckGeo = (g, tag) => {
   assert.ok((await st(p)).tips.bdg);
   // « Revoir les astuces » : toutes reviennent
   await openMe(p);
-  assert.match(await p.textContent('#tipsAgain'), /Revoir les astuces.*11 déjà vues/);
+  assert.match(await p.textContent('#tipsAgain'), /Revoir les astuces.*12 déjà vues/);
   await p.click('#tipsAgain'); await p.waitForFunction(() => /Les astuces reviendront/.test(document.querySelector('#toast').textContent));
   assert.deepEqual([(await st(p)).tips, await p.$('#tipsAgain')], [{}, null]);
   await closeSheets(p); await p.click('#nav [data-nav="trade"]'); await tipOn(p, /Passe en mode classeur ici/);

@@ -257,7 +257,7 @@ const PRG_HOW = {
   sc_auto: 'Allume le scan automatique (réglages du scan) : chaque carte ajoutée pendant qu\'il est allumé compte.',
   sc_night: 'Scanne des cartes entre minuit et 5 h du matin (heure de ton téléphone).',
   sc_morning: 'Scanne des cartes entre 5 h et 7 h du matin (heure de ton téléphone).',
-  sc_quick: 'Utilise Prix rapide (dans le scan, ou l\'appui long sur l\'icône) pour estimer une carte sans l\'ajouter. Chaque estimation compte.',
+  sc_quick: 'Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l\'ajouter. Chaque estimation compte.',
   sc_report: 'Signale un scan qui s\'est trompé (« Signaler ce scan » sur sa ligne) : ça aide à améliorer la reconnaissance.',
   co_playset: 'Possède des cartes en 4 exemplaires ou plus (toutes éditions confondues). Chaque carte concernée compte une fois.',
   co_jp: 'Possède des cartes en japonais. Chaque exemplaire compte.',

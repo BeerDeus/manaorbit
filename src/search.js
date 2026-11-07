@@ -251,9 +251,9 @@ function srchBarPaint(box, f, api) {
   if (box.dataset.k === key) return; box.dataset.k = key;
   const saved = list.length ? `<div class="srch-saved" role="group" aria-label="${esc(T('Recherches enregistrées'))}">${list.map(s => {
     const p = s === on;
-    return `<span class="srch-pw${p ? ' on' : ''}"><button type="button" class="srch-pill" data-sid="${esc(s.id)}" aria-pressed="${p}" title="${esc(p ? T('Retirer cette recherche') : T('Appliquer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span>${esc(s.n)}</span></button>${p ? `<button type="button" class="srch-pmore" data-smore="${esc(s.id)}" aria-label="${esc(T('Renommer ou supprimer « {name} »', { name: s.n }))}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg></button>` : ''}</span>`;
+    return `<span class="srch-pw${p ? ' on' : ''}"><button type="button" class="srch-pill" data-sid="${esc(s.id)}" aria-pressed="${p}" title="${esc(p ? T('Retirer cette recherche') : T('Appliquer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span>${esc(s.n)}</span></button><button type="button" class="srch-pmore" data-smore="${esc(s.id)}" aria-label="${esc(T('Renommer ou supprimer « {name} »', { name: s.n }))}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg></button></span>`;
   }).join('')}</div>` : '';
-  const row = chips.length || (act && !on) ? `<div class="srch-act" role="group" aria-label="${esc(T('Filtres actifs'))}">${chips.map((c, i) => `<button type="button" class="srch-chip" data-ci="${i}" aria-label="${esc(T('Retirer le filtre : {name}', { name: c.t }))}">${c.h}<svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}${act && !on ? `<button type="button" class="srch-save" data-ssave aria-label="${esc(T('Enregistrer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>${esc(T('Enregistrer'))}</button>` : ''}</div>` : '';
+  const row = chips.length || (act && !on) ? `<div class="srch-act" role="group" aria-label="${esc(T('Filtres actifs'))}">${chips.map((c, i) => `<button type="button" class="srch-chip" data-ci="${i}" aria-label="${esc(T('Retirer le filtre : {name}', { name: c.t }))}">${c.h}<svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}${act && !on ? `<button type="button" class="srch-save" data-ssave><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>${esc(T('Enregistrer cette recherche'))}</button>` : ''}</div>` : '';
   box.__chips = chips;
   box.innerHTML = saved + row; box.hidden = !(saved || row);
 }
@@ -304,7 +304,7 @@ function srchNameSheet(title, sub, name, onOk, onDel) {
 }
 function srchSaveSheet(f, fire) {
   const list = srchRead();
-  if (list.length >= SRCH_MAX) { toast(T('{n} recherches enregistrées au plus : supprimes-en une d\'abord (appui long sur son nom)', { n: SRCH_MAX })); return; }
+  if (list.length >= SRCH_MAX) { toast(T('{n} recherches enregistrées au plus : supprimes-en une d\'abord (« … » à côté de son nom)', { n: SRCH_MAX })); return; }
   const o = srchSer(f);
   srchNameSheet(T('Enregistrer cette recherche'), srchChips(f, true).map(c => c.t).join(' · '), srchAutoName(f), n => {
     let id = ''; do id = Math.random().toString(36).slice(2, 10); while (srchRead().some(x => x.id === id));

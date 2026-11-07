@@ -6598,12 +6598,13 @@ html.opn-on .lot .lot-lh,html.opn-on .lot .lot-list{display:none}               
 .srch-saved::-webkit-scrollbar{display:none}
 .srch-pw{flex:none;display:inline-flex;align-items:stretch;border-radius:99px;border:1px solid var(--line);background:var(--surface);transition:background .2s,border-color .2s}
 .srch-pw.on{background:var(--accent);border-color:var(--accent)}
-.srch-pill{display:inline-flex;align-items:center;gap:6px;height:38px;max-width:240px;padding:0 14px 0 12px;border:0;background:none;border-radius:99px;font-size:13px;font-weight:650;color:var(--ink-2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.srch-pill{display:inline-flex;align-items:center;gap:6px;height:38px;max-width:240px;padding:0 2px 0 12px;border:0;background:none;border-radius:99px;font-size:13px;font-weight:650;color:var(--ink-2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .srch-pill span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .srch-pill .i{width:15px;height:15px;flex:none;color:var(--accent)}
 .srch-pw.on .srch-pill{color:var(--accent-ink);padding-right:4px}
 .srch-pw.on .srch-pill .i{color:inherit}
-.srch-pmore{display:grid;place-items:center;width:38px;height:38px;border:0;background:none;border-radius:99px;color:var(--accent-ink)}
+.srch-pmore{display:grid;place-items:center;width:36px;height:38px;border:0;background:none;border-radius:99px;color:var(--ink-3)}      /* « … » de chaque recherche enregistrée : renommer, supprimer */
+.srch-pw.on .srch-pmore{color:var(--accent-ink)}
 .srch-pmore .i{width:18px;height:18px}
 .srch-pill:focus-visible,.srch-pmore:focus-visible,.srch-chip:focus-visible,.srch-save:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .srch-act{display:flex;flex-wrap:wrap;gap:6px}
@@ -8122,8 +8123,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'b90f79d0';
-const I18N_FILES = {"de":"i18n/de.7d1a0c42.js","en":"i18n/en.9f084f65.js","es":"i18n/es.527651be.js","it":"i18n/it.3d52a4b0.js","pt":"i18n/pt.6014830c.js"};
+const DD_BUILD = 'fd5a36ca';
+const I18N_FILES = {"de":"i18n/de.99d8fc80.js","en":"i18n/en.adbbe72a.js","es":"i18n/es.faf20d09.js","it":"i18n/it.8508e33b.js","pt":"i18n/pt.fa528b1b.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -22881,9 +22882,9 @@ function srchBarPaint(box, f, api) {
   if (box.dataset.k === key) return; box.dataset.k = key;
   const saved = list.length ? `<div class="srch-saved" role="group" aria-label="${esc(T('Recherches enregistrées'))}">${list.map(s => {
     const p = s === on;
-    return `<span class="srch-pw${p ? ' on' : ''}"><button type="button" class="srch-pill" data-sid="${esc(s.id)}" aria-pressed="${p}" title="${esc(p ? T('Retirer cette recherche') : T('Appliquer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span>${esc(s.n)}</span></button>${p ? `<button type="button" class="srch-pmore" data-smore="${esc(s.id)}" aria-label="${esc(T('Renommer ou supprimer « {name} »', { name: s.n }))}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg></button>` : ''}</span>`;
+    return `<span class="srch-pw${p ? ' on' : ''}"><button type="button" class="srch-pill" data-sid="${esc(s.id)}" aria-pressed="${p}" title="${esc(p ? T('Retirer cette recherche') : T('Appliquer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span>${esc(s.n)}</span></button><button type="button" class="srch-pmore" data-smore="${esc(s.id)}" aria-label="${esc(T('Renommer ou supprimer « {name} »', { name: s.n }))}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg></button></span>`;
   }).join('')}</div>` : '';
-  const row = chips.length || (act && !on) ? `<div class="srch-act" role="group" aria-label="${esc(T('Filtres actifs'))}">${chips.map((c, i) => `<button type="button" class="srch-chip" data-ci="${i}" aria-label="${esc(T('Retirer le filtre : {name}', { name: c.t }))}">${c.h}<svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}${act && !on ? `<button type="button" class="srch-save" data-ssave aria-label="${esc(T('Enregistrer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>${esc(T('Enregistrer'))}</button>` : ''}</div>` : '';
+  const row = chips.length || (act && !on) ? `<div class="srch-act" role="group" aria-label="${esc(T('Filtres actifs'))}">${chips.map((c, i) => `<button type="button" class="srch-chip" data-ci="${i}" aria-label="${esc(T('Retirer le filtre : {name}', { name: c.t }))}">${c.h}<svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}${act && !on ? `<button type="button" class="srch-save" data-ssave><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>${esc(T('Enregistrer cette recherche'))}</button>` : ''}</div>` : '';
   box.__chips = chips;
   box.innerHTML = saved + row; box.hidden = !(saved || row);
 }
@@ -22934,7 +22935,7 @@ function srchNameSheet(title, sub, name, onOk, onDel) {
 }
 function srchSaveSheet(f, fire) {
   const list = srchRead();
-  if (list.length >= SRCH_MAX) { toast(T('{n} recherches enregistrées au plus : supprimes-en une d\'abord (appui long sur son nom)', { n: SRCH_MAX })); return; }
+  if (list.length >= SRCH_MAX) { toast(T('{n} recherches enregistrées au plus : supprimes-en une d\'abord (« … » à côté de son nom)', { n: SRCH_MAX })); return; }
   const o = srchSer(f);
   srchNameSheet(T('Enregistrer cette recherche'), srchChips(f, true).map(c => c.t).join(' · '), srchAutoName(f), n => {
     let id = ''; do id = Math.random().toString(36).slice(2, 10); while (srchRead().some(x => x.id === id));
@@ -43808,7 +43809,7 @@ const PRG_HOW = {
   sc_auto: 'Allume le scan automatique (réglages du scan) : chaque carte ajoutée pendant qu\'il est allumé compte.',
   sc_night: 'Scanne des cartes entre minuit et 5 h du matin (heure de ton téléphone).',
   sc_morning: 'Scanne des cartes entre 5 h et 7 h du matin (heure de ton téléphone).',
-  sc_quick: 'Utilise Prix rapide (dans le scan, ou l\'appui long sur l\'icône) pour estimer une carte sans l\'ajouter. Chaque estimation compte.',
+  sc_quick: 'Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l\'ajouter. Chaque estimation compte.',
   sc_report: 'Signale un scan qui s\'est trompé (« Signaler ce scan » sur sa ligne) : ça aide à améliorer la reconnaissance.',
   co_playset: 'Possède des cartes en 4 exemplaires ou plus (toutes éditions confondues). Chaque carte concernée compte une fois.',
   co_jp: 'Possède des cartes en japonais. Chaque exemplaire compte.',
@@ -45820,7 +45821,7 @@ function evPushOpen() {
    utilisateur existant, une fois après une mise à jour : « Découvre les nouveautés ». Seulement sur l'accueil au calme : ni scan, ni échange en
    direct, ni feuille, ni mode streamer (streamOn), ni lien ouvert de l'extérieur (?p=…). Toujours relançable : Aide (en tête) et Compte et
    réglages › Aide et avis.
-   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages et mode Auto du scan,
+   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages, mode Auto et Prix rapide du scan,
    « Ajouter en ami » de la liste d'un autre, « Partager en image » des Stats, « Ranger ces cartes… » d'un emplacement, options du masterset,
    filtre Extension, rond de l'édition d'une ligne, nom d'un joueur du compteur de vie, « Où trouver mes cartes » d'un deck, badges de la fiche
    « Niveau et badges », qui est une feuille) ; une seule à la fois, effacée au premier toucher ou après 7 s. Vue pour de bon si elle est restée
@@ -46240,6 +46241,7 @@ const TIP_DEFS = {
   fset: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode !== 'decks', top => { const b = $('.fset', top); return b && !b.closest('[hidden]') ? b : null; }, () => T('Une seule extension à la fois : cherche-la par son nom, son code ou son année.')],      // panneau des filtres ouvert (filters.js)
   ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
+  pq: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote && !SC.deck && !SC.pm, top => $('.sc-pmode', top), () => T('Prix rapide : estime une carte sans l\'ajouter à ta collection.')],      // le mode existait, seulement trouvé par un appui long sur l'icône de l'appli (audit du 6 novembre)
   pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
   dvfind: [top => typeof DV !== 'undefined' && top === DV.el, top => $('.dv-fetch', top), () => T('Où trouver mes cartes : les cartes de ce deck que tu as, classeur par classeur, et celles qui manquent.')],      // viewer d'un deck (viewer.js), tout deck
   // depuis la version 3 de la visite

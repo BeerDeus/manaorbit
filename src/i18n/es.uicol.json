@@ -22,5 +22,8 @@
   "Dernières ajoutées": "Añadidas hace poco",
   "Vider la liste": "Vaciar la lista",
   "Liste vidée : les cartes restent dans ta collection": "Lista vaciada: las cartas siguen en tu colección",
-  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Inicia sesión con la misma cuenta en este ordenador y en tu móvil: las cartas escaneadas con el móvil llegan aquí."
+  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Inicia sesión con la misma cuenta en este ordenador y en tu móvil: las cartas escaneadas con el móvil llegan aquí.",
+  "{n} recherches enregistrées au plus : supprimes-en une d'abord (« … » à côté de son nom)": "{n} búsquedas guardadas como máximo: elimina una antes («…» junto a su nombre)",
+  "Prix rapide : estime une carte sans l'ajouter à ta collection.": "Precio rápido: valora una carta sin añadirla a tu colección.",
+  "Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l'ajouter. Chaque estimation compte.": "Usa Precio rápido (arriba en el escáner, junto a «Colección») para valorar una carta sin añadirla. Cada estimación cuenta."
 }

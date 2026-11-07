@@ -18,7 +18,7 @@
    utilisateur existant, une fois après une mise à jour : « Découvre les nouveautés ». Seulement sur l'accueil au calme : ni scan, ni échange en
    direct, ni feuille, ni mode streamer (streamOn), ni lien ouvert de l'extérieur (?p=…). Toujours relançable : Aide (en tête) et Compte et
    réglages › Aide et avis.
-   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages et mode Auto du scan,
+   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages, mode Auto et Prix rapide du scan,
    « Ajouter en ami » de la liste d'un autre, « Partager en image » des Stats, « Ranger ces cartes… » d'un emplacement, options du masterset,
    filtre Extension, rond de l'édition d'une ligne, nom d'un joueur du compteur de vie, « Où trouver mes cartes » d'un deck, badges de la fiche
    « Niveau et badges », qui est une feuille) ; une seule à la fois, effacée au premier toucher ou après 7 s. Vue pour de bon si elle est restée
@@ -438,6 +438,7 @@ const TIP_DEFS = {
   fset: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode !== 'decks', top => { const b = $('.fset', top); return b && !b.closest('[hidden]') ? b : null; }, () => T('Une seule extension à la fois : cherche-la par son nom, son code ou son année.')],      // panneau des filtres ouvert (filters.js)
   ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
+  pq: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote && !SC.deck && !SC.pm, top => $('.sc-pmode', top), () => T('Prix rapide : estime une carte sans l\'ajouter à ta collection.')],      // le mode existait, seulement trouvé par un appui long sur l'icône de l'appli (audit du 6 novembre)
   pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
   dvfind: [top => typeof DV !== 'undefined' && top === DV.el, top => $('.dv-fetch', top), () => T('Où trouver mes cartes : les cartes de ce deck que tu as, classeur par classeur, et celles qui manquent.')],      // viewer d'un deck (viewer.js), tout deck
   // depuis la version 3 de la visite

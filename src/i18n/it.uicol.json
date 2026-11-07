@@ -22,5 +22,8 @@
   "Dernières ajoutées": "Aggiunte di recente",
   "Vider la liste": "Svuota l'elenco",
   "Liste vidée : les cartes restent dans ta collection": "Elenco svuotato: le carte restano nella tua collezione",
-  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Accedi con lo stesso account su questo computer e sul telefono: le carte scansionate col telefono arrivano qui."
+  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.": "Accedi con lo stesso account su questo computer e sul telefono: le carte scansionate col telefono arrivano qui.",
+  "{n} recherches enregistrées au plus : supprimes-en une d'abord (« … » à côté de son nom)": "Al massimo {n} ricerche salvate: eliminane prima una («…» accanto al suo nome)",
+  "Prix rapide : estime une carte sans l'ajouter à ta collection.": "Prezzo rapido: stima una carta senza aggiungerla alla tua collezione.",
+  "Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l'ajouter. Chaque estimation compte.": "Usa Prezzo rapido (in alto nella scansione, accanto a «Collezione») per stimare una carta senza aggiungerla. Conta ogni stima."
 }
