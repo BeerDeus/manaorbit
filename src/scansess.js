@@ -84,7 +84,7 @@ function sssClear() {
 /** « Nouvelle session » du bandeau : scan vidé, « Annuler » rend les cartes (en plus de celles lues entre-temps). */
 function sssNew() {
   const s = sssSnap(); haptic('tap'); sssClear(); if (!s) return;
-  toast(T('Scan effacé'), { label: T('Annuler'), fn: () => { if (SC.el && SC.ctx === s.ctx) { sssApply(s, true); if (s.dest && !scdSet()) scdReset(s.dest); scanPaintTools(); scanPaintList(); } else sssPut(s); } });
+  toast(T('Scan effacé'), { label: tUndo(), fn: () => { if (SC.el && SC.ctx === s.ctx) { sssApply(s, true); if (s.dest && !scdSet()) scdReset(s.dest); scanPaintTools(); scanPaintList(); } else sssPut(s); } });
 }
 /** Des cartes seraient perdues en quittant : lues (même « à vérifier »), en lecture, ou dans la liste « Prix ». Jamais en scan mobile. */
 const sssUnsaved = () => !!SC.el && !SC.remote && (SC.items.size > 0 || SC.pq.length > 0 || SC.pend.length > 0 || SC.queue.length > 0);
@@ -103,7 +103,7 @@ function sssQuitAsk(end) {
       api.close();
       if (b.dataset.ss !== 'del') { end(); return; }
       const s = sssSnap(), ctx = SC.ctx; SC.items = new Map(); SC.pq = []; sssDrop(ctx); end(); sssDrop(ctx);
-      toast(T('Scan effacé'), s ? { label: T('Annuler'), fn: () => sssPut(s) } : undefined);
+      toast(T('Scan effacé'), s ? { label: tUndo(), fn: () => sssPut(s) } : undefined);
     });
   });
 }

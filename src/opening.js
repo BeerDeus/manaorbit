@@ -73,7 +73,7 @@ function opnTake(items, o = {}) {
   }
   if (!n) return false;
   opnSave(); opnMeta(); opnPaint();
-  if (o.toast) toast(TN(n, '{n} carte ajoutée à la session', '{n} cartes ajoutées à la session'), { label: T('Annuler'), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
+  if (o.toast) toast(TN(n, '{n} carte ajoutée à la session', '{n} cartes ajoutées à la session'), { label: tUndo(), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
   return true;
 }
 /** Message après un ajout à la main pendant la session (« Ajouter des cartes », « Saisir »). */
@@ -99,7 +99,7 @@ function opnDec(id) {
   const was = c.rows.map(x => ({ ...x }));
   if (r.q > 1) r.q--; else c.rows = c.rows.filter(x => x !== r);
   opnSave(); opnPaint(); haptic('tap');
-  toast(T('{name} retirée de la session', { name: opnName(r) }), { label: T('Annuler'), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
+  toast(T('{name} retirée de la session', { name: opnName(r) }), { label: tUndo(), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
 }
 
 /* ── Repeints : bandeau du scan, pastille de l'accueil, feuille ouverte, collection, accueil, réglages ─────────────────────────────── */
@@ -231,7 +231,7 @@ function opnQuitAsk() {
     api.foot.addEventListener('click', e => {
       if (!e.target.closest('[data-ok]')) return;
       api.close(); opnClose(); OPN.cur = null; opnSave(); opnRefresh(); haptic('tap');
-      toast(T('Session abandonnée'), { label: T('Annuler'), fn: () => { if (OPN.cur) return; OPN.cur = c; opnSave(); opnRefresh(); } });
+      toast(T('Session abandonnée'), { label: tUndo(), fn: () => { if (OPN.cur) return; OPN.cur = c; opnSave(); opnRefresh(); } });
     });
   });
 }
@@ -274,7 +274,7 @@ function opnFinish(c, rows) {
   OPN.hist = [rec, ...opnHist().filter(x => x.id !== rec.id)]; opnHistSave();
   if (typeof prgOpen === 'function') prgOpen(t.v, c.paid, rows.reduce((a, r) => Math.max(a, opnEu(r) || 0), 0), t.n, !!c.st);      // niveau et badges (progress.js)
   opnClose(); OPN.cur = null; opnSave(); haptic('ok'); opnRefresh();
-  toast(TN(t.n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: T('Annuler'), fn: () => {
+  toast(TN(t.n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: tUndo(), fn: () => {
     if (OPN.cur) return;
     COLL.map = before; collChanged(); OPN.hist = opnHist().filter(x => x !== rec); opnHistSave(); OPN.cur = c; opnSave(); opnRefresh();
   } });
@@ -328,7 +328,7 @@ function opnHistOpen(rec, after) {
       else if (a === 'file') opnDownload(text() + '\n', 'ouverture-' + dayIso(rec.at) + '.txt');
       else if (a === 'del') {
         const was = opnHist(); OPN.hist = was.filter(x => x !== rec); opnHistSave(); api.close(); if (after) after();
-        toast(T('Ouverture supprimée'), { label: T('Annuler'), fn: () => { OPN.hist = was; opnHistSave(); if (after) after(); } });
+        toast(T('Ouverture supprimée'), { label: tUndo(), fn: () => { OPN.hist = was; opnHistSave(); if (after) after(); } });
       }
     });
   });

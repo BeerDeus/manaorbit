@@ -6,7 +6,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { chromium, startWorld, newPage, txt, ok, signInFake, closeSheets } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, signInFake, closeSheets, dvAct } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 19836 }); world.basics = true;
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -42,7 +42,7 @@ const id = await p.evaluate(t => { const id = newIdFor(); putDeck(id, deckDoc({ 
 await p.waitForFunction(i => !!findDeck(i), id);
 const pubSheet = async () => {
   await p.evaluate(i => { while (sheets.length) sheets[sheets.length - 1].close(); closeDeckViewer(); PD.mine = null; openDeckViewer({ id: i }); }, id);
-  await p.waitForSelector('.dv.on .dv-pubb'); await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+  await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
   await p.waitForFunction(() => !/Lecture de tes decks publiés/.test(document.querySelector('.sheet-wrap.open .pub-checks').textContent));
 };
 const dscBtn = () => p.$('.sheet-wrap.open [data-pub="dsc"]');

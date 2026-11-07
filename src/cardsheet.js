@@ -297,7 +297,7 @@ function csChange(e) {
   const kp = e.target.closest('input[data-cs="keep"]');
   if (kp) {      // même effet que « Garder » de l'onglet Échange
     haptic('tap'); if (kp.checked) TR.kept.add(k); else TR.kept.delete(k); trChanged(); csPaint();
-    if (kp.checked) toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); csSoon(); } });
+    if (kp.checked) toast(T('Gardée : elle n\'est plus proposée'), { label: tUndo(), fn: () => { TR.kept.delete(k); trChanged(); csSoon(); } });
   }
 }
 /** « − » de la fiche : pas de confirmation, un toast « Annuler » (la ligne revient, la carte aussi avec sa date d'ajout si c'était son dernier exemplaire). */
@@ -306,7 +306,7 @@ function csMinus(k, g) {
   const name = c.n, date = c.d, multi = collLines(c).length > 1, left = collBump(k, name, -1, { lang: g }); haptic('tap');
   const what = multi || lineEd(g) || lineFoil(g) ? ' (' + lineTag(g) + ')' : '';
   toast(left ? T('{name} : un exemplaire retiré{line} · il en reste {n}', { name, line: what, n: left }) : COLL.map[k] ? T('{name} : dernier exemplaire{line} retiré', { name, line: what }) : T('{name} retirée de la collection', { name: name + what }),
-    { label: T('Annuler'), fn: () => { collBump(k, name, 1, { lang: g, date }); } });
+    { label: tUndo(), fn: () => { collBump(k, name, 1, { lang: g, date }); } });
 }
 /** Image de la fiche : la carte en grand (3D, reflet, foil), précédente / suivante parmi les lignes de la carte. */
 function csZoom(k) {
@@ -320,7 +320,7 @@ function csZoom(k) {
 /** « Alerte de prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
 async function csWatch(k, b) {
   const w = AC.watch[k];
-  if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: T('Annuler'), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }
+  if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: tUndo(), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }
   if (!AC.on) { b.disabled = true; const r = await alEnable(); b.disabled = false; if (!r.ok) { toast(alWhy(r)); return; } }
   alWatch(CS.n, 0, true); haptic('ok'); csPaint();
   toast(T('{name} : tu seras prévenu si son prix bouge fort (hausse ou baisse)', { name: CS.n }), { label: T('Régler'), fn: () => openAlertSheet() });
@@ -365,7 +365,7 @@ function csAddSheet(k) {
       const ed = p ? edKey(p.set, p.num) : '', g = lineKey(l, ed, f);
       if (p) edRemember(k, l, ed, edInfoOf(p, l));
       api.close(); CS.g = g; collBump(k, n, 1, { lang: g }); haptic('ok'); if (ed) edSoon();
-      toast(T('{name} : un exemplaire ajouté ({line})', { name: n, line: lineTag(g) || T('sans langue') }), { label: T('Annuler'), fn: () => { collBump(k, n, -1, { lang: g }); } });
+      toast(T('{name} : un exemplaire ajouté ({line})', { name: n, line: lineTag(g) || T('sans langue') }), { label: tUndo(), fn: () => { collBump(k, n, -1, { lang: g }); } });
     });
   });
 }
@@ -403,5 +403,5 @@ function csDeckAdd(id, k, n) {
   const d = findDeck(id); if (!d) return;
   if (csDeckQty(d.text, k).q >= dkMaxCopies(dkFmtOf(d.text), k)) { toast(T('{name} est déjà dans « {deck} » (exemplaires au maximum pour ce format)', { name: n, deck: d.name })); return; }
   const prev = d.text; csDeckSave(d, csTextAdd(prev, k, n)); haptic('ok');
-  toast(T('{name} ajoutée à « {deck} »', { name: n, deck: d.name }), { label: T('Annuler'), fn: () => { const c = findDeck(id); if (c) csDeckSave(c, prev); } });
+  toast(T('{name} ajoutée à « {deck} »', { name: n, deck: d.name }), { label: tUndo(), fn: () => { const c = findDeck(id); if (c) csDeckSave(c, prev); } });
 }

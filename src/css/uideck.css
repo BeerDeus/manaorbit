@@ -1,0 +1,44 @@
+/* ── Viewer d'un deck : deux actions principales, une rangée légère, le reste dans « Plus » (viewer.js › dvActsHtml, dvMenu) ── */
+.dvw>.dv-head .dv-title{flex:1 1 auto}      /* titre sur toute la largeur : le partage reste au bord droit, même après un nom court */
+.dv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.dv-acts.one{grid-template-columns:1fr}
+.dv-acts:empty{display:none}
+.dv-acts .btn{min-width:0;height:auto;min-height:46px;padding:6px 10px;gap:7px;font-size:14.5px;line-height:1.15}
+.dv-acts .btn .i{flex:none;width:18px;height:18px}
+.dv-acts .btn span{min-width:0;text-align:center}
+@media (max-width:379px){.dv-acts .btn .i{display:none}}      /* 360 px : « Deck bearbeiten » tient sur une ligne sans l'icône (jamais coupé) */
+.dv-acts2{display:flex;align-items:center;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin:2px -6px -6px}
+.dv-lt{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 6px;border:0;border-radius:10px;background:none;color:var(--accent);font:inherit;font-size:13.5px;font-weight:600;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dv-lt .i{flex:none;width:17px;height:17px}
+.dv-lt:active{background:var(--accent-soft)}
+.dv-lt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dv-lt.dv-more{margin-left:auto;color:var(--ink-2)}
+/* Liste d'actions d'une feuille (menu « Plus » du viewer, feuille ⋯ d'un deck) : une ligne par action, la dangereuse en rouge */
+.mo-acts{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);overflow:hidden}
+.mo-act{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mo-act:first-child{border-top:0}
+.mo-act:active{background:var(--surface-2)}
+.mo-act:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mo-act>.i{flex:none;width:20px;height:20px;color:var(--accent)}
+.mo-act>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mo-act b{font-size:15px;font-weight:600}
+.mo-act small{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
+.mo-act.danger b,.mo-act.danger>.i{color:var(--bad)}
+.mo-act.on b{color:var(--good)}
+.mo-h{margin:18px 2px 8px;font-size:13px;font-weight:650;color:var(--ink-2)}
+/* Mes decks vide : ce qu'on peut faire, nommé (dklist.js) */
+.dks-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 16px}
+.dks-empty b{font-size:15px;color:var(--ink)}
+.dks-empty-b{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%}
+.dks-empty-b .btn{flex:1 1 auto;height:44px;padding:0 16px;gap:7px;white-space:nowrap}      /* côte à côte s'ils tiennent, sinon l'un sous l'autre : jamais un libellé sur deux lignes */
+.dks-empty-b .btn .i{width:18px;height:18px}
+.dks-empty span{font-size:13px;line-height:1.4}
+/* Échange : « Échange en direct » toujours en tête de l'onglet (troc.js › trocBoxHtml), réserve en clair (share.js › trKeepHtml) */
+.trc-entry.tr-live{margin:0 0 8px;padding:4px 12px 4px 4px;min-height:48px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+.tr-live .trc-et b{font-family:var(--font-body);font-size:14.5px;font-weight:650}
+.tr-live .trc-et small{line-height:1.3}
+.tr-setb{display:flex;width:100%;height:auto;min-height:44px;margin:-2px 0 4px;padding:0 4px;gap:8px;border:0;border-radius:10px;background:none;color:var(--ink-2);font-size:13.5px;font-weight:600;white-space:normal;text-align:left}
+.tr-setb span{flex:1 1 auto;min-width:0}
+.tr-setb .i{color:var(--accent)}
+.tr-setb .i.tr-setc{width:14px;height:14px;color:var(--ink-3);fill:none;stroke:currentColor}
+.tr-setb:active{transform:none;background:var(--surface-2)}

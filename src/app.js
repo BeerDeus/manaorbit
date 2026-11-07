@@ -191,7 +191,8 @@ function tween(el, to) {
 }
 let toastT;
 /** Libellé du bouton d'un toast qui défait ce qui vient d'être fait : « Annuler » en français, mais sa propre clé (« Rückgängig » en allemand, « Undo » en anglais),
- *  distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen »). */
+ *  « Deshacer », « Annulla », « Desfazer »), distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen », « Cancel »). Tout bouton « Annuler »
+ *  d'un toast passe par elle (règle dans DEV.md › Textes). */
 const tUndo = () => { const k = 'Annuler (défaire)'; return I18N.dict && Object.prototype.hasOwnProperty.call(I18N.dict, k) ? T(k) : T('Annuler'); };
 /** act : { label, fn } → bouton dans le toast (ex. tUndo()), affiché plus longtemps. */
 function toast(msg, act) {
@@ -483,7 +484,7 @@ function removeCard(key) {
   ta.value = r.text; S.isSample = false; refreshDeck(); paintUndo();
   const rw = $$('.rw', $('#list')).find(el => el.dataset.key === key), go = () => scheduleRecompute(true);
   if (rw && !reduceMotion()) { rw.style.pointerEvents = 'none'; try { rw.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(28px) scale(.97)' }], { duration: 190, easing: 'ease-in', fill: 'forwards' }).onfinish = go; } catch (e) { go(); } } else go();
-  toast(T('{name} retirée', { name: c.name + (c.qty > 1 ? ' × ' + c.qty : '') }), { label: T('Annuler'), fn: () => undoRemove(false) });
+  toast(T('{name} retirée', { name: c.name + (c.qty > 1 ? ' × ' + c.qty : '') }), { label: tUndo(), fn: () => undoRemove(false) });
 }
 /** Annule le dernier retrait, ou tous (dans l'ordre inverse, pour retrouver la liste d'origine). */
 function undoRemove(all) {
@@ -895,7 +896,7 @@ function openOfferSheet(key) {
     if (!need0) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'link-btn link-inline ownbtn';
     b.textContent = TN(need0, 'Je possède déjà cette carte', 'Je possède déjà ces {n} exemplaires');
-    b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: T('Annuler'), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
+    b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: tUndo(), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
     api.body.appendChild(b);
   };
   if (isCm()) {

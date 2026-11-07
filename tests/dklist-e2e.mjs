@@ -199,6 +199,37 @@ await p.click('.deck[data-id="d7"] .deck-more'); await p.waitForSelector('#dkOwn
 assert.match(await txt(p, '.sheet-wrap.open .cf-msg'), /Toutes les cartes de ce deck sont déjà dans ta collection/); await p.click('.sheet-wrap.open [data-all]');
 await p.waitForFunction(() => collQty('sol ring') === 2); ok('« Ajouter ses cartes » : ce qui manque (Sol Ring déjà là, pas doublé), ou tout sur demande');
 
+// viewer d'un deck (piste « uideck ») : deux actions principales (Éditer le deck, Coach), rangée légère, menu « Plus » ; « Revenir à la liste » seulement depuis Prix d'une liste
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); closeDecks(); putDeck('d8', deckDoc({ name: 'Edgar EDHREC', text: '1 Edgar Markov\n1 Sol Ring\n1 Arcane Signet' })); openDeckViewer({ id: 'd2' }); });
+await p.waitForSelector('.dv.on .dv-acts .dv-ana');
+assert.deepEqual(await p.$$eval('.dv.on .dv-acts .btn', b => b.map(x => [x.textContent.trim(), x.classList.contains('ghost')])), [['Éditer le deck', true], ['Coach', false]], 'deux actions principales, Coach en plein');
+assert.deepEqual(await p.$$eval('.dv.on .dv-acts2 .dv-lt', b => b.map(x => x.textContent.trim())), ['Où trouver mes cartes', 'Plus'], 'rangée légère : Où trouver mes cartes, Plus');
+assert.match(await txt(p, '.dv.on .dv-title span'), /^18\/100 cartes · /, 'viewer d\'un deck Commander : « 18/100 cartes », comme Mes decks et la feuille');
+assert.equal(await p.$eval('.dv.on .dv-foot [data-act="edit"]', e => e.hidden), true, 'ouvert depuis Mes decks : pas de « Revenir à la liste »');
+{ const r = await p.evaluate(() => { const h = document.querySelector('.dv.on .dv-head').getBoundingClientRect(), b = document.querySelector('.dv.on .dv-head [data-act="share"]').getBoundingClientRect(); return h.right - b.right; }); assert.ok(r < 20, 'partage au bord droit de l\'en-tête (' + r + ' px)'); }
+await p.click('.dvw.on [data-act="more"]'); await p.waitForSelector('.dvm-sheet.open .mo-act');
+assert.deepEqual(await p.$$eval('.dvm-sheet .mo-act b', b => b.map(x => x.textContent)), ['Main de départ', 'Publier', 'Copier pour Cardmarket', 'Envoyer sur CardTrader', 'Ouvrir dans Prix d\'une liste']);
+await p.click('.dvm-sheet .dv-load'); await p.waitForFunction(() => !document.querySelector('.dv') && S.view === 'input' && S.deckId === 'd2', null, { timeout: 3000 });
+ok('viewer : Éditer le deck + Coach, Où trouver mes cartes + Plus, « Ouvrir dans Prix d\'une liste » dans le menu ; 18/100 cartes ; partage à droite');
+await p.evaluate(() => openDeckViewer({ id: 'd2', back: true })); await p.waitForSelector('.dv.on .dv-acts');
+assert.equal(await p.$eval('.dv.on .dv-foot [data-act="edit"]', e => e.hidden), false, 'depuis Prix d\'une liste : « Revenir à la liste »');
+assert.equal(await p.evaluate(() => dvActs().menu.some(a => a.act === 'edit')), false, 'et plus d\'« Ouvrir dans Prix d\'une liste »');
+await p.evaluate(() => closeDeckViewer()); await p.waitForTimeout(300);
+await p.evaluate(() => openDeckViewer({ id: 'd8' })); await p.waitForSelector('.dv.on .dv-cmd', { timeout: 8000 });
+await p.waitForSelector('.dv.on .dv-acts .dv-ana', { timeout: 5000 }); ok('liste sans en-tête, commandant en tête (canCommand) : Coach proposé');
+await p.evaluate(() => closeDeckViewer()); await p.waitForTimeout(300);
+
+// Mes decks vide : « Créer un deck » et « Prix d'une liste » (où coller une liste puis l'enregistrer), nommés
+{
+  const { p: q, errs: e2 } = await newPage(browser, world, {}); await q.waitForTimeout(500);
+  await q.evaluate(() => openDecks()); await q.waitForSelector('.dks.on .dks-empty');
+  assert.equal(await txt(q, '.dks-empty b'), 'Aucun deck pour le moment');
+  assert.deepEqual(await q.$$eval('.dks-empty .btn', b => b.map(x => x.textContent.trim())), ['Créer un deck', 'Prix d\'une liste']);
+  assert.match(await txt(q, '.dks-empty span'), /Colle-la dans l'onglet « Prix d'une liste », puis touche « Enregistrer »/);
+  await q.click('.dks-empty [data-act="price"]'); await q.waitForFunction(() => !document.querySelector('.dks') && S.view === 'input', null, { timeout: 3000 });
+  assert.deepEqual(e2, []); await q.context().close();
+  ok('Mes decks vide : Créer un deck, Prix d\'une liste (l\'onglet où coller une liste)');
+}
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));
 await browser.close(); world.stop();
 console.log('DKLIST E2E OK');

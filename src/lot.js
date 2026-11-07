@@ -149,7 +149,7 @@ function lotDrop(id) {
   const date = (COLL.map[x.k] || {}).d;
   collBump(x.k, x.n, -x.q, { lang: x.g }); LOT.list = LOT.list.filter(y => y.id !== id); if (LOT.edit === id) { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
   lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-  toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: T('Annuler'), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
+  toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: tUndo(), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
 }
 /** Catalogue des noms pour les suggestions : bandeau « Chargement… » tant qu'il n'est pas là, effacé à son arrivée ; échec : message (hors ligne, Scryfall), relancé au retour du réseau. */
 function lotCatLoad(wrap) {
@@ -286,7 +286,7 @@ function openLot() {
     else if (act === 'new') {
       const before = LOT.list; if (!before.length) return;
       LOT.list = []; LOT.edit = ''; lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: T('Annuler'), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
+      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: tUndo(), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
     } else if (act === 'edit' || act === 'drop') {
       const row = b.closest('.lot-it'), x = row && LOT.list.find(y => y.id === row.dataset.id); if (!x) return;
       if (act === 'drop') return lotDrop(x.id);

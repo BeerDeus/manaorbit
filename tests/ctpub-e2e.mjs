@@ -2,7 +2,7 @@
 // Serveur réservé à un compte (ALLOWED_UIDS) ; visiteur sans compte ni token : prix et offres lus sans token, panier et liste de souhaits demandent SON token.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, dvAct } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 19850, env: { ALLOWED_UIDS: 'uid-owner' } });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -28,8 +28,8 @@ try {
   await p.evaluate(() => { for (const s of [...document.querySelectorAll('.sheet-wrap')]) s.remove(); });
   await p.evaluate(() => putDeck('dk-ctw', deckDoc({ name: 'Edgar envoyé', text: 'Commander\n1 Edgar Markov\n\nDeck\n2 Sol Ring\n1 Arcane Signet\n30 Plains', opts: { ...S.opts } })));
   await p.evaluate(() => { COLL.map = collFromText('1 Arcane Signet'); collChanged(); });
-  await p.evaluate(() => openDeckViewer({ id: 'dk-ctw' })); await p.waitForSelector('.dv.on .dv-ctw');
-  await p.click('.dv-ctw'); await p.waitForSelector('.ct-get-sheet');
+  await p.evaluate(() => openDeckViewer({ id: 'dk-ctw' })); await p.waitForSelector('.dv.on .dv-acts');
+  await dvAct(p, '.dv-ctw'); await p.waitForSelector('.ct-get-sheet');
   assert.match(await txt(p, '.ct-get-sheet .ct-get-t'), /Envoyer un deck sur CardTrader demande ton token/);
   await p.fill('#ctgsTok', UT); await p.click('.ct-get-sheet [data-ctg="test"]');
   await p.waitForSelector('#ctwGo', { timeout: 10000 });

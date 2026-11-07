@@ -257,3 +257,11 @@ export async function rcGo(p) {
   await p.waitForFunction(() => !sheets.some(s => s.wrap.classList.contains('rc-sheet')) || document.querySelector('.rc-sheet [data-rc="pforce"]'), null, { timeout: 5000 });
   if (await p.$('.rc-sheet [data-rc="pforce"]')) await p.click('.rc-sheet [data-rc="pforce"]');      // sans rangement (scansess.js) : « Ajouter quand même »
 }
+/** Action du viewer d'un deck (viewer.js › dvActs) : le bouton s'il est à l'écran (rangées du viewer), sinon par le menu « Plus » (feuille .dvm-sheet). sel : « .dv-pubb », « [data-act="cm"] »… */
+export async function dvAct(p, sel) {
+  if (await p.$(`.dvw.on ${sel}`)) return p.click(`.dvw.on ${sel}`);      // .dvw : le viewer (Mes decks, ouvert dessous, est aussi un .dv)
+  await p.click('.dvw.on [data-act="more"]'); await p.waitForSelector(`.dvm-sheet.open ${sel}`);
+  await p.click(`.dvm-sheet.open ${sel}`); await p.waitForFunction(() => !document.querySelector('.dvm-sheet'), null, { timeout: 3000 });      // menu refermé : la feuille suivante est la seule ouverte
+}
+/** Libellé d'une action du viewer, où qu'elle soit (rangées ou menu « Plus ») ; '' si le viewer ne la propose pas. */
+export const dvActLabel = (p, act) => p.evaluate(a => { const x = dvActs(), it = [...x.main, ...x.light, ...x.menu].find(y => y.act === a); return it ? it.l : ''; }, act);

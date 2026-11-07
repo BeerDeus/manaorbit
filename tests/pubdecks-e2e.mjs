@@ -4,7 +4,7 @@
 // Faux edh.tsv et fausse liste /api/pubdecks servis par des routes Playwright ; faux cloud (e2e-world › signInFake).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, signInFake } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, signInFake, dvAct, dvActLabel } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18956 }); world.basics = true;      // terrains de base connus du faux Scryfall (cartes vérifiées avant publication)
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -71,9 +71,9 @@ await p.evaluate(() => closeCollection()); await p.waitForTimeout(300);
 const deck = (extra = '') => 'Commander\n1 Edgar Markov\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n30 Plains\n30 Swamp\n' + (extra || '37 Mountain');
 const id = await p.evaluate(t => { const id = newIdFor(); putDeck(id, deckDoc({ name: 'Edgar de Max', text: t, opts: { ...S.opts } })); return id; }, deck());
 await p.waitForFunction(i => !!findDeck(i), id);
-await p.evaluate(i => openDeckViewer({ id: i }), id); await p.waitForSelector('.dv.on .dv-pubb');
-assert.match(await txt(p, '.dv.on .dv-pubb'), /^Publier$/);
-await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+await p.evaluate(i => openDeckViewer({ id: i }), id); await p.waitForSelector('.dv.on .dv-acts');
+assert.equal(await dvActLabel(p, 'pub'), 'Publier');
+await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
 await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open .pub-checks li.ok').length === 5, null, { timeout: 8000 });
 await p.waitForFunction(() => /Toutes les cartes existent/.test(document.querySelector('.sheet-wrap.open .pub-checks').textContent), null, { timeout: 8000 });
 assert.match(await txt(p, '.sheet-wrap.open .pub-checks'), /Commandant : Edgar Markov · WBR 100 cartes, commandant compris Toutes les cartes existent Publié sous le pseudo Max Modifier 0 \/ 10 decks publiés/);
@@ -85,15 +85,15 @@ assert.equal(pubs.length, 1); assert.equal(pubs[0][0], tag + '_0', 'première pl
 assert.deepEqual({ ...pubs[0][1], updatedAt: 0 }, { o: tag, by: 'Max', deck: id, name: 'Edgar de Max', cmd: ['Edgar Markov'], ci: 'WBR', cards: ['1 Sol Ring', '1 Arcane Signet', '30 Plains', '30 Swamp', '37 Mountain'], updatedAt: 0, v: 1 });
 assert.ok(hits.includes('?fresh=1'), 'liste relue tout de suite');
 assert.deepEqual(await p.$$eval('.sheet-wrap.open .sheet-foot .btn', b => b.map(x => [x.textContent.trim(), x.disabled])), [['Retirer', false], ['✓ À jour', true]]);
-assert.match(await txt(p, '.dv.on .dv-pubb'), /✓ Publié/);
+assert.equal(await dvActLabel(p, 'pub'), '✓ Publié');
 ok('viewer › Publier : commandant (couleurs), 100 cartes, pseudo, places contrôlés ; document à la première place du compte, liste relue ; « ✓ Publié »');
 
 // liste modifiée : « Mettre à jour » (même place)
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); closeDeckViewer(); });
 await p.evaluate(([i, t]) => putDeck(i, deckDoc({ name: 'Edgar de Max', text: t, opts: { ...S.opts } })), [id, deck('36 Mountain\n1 Swords to Plowshares')]);
 await p.waitForFunction(i => /Swords/.test(findDeck(i).text), id);
-await p.evaluate(i => openDeckViewer({ id: i }), id); await p.waitForSelector('.dv.on .dv-pubb.on');
-await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-state');
+await p.evaluate(i => openDeckViewer({ id: i }), id); await p.waitForFunction(() => DV.el && dvPubOn());
+await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-state');
 await p.waitForFunction(() => /la liste a changé depuis/.test(document.querySelector('.sheet-wrap.open .pub-state').textContent));
 await p.waitForFunction(() => { const b = document.querySelector('.sheet-wrap.open [data-pub="go"]'); return b && !b.disabled && /Mettre à jour/.test(b.textContent); });
 await p.click('.sheet-wrap.open [data-pub="go"]'); await p.waitForFunction(() => /Deck mis à jour/.test(document.querySelector('.sheet-wrap.open .pub-msg').textContent));
@@ -102,20 +102,20 @@ pubs = await p.evaluate(() => [...window.__pubs]); assert.equal(pubs.length, 1);
 await p.click('.sheet-wrap.open [data-pub="drop"]'); await p.waitForFunction(() => /retiré de la communauté/.test(document.querySelector('.sheet-wrap.open .pub-msg').textContent));
 assert.equal(await p.evaluate(() => window.__pubs.size), 0);
 assert.deepEqual(await p.$$eval('.sheet-wrap.open .sheet-foot .btn', b => b.map(x => x.textContent.trim())), ['Publier']);
-assert.match(await txt(p, '.dv.on .dv-pubb'), /^Publier$/);
+assert.equal(await dvActLabel(p, 'pub'), 'Publier');
 ok('liste modifiée : « Mettre à jour » à la même place ; « Retirer » : le document part, « Publier » revient');
 
 // 99 cartes : refusé ; 10 places prises : refusé
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); closeDeckViewer(); });
 const id99 = await p.evaluate(t => { const i = newIdFor(); putDeck(i, deckDoc({ name: 'Court', text: t, opts: { ...S.opts } })); return i; }, deck('36 Mountain'));
 await p.waitForFunction(i => !!findDeck(i), id99);
-await p.evaluate(i => openDeckViewer({ id: i }), id99); await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+await p.evaluate(i => openDeckViewer({ id: i }), id99); await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
 await p.waitForFunction(() => /0 \/ 10/.test(document.querySelector('.sheet-wrap.open .pub-checks').textContent));
 assert.match(await txt(p, '.sheet-wrap.open .pub-checks li.ko'), /Il faut 100 cartes pile, commandant compris : ce deck en a 99/);
 assert.equal(await p.$eval('.sheet-wrap.open [data-pub="go"]', b => b.disabled), true);
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); closeDeckViewer(); });
 await p.evaluate(t => { for (let i = 0; i < 10; i++) window.__pubs.set(t + '_' + i, { o: t, deck: 'autre' + i, updatedAt: 1 }); PD.mine = null; }, tag);
-await p.evaluate(i => openDeckViewer({ id: i }), id); await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+await p.evaluate(i => openDeckViewer({ id: i }), id); await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
 await p.waitForFunction(() => /10 \/ 10 decks publiés · retire-en un pour publier celui-ci/.test(document.querySelector('.sheet-wrap.open .pub-checks').textContent));
 assert.equal(await p.$eval('.sheet-wrap.open [data-pub="go"]', b => b.disabled), true);
 ok('99 cartes : « Il faut 100 cartes pile » ; 10 decks déjà publiés : « retire-en un », rien d\'envoyé');
@@ -123,7 +123,7 @@ ok('99 cartes : « Il faut 100 cartes pile » ; 10 decks déjà publiés : « re
 // deck publié puis supprimé de Mes decks : sa copie publique part avec lui
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); closeDeckViewer(); });
 await p.evaluate(t => { window.__pubs.delete(t + '_4'); PD.mine = null; }, tag);
-await p.evaluate(i => openDeckViewer({ id: i }), id); await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+await p.evaluate(i => openDeckViewer({ id: i }), id); await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
 await p.waitForFunction(() => { const b = document.querySelector('.sheet-wrap.open [data-pub="go"]'); return b && !b.disabled; }, null, { timeout: 8000 });
 await p.click('.sheet-wrap.open [data-pub="go"]'); await p.waitForFunction(() => /Deck publié/.test(document.querySelector('.sheet-wrap.open .pub-msg').textContent));
 assert.equal(await p.evaluate(t => window.__pubs.get(t + '_4').deck, tag), id, 'première place libre (_4)');
@@ -135,13 +135,13 @@ ok('place libre réutilisée (_4) ; deck supprimé de Mes decks : sa copie publi
 
 // pseudo refusé par le filtre de mots ; carte au nom refusé
 await p.evaluate(() => { PROF.name = 'Sal0pe'; }); await p.evaluate(i => openDeckViewer({ id: i }), id99);
-await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
 assert.match(await txt(p, '.sheet-wrap.open .pub-checks'), /Pseudo refusé pour la communauté : choisis-en un autre Modifier/);
 assert.equal(await p.$eval('.sheet-wrap.open [data-pub="go"]', b => b.disabled), true);
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); closeDeckViewer(); PROF.name = 'Max'; });
 const idBad = await p.evaluate(t => { const i = newIdFor(); putDeck(i, deckDoc({ name: 'Sale', text: t, opts: { ...S.opts } })); return i; }, deck('36 Mountain\n1 Fuck Yeah'));
 await p.waitForFunction(i => !!findDeck(i), idBad);
-await p.evaluate(i => openDeckViewer({ id: i }), idBad); await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+await p.evaluate(i => openDeckViewer({ id: i }), idBad); await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
 await p.waitForFunction(() => /Carte inconnue de Scryfall : « Fuck Yeah »/.test(document.querySelector('.sheet-wrap.open .pub-checks').textContent), null, { timeout: 8000 });
 assert.match(await txt(p, '.sheet-wrap.open .pub-checks'), /Nom refusé dans la liste : « Fuck Yeah »/);
 assert.equal(await p.$eval('.sheet-wrap.open [data-pub="go"]', b => b.disabled), true);
@@ -150,7 +150,7 @@ ok('filtre de mots : pseudo refusé, carte au nom refusé → publication bloqu�
 
 // sans pseudo : « Choisis d'abord un pseudo »
 await p.evaluate(() => { PROF.name = ''; }); await p.evaluate(i => openDeckViewer({ id: i }), id99);
-await p.click('.dv.on .dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
+await p.waitForSelector('.dv.on .dv-acts'); await dvAct(p, '.dv-pubb'); await p.waitForSelector('.sheet-wrap.open .pub-checks');
 assert.match(await txt(p, '.sheet-wrap.open .pub-checks'), /Choisis d'abord un pseudo Choisir/);
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); closeDeckViewer(); });
 ok('sans pseudo : publication bloquée, « Choisir » ouvre le profil');

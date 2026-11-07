@@ -183,12 +183,16 @@ async function openPubSheet(deckId) {
     const onProf = () => again(); document.addEventListener('profchange', onProf); const close = api.close; api.close = () => { document.removeEventListener('profchange', onProf); close(); };
   });
 }
-/** Bouton « Publier » du viewer : « ✓ Publié » si le deck l'est déjà. */
+/** Deck du viewer déjà publié par ce compte ? */
+const dvPubOn = () => !!(PD.mine && PD.mineUid === (D.user && D.user.uid) && PD.mine.has(DV.deckId));
+/** « Publier » du viewer (rangée ou menu « Plus ») : « ✓ Publié » si le deck l'est déjà. */
 function dvPubPaint() {
-  const b = DV.el && $('.dv-pubb', DV.el); if (!b) return;
-  const on = !!(PD.mine && PD.mineUid === (D.user && D.user.uid) && PD.mine.has(DV.deckId));
-  b.innerHTML = `<svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${on ? '✓ ' + T('Publié') : T('Publier')}`;
-  b.classList.toggle('on', on);
+  const on = dvPubOn();
+  for (const b of [DV.el && $('.dv-pubb', DV.el), $('.dvm-sheet .dv-pubb')]) {
+    if (!b) continue;
+    const l = $('b', b) || $('span', b); if (l) l.textContent = on ? '✓ ' + T('Publié') : T('Publier');
+    b.classList.toggle('on', on);
+  }
 }
 /** Le viewer peut-il proposer « Publier » ? Deck de Mes decks, au format Commander. */
 const dvPubOk = () => !!(DV.deckId && !DV.live && !DV.pub && !DV.adhoc && findDeck(DV.deckId) && dkFmtOf(DV.text) === 'commander');

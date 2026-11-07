@@ -66,7 +66,7 @@ const anims = (p, sel) => p.$eval(sel, e => e.getAnimations({ subtree: true }).m
   assert.equal(await p.$eval('.dv.on', e => e.classList.contains('scrolled')), false);
   await p.$eval('.dv.on .dv-scroll', e => { e.querySelector('.dv-body').style.paddingBottom = '2000px'; e.scrollTop = 200; e.dispatchEvent(new Event('scroll')); }); await p.waitForTimeout(100);
   assert.equal(await p.$eval('.dv.on', e => e.classList.contains('scrolled')), true, 'en-tête : filet quand le contenu passe dessous');
-  await p.click('.dv.on [data-act="hand"]'); await p.waitForSelector('.hand-grid.stg');
+  await p.evaluate(() => dvAct('hand')); await p.waitForSelector('.hand-grid.stg');
   assert.ok((await anims(p, '.hand-grid')).includes('deal'), 'main de départ : cartes distribuées');
   ok('viewer : total qui défile, cascade, en-tête au défilement, cartes distribuées');
 }

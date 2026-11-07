@@ -174,20 +174,22 @@ const ROWS = '.coll.on .coll-list > .crow';
   assert.equal(await txt(p, '.coll-main .tr-box.tr-bar'), 'Connecte-toi pour partager Un lien public pour tes amis, en lecture seule');
   assert.ok(await p.$('.tr-bar [data-act="login"]')); assert.ok(await p.$eval('.tr-bar', b => b.getBoundingClientRect().height <= 60), 'barre d\'une ligne');
   assert.equal(await p.$('.coll-main .tr-keep'), null, 'réserve : dans les réglages');
-  assert.equal(await txt(p, '.tr-setb span'), 'Garde 1 ex.');
+  assert.match(await txt(p, '.tr-setb span'), /^Je garde 1 exemplaire de chaque( · |$)/, 'réserve en clair (plus « ⚙ Garde 1 ex. »)');
+  assert.equal(await txt(p, '.coll-main .tr-live'), 'Échange en direct Face à face, chacun sur son téléphone · connecte-toi pour commencer', 'échange en direct : entrée en tête de l\'onglet, même sans compte');
+  await p.click('.coll-main .tr-live'); await p.waitForSelector('.sheet-wrap.open [data-trc="login"]'); await p.evaluate(() => { TRC.want = ''; }); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
 await p.waitForSelector('.tr-top .tr-sum em', { timeout: 15000 });      // valeur : prix des cartes lus après l'ouverture de l'écran
   const top = await p.evaluate(() => { const s = document.querySelector('.tr-top .tr-sub').getBoundingClientRect(), e = document.querySelector('.tr-top .tr-sum em').getBoundingClientRect(); return Math.abs((s.top + s.bottom) / 2 - (e.top + e.bottom) / 2) < 4 && e.left > s.right; });
   assert.ok(top, 'sous-onglets et total sur la même ligne');
   const m = await measure(p, '.coll.m-trade .tr-list .tr-row'); console.log('  393×852 échange déconnecté :', JSON.stringify(m));
-  assert.ok(m.first <= 320, `liste d'échange à y = ${m.first} (≤ 320)`);
+  assert.ok(m.first <= 440, `liste d'échange à y = ${m.first} (≤ 440)`);      // 7 novembre 2026 : « Échange en direct » en tête de l'onglet et « Je garde 1 exemplaire de chaque » en clair (audit U, ≈ 110 px de plus, choix de clarté)
   await p.click('.tr-setb'); await p.waitForSelector('.sheet-wrap.open .trs-sheet #trKeep .seg-opt'); await p.waitForTimeout(450);
   assert.equal(await txt(p, '.sheet-wrap.open .sheet-head h2'), 'Réglages de l\'échange');
   await p.click('#trKeep [data-v="2"]'); await p.waitForFunction(() => TR.keep === 2);
-  assert.equal(await txt(p, '.tr-setb span'), 'Garde 2 ex.', 'la pastille suit le réglage'); assert.match(await p.$eval('.tr-setb', b => b.getAttribute('aria-label')), /Garde 2 ex\./);
+  assert.match(await txt(p, '.tr-setb span'), /^Je garde 2 exemplaires de chaque( · |$)/, 'la ligne suit le réglage'); assert.match(await p.$eval('.tr-setb', b => b.getAttribute('aria-label')), /Je garde 2 exemplaires de chaque/);
   assert.ok(await p.$('.trs-plc .tr-plc'), 'Mes rangements (rangements de la collection)');
   await p.click('.trs-plc .tr-plc'); await p.waitForSelector('.sheet-wrap.open .trp-row');
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.trp-row')); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
-  ok('Échange déconnecté : barre d\'une ligne, roue « Garde 1 ex. » à côté de Filtres, feuille « Réglages de l\'échange » (réserve, Mes rangements), sous-onglets et total sur une ligne');
+  ok('Échange déconnecté : barre d\'une ligne, ligne « Je garde 1 exemplaire de chaque » sous les sous-onglets, feuille « Réglages de l\'échange » (réserve, Mes rangements), sous-onglets et total sur une ligne');
   await p.context().close();
 }
 
@@ -211,8 +213,8 @@ await p.waitForSelector('.tr-top .tr-sum em', { timeout: 15000 });      // valeu
   const bands = '.coll.on .coll-sync, .coll.on .coll-status, .coll.on .coll-alert';      // bandeaux d'état (synchro, lecture, alerte) : sous la barre des filtres, au-dessus de la barre du lien ; passagers après la connexion (vus sur la CI : ≈ 65 px)
   await p.waitForFunction(sel => [...document.querySelectorAll(sel)].every(e => e.hidden || !e.offsetHeight), bands, { timeout: 15000 }).catch(() => {});
   const m = await measure(p, '.coll.m-trade .tr-list .tr-row'); console.log('  393×852 échange avec lien :', JSON.stringify(m));
-  const boxes = m.first <= 320 ? '' : JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('.coll.on .dv-head, .coll.on .coll-controls, .coll.on .coll-sync, .coll.on .coll-status, .coll.on .coll-alert, .coll.on .coll-main > *, .coll.on .tr-bar > *, .coll.on .tr-top > *, .coll.on .ev-pk')].map(e => [e.className.slice(0, 40), Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().height), e.hidden ? '' : e.textContent.trim().slice(0, 80)])));      // diagnostic : 374 sur la CI (Chromium 141), 309 en local
-  assert.ok(m.first <= 320, `liste d'échange à y = ${m.first} (≤ 320) ${boxes}`);
+  const boxes = m.first <= 440 ? '' : JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('.coll.on .dv-head, .coll.on .coll-controls, .coll.on .coll-sync, .coll.on .coll-status, .coll.on .coll-alert, .coll.on .coll-main > *, .coll.on .tr-bar > *, .coll.on .tr-top > *, .coll.on .ev-pk')].map(e => [e.className.slice(0, 40), Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().height), e.hidden ? '' : e.textContent.trim().slice(0, 80)])));      // diagnostic : 374 sur la CI (Chromium 141), 309 en local
+  assert.ok(m.first <= 440, `liste d'échange à y = ${m.first} (≤ 440) ${boxes}`);
   await p.click('.tr-bar.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet .tr-link input');
   assert.equal(await p.$eval('.trl-sheet .tr-link input', i => i.value), world.url + '?p=ShareDensite0001');
   assert.deepEqual(await p.$$eval('.trl-sheet [data-act]', b => b.map(x => x.dataset.act).filter(a => a !== 'trlive')), ['trcopy', 'trsend', 'trview', 'trqr', 'trimg', 'trnew', 'troff'], 'toutes les actions du lien');

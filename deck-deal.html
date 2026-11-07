@@ -1517,9 +1517,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .imgv-wish.on{background:rgba(255,212,121,.16);border-color:#ffd479;color:#ffd479}
 .imgv-wish[hidden]{display:none}
 .set-ver{margin:14px 0 0;text-align:center;font-family:var(--font-code);font-size:11.5px}
-.dv-acts{margin-top:2px}.dv-acts .btn,.tr-wacts .btn{flex:1 1 auto;height:44px;font-size:14px}
-.dv-acts .btn{flex-basis:calc(50% - 4px);min-width:min(100%,10.5em);height:auto;min-height:44px;padding:6px 10px;font-size:13.5px;line-height:1.15}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière : min-width en em, police agrandie → jamais trois lignes), la liste des cartes remonte d'autant */
-.dv-acts .dv-ana{flex-basis:100%}      /* Coach (decks Commander) : toute la ligne, en tête */
+.tr-wacts .btn{flex:1 1 auto;height:44px;font-size:14px}
 .tr-wacts{margin-bottom:10px}
 .tr-wrule{margin:-4px 0 10px}
 .al-entry{margin:0 0 12px}
@@ -1869,10 +1867,8 @@ body.nav-on.apl-on .upd-pop,body.nav-on.apl-on .mob-bar{bottom:calc(var(--nav-h)
 /* ── Éditeur de deck, onglet « Ajouter » : rangement, ajout groupé, sélection par appui long (bdadd.js) ─────────────── */
 .bd-plc{min-height:48px}
 .bd-ctl .fbar{margin-top:0}
-.bd-bulk{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
-.bd-bulk-t{display:flex;flex-direction:column;gap:3px;min-width:0}
-.bd-bulk-t b{font-size:14.5px;color:var(--ink)}
-.bd-bulk-t small{font-size:12.5px;line-height:1.35;color:var(--ink-2)}
+.bd-bulk{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px}      /* bouton secondaire sous la liste (plus d'encart plein en tête) */
+.bd-bulk small{font-size:12.5px;line-height:1.35;color:var(--ink-3);padding:0 4px}
 .bd-bulk .btn{gap:8px}
 .bd-bulk .btn .i{width:18px;height:18px}
 .bd-lp-hint{margin:-2px 0 2px;font-size:12.5px}
@@ -7347,6 +7343,51 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 @media (min-width:700px){.trc-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}}
 @media (prefers-reduced-motion:reduce){.trc-card.new .trc-art,.trc-tick,.trc-ln.pop,.trc-net .dot{animation:none}.trc-mark,.trc-art,.trc-ln{transition:none}}
 
+/* ── Viewer d'un deck : deux actions principales, une rangée légère, le reste dans « Plus » (viewer.js › dvActsHtml, dvMenu) ── */
+.dvw>.dv-head .dv-title{flex:1 1 auto}      /* titre sur toute la largeur : le partage reste au bord droit, même après un nom court */
+.dv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.dv-acts.one{grid-template-columns:1fr}
+.dv-acts:empty{display:none}
+.dv-acts .btn{min-width:0;height:auto;min-height:46px;padding:6px 10px;gap:7px;font-size:14.5px;line-height:1.15}
+.dv-acts .btn .i{flex:none;width:18px;height:18px}
+.dv-acts .btn span{min-width:0;text-align:center}
+@media (max-width:379px){.dv-acts .btn .i{display:none}}      /* 360 px : « Deck bearbeiten » tient sur une ligne sans l'icône (jamais coupé) */
+.dv-acts2{display:flex;align-items:center;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin:2px -6px -6px}
+.dv-lt{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 6px;border:0;border-radius:10px;background:none;color:var(--accent);font:inherit;font-size:13.5px;font-weight:600;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dv-lt .i{flex:none;width:17px;height:17px}
+.dv-lt:active{background:var(--accent-soft)}
+.dv-lt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dv-lt.dv-more{margin-left:auto;color:var(--ink-2)}
+/* Liste d'actions d'une feuille (menu « Plus » du viewer, feuille ⋯ d'un deck) : une ligne par action, la dangereuse en rouge */
+.mo-acts{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);overflow:hidden}
+.mo-act{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mo-act:first-child{border-top:0}
+.mo-act:active{background:var(--surface-2)}
+.mo-act:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mo-act>.i{flex:none;width:20px;height:20px;color:var(--accent)}
+.mo-act>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mo-act b{font-size:15px;font-weight:600}
+.mo-act small{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
+.mo-act.danger b,.mo-act.danger>.i{color:var(--bad)}
+.mo-act.on b{color:var(--good)}
+.mo-h{margin:18px 2px 8px;font-size:13px;font-weight:650;color:var(--ink-2)}
+/* Mes decks vide : ce qu'on peut faire, nommé (dklist.js) */
+.dks-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 16px}
+.dks-empty b{font-size:15px;color:var(--ink)}
+.dks-empty-b{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:100%}
+.dks-empty-b .btn{flex:1 1 auto;height:44px;padding:0 16px;gap:7px;white-space:nowrap}      /* côte à côte s'ils tiennent, sinon l'un sous l'autre : jamais un libellé sur deux lignes */
+.dks-empty-b .btn .i{width:18px;height:18px}
+.dks-empty span{font-size:13px;line-height:1.4}
+/* Échange : « Échange en direct » toujours en tête de l'onglet (troc.js › trocBoxHtml), réserve en clair (share.js › trKeepHtml) */
+.trc-entry.tr-live{margin:0 0 8px;padding:4px 12px 4px 4px;min-height:48px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+.tr-live .trc-et b{font-family:var(--font-body);font-size:14.5px;font-weight:650}
+.tr-live .trc-et small{line-height:1.3}
+.tr-setb{display:flex;width:100%;height:auto;min-height:44px;margin:-2px 0 4px;padding:0 4px;gap:8px;border:0;border-radius:10px;background:none;color:var(--ink-2);font-size:13.5px;font-weight:600;white-space:normal;text-align:left}
+.tr-setb span{flex:1 1 auto;min-width:0}
+.tr-setb .i{color:var(--accent)}
+.tr-setb .i.tr-setc{width:14px;height:14px;color:var(--ink-3);fill:none;stroke:currentColor}
+.tr-setb:active{transform:none;background:var(--surface-2)}
+
 /* zoom.css : vignettes qui ouvrent la carte en grand (zoom.js) : curseur, zone de toucher d'au moins 44 px, focus au clavier */
 .thumb[data-zoom]{cursor:zoom-in;overflow:visible}                                     /* pas de rognage : la zone de toucher déborde (::before) */
 .thumb[data-zoom] img{border-radius:inherit}
@@ -7588,7 +7629,6 @@ button.sync::before{content:"";position:absolute;inset:-8px 0}
 .bnd-sw .seg-thumb+.seg-opt::before{left:-3px}.bnd-sw .seg-opt:last-child::before{right:-3px}      /* Liste | Classeur : 41 → 44 px de large, vers l'extérieur seulement */
 .sortsel:not(.coll-sort)::before{content:"";position:absolute;inset:-6px 0}      /* menus Trier (34 px, bordés) : toute la pilule et 6 px autour ouvre le menu (app.js › showPicker), plus seulement le mot choisi (tri de la collection : déjà 40 px, sous la barre d'icônes, laissé tel quel) */
 .link-btn.link-inline::before{inset:-14px 0}      /* liens dans une feuille : 17 + 28 = 45 px */
-#dkDup+#dkOwn{margin-top:14px}      /* « Dupliquer ce deck » et « Ajouter ses cartes à ma collection » l'un sous l'autre : 14 px de plus, sinon le second couvrait le bas du premier (31 px) */
 .deck-new::before{inset:-6px}      /* « + » Créer un deck : bouton de 34 px bordé (la zone part du bord intérieur : 32 + 12 = 44) */
 .dw-chips{row-gap:14px}      /* puces de l'assistant : 8 px de plus entre deux rangées, pour que chaque puce garde ses 44 px */
 .dw-chips .chip:is([data-br],[data-bud]){position:relative;overflow:visible}      /* bracket, budget : textes courts, pas de « … » à garder (le débord coupait la zone) */
@@ -8093,8 +8133,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '3b753a0d';
-const I18N_FILES = {"de":"i18n/de.39381d61.js","en":"i18n/en.b9bbbfe7.js","es":"i18n/es.b539a7df.js","it":"i18n/it.bd84c104.js","pt":"i18n/pt.e4b6a0c6.js"};
+const DD_BUILD = 'e04e1595';
+const I18N_FILES = {"de":"i18n/de.27648dee.js","en":"i18n/en.f31306f7.js","es":"i18n/es.7aab7c1a.js","it":"i18n/it.81278b50.js","pt":"i18n/pt.5c29fa5d.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -9528,8 +9568,8 @@ function dkValue(text, metaOf, pxOf) {
 /** Taille d'un deck comptée comme le viewer et l'éditeur (dkCheck) : tous les exemplaires, commandant et terrains de base compris, réserve et compagnon à part (deckModel).
  *  size : 100 si le format Commander est connu (noté par le créateur ou en-tête « Commander »), sinon 0. → { n, size } */
 function dkCount(text) { const md = deckModel(text), q = a => a.reduce((n, c) => n + c.qty, 0); return { n: q(md.cards) + q(md.basics), size: dkFmtOf(text) === 'commander' ? DK_FORMATS.commander.size : 0 }; }
-/** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck et l'enregistrement. */
-function dkCountText(text) { const c = dkCount(text); return c.size ? T('{n}/{size} cartes', { n: c.n.toLocaleString(LOC()), size: c.size }) : TN(c.n, '{n} carte', '{n} cartes'); }
+/** « 41/100 cartes » (Commander), sinon « 36 cartes » : même chiffre dans Mes decks, la feuille d'un deck, le viewer et l'enregistrement. n : nombre déjà compté (viewer), sinon celui du texte. */
+function dkCountText(text, n) { const c = dkCount(text), k = n == null ? c.n : n; return c.size ? T('{n}/{size} cartes', { n: num(k), size: c.size }) : TN(k, '{n} carte', '{n} cartes'); }
 /** Couleurs d'un deck d'après ses seuls terrains de base (« WUBRG », dans cet ordre ; Wastes ignorés) : '' si le deck n'en a pas. Dernier recours de deckColors. */
 function dkColors(text) {
   const md = text && typeof text === 'object' ? text : deckModel(text), have = new Set(), by = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
@@ -13165,7 +13205,8 @@ function tween(el, to) {
 }
 let toastT;
 /** Libellé du bouton d'un toast qui défait ce qui vient d'être fait : « Annuler » en français, mais sa propre clé (« Rückgängig » en allemand, « Undo » en anglais),
- *  distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen »). */
+ *  « Deshacer », « Annulla », « Desfazer »), distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen », « Cancel »). Tout bouton « Annuler »
+ *  d'un toast passe par elle (règle dans DEV.md › Textes). */
 const tUndo = () => { const k = 'Annuler (défaire)'; return I18N.dict && Object.prototype.hasOwnProperty.call(I18N.dict, k) ? T(k) : T('Annuler'); };
 /** act : { label, fn } → bouton dans le toast (ex. tUndo()), affiché plus longtemps. */
 function toast(msg, act) {
@@ -13457,7 +13498,7 @@ function removeCard(key) {
   ta.value = r.text; S.isSample = false; refreshDeck(); paintUndo();
   const rw = $$('.rw', $('#list')).find(el => el.dataset.key === key), go = () => scheduleRecompute(true);
   if (rw && !reduceMotion()) { rw.style.pointerEvents = 'none'; try { rw.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(28px) scale(.97)' }], { duration: 190, easing: 'ease-in', fill: 'forwards' }).onfinish = go; } catch (e) { go(); } } else go();
-  toast(T('{name} retirée', { name: c.name + (c.qty > 1 ? ' × ' + c.qty : '') }), { label: T('Annuler'), fn: () => undoRemove(false) });
+  toast(T('{name} retirée', { name: c.name + (c.qty > 1 ? ' × ' + c.qty : '') }), { label: tUndo(), fn: () => undoRemove(false) });
 }
 /** Annule le dernier retrait, ou tous (dans l'ordre inverse, pour retrouver la liste d'origine). */
 function undoRemove(all) {
@@ -13869,7 +13910,7 @@ function openOfferSheet(key) {
     if (!need0) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'link-btn link-inline ownbtn';
     b.textContent = TN(need0, 'Je possède déjà cette carte', 'Je possède déjà ces {n} exemplaires');
-    b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: T('Annuler'), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
+    b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: tUndo(), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
     api.body.appendChild(b);
   };
   if (isCm()) {
@@ -18165,7 +18206,7 @@ function dkGoneFlush(id) { const t = DK_GONE.get(id); if (t === undefined) retur
 function dkDelete(id) {
   if (S.deckId === id) S.deckId = null;
   DK_GONE.set(id, setTimeout(() => dkGoneFlush(id), 7000)); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon();
-  toast(T('Deck supprimé'), { label: T('Annuler'), fn: () => { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon(); } });
+  toast(T('Deck supprimé'), { label: tUndo(), fn: () => { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon(); } });
 }
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) for (const id of [...DK_GONE.keys()]) dkGoneFlush(id); });
 const findDeck = id => (id ? allDecks().find(d => d.id === id) || null : null);
@@ -18505,14 +18546,15 @@ function openDeckSheet(id) {
     api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Infos du deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
       <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Mettre dans Je recherche')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
-      ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
+      <div class="mo-acts dk-acts">${typeof plcFetchSheet === 'function' ? `<button class="mo-act dk-find" type="button" id="dkFind"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><b>${T('Où trouver mes cartes')}</b><small>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</small></span></button>` : ''}
+        <button class="mo-act" type="button" id="dkDup"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span><b>${T('Dupliquer ce deck')}</b></span></button>
+        <button class="mo-act" type="button" id="dkOwn"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span><b>${T('Ajouter ses cartes à ma collection')}</b></span></button>
+        <button class="mo-act danger" type="button" id="dkDel"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg><span><b>${T('Supprimer ce deck')}</b><small>${T('Annulable quelques secondes')}</small></span></button></div>
       <div class="sec-title">${T('Historique des prix')}</div>
       ${series.length >= 2 ? chartSvg(series, Math.max(220, (api.body.clientWidth || 376) - 36)) + `<div class="chart-cap"><span>${esc(dateShort(same[0].at))}</span><span>${T('{n} relevés · de {min} à {max}', { n: series.length, min: esc(fmt(Math.min(...series))), max: esc(fmt(Math.max(...series))) })}</span><span>${esc(dateShort(lastE.at))}</span></div>` : ''}
-      ${rows ? `<div class="hist">${rows}</div>` : '<p class="hint">' + T('Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.') + '</p>'}
-      <button class="link-btn link-inline" type="button" id="dkDup">${T('Dupliquer ce deck')}</button>
-      <button class="link-btn link-inline" type="button" id="dkOwn">${T('Ajouter ses cartes à ma collection')}</button>`;
-    api.setFoot(`<button class="btn ghost-danger" type="button" id="dkDel">${T('Supprimer')}</button><button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
+      ${rows ? `<div class="hist">${rows}</div>` : '<p class="hint">' + T('Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.') + '</p>'}`;      // actions du deck en liste (Où trouver mes cartes, Dupliquer, Ajouter ses cartes, Supprimer en rouge) avant l'historique : visibles sans défiler
+    api.setFoot(`<button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
     $('#dkOpen', api.foot).onclick = () => { api.close(); loadDeck(id); };
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // « Infos du deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
@@ -18549,7 +18591,7 @@ function openDeckSheet(id) {
       const add = list => {
         const before = COLL.map, q = list.reduce((a, c) => a + c.qty, 0);
         collAdd(list.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); haptic('ok');
-        toast(TN(q, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+        toast(TN(q, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); } });
         collEnrich();
       };
       api.close();
@@ -18565,11 +18607,7 @@ function openDeckSheet(id) {
       putDeck(nid, deckDoc({ ...cur, name: (cur.name + ' ' + T('(copie)')).slice(0, 120), history: [], createdAt: Date.now() }));
       api.close(); toast(T('Deck dupliqué'));
     };
-    const del = $('#dkDel', api.foot); let armed = 0;
-    del.onclick = () => {
-      if (!armed) { armed = setTimeout(() => { armed = 0; del.textContent = T('Supprimer'); del.className = 'btn ghost-danger'; }, 4000); del.textContent = T('Confirmer'); del.className = 'btn danger'; return; }
-      clearTimeout(armed); api.close(); dkDelete(id);      // annulable quelques secondes (dkDelete)
-    };
+    $('#dkDel', api.body).onclick = () => { haptic('tap'); api.close(); dkDelete(id); };      // un appui : annulable 7 s (« Annuler » du message, dkDelete)
   });
 }
 
@@ -19080,6 +19118,7 @@ function openDecks() {
     const act = b.dataset.act;
     if (act === 'close') return wrap.__close();
     if (act === 'new') return openDeckNew();
+    if (act === 'price') return dkTabGo('price');      // Mes decks vide : « Prix d'une liste », où coller une liste puis l'enregistrer
     if (act === 'sync') return openAccount();
     if (act === 'import') { b.disabled = true; importLocal(); return; }
     if (act === 'eq') { DKS.eq = !DKS.eq; haptic('tap'); dksPaint(); return; }
@@ -19111,7 +19150,7 @@ function dksPaint() {
   else {
     if (imp.length) html += `<div class="import-row"><span>${TN(imp.length, '{n} deck sur cet appareil', '{n} decks sur cet appareil')}</span><button class="btn" type="button" data-act="import">${T('Importer')}</button></div>`;
     html += shown.map(deckCard).join('');
-    if (!all.length) html += '<div class="deck-empty">' + T('Aucun deck pour le moment. Touche « + » pour en créer un, ou colle une liste puis « Enregistrer ».') + '</div>';
+    if (!all.length) html += `<div class="deck-empty dks-empty"><b>${T('Aucun deck pour le moment')}</b><div class="dks-empty-b"><button class="btn" type="button" data-act="new"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>${T('Créer un deck')}</button><button class="btn ghost" type="button" data-act="price"><svg class="i" aria-hidden="true"><use href="#i-cart"/></svg>${T('Prix d\'une liste')}</button></div><span>${T('Une liste toute prête ? Colle-la dans l\'onglet « Prix d\'une liste », puis touche « Enregistrer ».')}</span></div>`;      // le « + » et l'onglet où coller une liste, nommés
     else if (!shown.length) html += '<div class="deck-empty">' + T('Aucun deck ne correspond à ces filtres.') + '</div>';
   }
   const host = $('#deckList', el);
@@ -19329,10 +19368,10 @@ function openCardViewer(items, index) {
     const k = wishKey(), img = urls[0]; if (!k || !img) return;
     const name = it.ln || it.name, was = TR.wish[k], same = !!was && !!was.i && samePrint(was.i, img);
     haptic(same ? 'tap' : 'ok');
-    if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), { label: T('Annuler'), fn: () => { TR.wish[k] = was; trChanged(); wishPaint(); } }); }
+    if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), { label: tUndo(), fn: () => { TR.wish[k] = was; trChanged(); wishPaint(); } }); }
     else {
       TR.wish[k] = { n: name, q: was ? was.q : 1, i: img.replace(/\/(large|png|border_crop)\//, '/normal/'), ...(where ? { w: where.slice(0, 90) } : {}), ...(shown && shown !== 'en' ? { l: shown } : {}) };
-      toast(was ? T('Illustration mise à jour dans ta liste de souhaits') : where ? T('{name} ajoutée à ta liste de souhaits ({where})', { name, where }) : T('{name} ajoutée à ta liste de souhaits', { name }), { label: T('Annuler'), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); wishPaint(); } });
+      toast(was ? T('Illustration mise à jour dans ta liste de souhaits') : where ? T('{name} ajoutée à ta liste de souhaits ({where})', { name, where }) : T('{name} ajoutée à ta liste de souhaits', { name }), { label: tUndo(), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); wishPaint(); } });
     }
     trChanged(); wishPaint();
   };
@@ -19479,8 +19518,8 @@ const DV_SORT_KEY = 'deckdeal:dv-sort';
 const DV = { anim: false, el: null, sort: 'mana', snap: null, deckId: null, name: '', live: false, adhoc: false, pub: false, prevFocus: null, flat: [], f: newFilter(), framed: null, fb: null, text: '', loading: false, sb: [], saveName: '', savedId: '', savedName: '' };
 try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type', 'role'].includes(v)) DV.sort = v; } catch (e) { /* stockage indisponible */ }
 
-/** Deck Commander (bloc « Commander » ou format noté) : bouton « Coach » (deckana.js). */
-const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
+/** Deck Commander (bloc « Commander », format noté, ou commandant en tête d'une liste sans en-tête : commandersOf, règle canCommand) : bouton « Coach » (deckana.js). */
+const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0 || !!(DV.snap && DV.snap.items.some(i => i.cmd)); } catch (e) { return false; } };
 /** Commandants de la liste : cartes sous un en-tête « Commander », sinon la première carte si elle peut être commandant (export EDHREC ; règle unique : core.js › canCommand). */
 function commandersOf(text, cards, metaOf) {
   const ks = commanderKeys(text).filter(k => cards.some(c => c.key === k));
@@ -19717,6 +19756,38 @@ function dvIllHtml(items) {
   const l = dvIllNames(items); if (!l.length) return '';
   return `<p class="dv-ill" role="note">${dvIllBadge()}<span>${esc(TN(l.length, 'Pas légale en Commander : {list}', 'Pas légales en Commander : {list}', { list: l.slice(0, 6).join(', ') + (l.length > 6 ? '…' : '') }))}</span></p>`;
 }
+/** Actions du viewer, par ordre d'importance : { act, cls, ic (icône), l (libellé), t (aide), main (action principale possible) }.
+ *  Principales : Éditer le deck et Coach (sinon Où trouver mes cartes) ; le reste dans une rangée légère et le menu « Plus » (dvMenu). */
+function dvActs() {
+  const A = [], mine = !DV.pub && !!DV.deckId && !DV.live;
+  if (mine && typeof openBuilder === 'function') A.push({ act: 'builder', cls: 'dv-bld', ic: 'edit', l: T('Éditer le deck'), main: 1 });
+  if (typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander()) A.push({ act: 'analyse', cls: 'dv-ana', ic: 'sliders', l: T('Coach'), t: T('Note, échanges conseillés et simulation de parties'), main: 1 });
+  if (typeof plcFetchSheet === 'function') A.push({ act: 'fetch', cls: 'dv-fetch', ic: 'check', l: T('Où trouver mes cartes'), t: DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement'), main: 1 });
+  A.push({ act: 'hand', cls: 'dv-hand', ic: 'stack', l: T('Main de départ'), t: T('7 cartes au hasard et les chances d\'avoir 2 à 4 terrains') });
+  if (dvPubOk()) A.push({ act: 'pub', cls: 'dv-pubb', ic: 'globe', l: typeof dvPubOn === 'function' && dvPubOn() ? '✓ ' + T('Publié') : T('Publier'), t: T('Publier ce deck dans la communauté (Decks › Idées de decks)') });
+  if (dvMissing().length) A.push({ act: 'cm', cls: 'dv-cm', ic: 'copy', l: T('Copier pour Cardmarket'), t: T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket') });
+  if (typeof ctWishSheet === 'function' && !mkUs() && !DV.live) A.push({ act: 'ctw', cls: 'dv-ctw', ic: 'ext', l: T('Envoyer sur CardTrader'), t: T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck') });
+  if (mine && !DV.back) A.push({ act: 'edit', cls: 'dv-load', ic: 'cart', l: T('Ouvrir dans Prix d\'une liste'), t: T('La liste de ce deck dans l\'onglet Prix d\'une liste : la modifier, chercher des offres') });
+  const main = A.filter(a => a.main).slice(0, 2), rest = A.filter(a => !main.includes(a)), light = rest.filter(a => a.main), menu = rest.filter(a => !a.main);
+  if (menu.length === 1) light.push(menu.pop());      // une seule action de plus : dans la rangée, pas derrière « Plus »
+  return { main, light, menu };
+}
+/** Bouton d'action (rangée principale : plein pour Coach, sinon le premier ; rangée légère : texte seul). */
+const dvActBtn = (a, cls) => `<button class="${cls}${a.cls ? ' ' + a.cls : ''}" type="button" data-act="${a.act}"${a.t ? ` title="${esc(a.t)}"` : ''}><svg class="i" aria-hidden="true"><use href="#i-${a.ic}"/></svg><span>${esc(a.l)}</span></button>`;
+function dvActsHtml() {
+  const { main, light, menu } = dvActs(), lead = main.find(a => a.act === 'analyse') || main[0];
+  return `<div class="dv-acts${main.length === 1 ? ' one' : ''}">${main.map(a => dvActBtn(a, a === lead ? 'btn' : 'btn ghost')).join('')}</div>
+    ${light.length || menu.length ? `<div class="dv-acts2">${light.map(a => dvActBtn(a, 'dv-lt')).join('')}${menu.length ? `<button class="dv-lt dv-more" type="button" data-act="more" aria-haspopup="dialog" aria-label="${T('Plus d\'actions')}" title="${T('Plus d\'actions')}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg><span>${T('Plus')}</span></button>` : ''}</div>` : ''}`;
+}
+/** Menu « Plus » : les autres actions du deck, en liste (icône, libellé, aide). */
+function dvMenu() {
+  const { menu } = dvActs(); if (!menu.length) return;
+  openSheet(DV.name, T('Plus d\'actions'), api => {
+    api.wrap.classList.add('dvm-sheet');
+    api.body.innerHTML = `<div class="mo-acts">${menu.map(a => `<button class="mo-act${a.cls ? ' ' + a.cls : ''}" type="button" data-act="${a.act}"><svg class="i" aria-hidden="true"><use href="#i-${a.ic}"/></svg><span><b>${esc(a.l)}</b>${a.t ? `<small>${esc(a.t)}</small>` : ''}</span></button>`).join('')}</div>`;
+    api.body.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; haptic('tap'); api.close(); dvAct(b.dataset.act); });
+  });
+}
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
 function dvFrame(snap) {
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
@@ -19727,7 +19798,7 @@ function dvFrame(snap) {
   DV.dl = snapDeltas(items, snap.pv);
   const sbN = DV.sb.reduce((a, i) => a + i.q, 0), sbTxt = sbN ? ' · ' + T('réserve {n}', { n: sbN }) : '';
   const todo = ref ? items.reduce((a, i) => a + (i.s === 'basic' ? 0 : Math.max(0, i.q - (i.ow || 0))), 0) : 0;
-  const cardsTxt = TN(copies, '{n} carte', '{n} cartes');
+  const cardsTxt = dkCountText(DV.text, copies);      // « 7/100 cartes » pour un deck Commander, comme Mes decks et la feuille du deck
   $('.dv-title span', el).textContent = DV.pub ? `${cardsTxt}${sbTxt} · ${DV.by ? T('partagé par {name}', { name: DV.by }) : T('partagé, lecture seule')}` : ref ? `${cardsTxt} · ${todo ? T('{n} à trouver', { n: todo }) : T('toutes possédées')}${none ? ' · ' + T('{n} sans prix', { n: none }) : ''}${sbTxt}`
     : `${cardsTxt}${own ? ' · ' + TN(own, '{n} possédée', '{n} possédées') : ''}${miss ? ' · ' + TN(miss, '{n} introuvable', '{n} introuvables') : ''}${none ? ' · ' + T('{n} sans offre', { n: none }) : ''}${sbTxt}`;
   $('.dv-body', el).innerHTML = `<div class="dv-side"><section class="dv-sum">
@@ -19735,7 +19806,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
-      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Éditer le deck')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › Idées de decks)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${T('Copier pour Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
+      ${dvActsHtml()}
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
     <div class="dv-main"><div id="dvCmd"></div>
     <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
@@ -19853,15 +19924,16 @@ function dvRender() {
   if (!snap) {
     DV.framed = null;
     $('.dv-body', el).innerHTML = '<div class="dv-empty"><b>' + T('Ce deck est vide') + '</b><p>' + T('Ajoute des cartes à la liste pour les voir ici.') + '</p></div>';
-    $('.dv-title span', el).textContent = ''; foot.hidden = !DV.deckId; edit.hidden = DV.live || !DV.deckId; refresh.hidden = true; close.hidden = !DV.live && !DV.adhoc; dvSavePaint(); return;
+    $('.dv-title span', el).textContent = ''; foot.hidden = !DV.back && !DV.live && !DV.adhoc; edit.hidden = !DV.back; refresh.hidden = true; close.hidden = !DV.live && !DV.adhoc; dvSavePaint(); return;
   }
   if (DV.framed !== snap) { const px = $('.dv-piles', el); DV.left = px ? px.scrollLeft : 0; dvFrame(snap); DV.framed = snap; dvPubPaint(); }      // cadre refait : la position dans les piles est reprise par dvGroups
   dvGroups();
   // relevé de référence : « Chercher les offres » seulement s'il reste des cartes à acheter (tout possédé : rien à chercher)
   const ref = !!snap.ref, todo = ref && snap.items.some(i => i.s !== 'basic' && i.q > (i.ow || 0));
   refresh.textContent = ref ? T('Chercher les offres') : T('Actualiser');
-  foot.hidden = false; edit.hidden = DV.live || !DV.deckId; refresh.hidden = DV.live || !DV.deckId || (ref && !todo);
-  close.hidden = !DV.live && !DV.adhoc;
+  edit.hidden = !DV.back; refresh.hidden = DV.live || !DV.deckId || (ref && !todo);
+  close.hidden = !DV.live && !DV.adhoc; close.textContent = DV.live ? T('Revenir à la liste') : T('Fermer');      // recherche en cours : le viewer referme sur Prix d'une liste
+  foot.hidden = edit.hidden && refresh.hidden && close.hidden && !DV.adhoc;      // rien à y mettre (deck tout possédé, ouvert depuis Mes decks) : pas de pied vide
   dvSavePaint();
 }
 
@@ -19925,11 +19997,12 @@ function dvFetchId() {
   const c = DV.adhoc ? dvCopy() : null; return c && findDeck(c.id) ? c.id : null;
 }
 /** Ouvre le viewer d'un deck enregistré ({ id }), de la recherche en cours ({ live: true }) ou d'une liste quelconque ({ text, name } : deck EDHREC ;
- *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name). */
-function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {}) {
+ *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name ;
+ *  back : ouvert depuis Prix d'une liste, « Revenir à la liste » en pied ; sinon « Ouvrir dans Prix d'une liste » dans le menu « Plus »). */
+function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from, back } = {}) {
   closeDeckViewer(); closeCardImage();
   const adhoc = !id && !live && typeof text === 'string', d = id ? findDeck(id) : null;
-  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
+  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null; DV.back = !!back && !!id && !live;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
   DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }
@@ -19960,22 +20033,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
       const m = bar.dataset.m; const go = () => { const g = $(`.dv-g[data-g="m${m}"]`, wrap); if (g) { $('.dv-scroll', wrap).scrollTo({ top: g.offsetTop - 56, behavior: reduceMotion() ? 'auto' : 'smooth' }); } };
       if (DV.sort !== 'mana') { DV.sort = 'mana'; $('#dvSeg', wrap).setValue('mana'); dvGroups(); } haptic('tap'); return go();
     }
-    const b = e.target.closest('button[data-act]'); if (!b) return;
-    const act = b.dataset.act, deck = DV.deckId;
-    if (act === 'close') wrap.__close();
-    else if (act === 'hand') openHand();
-    else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.saveName || DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : DV.savedId && findDeck(DV.savedId) ? DV.savedId : null, from: DV.from });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
-    else if (act === 'builder' && deck) { wrap.__close(); setTimeout(() => openBuilder({ id: deck }), 200); }      // éditeur du deck (builder.js), déplacé ici depuis la fiche du deck
-    else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
-    else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
-    else if (act === 'cm') cmCopy(dvMissing());
-    else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
-    else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
-    else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
-    else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
-    else if (act === 'save') dvSave();
-    else if (act === 'open') dvOpenCopy();
-    else if (act === 'pub' && deck) openPubSheet(deck);
+    const b = e.target.closest('button[data-act]'); if (b) dvAct(b.dataset.act);
   });
   document.body.appendChild(wrap); holdApp(); dvRender();
   dvMetaLoad(wrap);
@@ -19984,6 +20042,25 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {
   if (!DV.pub) haptic('tap');      // ouvert par un lien au chargement : pas de geste, le navigateur refuserait la vibration
   if (typeof tipSoon === 'function') tipSoon(1200);      // astuce (tour.js) : « Où trouver mes cartes »
 }
+/** Action du viewer (boutons, menu « Plus »). */
+function dvAct(act) {
+  const wrap = DV.el, deck = DV.deckId; if (!wrap) return;
+  if (act === 'close') wrap.__close();
+  else if (act === 'more') dvMenu();
+  else if (act === 'hand') openHand();
+  else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.saveName || DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : DV.savedId && findDeck(DV.savedId) ? DV.savedId : null, from: DV.from });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
+  else if (act === 'builder' && deck) { wrap.__close(); setTimeout(() => openBuilder({ id: deck }), 200); }      // éditeur du deck (builder.js), déplacé ici depuis la fiche du deck
+  else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
+  else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
+  else if (act === 'cm') cmCopy(dvMissing());
+  else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
+  else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
+  else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
+  else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
+  else if (act === 'save') dvSave();
+  else if (act === 'open') dvOpenCopy();
+  else if (act === 'pub' && deck) openPubSheet(deck);
+}
 /** « Actualiser » : recharge le deck, relit les prix (cache serveur ignoré) puis propose de revenir au viewer. */
 async function refreshDeckPrices(id) {
   const d = findDeck(id); if (!d) return;
@@ -19991,7 +20068,7 @@ async function refreshDeckPrices(id) {
   loadDeck(id, true);
   await startRun(true);
   const cur = findDeck(id), now = snapOf(cur);
-  if (S.run && S.run.status === 'done' && now && now.at > before) toast(T('Prix actualisés'), { label: T('Voir le deck'), fn: () => openDeckViewer({ id }) });
+  if (S.run && S.run.status === 'done' && now && now.at > before) toast(T('Prix actualisés'), { label: T('Voir le deck'), fn: () => openDeckViewer({ id, back: true }) });
 }
 
 /** Cartes qui manquent au deck affiché (deck + réserve − collection libre ; deck public : tout le deck, la collection du visiteur n'est pas lue ici). */
@@ -20229,7 +20306,7 @@ function collAsideAsk() {
       haptic('tap'); api.close();
       try { localStorage.removeItem(COLL_ASIDE_KEY); } catch (x) { /* ignore */ }
       if (b.dataset.as === 'add') { collDocSet(mergeDoc3(null, collDocNow(), doc)); collChanged(); collEnrich(); toast(TN(n, '{n} carte ajoutée à ce compte', '{n} cartes ajoutées à ce compte', { n: nf0(n) })); }
-      else toast(T('Collection de l\'autre compte retirée de cet appareil'), { label: T('Annuler'), fn: () => { try { localStorage.setItem(COLL_ASIDE_KEY, raw); } catch (x) { /* ignore */ } COLL.asked = false; collAsideSoon(); } });
+      else toast(T('Collection de l\'autre compte retirée de cet appareil'), { label: tUndo(), fn: () => { try { localStorage.setItem(COLL_ASIDE_KEY, raw); } catch (x) { /* ignore */ } COLL.asked = false; collAsideSoon(); } });
     });
   });
 }
@@ -20536,7 +20613,7 @@ function edSplit(k, g) {
       for (const r of rows) if (r.info && r.q > 0) edRemember(k, l, r.e, r.info);
       const next = collFromLines(cur, lines); if (!next) return;
       COLL.map[k] = next; collChanged(); haptic('ok');
-      toast(T('{name} : exemplaires répartis', { name }), { label: T('Annuler'), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
+      toast(T('{name} : exemplaires répartis', { name }), { label: tUndo(), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
     });
   });
 }
@@ -20575,7 +20652,7 @@ function collSoloApply() {
   }
   if (!n) return 0;
   COLL.map = m; collChanged({ paint: false }); collPaintSoon();
-  toast(TN(n, '{n} carte imprimée une seule fois : son édition est posée', '{n} cartes imprimées une seule fois : leur édition est posée', { n }), { label: T('Annuler'), fn: () => {
+  toast(TN(n, '{n} carte imprimée une seule fois : son édition est posée', '{n} cartes imprimées une seule fois : leur édition est posée', { n }), { label: tUndo(), fn: () => {
     const r = { ...COLL.map }; for (const k in before) { r[k] = before[k]; COLL.solo[k] = '-'; }
     COLL.map = r; Cache.set(COLL_SOLO_KEY, COLL.solo); collChanged();
   } });
@@ -20799,7 +20876,7 @@ function collRemoteApplied(b0, a0, o = {}) {
   for (const k in after) if (!before[k]) add++;
   for (const k in before) if (!after[k]) del++;
   const n0 = Object.keys(before).length, plural = n => TN(n, '{n} carte', '{n} cartes', { n });
-  if (del >= 10 && del * 2 >= n0) toast(TN(del, '{n} carte retirée depuis un autre appareil', '{n} cartes retirées depuis un autre appareil', { n: del }), { label: T('Annuler'), fn: () => { COLL.map = unionColl(COLL.map, before); collChanged(); } });
+  if (del >= 10 && del * 2 >= n0) toast(TN(del, '{n} carte retirée depuis un autre appareil', '{n} cartes retirées depuis un autre appareil', { n: del }), { label: tUndo(), fn: () => { COLL.map = unionColl(COLL.map, before); collChanged(); } });
   else if (o.first && o.had) toast(T('Collection de l\'appareil et du compte fusionnées'));
   else if (o.first) toast(T('Collection de ton compte chargée : {cards}', { cards: plural(add) }));
   else if (add || del) toast(T('Autre appareil : {changes}', { changes: [add && '+' + plural(add), del && '−' + plural(del)].filter(Boolean).join(' · ') }));
@@ -21688,7 +21765,7 @@ function openCollection(tab) {
         if (q) { if (row) $('.qstep b', row).textContent = q; }
         else {
           if (multi) collPaintBody(true); else if (row) row.remove();      // une langue de moins : les autres lignes de la carte se réorganisent
-          toast(T('{name} retirée de la collection', { name: name + (multi ? ' (' + lineTag(ln) + ')' : '') }), { label: T('Annuler'), fn: () => { collBump(k, name, was, { date, lang: ln }); } });
+          toast(T('{name} retirée de la collection', { name: name + (multi ? ' (' + lineTag(ln) + ')' : '') }), { label: tUndo(), fn: () => { collBump(k, name, was, { date, lang: ln }); } });
         }
       };
       if (d < 0) confirmMinus(cur.n, line[1], 'coll', step, tag); else step();
@@ -21785,7 +21862,7 @@ function openCollUnknown() {
       } else { undo = collDrop(k); msg = T('{name} retirée de la collection', { name: x.n }); }
       haptic('ok'); row.remove();
       if (!$('.uk-row', api.body)) api.close();
-      toast(msg, undo ? { label: T('Annuler'), fn: undo } : undefined);
+      toast(msg, undo ? { label: tUndo(), fn: undo } : undefined);
     });
   });
 }
@@ -21804,7 +21881,7 @@ function collBulkLang(l) {
   }
   if (!n) return;
   COLL.map = m; haptic('ok'); collChanged(); collEnrich();      // images dans la langue choisie
-  toast(TN(n, '{n} carte passée en {lang}', '{n} cartes passées en {lang}', { lang: T(LANGS[l]) }), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+  toast(TN(n, '{n} carte passée en {lang}', '{n} cartes passées en {lang}', { lang: T(LANGS[l]) }), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); } });
 }
 /** Bandeau en tête de la liste quand des cartes n'ont pas de langue (« Langue ? ») : les passer toutes en français, en anglais ou dans une autre langue. */
 function collNoLangHtml(v) {
@@ -21916,7 +21993,7 @@ function openCollImport(initial) {
       const before = COLL.map, pl0 = COLL.places, n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
       collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
       if (parsed.format === 'csv' && typeof prgAdd === 'function') prgAdd('imp');      // badge « Déménageur » (progress.js)
-      toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: T('Annuler'), fn: undo });
+      toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: tUndo(), fn: undo });
       collEnrich();
       if (n >= GLANCE_MIN) setTimeout(() => openCollGlance(n, m, undo), reduceMotion() ? 0 : 480);      // après la fermeture de l'import ; l'annulation reste possible depuis le coup d'œil
     };
@@ -22374,7 +22451,7 @@ function plcMoveShown() {
     if (!moves.length) return;
     collChanged(); haptic('ok');
     toast(to ? TN(copies, '{n} exemplaire rangé dans « {place} »', '{n} exemplaires rangés dans « {place} »', { place: plcName(to) }) : TN(copies, '{n} exemplaire n\'est plus rangé', '{n} exemplaires ne sont plus rangés'),
-      { label: T('Annuler'), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
+      { label: tUndo(), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
   } });
 }
 /** « Retirer… » (bandeau d'un emplacement, « Non rangé » compris) : tous les exemplaires affichés (recherche et filtres compris) quittent la collection,
@@ -22398,7 +22475,7 @@ function plcDelShown() {
       }
       if (!prev.length) return;
       COLL.map = map; collChanged(); haptic('ok');
-      toast(TN(copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection'), { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prev) m2[k] = v; COLL.map = m2; collChanged(); } });
+      toast(TN(copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection'), { label: tUndo(), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prev) m2[k] = v; COLL.map = m2; collChanged(); } });
     });
   });
 }
@@ -22468,7 +22545,7 @@ function openProxies() {
         const before = { m: COLL.map, p: COLL.prox }, x = COLL.prox[k];
         COLL.prox = lineBump(COLL.prox, k, g, -1);
         COLL.map = mergeColl(COLL.map, [{ k, n: x.n, q: 1, l: g }], 'add'); collChanged(); collEnrich(); haptic('ok'); paint();
-        toast(T('{name} : la vraie carte est dans ta collection', { name: x.n }), { label: T('Annuler'), fn: () => { COLL.map = before.m; COLL.prox = before.p; collChanged(); paint(); } });
+        toast(T('{name} : la vraie carte est dans ta collection', { name: x.n }), { label: tUndo(), fn: () => { COLL.map = before.m; COLL.prox = before.p; collChanged(); paint(); } });
         return;
       }
       const d = Number(b.dataset.d); if (!d) return;
@@ -22905,7 +22982,7 @@ function srchEditSheet(id) {
   }, () => {
     const before = srchRead(), i = before.findIndex(x => x.id === id); if (i < 0) return;
     srchWrite(before.filter(x => x.id !== id)); haptic('ok'); repaint();
-    toast(T('Recherche « {name} » supprimée', { name: s.n }), { label: T('Annuler'), fn: () => { const l = srchRead().slice(); l.splice(Math.min(i, l.length), 0, s); srchWrite(l.slice(0, SRCH_MAX)); repaint(); } });
+    toast(T('Recherche « {name} » supprimée', { name: s.n }), { label: tUndo(), fn: () => { const l = srchRead().slice(); l.splice(Math.min(i, l.length), 0, s); srchWrite(l.slice(0, SRCH_MAX)); repaint(); } });
   });
 }
 
@@ -23454,7 +23531,7 @@ function edhDeckActs(api, r, name) {
       const before = { ...TR.wish }, n = todo.reduce((a, x) => a + x.q, 0);
       for (const x of todo) { const cur = TR.wish[x.k], q = Math.min(99, ((cur && cur.q) || 0) + x.q); TR.wish[x.k] = { ...(cur || {}), n: cur ? cur.n : x.n, q }; added.set(x.k, (added.get(x.k) || 0) + q - ((cur && cur.q) || 0)); }
       trChanged(); haptic('ok'); paint();
-      toast(TN(n, '{n} carte ajoutée à Je recherche', '{n} cartes ajoutées à Je recherche'), { label: T('Annuler'), fn: () => { TR.wish = before; added.clear(); trChanged(); if (api.wrap.isConnected) paint(); } });
+      toast(TN(n, '{n} carte ajoutée à Je recherche', '{n} cartes ajoutées à Je recherche'), { label: tUndo(), fn: () => { TR.wish = before; added.clear(); trChanged(); if (api.wrap.isConnected) paint(); } });
     } else if (act === 'dkwatch') {
       b.disabled = true;
       if (!AC.on) { const res = await alEnable(); if (!res.ok) { b.disabled = false; toast(alWhy(res)); return; } }
@@ -23852,12 +23929,16 @@ async function openPubSheet(deckId) {
     const onProf = () => again(); document.addEventListener('profchange', onProf); const close = api.close; api.close = () => { document.removeEventListener('profchange', onProf); close(); };
   });
 }
-/** Bouton « Publier » du viewer : « ✓ Publié » si le deck l'est déjà. */
+/** Deck du viewer déjà publié par ce compte ? */
+const dvPubOn = () => !!(PD.mine && PD.mineUid === (D.user && D.user.uid) && PD.mine.has(DV.deckId));
+/** « Publier » du viewer (rangée ou menu « Plus ») : « ✓ Publié » si le deck l'est déjà. */
 function dvPubPaint() {
-  const b = DV.el && $('.dv-pubb', DV.el); if (!b) return;
-  const on = !!(PD.mine && PD.mineUid === (D.user && D.user.uid) && PD.mine.has(DV.deckId));
-  b.innerHTML = `<svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${on ? '✓ ' + T('Publié') : T('Publier')}`;
-  b.classList.toggle('on', on);
+  const on = dvPubOn();
+  for (const b of [DV.el && $('.dv-pubb', DV.el), $('.dvm-sheet .dv-pubb')]) {
+    if (!b) continue;
+    const l = $('b', b) || $('span', b); if (l) l.textContent = on ? '✓ ' + T('Publié') : T('Publier');
+    b.classList.toggle('on', on);
+  }
 }
 /** Le viewer peut-il proposer « Publier » ? Deck de Mes decks, au format Commander. */
 const dvPubOk = () => !!(DV.deckId && !DV.live && !DV.pub && !DV.adhoc && findDeck(DV.deckId) && dkFmtOf(DV.text) === 'commander');
@@ -24158,7 +24239,7 @@ function dfAdd(k) {
     dfPut(d.id, text, dfSnapWith(d.snap, item), before.local ? dfSnapWith(before.local, item) : undefined);
     if (DV.adhoc) DV.savedId = d.id;
     dfShow(DV.adhoc ? dfTextWith(DV.text, name) : text, dfSnapWith(DV.snap, item), at); haptic('ok');
-    toast(T('{name} ajoutée à « {deck} »', { name: shown, deck: d.name }), { label: T('Annuler'), fn: () => {
+    toast(T('{name} ajoutée à « {deck} »', { name: shown, deck: d.name }), { label: tUndo(), fn: () => {
       if (!findDeck(d.id)) return;
       dfPut(d.id, before.text, before.snap, before.local || null); dfShow(before.view, before.vsnap);
     } });
@@ -24504,7 +24585,7 @@ function openBuySheet() {
         const add = rows.filter(r => r.a > 0).map(r => ({ k: r.k, n: r.n, q: r.a, ...(r.l ? { l: r.l } : {}) })); if (!add.length) return;
         const before = COLL.map, prevBuy = XS.buy, n = add.reduce((a, x) => a + x.q, 0);
         collAdd(add, 'add'); collEnrich(); XS.buy = null; buyWrite(); buyPaint(); api.close(); haptic('ok');
-        toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); XS.buy = prevBuy; buyWrite(); buyPaint(); } });
+        toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); XS.buy = prevBuy; buyWrite(); buyPaint(); } });
       };
     };
     paint();
@@ -24570,8 +24651,8 @@ function engBindSwitch(id, cb, hint) {
   const paint = () => {
     const n = engCount(id); cb.checked = engIsOn(id);
     hint.textContent = cb.checked
-      ? TN(n, '{n} exemplaire de ta collection réservé pour ce deck : ils ne sont plus déduits du panier des autres decks.', '{n} exemplaires de ta collection réservés pour ce deck : ils ne sont plus déduits du panier des autres decks.')
-      : T('Réserve les cartes de ta collection qui sont dans ce deck : elles ne seront plus déduites du panier de tes autres decks.');
+      ? TN(n, '{n} exemplaire de ta collection réservé pour ce deck.', '{n} exemplaires de ta collection réservés pour ce deck.')
+      : T('Réserve ses cartes de ta collection pour ce deck.');
   };
   paint();
   cb.onchange = () => {
@@ -25320,7 +25401,7 @@ function csChange(e) {
   const kp = e.target.closest('input[data-cs="keep"]');
   if (kp) {      // même effet que « Garder » de l'onglet Échange
     haptic('tap'); if (kp.checked) TR.kept.add(k); else TR.kept.delete(k); trChanged(); csPaint();
-    if (kp.checked) toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); csSoon(); } });
+    if (kp.checked) toast(T('Gardée : elle n\'est plus proposée'), { label: tUndo(), fn: () => { TR.kept.delete(k); trChanged(); csSoon(); } });
   }
 }
 /** « − » de la fiche : pas de confirmation, un toast « Annuler » (la ligne revient, la carte aussi avec sa date d'ajout si c'était son dernier exemplaire). */
@@ -25329,7 +25410,7 @@ function csMinus(k, g) {
   const name = c.n, date = c.d, multi = collLines(c).length > 1, left = collBump(k, name, -1, { lang: g }); haptic('tap');
   const what = multi || lineEd(g) || lineFoil(g) ? ' (' + lineTag(g) + ')' : '';
   toast(left ? T('{name} : un exemplaire retiré{line} · il en reste {n}', { name, line: what, n: left }) : COLL.map[k] ? T('{name} : dernier exemplaire{line} retiré', { name, line: what }) : T('{name} retirée de la collection', { name: name + what }),
-    { label: T('Annuler'), fn: () => { collBump(k, name, 1, { lang: g, date }); } });
+    { label: tUndo(), fn: () => { collBump(k, name, 1, { lang: g, date }); } });
 }
 /** Image de la fiche : la carte en grand (3D, reflet, foil), précédente / suivante parmi les lignes de la carte. */
 function csZoom(k) {
@@ -25343,7 +25424,7 @@ function csZoom(k) {
 /** « Alerte de prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
 async function csWatch(k, b) {
   const w = AC.watch[k];
-  if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: T('Annuler'), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }
+  if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: tUndo(), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }
   if (!AC.on) { b.disabled = true; const r = await alEnable(); b.disabled = false; if (!r.ok) { toast(alWhy(r)); return; } }
   alWatch(CS.n, 0, true); haptic('ok'); csPaint();
   toast(T('{name} : tu seras prévenu si son prix bouge fort (hausse ou baisse)', { name: CS.n }), { label: T('Régler'), fn: () => openAlertSheet() });
@@ -25388,7 +25469,7 @@ function csAddSheet(k) {
       const ed = p ? edKey(p.set, p.num) : '', g = lineKey(l, ed, f);
       if (p) edRemember(k, l, ed, edInfoOf(p, l));
       api.close(); CS.g = g; collBump(k, n, 1, { lang: g }); haptic('ok'); if (ed) edSoon();
-      toast(T('{name} : un exemplaire ajouté ({line})', { name: n, line: lineTag(g) || T('sans langue') }), { label: T('Annuler'), fn: () => { collBump(k, n, -1, { lang: g }); } });
+      toast(T('{name} : un exemplaire ajouté ({line})', { name: n, line: lineTag(g) || T('sans langue') }), { label: tUndo(), fn: () => { collBump(k, n, -1, { lang: g }); } });
     });
   });
 }
@@ -25426,7 +25507,7 @@ function csDeckAdd(id, k, n) {
   const d = findDeck(id); if (!d) return;
   if (csDeckQty(d.text, k).q >= dkMaxCopies(dkFmtOf(d.text), k)) { toast(T('{name} est déjà dans « {deck} » (exemplaires au maximum pour ce format)', { name: n, deck: d.name })); return; }
   const prev = d.text; csDeckSave(d, csTextAdd(prev, k, n)); haptic('ok');
-  toast(T('{name} ajoutée à « {deck} »', { name: n, deck: d.name }), { label: T('Annuler'), fn: () => { const c = findDeck(id); if (c) csDeckSave(c, prev); } });
+  toast(T('{name} ajoutée à « {deck} »', { name: n, deck: d.name }), { label: tUndo(), fn: () => { const c = findDeck(id); if (c) csDeckSave(c, prev); } });
 }
 
 
@@ -25833,7 +25914,7 @@ function scanKeep(rows, name) {
   const apart = rows.filter(x => x.dp), nAp = apart.reduce((a, x) => a + x.q, 0), where = (scdPlace() ? ' · ' + plcName(scdPlace()) : '') + (nAp ? ' · ' + T('{n} dans « {place} »', { n: nAp, place: plcName(apart[0].dp) }) : '');
   if (SCD.x) proxAdd(add); else collAdd(add, 'add');
   const msg = SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : name ? (n > 1 ? T('{n} × {name} ajoutées à ta collection', { n, name }) : T('{name} ajoutée à ta collection', { name })) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection');
-  toast(msg + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
+  toast(msg + where, { label: tUndo(), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
   collEnrich();
 }
 /* ── Prix rapide : lire une carte sans l'ajouter (bourse, échange, vide-grenier) ───────────────────────────────────────────
@@ -28250,7 +28331,7 @@ function sssClear() {
 /** « Nouvelle session » du bandeau : scan vidé, « Annuler » rend les cartes (en plus de celles lues entre-temps). */
 function sssNew() {
   const s = sssSnap(); haptic('tap'); sssClear(); if (!s) return;
-  toast(T('Scan effacé'), { label: T('Annuler'), fn: () => { if (SC.el && SC.ctx === s.ctx) { sssApply(s, true); if (s.dest && !scdSet()) scdReset(s.dest); scanPaintTools(); scanPaintList(); } else sssPut(s); } });
+  toast(T('Scan effacé'), { label: tUndo(), fn: () => { if (SC.el && SC.ctx === s.ctx) { sssApply(s, true); if (s.dest && !scdSet()) scdReset(s.dest); scanPaintTools(); scanPaintList(); } else sssPut(s); } });
 }
 /** Des cartes seraient perdues en quittant : lues (même « à vérifier »), en lecture, ou dans la liste « Prix ». Jamais en scan mobile. */
 const sssUnsaved = () => !!SC.el && !SC.remote && (SC.items.size > 0 || SC.pq.length > 0 || SC.pend.length > 0 || SC.queue.length > 0);
@@ -28269,7 +28350,7 @@ function sssQuitAsk(end) {
       api.close();
       if (b.dataset.ss !== 'del') { end(); return; }
       const s = sssSnap(), ctx = SC.ctx; SC.items = new Map(); SC.pq = []; sssDrop(ctx); end(); sssDrop(ctx);
-      toast(T('Scan effacé'), s ? { label: T('Annuler'), fn: () => sssPut(s) } : undefined);
+      toast(T('Scan effacé'), s ? { label: tUndo(), fn: () => sssPut(s) } : undefined);
     });
   });
 }
@@ -28687,7 +28768,7 @@ function bdScanDone() {
       const refused = no.copies + no.side + no.cmdr, nAdd = add.reduce((a, x) => a + x.q, 0);
       const msg = [TN(ok, '{n} carte ajoutée au deck', '{n} cartes ajoutées au deck'), nAdd ? TN(nAdd, '{n} dans ta collection', '{n} dans ta collection') : '',
         refused ? TN(refused, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : ''].filter(Boolean).join(' · ');
-      toast(msg, { label: T('Annuler'), fn: () => {
+      toast(msg, { label: tUndo(), fn: () => {
         Object.assign(BD, { main: before.main, side: before.side, cmdr: before.cmdr, dirty: before.dirty, scanPref: before.pref }); if (add.length) { COLL.map = coll0; collChanged(); }
         bdPaint();
       } });
@@ -28821,9 +28902,9 @@ function bdAddHtml() {
   const own = has ? bdOwn(words) : [];
   const shown = own.slice(0, BD.shown), mine = new Set(own.map(it => it.k));
   let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
-  h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées »
   if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + (own.length > 1 && !BD.sel && BD.tgt !== 'cmdr' && !bdLpKnown() ? `<p class="hint bd-lp-hint">${T('Appui long sur une carte : en choisir plusieurs.')}</p>` : '') + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');      // astuce : jusqu'au premier appui long (bdadd.js)
   h += moreBtn(shown.length, own.length, BD_PAGE, 'class="link-btn more-decks" data-act="more"');
+  h += bdBulkHtml(own, flt || words.length > 0);      // « Ajouter les N cartes listées » : sous la liste de la collection, à partir de 2 cartes qui peuvent entrer (bdadd.js)
   if (q.length >= 2 && !flt) {      // toutes les cartes Magic : sans filtre seulement (rangement, couleur… ne valent que pour la collection)
     if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
     else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
@@ -29045,14 +29126,15 @@ function bdLineQty(k) {
   let n = 0; for (const [g, q] of collLines(x)) if (fltLineOk(srchLine(k, g), f)) n += q;
   return n;
 }
-/** Bloc « N cartes listées · Ajouter les N cartes listées » (filtre ou recherche en cours, cible Deck ou Réserve). */
+/** « Ajouter les N cartes listées » (filtre ou recherche en cours, cible Deck ou Réserve) : bouton secondaire sous la liste, seulement quand au moins 2 cartes
+ *  listées peuvent encore entrer (bdBulkPlan : déjà dans le deck, hors des couleurs… écartées) ; recalculé à chaque repeinte, donc après chaque ajout. Une seule : son « + » suffit. */
 function bdBulkHtml(own, any) {
-  if (!any || !own.length || BD.tgt === 'cmdr' || BD.sel) return '';
-  const n = own.length, cmd = BD.fmt === 'commander';
+  if (!any || own.length < 2 || BD.tgt === 'cmdr' || BD.sel) return '';
+  const n = bdBulkPlan(own.map(it => ({ k: it.k, name: it.n })), bdLineQty).add.length; if (n < 2) return '';
+  const cmd = BD.fmt === 'commander';
   const how = cmd ? (BD.cmdr.length ? T('Un exemplaire de chaque ; celles déjà dans le deck ou hors des couleurs du commandant sont écartées.') : T('Choisis d\'abord ton commandant : les cartes hors de ses couleurs seront écartées.'))
     : BD.tgt === 'side' ? T('Les exemplaires que tu as, 4 au plus, dans la réserve (15 cartes au plus).') : T('Les exemplaires que tu as, 4 au plus (terrains de base : tous).');
-  return `<div class="bd-bulk"><div class="bd-bulk-t"><b>${esc(TN(n, '{n} carte listée', '{n} cartes listées', { n: nf0(n) }))}</b><small>${esc(how)}</small></div>
-    <button class="btn block" type="button" data-act="bulk"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>${esc(TN(n, 'Ajouter la carte listée', 'Ajouter les {n} cartes listées', { n: nf0(n) }))}</span></button></div>`;
+  return `<div class="bd-bulk"><button class="btn ghost block" type="button" data-act="bulk"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>${esc(TN(n, 'Ajouter la carte listée', 'Ajouter les {n} cartes listées', { n: nf0(n) }))}</span></button><small>${esc(how)}</small></div>`;
 }
 
 /* ── Ajout groupé ─────────────────────────────────────────────────────────────────────────────── */
@@ -29137,7 +29219,7 @@ function bdBulkRun(P, asked) {
   const left = P.have + P.ci + P.basic + P.full + no;
   const msg = (asked ? [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), left ? TN(left, '{n} laissée de côté', '{n} laissées de côté') : '']
     : [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), ...bdBulkParts(P), no ? TN(no, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : '', P.res.length ? bdResMsg(P.res) : '']).filter(Boolean).join(' · ');
-  toast(msg, { label: T('Annuler'), fn: () => { if (BD.el !== el) return; Object.assign(BD, before); bdPaint(); haptic('tap'); } });      // éditeur fermé (ou un autre deck ouvert) entre-temps : rien
+  toast(msg, { label: tUndo(), fn: () => { if (BD.el !== el) return; Object.assign(BD, before); bdPaint(); haptic('tap'); } });      // éditeur fermé (ou un autre deck ouvert) entre-temps : rien
 }
 /** « Ajouter les N cartes listées » : toutes les cartes de la collection qui passent les filtres (exemplaires : ceux des filtres d'exemplaire). */
 function bdBulkListed() {
@@ -31249,7 +31331,7 @@ function dxClick(b, act) {
     const before = new Map([...BD.main].map(([k, c]) => [k, { ...c }])), c = BD.main.get(s.out.k);
     if (c) { if (c.qty > 1) c.qty--; else BD.main.delete(s.out.k); }
     BD.main.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
-    toast(T('{a} → {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }), { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+    toast(T('{a} → {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }), { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
     return true;
   }
   return false;
@@ -33034,7 +33116,7 @@ function trShareBoxHtml(st) {
   const rules = TR.err === 'rules' ? '<p class="hint warn">' + T('Règles Firestore à publier pour le partage (voir README) : le lien ne peut pas être mis à jour.') + '</p>'
     : TR.err === 'big' ? '<p class="hint warn">' + T('Liste trop longue : le lien ne peut plus être mis à jour (trop de cartes recherchées).') + '</p>' : '';
   if (!D.user) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Connecte-toi pour créer un lien public : tes amis voient tes doublons et ce que tu cherches, sans rien pouvoir modifier.')}</p><button class="btn ghost" type="button" data-act="login">${T('Se connecter')}</button></div>`;
-  const live = typeof trocBoxHtml === 'function' ? trocBoxHtml() : '';      // « Échange en direct » (troc.js), sous les actions du lien
+  const live = '';      // « Échange en direct » : entrée permanente en tête de l'onglet (trPanelHtml)
   if (!TR.share) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Un lien public, en lecture seule, toujours à jour : tes {have} doublons et les {want} cartes que tu cherches, avec recherche par nom.', { have: nf0(st.have.length), want: nf0(st.want.length) })}</p>${rules}<button class="btn" type="button" data-act="tron">${T('Créer le lien')}</button>${live}</div>`;
   return `<div class="tr-box on"><b>${T('Lien public actif')}</b><div class="tr-link"><input type="text" readonly value="${esc(shareUrl(TR.share))}" aria-label="${T('Lien de ta liste d\'échange')}"></div>
     ${rules}${TR.err === 'net' ? '<p class="hint warn">' + T('Mise à jour du lien en attente (hors ligne).') + '</p>' : '<p class="hint">' + T('Mis à jour tout seul quand ta collection, tes decks ou ta liste changent. Lecture seule.') + '</p>'}
@@ -33071,14 +33153,22 @@ function trPanelHtml() {
   const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x }, x.lines ? { eds: [...new Set(x.lines.map(([g]) => edSet(lineEd(g))))] } : {})), f).map(i => i.src);      // eds : filtre « Extension »
   const { rows: list, sum } = tradeView(fil, { price: trRowPx, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
   TR.bv = bv && list.length ? { list, want } : null;
-  return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
+  return `${typeof trocBoxHtml === 'function' ? trocBoxHtml() : ''}${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
     <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
+    ${want ? '' : trKeepHtml()}
     ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>${typeof alEntryHtml === 'function' ? alEntryHtml() : ''}` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : act && filterActive(f) ? collNoMatchHtml() : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
     ${bv ? '' : moreBtn(shown.length, list.length, TR_PAGE, 'data-act="trmore"')}
     ${!want && held.length ? `<details class="tr-held"><summary>${T('Gardées à la main ({n})', { n: nf0(held.length) })}</summary><div class="coll-list">${held.map(x => `<div class="crow tr-row" data-k="${esc(x.k)}"><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta"><span class="tag">${T('{n} en trop', { n: x.q })}</span></span></span><span class="tr-q"><button class="link-btn" type="button" data-act="tunkeep">${T('Remettre')}</button></span></div>`).join('')}</div></details>` : ''}`;
+}
+/** Réserve de l'échange (TR.keep) et règles de rangement, en clair : « Je garde 1 exemplaire de chaque » ; ouvre « Réglages de l'échange » (densite.js › trSetSheet). */
+function trKeepHtml() {
+  const ps = typeof trPlcPlaces === 'function' ? trPlcPlaces() : [], n = ps.filter(x => placeTrade(COLL.places, x.id)).length;
+  const k = TR.keep > 0 ? TN(TR.keep, 'Je garde {n} exemplaire de chaque', 'Je garde {n} exemplaires de chaque') : T('Je propose tout ce qui dépasse mes decks');
+  const t = T('Réglages de l\'échange') + ' · ' + k + (n ? ' · ' + TN(n, '{n} règle de rangement', '{n} règles de rangement') : '');
+  return `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog" aria-label="${esc(t)}" title="${esc(t)}"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span>${esc(k)}${n ? ' · ' + esc(TN(n, '{n} règle de rangement', '{n} règles de rangement')) : ''}</span><svg class="i tr-setc" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 }
 /** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier) ; sur la ligne des sous-onglets (.tr-top). */
 function trSumHtml(list, all, sum, act, want, bv) {
@@ -33129,11 +33219,11 @@ function trClick(e) {
   else if (act === 'trview') { const p = trPayload(); openPublicTrade(readShare('trade', { ...p, ...profShare(), at: Date.now() }), true); }
   else if (act === 'trmore') { TR.shown += TR_PAGE; collPaintBody(true); }
   else if (act === 'tralert') { haptic('tap'); openAlertSheet({ onClose: trRepaint }); }      // alertes de prix (alerts.js), nombre de cartes surveillées repeint à la fermeture
-  else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); } }); }
+  else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: tUndo(), fn: () => { TR.kept.delete(k); trChanged(); } }); }
   else if (act === 'tunkeep' && k) { TR.kept.delete(k); haptic('tap'); trChanged(); }
   else if ((act === 'wplus' || act === 'wminus') && k && TR.wish[k]) {
     const q = TR.wish[k].q + (act === 'wplus' ? 1 : -1); haptic('tap');
-    if (q <= 0) { const was = TR.wish[k]; delete TR.wish[k]; trChanged(); toast(T('{name} retirée de ta liste', { name: was.n }), { label: T('Annuler'), fn: () => { TR.wish[k] = was; trChanged(); } }); }
+    if (q <= 0) { const was = TR.wish[k]; delete TR.wish[k]; trChanged(); toast(T('{name} retirée de ta liste', { name: was.n }), { label: tUndo(), fn: () => { TR.wish[k] = was; trChanged(); } }); }
     else { TR.wish[k] = { ...TR.wish[k], q: Math.min(99, q) }; trChanged(); }
   }
   else if (act === 'wadd') openWishAdd();
@@ -35766,7 +35856,7 @@ function setvWish(x) {
   const k = x.k, img = setvImg(x); if (!k || BASIC_NAMES.has(k) || !img) return;
   const name = x.dn || x.n, was = TR.wish[k], same = !!was && !!was.i && setvSame(was.i, img);
   haptic(same ? 'tap' : 'ok');
-  const undo = { label: T('Annuler'), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); } };
+  const undo = { label: tUndo(), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); } };
   if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), undo); }
   else {
     const where = setvWhere(x);
@@ -36207,7 +36297,7 @@ function msAssign(code, x, it, n = 1, fin = '') {
   for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, g, m, to);
   collChanged(); haptic('ok');
   const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num, done = moves.reduce((a, mv) => a + mv[2], 0);
-  toast(TN(done, '{name} : édition {ed} posée sur {n} exemplaire', '{name} : édition {ed} posée sur {n} exemplaires', { name, ed }), { label: T('Annuler'), fn: () => {
+  toast(TN(done, '{name} : édition {ed} posée sur {n} exemplaire', '{name} : édition {ed} posée sur {n} exemplaires', { name, ed }), { label: tUndo(), fn: () => {
     for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, to, m, g);
     collChanged();
   } });
@@ -36221,7 +36311,7 @@ function msAdd(code, x, it, fin = '') {
   collBump(x.k, x.n, 1, { lang: g }); if (typeof collEnrich === 'function') collEnrich();      // carte neuve : ses infos (type, coût, image) sont lues
   haptic('ok');
   const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num + (fo ? ' ✦' : '');
-  toast(T('{name} ajoutée à ta collection ({ed})', { name, ed }), { label: T('Annuler'), fn: () => collBump(x.k, x.n, -1, { lang: g }) });
+  toast(T('{name} ajoutée à ta collection ({ed})', { name, ed }), { label: tUndo(), fn: () => collBump(x.k, x.n, -1, { lang: g }) });
   msActDone(it, T('✓ Ajoutée'), T('Dans ta collection · {ed}', { ed }));
 }
 
@@ -36250,7 +36340,7 @@ function msWishSheet() {
       const prev = new Map(list.map(x => [x.k, TR.wish[x.k]])), where = x => [setName(code), code.toUpperCase() + ' ' + x.num].filter(Boolean).join(' · ');
       for (const x of list) { const was = TR.wish[x.k]; TR.wish[x.k] = { n: x.n, q: was ? was.q : Math.max(1, MS.o.need - msQ(code, x, '')), i: setvImg(x), w: where(x).slice(0, 90), ...(x.il && x.il !== 'en' ? { l: x.il } : {}) }; }
       trChanged(); haptic('ok'); if (msActive()) collPaintBody(true);
-      toast(TN(list.length, '{n} carte ajoutée à ta liste de souhaits', '{n} cartes ajoutées à ta liste de souhaits'), { label: T('Annuler'), fn: () => {
+      toast(TN(list.length, '{n} carte ajoutée à ta liste de souhaits', '{n} cartes ajoutées à ta liste de souhaits'), { label: tUndo(), fn: () => {
         for (const [k, w] of prev) { if (w) TR.wish[k] = w; else delete TR.wish[k]; }
         trChanged(); if (msActive()) collPaintBody(true);
       } });
@@ -36526,7 +36616,6 @@ function cvwMount(wrap, md) {
     if (sort) { sort.classList.add('ib'); sort.insertAdjacentHTML('afterbegin', CVW_SORT_IC); box.appendChild(sort); }
     if (ms) { ms.classList.add('ib'); ms.setAttribute('aria-label', T('Masterset')); ms.title = T('Masterset'); box.appendChild(ms); }
     if (md === 'coll') box.insertAdjacentHTML('beforeend', `<button type="button" class="icon-btn cvw-btn" data-act="cvwmenu" aria-haspopup="dialog"></button>`);
-    if (md === 'trade') box.insertAdjacentHTML('beforeend', `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span></span><b hidden></b></button>`);
     row.appendChild(box);
   }
   const sc = $('.dv-scroll', wrap); let on = false, raf = 0;
@@ -36572,7 +36661,7 @@ function trBarHtml(st) {
   const w = warn ? `<p class="hint warn tr-bar-w">${esc(warn)}</p>` : '';
   const chev = '<svg class="i tr-bar-chev" aria-hidden="true"><use href="#i-chev"/></svg>';
   if (!D.user) return `<div class="tr-box tr-bar"><button class="tr-bar-main" type="button" data-act="login">${TR_LINK_IC}<span><b>${T('Connecte-toi pour partager')}</b><small>${T('Un lien public pour tes amis, en lecture seule')}</small></span>${chev}</button></div>`;
-  const lv = typeof trocBoxHtml === 'function' ? trocBoxHtml() : '', live = lv ? lv.replace('class="trc-entry"', `class="trc-entry tr-bar-live" aria-label="${esc(T('Échange en direct'))}" title="${esc(T('Échange en direct'))}"`) : '';      // « Échange en direct » (troc.js) : sa ligne, en icône au bout de la barre (son texte reste dans le bouton)
+  const live = '';      // « Échange en direct » : son entrée permanente en tête de l'onglet (share.js › trPanelHtml, troc.js › trocBoxHtml)
   if (!TR.share) return `<div class="tr-box tr-bar"><span class="tr-bar-main">${TR_LINK_IC}<span><b>${T('Partager ta liste')}</b><small>${T('Lien public · lecture seule')}</small></span></span><button class="btn small tr-bar-go" type="button" data-act="tron">${T('Créer mon lien')}</button>${live}${w}</div>`;
   const net = TR.err === 'net' ? `<small class="warn">${T('Mise à jour en attente')}</small>` : `<small>${T('Toujours à jour')}</small>`;
   return `<div class="tr-box tr-bar on"><button class="tr-bar-main" type="button" data-act="trlink" aria-haspopup="dialog" aria-label="${esc(T('Lien actif : copier, aperçu, image, arrêter…'))}">${TR_LINK_IC}<span><b>${T('Lien actif')}</b>${net}</span>${chev}</button>
@@ -36605,15 +36694,10 @@ function trSetSheet() {
     trSetPaint();
   });
 }
-/** Roue des réglages (« Garde 1 ex. », nombre de règles de rangement) et feuille ouverte tenues à jour. */
+/** Ligne des réglages (« Je garde 1 exemplaire de chaque », nombre de règles de rangement : share.js › trKeepHtml) et feuille ouverte tenues à jour. */
 function trSetPaint() {
   const el = COLL.el, b = el && $('.tr-setb', el);
-  const ps = typeof trPlcPlaces === 'function' ? trPlcPlaces() : [], n = ps.filter(x => placeTrade(COLL.places, x.id)).length;
-  if (b) {
-    $('span', b).textContent = T('Garde {n} ex.', { n: TR.keep }); const c = $('b', b); c.hidden = !n; c.textContent = n;
-    const t = T('Réglages de l\'échange') + ' · ' + T('Garde {n} ex.', { n: TR.keep }) + (n ? ' · ' + TN(n, '{n} règle de rangement', '{n} règles de rangement') : '');
-    b.setAttribute('aria-label', t); b.title = t;
-  }
+  if (b) b.outerHTML = trKeepHtml();
   const box = $('.sheet-wrap .trs-plc');
   if (box) box.innerHTML = `<p class="hint">${T('Ce qui part dans l\'échange, rangement par rangement')}</p>${trPlcBtnHtml() || `<p class="hint">${T('Aucun rangement pour l\'instant : ouvre une carte, puis « Ranger dans ».')}</p>`}`;
 }
@@ -36770,7 +36854,7 @@ function lotDrop(id) {
   const date = (COLL.map[x.k] || {}).d;
   collBump(x.k, x.n, -x.q, { lang: x.g }); LOT.list = LOT.list.filter(y => y.id !== id); if (LOT.edit === id) { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
   lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-  toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: T('Annuler'), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
+  toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: tUndo(), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
 }
 /** Catalogue des noms pour les suggestions : bandeau « Chargement… » tant qu'il n'est pas là, effacé à son arrivée ; échec : message (hors ligne, Scryfall), relancé au retour du réseau. */
 function lotCatLoad(wrap) {
@@ -36907,7 +36991,7 @@ function openLot() {
     else if (act === 'new') {
       const before = LOT.list; if (!before.length) return;
       LOT.list = []; LOT.edit = ''; lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: T('Annuler'), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
+      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: tUndo(), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
     } else if (act === 'edit' || act === 'drop') {
       const row = b.closest('.lot-it'), x = row && LOT.list.find(y => y.id === row.dataset.id); if (!x) return;
       if (act === 'drop') return lotDrop(x.id);
@@ -38827,7 +38911,7 @@ function opnTake(items, o = {}) {
   }
   if (!n) return false;
   opnSave(); opnMeta(); opnPaint();
-  if (o.toast) toast(TN(n, '{n} carte ajoutée à la session', '{n} cartes ajoutées à la session'), { label: T('Annuler'), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
+  if (o.toast) toast(TN(n, '{n} carte ajoutée à la session', '{n} cartes ajoutées à la session'), { label: tUndo(), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
   return true;
 }
 /** Message après un ajout à la main pendant la session (« Ajouter des cartes », « Saisir »). */
@@ -38853,7 +38937,7 @@ function opnDec(id) {
   const was = c.rows.map(x => ({ ...x }));
   if (r.q > 1) r.q--; else c.rows = c.rows.filter(x => x !== r);
   opnSave(); opnPaint(); haptic('tap');
-  toast(T('{name} retirée de la session', { name: opnName(r) }), { label: T('Annuler'), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
+  toast(T('{name} retirée de la session', { name: opnName(r) }), { label: tUndo(), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
 }
 
 /* ── Repeints : bandeau du scan, pastille de l'accueil, feuille ouverte, collection, accueil, réglages ─────────────────────────────── */
@@ -38985,7 +39069,7 @@ function opnQuitAsk() {
     api.foot.addEventListener('click', e => {
       if (!e.target.closest('[data-ok]')) return;
       api.close(); opnClose(); OPN.cur = null; opnSave(); opnRefresh(); haptic('tap');
-      toast(T('Session abandonnée'), { label: T('Annuler'), fn: () => { if (OPN.cur) return; OPN.cur = c; opnSave(); opnRefresh(); } });
+      toast(T('Session abandonnée'), { label: tUndo(), fn: () => { if (OPN.cur) return; OPN.cur = c; opnSave(); opnRefresh(); } });
     });
   });
 }
@@ -39028,7 +39112,7 @@ function opnFinish(c, rows) {
   OPN.hist = [rec, ...opnHist().filter(x => x.id !== rec.id)]; opnHistSave();
   if (typeof prgOpen === 'function') prgOpen(t.v, c.paid, rows.reduce((a, r) => Math.max(a, opnEu(r) || 0), 0), t.n, !!c.st);      // niveau et badges (progress.js)
   opnClose(); OPN.cur = null; opnSave(); haptic('ok'); opnRefresh();
-  toast(TN(t.n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: T('Annuler'), fn: () => {
+  toast(TN(t.n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: tUndo(), fn: () => {
     if (OPN.cur) return;
     COLL.map = before; collChanged(); OPN.hist = opnHist().filter(x => x !== rec); opnHistSave(); OPN.cur = c; opnSave(); opnRefresh();
   } });
@@ -39082,7 +39166,7 @@ function opnHistOpen(rec, after) {
       else if (a === 'file') opnDownload(text() + '\n', 'ouverture-' + dayIso(rec.at) + '.txt');
       else if (a === 'del') {
         const was = opnHist(); OPN.hist = was.filter(x => x !== rec); opnHistSave(); api.close(); if (after) after();
-        toast(T('Ouverture supprimée'), { label: T('Annuler'), fn: () => { OPN.hist = was; opnHistSave(); if (after) after(); } });
+        toast(T('Ouverture supprimée'), { label: tUndo(), fn: () => { OPN.hist = was; opnHistSave(); if (after) after(); } });
       }
     });
   });
@@ -39282,9 +39366,12 @@ function trocMyList() {
 /** Une ligne de ma collection, prête pour la session (give) : sa clé sans emplacement ni détails (ils ne quittent pas l'appareil), foil et édition gardés. */
 function trocMine(k, n, g) {
   g = lineHead(g);
-  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), u = trLinePx(k, g);
-  return { n, q: 1, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u } : {}) };
+  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), pw = trLinePxW(k, g), u = pw.v;
+  return { n, q: 1, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u, ...(pw.w ? { w: 1 } : {}) } : {}) };      // w : foil sans prix foil (prix non foil) : ⚠️ chez les deux joueurs (le serveur le garde)
 }
+/** Prix d'une ligne de la session (x.u, x.w : foil chiffrée au prix non foil) : « 2,00 € », avec ⚠️ comme la collection (collection.js › pxWarn) ; '' sans prix. */
+const trocPx = (u, w, mul = 1) => (u ? esc(fmt(u * mul, trcCur())) + pxWarn(!!w) : '');
+const TRC_PXW = () => ' · ' + T('Prix foil non disponible, prix sans foil affiché');
 /** Pastille foil (✦) d'une ligne de la session ('' sans foil). */
 const trocFo = g => (lineFoil(g) ? `<i class="trc-fo" title="${T('Foil')}" aria-hidden="true">✦</i>` : '');
 async function trocProf() { if (typeof amProf === 'function') { try { return await amProf(); } catch (e) { /* miniature illisible */ } } return { n: PROF.name || '', l: I18N.lang }; }
@@ -39420,7 +39507,7 @@ async function trocReady(code) {
 }
 /** Déconnecté : la connexion d'abord ; l'échange reprend tout seul une fois connecté (trocUser). */
 function trocLogin(code) {
-  TRC.want = code || '+';      // + : créer (hôte)
+  TRC.want = code || '+';      // + : créer (hôte) ; entry : la feuille « Échange en direct » (entrée de l'onglet Échange)
   openSheet(T('Échange en direct'), null, api => {
     api.body.innerHTML = `<p class="hint">${T('Connecte-toi pour échanger en direct : chacun utilise son compte, et rien ne change dans ta collection sans ta validation.')}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Plus tard')}</button><button class="btn" type="button" data-trc="login">${T('Se connecter')}</button>`);
@@ -39429,7 +39516,7 @@ function trocLogin(code) {
 }
 /** Compte connecté ou changé (decks.js › onUser) : l'échange qui attendait la connexion reprend ; un autre compte quitte la session de l'ancien. */
 function trocUser(user) {
-  if (user && TRC.want) { const c = TRC.want; TRC.want = ''; setTimeout(() => { if (c === '+') trocHost(); else trocJoinCode(c); }, 700); return; }
+  if (user && TRC.want) { const c = TRC.want; TRC.want = ''; setTimeout(() => { if (c === '+') trocHost(); else if (c === 'entry') trocEntry(); else trocJoinCode(c); }, 700); return; }
   if (TRC.c && (!user || (TRC.uid && TRC.uid !== user.uid))) trocQuit().then(trocCloseWin);
 }
 /** Nouvelle session (hôte) ; inv : un ami à inviter ({ id, n }). */
@@ -39599,11 +39686,11 @@ function trocOtState(s) {
 }
 function trocTile(x, side) {
   const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g), fo = lineFoil(x.g);
-  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
+  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ') + (x.u && x.w ? TRC_PXW() : '');
   return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}${fo ? ' foil' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
     <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}">
       ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${trocFo(x.g)}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
-    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, trcCur())) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
+    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? trocPx(x.u, x.w) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
 }
 function trocZoneHtml(cls, title, list, side, add, empty, extra = '') {
   const sum = trocSum(list);
@@ -39646,7 +39733,7 @@ function trocMiniList(list) {
   const by = new Map();
   for (const x of list) { if (x.r) continue; const k = ownKey(x.n) + '|' + (x.g || ''), e = by.get(k); if (e) e.q += x.q; else by.set(k, { ...x }); }
   const meta = g => [lineLang(g) ? flag(lineLang(g)) : '', lineEd(g) ? esc(edLabel(lineEd(g))) : '', lineFoil(g) ? '✦ ' + T('Foil') : ''].filter(Boolean).join(' ');
-  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
+  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? trocPx(x.u, x.w, x.q) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
 }
 function trocConfirmHtml(s) {
   const sg = trocSum(s.ot.give), sv = trocSum(s.me.give), name = esc(trocWho());
@@ -39711,7 +39798,7 @@ function trocTileSheet(id, side) {
   const list = side === 'me' ? s.me.give : s.ot ? s.ot.give : [], x = list.find(y => y.id === id); if (!x) return;
   if (side === 'ot' && !x.a || !trocOpenSt(s)) { trocZoom(list, x); return; }
   const name = esc(trocName(x)), l = lineLang(x.g), e = lineEd(x.g), who = esc(trocWho());
-  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, trcCur()) }) : ''].filter(Boolean).join(' · ');
+  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, trcCur()) }) + (x.w ? ' ⚠️' : '') : ''].filter(Boolean).join(' · ') + (x.u && x.w ? TRC_PXW() : '');
   openSheet(trocName(x), sub, api => {
     api.wrap.classList.add('trc-ts');
     const own = side === 'me' ? collLines(COLL.map[ownKey(x.n)]).reduce((t, y) => t + (lineHead(y[0]) === x.g ? y[1] : 0), 0) : 0;
@@ -39743,7 +39830,7 @@ function trocTileSheet(id, side) {
 }
 /** Carte en grand (visionneuse de l'appli), avec ses voisines du même côté. */
 function trocZoom(list, x) {
-  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
+  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) + (y.w ? ' ⚠️' : '') : ''].filter(Boolean).join(' · ') + (y.u && y.w ? TRC_PXW() : '') }));
   haptic('tap'); openCardViewer(items, Math.max(0, list.indexOf(x)));
 }
 
@@ -39752,9 +39839,9 @@ function trocZoom(list, x) {
 function trocRowHtml(it, kind) {
   const l0 = it.lines[0] ? lineLang(it.lines[0][0]) : '', dn = (l0 && frName(it.k, l0)) || it.dn || it.n, img = it.img || '';
   const tags = it.tags || '';
-  const chips = it.lines.map(([g, q, u]) => {
+  const chips = it.lines.map(([g, q, u, w]) => {
     const l = lineLang(g), e = lineEd(g), fo = lineFoil(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
-    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, trcCur()))}</small>` : ''}</button>`;
+    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${trocPx(u, w)}</small>` : ''}</button>`;
   }).join('');
   const e0 = it.lines[0] ? lineEd(it.lines[0][0]) : '', ia = img ? cardImgA(it.k, it.n, img, kind === 'ask' ? '' : l0, !!(e0 || (kind === 'ask' && l0))) : '';      // image de la 1re ligne : ma carte dans sa langue (sinon celle de l'appli) ; la sienne, langue précisée, telle qu'envoyée
   return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${ia}>` : ''}</span>
@@ -39797,7 +39884,7 @@ function trocGiveSheet() {
   const st = trState(), meta = k => COLL.meta[k] || {};
   const item = (k, n, ls) => {      // une pastille par ligne sans emplacement ni détails (ils ne partent pas : trocMine) ; foil ou édition : son prix sur la pastille
     const by = new Map(); for (const [g, q] of ls) by.set(lineHead(g), (by.get(lineHead(g)) || 0) + q);
-    const lines = [...by].map(([g, q]) => [g, q, lineFoil(g) || lineEd(g) ? trLinePx(k, g) || 0 : 0]), l0 = lines[0] ? lineLang(lines[0][0]) : '';
+    const lines = [...by].map(([g, q]) => { const pw = lineFoil(g) || lineEd(g) ? trLinePxW(k, g) : { v: 0, w: false }; return [g, q, pw.v || 0, pw.w]; }), l0 = lines[0] ? lineLang(lines[0][0]) : '';
     return { k, n, dn: (l0 && frName(k, l0)) || n, fn: frOf(k), lines, img: collImage(k, l0, meta(k).im).src, u: trPrice(k) };
   };
   const list = st.have.map(x => item(x.k, x.n, x.lines));
@@ -39824,7 +39911,7 @@ async function trocAskSheet() {
   for (const x of L) {
     const k = ownKey(x.n); let it = by.get(k);
     if (!it) by.set(k, it = { k, n: x.n, dn: trocName(x), fn: x.f || frOf(k), lines: [], img: trocSrc(x), u: x.u || 0, w: want.get(k) });
-    it.lines.push([x.g, x.q, x.u || 0]); if (x.u && (!it.u || x.u < it.u)) it.u = x.u;
+    it.lines.push([x.g, x.q, x.u || 0, !!x.w]); if (x.u && (!it.u || x.u < it.u)) it.u = x.u;
   }
   const rows = [...by.values()].map(it => Object.assign(it, { tags: it.w ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.w.q })}</span>` : '' })).sort((a, b) => (b.w ? 1 : 0) - (a.w ? 1 : 0) || NAME_CMP(a.dn, b.dn));
   const wanted = rows.filter(x => x.w);
@@ -39856,7 +39943,7 @@ async function trocBalance() {
     for (const x of trState().have) for (const [g, q] of x.lines) cands.push({ ...trocMine(x.k, x.n, g), k: x.k, u: trLinePx(x.k, g) || trPrice(x.k) || 0, avail: q - trocIn(s.me.give, x.k, g) });
   } else {          // je donne plus : de sa liste, ce qui n'est pas déjà de son côté
     let L; try { L = await trocOtList(); } catch (e) { toast(trocErr(e.code)); return; }
-    cands = L.map(x => ({ n: x.n, g: x.g, i: x.i, f: x.f, fl: x.fl, k: ownKey(x.n), u: x.u || 0, avail: x.q - trocIn(s.ot.give, ownKey(x.n), x.g) }));
+    cands = L.map(x => ({ n: x.n, g: x.g, i: x.i, f: x.f, fl: x.fl, k: ownKey(x.n), u: x.u || 0, w: !!x.w, avail: x.q - trocIn(s.ot.give, ownKey(x.n), x.g) }));
   }
   const { picks, rem } = trocFill(cands, Math.abs(d), tol);
   if (!picks.length) { toast(T('Rien d\'assez petit pour équilibrer')); return; }
@@ -39868,7 +39955,7 @@ async function trocBalance() {
     api.wrap.addEventListener('click', async e => {
       const b = e.target.closest('[data-trc="eqgo"]'); if (!b || b.disabled) return;
       b.disabled = true; haptic('tap');
-      for (const x of picks) { const r = await trocDo({ op: mine ? 'give' : 'ask', card: { n: x.n, q: x.q, g: x.g, ...(x.f ? { f: x.f, fl: x.fl } : {}), ...(x.i ? { i: x.i } : {}), ...(x.u ? { u: x.u } : {}) } }); if (!r) break; }
+      for (const x of picks) { const r = await trocDo({ op: mine ? 'give' : 'ask', card: { n: x.n, q: x.q, g: x.g, ...(x.f ? { f: x.f, fl: x.fl } : {}), ...(x.i ? { i: x.i } : {}), ...(x.u ? { u: x.u, ...(x.w ? { w: 1 } : {}) } : {}) } }); if (!r) break; }
       api.close();
     });
   });
@@ -39976,21 +40063,22 @@ function trocHistOpen(r, after) {
     api.wrap.addEventListener('click', e => {
       if (!e.target.closest('[data-trc="hdel"]')) return;
       const was = trocHist(); TRC.hist = was.filter(x => x !== r); trocHistSave(); api.close(); if (after) after();
-      toast(T('Échange retiré de l\'historique'), { label: T('Annuler'), fn: () => { TRC.hist = was; trocHistSave(); if (after) after(); } });
+      toast(T('Échange retiré de l\'historique'), { label: tUndo(), fn: () => { TRC.hist = was; trocHistSave(); if (after) after(); } });
     });
   });
 }
 
 /* ── Entrée « Échange en direct » (onglet Échange) ───────────────────────────────────────────────────────────────────────── */
-/** Ligne discrète sous les actions du lien (share.js › trShareBoxHtml) ; rien sans le serveur ou sans compte. */
+/** Entrée permanente en tête de l'onglet Échange (share.js › trPanelHtml), avec ou sans compte (sans : « Connecte-toi », trocEntry l'explique) ; rien sans le serveur. */
 function trocBoxHtml() {
-  if (!trocOn() || !D.user) return '';
-  return `<button class="trc-entry" type="button" data-act="trlive">${TRC_SWAP}<span class="trc-et"><b>${T('Échange en direct')}</b><small>${T('Face à face, chacun sur son téléphone')}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+  if (!trocOn()) return '';
+  return `<button class="trc-entry tr-live" type="button" data-act="trlive">${TRC_SWAP}<span class="trc-et"><b>${T('Échange en direct')}</b><small>${D.user ? T('Face à face, chacun sur son téléphone') : T('Face à face, chacun sur son téléphone · connecte-toi pour commencer')}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 }
 /** Feuille « Échange en direct » : créer (QR code et code), « J'ai un code », « Mes échanges ». */
 function trocEntry() {
   if (typeof streamOn === 'function' && streamOn()) { toast(T('Échange en direct indisponible en mode streamer')); return; }
   if (TRC.c && TRC.s && trocOpenSt(TRC.s)) { trocOpenWin(); return; }      // déjà dans un échange : on y retourne
+  if (!D.user) { trocLogin('entry'); return; }      // l'entrée reste visible sans compte : connexion d'abord, puis cette feuille
   const nh = trocHist().length;
   openSheet(T('Échange en direct'), T('Face à face, chacun sur son téléphone'), api => {
     api.wrap.classList.add('trc-entry-sheet');

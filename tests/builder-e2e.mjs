@@ -1,7 +1,7 @@
 // E2E : créateur de deck « + » (Standard / Commander), collection d'abord, réserve, règles, montage automatique, modification.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, dvAct } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18960 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -26,7 +26,7 @@ await p.waitForTimeout(500);
 
 /* ── A) Commander : création complète ─────────────────────────────────────────────────────── */
 assert.ok(await p.isVisible('#btnDecks'), 'bouton « Decks » de la barre du bas toujours là (le + doit être accessible)'); await decks(p);
-assert.match(await txt(p, '#deckList'), /Touche « \+ »/, 'invitation quand aucun deck'); assert.equal(await p.$$eval('.deck', n => n.length), 0);
+assert.match(await txt(p, '#deckList'), /^Aucun deck pour le moment Créer un deck Prix d'une liste /, 'invitation quand aucun deck : Créer un deck, Prix d\'une liste'); assert.equal(await p.$$eval('.deck', n => n.length), 0);
 await newDeck(p, 'Vampires Boros', 'commander');
 assert.equal(await txt(p, '#bdTitle'), 'Vampires Boros'); assert.match(await txt(p, '#bdSub'), /Commander · 0\/100/);
 assert.match(await txt(p, '#bdSum'), /Aucun commandant/); assert.equal(await p.$eval('#bdSave', b => b.disabled), true, 'pas de sauvegarde sans commandant');
@@ -239,10 +239,10 @@ ok('cartes en nombre quelconque : Relentless Rats au-delà de 4 (Standard) et du
   assert.match(await line(), /^100\/100 cartes/, 'Mes decks : 100/100 (compagnon hors des 100 cartes), pas 101/100');
   await p.click('.deck:has-text("Edgar compagnon") [data-act="open"]'); await p.waitForSelector('.dvw.on .dv-title span');
   await p.waitForFunction(() => /dont 1 double face/.test((document.querySelector('.dvw.on .dv-g[data-g="land"] h3') || {}).textContent || ''), null, { timeout: 10000 });
-  assert.match(await tc(p, '.dvw.on .dv-title span'), /^100 cartes · .*réserve 1$/, 'viewer : 100 cartes, le compagnon dans la réserve');
+  assert.match(await tc(p, '.dvw.on .dv-title span'), /^100\/100 cartes · .*réserve 1$/, 'viewer : 100/100 cartes, le compagnon dans la réserve');
   assert.match(await tc(p, '.dvw.on .dv-g[data-g="land"] h3'), /Terrains ?97 cartes · dont 1 double face/, 'viewer : la double face avec les terrains, annoncée');
   assert.match(await tc(p, '.dvw.on .dv-g[data-g="sb"]'), /Jegantha/, 'compagnon : groupe Réserve');
-  await p.click('.dvw.on [data-act="hand"]'); await p.waitForSelector('.sheet .hand-grid');
+  await dvAct(p, '[data-act="hand"]'); await p.waitForSelector('.sheet .hand-grid');
   assert.match(await tc(p, '.sheet'), /99 cartes dans la bibliothèque · 97 terrains \(dont 1 double face\)/, 'main de départ : le même compte que le viewer');
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet .hand-grid'), null, { timeout: 3000 });
   await p.click('.dvw.on [data-act="builder"]'); await p.waitForSelector('.bd.on');
@@ -285,7 +285,7 @@ ok('cartes en nombre quelconque : Relentless Rats au-delà de 4 (Standard) et du
   const idB = await p.evaluate(() => allDecks().find(d => d.name === 'Deck B').id);
   await p.click('.deck:has-text("Deck B") [data-act="open"]'); await p.waitForSelector('.dv.on [data-act="builder"]');
   await p.waitForFunction(() => DV.el && /à trouver|toutes possédées/.test(DV.el.querySelector('.dv-title span').textContent), null, { timeout: 8000 });
-  assert.match(await p.evaluate(() => DV.el.querySelector('.dv-title span').textContent), /2 cartes · 1 à trouver/, 'viewer : 1 à trouver (Sol Ring), Edgar possédé');
+  assert.match(await p.evaluate(() => DV.el.querySelector('.dv-title span').textContent), /2\/100 cartes · 1 à trouver/, 'viewer : 1 à trouver (Sol Ring), Edgar possédé');
   assert.deepEqual(await p.evaluate(() => dvMissing()), [{ n: 'Sol Ring', q: 1 }], 'viewer : manquantes = Sol Ring × 1');
   await p.click('.dv.on [data-act="builder"]'); await p.waitForSelector('.bd.on'); assert.equal(await p.evaluate(() => BD.id), idB);
   await same('deck B enregistré, rouvert');

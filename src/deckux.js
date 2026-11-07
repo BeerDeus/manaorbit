@@ -124,7 +124,7 @@ function dxClick(b, act) {
     const before = new Map([...BD.main].map(([k, c]) => [k, { ...c }])), c = BD.main.get(s.out.k);
     if (c) { if (c.qty > 1) c.qty--; else BD.main.delete(s.out.k); }
     BD.main.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
-    toast(T('{a} → {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }), { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+    toast(T('{a} → {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }), { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
     return true;
   }
   return false;

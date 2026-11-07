@@ -1841,7 +1841,7 @@ function trocCard(x, qmax = 99) {
   const c = { n, q: Math.min(qmax, q), g: trocG(x.g) }, f = trocStr(x.f, 160), i = trocImg(x.i), u = Math.round(Number(x.u));
   if (f && f !== n) { c.f = f; if (TROC_LANGS.has(x.fl)) c.fl = x.fl; }
   if (i) c.i = i;
-  if (u > 0 && u <= 1e7) c.u = u;
+  if (u > 0 && u <= 1e7) { c.u = u; if (x.w === 1 || x.w === true) c.w = 1; }      // w : ligne foil chiffrée par l'appareil au prix non foil (pas de prix foil), ⚠️ chez les deux joueurs
   return c;
 }
 /** Prix du serveur : fichier de prix (le même que /prices.tsv) lu à la première session, en tranches (le serveur continue de répondre). */
@@ -1871,7 +1871,14 @@ const trocPrice = (n, mk) => { const e = TROC.px && TROC.px[mk === 'us' ? 'usd' 
     précise : celui de l'appareil qui l'ajoute s'il en donne un (prix de cette impression et de sa finition, comme la valeur de sa collection : le fichier n'a ni prix
     foil ni prix par édition, et le lire pour chaque impression serait disproportionné), sinon celui du fichier. Les deux joueurs voient le même.
     Marchés : la session a celui de qui l'ouvre (s.mk) ; le prix d'un appareil à l'autre marché (p.mk différent, autre devise) n'est jamais repris. */
-const trocUnit = (c, s, p) => { const dev = (p.mk || '') === (s.mk || '') && c.u > 0; return (/\*$|\|/.test(c.g) && dev ? c.u : trocPrice(c.n, s.mk) || (dev ? c.u : null) || null); };
+function trocUnitW(c, s, p) {
+  const dev = (p.mk || '') === (s.mk || '') && c.u > 0, foil = /\*$/.test(c.g);
+  if (/\*$|\|/.test(c.g) && dev) return { u: c.u, w: foil && !!c.w };
+  const f = trocPrice(c.n, s.mk); if (f) return { u: f, w: foil };      // fichier : prix non foil seulement, donc ⚠️ sur une ligne foil
+  return dev ? { u: c.u, w: foil && !!c.w } : { u: null, w: false };
+}
+/** Le même, avec w : ligne foil chiffrée au prix non foil (fichier, ou appareil qui l'a marquée), comme la collection de l'appli (pxWarn : ⚠️ « Prix foil non disponible »). */
+const trocUnit = (c, s, p) => trocUnitW(c, s, p).u;
 /** Seau de jetons par compte ou par réseau (créations, codes faux) : 0 si permis (un jeton pris si take), sinon secondes à attendre. */
 function trocLim(name, who, cap, per, take = true) {
   if (!who || !(cap > 0)) return 0;
@@ -1897,7 +1904,7 @@ function trocSetList(s, p, raw) {
   for (const x of a.slice(0, TROC_LIST + 1)) {
     if (p.list.length >= TROC_LIST) { p.cut = true; break; }
     const c = trocCard(x, 9999); if (!c) continue;
-    const pu = trocUnit(c, s, p); if (pu) c.u = pu; else delete c.u;
+    const pw = trocUnitW(c, s, p); if (pw.u) c.u = pw.u; else delete c.u; if (pw.w) c.w = 1; else delete c.w;
     const sz = JSON.stringify(c).length + 1; if (sz > room) { p.cut = true; break; }
     room -= sz; p.lb += sz; p.list.push(c);
   }
@@ -2034,13 +2041,14 @@ async function trocOp(req, res) {
     if (asked) {      // seulement une carte de sa liste, et pas plus d'exemplaires qu'il n'en propose (données de sa liste : nom, image, prix)
       const e = side.list.find(same); if (!e) return fail(404, 'not_listed', 'Cette carte n\'est pas dans sa liste.');
       cap = e.q - side.give.filter(y => same(y) && !y.a).reduce((t, y) => t + y.q, 0);
-      delete c.f; delete c.fl; delete c.i; Object.assign(c, { n: e.n, ...(e.f ? { f: e.f } : {}), ...(e.fl ? { fl: e.fl } : {}), ...(e.i ? { i: e.i } : {}), u: e.u });
+      delete c.f; delete c.fl; delete c.i; delete c.w; Object.assign(c, { n: e.n, ...(e.f ? { f: e.f } : {}), ...(e.fl ? { fl: e.fl } : {}), ...(e.i ? { i: e.i } : {}), u: e.u, ...(e.w ? { w: 1 } : {}) });
     }
     const cur = side.give.find(y => same(y) && !!y.a === asked);
     if (cur) { const q = Math.min(cap, cur.q + c.q); if (q <= cur.q) return fail(409, 'max', 'Pas plus d\'exemplaires.'); cur.q = q; if (asked) cur.r = 1; return touch(); }
     if (side.give.length >= TROC_ITEMS) return fail(409, 'items', 'Trop de cartes de ce côté.');
     const q = Math.min(cap, c.q); if (q < 1) return fail(409, 'max', 'Pas plus d\'exemplaires.');
-    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocUnit(c, s, side), ...(asked ? { a: 1, r: 1 } : {}) });
+    const pw = trocUnitW(c, s, side); delete c.w;
+    side.give.push({ id: (++s.n).toString(36), ...c, q, u: pw.u, ...(pw.w ? { w: 1 } : {}), ...(asked ? { a: 1, r: 1 } : {}) });
     return touch();
   }
   if (op === 'set' || op === 'unask') {      // set : mes cartes (0 : retirée ; une carte demandée ne monte pas au-delà) · unask : ma demande chez l'autre, retirée

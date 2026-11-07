@@ -40,6 +40,7 @@ function openDecks() {
     const act = b.dataset.act;
     if (act === 'close') return wrap.__close();
     if (act === 'new') return openDeckNew();
+    if (act === 'price') return dkTabGo('price');      // Mes decks vide : « Prix d'une liste », où coller une liste puis l'enregistrer
     if (act === 'sync') return openAccount();
     if (act === 'import') { b.disabled = true; importLocal(); return; }
     if (act === 'eq') { DKS.eq = !DKS.eq; haptic('tap'); dksPaint(); return; }
@@ -71,7 +72,7 @@ function dksPaint() {
   else {
     if (imp.length) html += `<div class="import-row"><span>${TN(imp.length, '{n} deck sur cet appareil', '{n} decks sur cet appareil')}</span><button class="btn" type="button" data-act="import">${T('Importer')}</button></div>`;
     html += shown.map(deckCard).join('');
-    if (!all.length) html += '<div class="deck-empty">' + T('Aucun deck pour le moment. Touche « + » pour en créer un, ou colle une liste puis « Enregistrer ».') + '</div>';
+    if (!all.length) html += `<div class="deck-empty dks-empty"><b>${T('Aucun deck pour le moment')}</b><div class="dks-empty-b"><button class="btn" type="button" data-act="new"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>${T('Créer un deck')}</button><button class="btn ghost" type="button" data-act="price"><svg class="i" aria-hidden="true"><use href="#i-cart"/></svg>${T('Prix d\'une liste')}</button></div><span>${T('Une liste toute prête ? Colle-la dans l\'onglet « Prix d\'une liste », puis touche « Enregistrer ».')}</span></div>`;      // le « + » et l'onglet où coller une liste, nommés
     else if (!shown.length) html += '<div class="deck-empty">' + T('Aucun deck ne correspond à ces filtres.') + '</div>';
   }
   const host = $('#deckList', el);

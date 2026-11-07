@@ -401,7 +401,7 @@ function scanKeep(rows, name) {
   const apart = rows.filter(x => x.dp), nAp = apart.reduce((a, x) => a + x.q, 0), where = (scdPlace() ? ' · ' + plcName(scdPlace()) : '') + (nAp ? ' · ' + T('{n} dans « {place} »', { n: nAp, place: plcName(apart[0].dp) }) : '');
   if (SCD.x) proxAdd(add); else collAdd(add, 'add');
   const msg = SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : name ? (n > 1 ? T('{n} × {name} ajoutées à ta collection', { n, name }) : T('{name} ajoutée à ta collection', { name })) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection');
-  toast(msg + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
+  toast(msg + where, { label: tUndo(), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
   collEnrich();
 }
 /* ── Prix rapide : lire une carte sans l'ajouter (bourse, échange, vide-grenier) ───────────────────────────────────────────

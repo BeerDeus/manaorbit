@@ -52,7 +52,7 @@ await p.click('.bd-row[data-k="edgar markov"][data-t="cmdr"] [data-d="1"]');
 await p.click('#bdTgt .seg-opt[data-v="main"]');
 await p.waitForFunction(() => ['bulk red 1', 'bulk black banned', 'bulk green 2', 'edgar markov'].every(k => COLL.meta[k] && typeof COLL.meta[k].ci === 'string'), null, { timeout: 15000 });
 await p.fill('#bdQ', 'arcane'); await p.click('.bd-row[data-k="arcane signet"] [data-d="1"]');
-assert.ok(await p.$('#bdList .bd-bulk'), 'une recherche : ajout groupé proposé');
+assert.equal(await p.$('#bdList .bd-bulk'), null, 'un seul résultat (déjà ajouté) : pas d\'ajout groupé, son « + » suffit');
 await p.fill('#bdQ', '');
 assert.equal(await p.$('#bdList .bd-bulk'), null, 'sans recherche ni filtre : pas d\'ajout groupé (toute la collection)');
 assert.match(await txt(p, '#bdList'), /Appui long sur une carte : en choisir plusieurs/);
@@ -65,8 +65,10 @@ let ks = await keysOf(p);
 assert.equal(ks.length, 16, 'rangement : les 16 cartes du classeur'); assert.ok(!ks.includes('bulk white 5') && !ks.includes('sol ring'), 'rien d\'autre');
 await p.click('#bdF .fbtn'); await p.click('#bdF .fpanel [data-m="2"]'); await p.waitForTimeout(250);
 ks = await keysOf(p); assert.equal(ks.length, 15, 'coût 2 : Bulk Red Big écartée'); assert.ok(!ks.includes('bulk red big'));
-assert.match(await tc(p, '#bdList .bd-bulk'), /15 cartes listées.*Un exemplaire de chaque/);
-assert.equal(await tc(p, '#bdList .bd-bulk .btn'), 'Ajouter les 15 cartes listées');
+assert.match(await tc(p, '#bdList .bd-bulk'), /^Ajouter les 11 cartes listées ?Un exemplaire de chaque/, '15 listées, 11 peuvent entrer (1 déjà là, 3 hors des couleurs)');
+assert.equal(await tc(p, '#bdList .bd-bulk .btn'), 'Ajouter les 11 cartes listées');
+assert.ok(await p.evaluate(() => { const b = document.querySelector('#bdList .bd-bulk'), r = [...document.querySelectorAll('#bdList .bd-row')].pop(); return b.classList && r.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING; }), 'sous la liste');
+assert.equal(await p.$eval('#bdList .bd-bulk .btn', b => b.classList.contains('ghost')), true, 'bouton secondaire');
 assert.match(await tc(p, '.bd-row[data-k="bulk black banned"] .row-meta'), /Pas légale en Commander/, 'carte interdite signalée sur sa ligne');
 await p.click('#bdF .fbtn');      // panneau refermé
 ok('Commander : rangement (feuille, emplacement du classeur) + filtre « Coût 2 » de la collection → 15 cartes listées, interdite signalée');
@@ -95,8 +97,7 @@ await p.click('#bdF .fbtn'); await p.click('#bdF .fpanel .fcol[data-c="W"]'); aw
 assert.equal((await keysOf(p)).length, 4, 'blanches du classeur');
 await p.click('#bdList [data-act="bulk"]'); await p.waitForTimeout(250);
 assert.equal(await p.$('.sheet-wrap'), null, '4 cartes : pas de confirmation'); assert.match(await txt(p, '#toast'), /^4 cartes ajoutées · Bulk White 1 : ton exemplaire est dans « Autre deck »\. À y reprendre quand tu joueras ce deck, ou à acheter\. Annuler$/, 'sans feuille : le message de l\'ajout à l\'unité pour la carte réservée ailleurs');
-await p.click('#bdList [data-act="bulk"]'); await p.waitForTimeout(250);
-assert.match(await txt(p, '#toast'), /^Aucune carte à ajouter · 4 déjà dans le deck/);
+assert.equal(await p.$('#bdList .bd-bulk'), null, 'tout est ajouté : plus d\'ajout groupé (recalculé après l\'ajout)');
 await leave(p);
 ok('Commander : 10 au plus ajoutées sans confirmation ; « Aucune carte à ajouter » quand tout est déjà là');
 

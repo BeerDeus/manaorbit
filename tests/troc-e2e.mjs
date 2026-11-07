@@ -56,7 +56,7 @@ await pa.goto(world.url); await pa.waitForTimeout(600);
 await login(pa, UA, 'Alice');
 await pa.waitForFunction(() => CTX.troc === true && COLL.live, null, { timeout: 10000 });
 await toHome(pa); await pa.click('#btnColl'); await pa.waitForSelector('.coll.on');
-await pa.click('#nav [data-nav="trade"]'); await pa.waitForSelector('.tr-box .trc-entry');
+await pa.click('#nav [data-nav="trade"]'); await pa.waitForSelector('.tr-live');
 assert.match(await tc(pa, '.trc-entry'), /^Échange en direct\s*Face à face, chacun sur son téléphone$/);
 await shot(pa, '01-onglet-echange');
 await pa.click('.trc-entry'); await pa.waitForSelector('.trc-entry-sheet.open [data-trc="new"]');
@@ -201,7 +201,7 @@ ok('« Annuler l\'échange » : proposé à l\'autre, refusé (rien ne change), 
 
 // « Mes échanges » chez Alice
 await pa.click('.trc [data-trc="close"]'); await pa.waitForFunction(() => !document.querySelector('.dv.trc'));
-await pa.waitForSelector('.tr-box .trc-entry'); await pa.click('.trc-entry'); await pa.waitForSelector('.trc-entry-sheet.open [data-trc="hist"]');
+await pa.waitForSelector('.tr-live'); await pa.click('.trc-entry'); await pa.waitForSelector('.trc-entry-sheet.open [data-trc="hist"]');
 assert.match(await tc(pa, '.trc-entry-sheet [data-trc="hist"]'), /Mes échanges\s*1/);
 await pa.click('.trc-entry-sheet [data-trc="hist"]'); await pa.waitForSelector('.sheet-wrap.open .trc-h');
 assert.match(await tc(pa, '.sheet-wrap.open .trc-h'), /Bob.*annulé des deux côtés.*− 6 · 5,30.*\+ 3 · 6,20/);
@@ -282,6 +282,21 @@ ok('« Mes échanges » : ligne par échange (donné, reçu, valeurs), détail')
   assert.ok(await pb.$('.trc .trc-done .trc-col.get .trc-mt.fo'), 'écran de fin : ✦ Foil');
   for (const p of [pa, pb]) { await p.click('.trc [data-trc="close"]'); await p.waitForFunction(() => !document.querySelector('.dv.trc')); }
   ok('foil : donné et demandé avec sa langue et son foil (✦ sur la pastille, la tuile, le récapitulatif), au prix foil ; appliqué tel quel des deux côtés');
+}
+// foil sans prix foil (décision du 6 novembre : prix normal avec ⚠️) : le marqueur part avec la ligne (appareil → serveur), ⚠️ chez les deux joueurs
+{
+  await pa.evaluate(() => { COLL.map = mergeColl(COLL.map, [{ k: 'arcane signet', n: 'Arcane Signet', q: 1, l: 'en*' }], 'add'); const m = { ...(COLL.meta['arcane signet'] || {}) }; delete m.ef; COLL.meta['arcane signet'] = m; collChanged(); });
+  assert.deepEqual(await pa.evaluate(() => { const r = trLinePxW('arcane signet', 'en*'); return [r.v > 0, r.w]; }), [true, true], 'Alice : foil sans prix foil, prix normal avec ⚠️');
+  await pa.evaluate(() => trocHost()); await phase(pa, 'wait');
+  const C4 = await pa.evaluate(() => TRC.c);
+  await pa.evaluate(() => trocDo({ op: 'give', card: trocMine('arcane signet', 'Arcane Signet', 'en*') })); await pa.waitForFunction(() => TRC.s && TRC.s.me.give.length === 1);
+  assert.equal(await pa.evaluate(() => TRC.s.me.give[0].w), 1, 'le serveur garde le marqueur');
+  await pa.waitForSelector('.trc .trc-card.foil .px-warn');
+  await pb.evaluate(c => trocJoinCode(c), C4); await phase(pb, 'live');
+  await pb.waitForSelector('.trc .trc-zone.get .trc-card.foil .px-warn');
+  assert.match(await pb.$eval('.trc .trc-zone.get .trc-card.foil', b => b.getAttribute('aria-label')), /· Prix foil non disponible, prix sans foil affiché$/, 'Bob : ⚠️ et son message (lecteur d\'écran)');
+  for (const p of [pa, pb]) { await p.evaluate(() => trocQuit().then(trocCloseWin)); await p.waitForFunction(() => !document.querySelector('.dv.trc')); }
+  ok('foil sans prix foil : ⚠️ dans l\'échange en direct, chez les deux joueurs (marqueur transmis par l\'appareil qui ajoute la ligne)');
 }
 
 /* ── Mode streamer, code invalide ─────────────────────────────────────────────────────────────────── */

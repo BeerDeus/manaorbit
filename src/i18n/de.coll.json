@@ -345,7 +345,7 @@
   "Ta collection compte <b>{n}</b> cartes différentes.": "Deine Sammlung hat <b>{n}</b> verschiedene Karten.",
   "Elle sera remplacée par l'unique carte de ce fichier.": "Sie wird durch die einzige Karte dieser Datei ersetzt.",
   "Elle sera remplacée par les {n} cartes de ce fichier.": "Sie wird durch die {n} Karten dieser Datei ersetzt.",
-  "Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.": "Karten, die nicht in der Datei sind, verlassen deine Sammlung. „Abbrechen“ direkt danach stellt sie wieder her.",
+  "Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.": "Karten, die nicht in der Datei sind, verlassen deine Sammlung. „Rückgängig“ direkt danach stellt sie wieder her.",
   "Déjà dans ta collection ?": "Schon in deiner Sammlung?",
   "<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l'ajouter le compterait deux fois.": "<b>{n}</b> von {t} Exemplaren dieser Datei ist schon in deiner Sammlung: Hinzufügen würde es doppelt zählen.",
   "<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.": "<b>{n}</b> von {t} Exemplaren dieser Datei sind schon in deiner Sammlung: Hinzufügen würde sie doppelt zählen.",

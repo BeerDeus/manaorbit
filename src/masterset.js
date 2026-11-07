@@ -309,7 +309,7 @@ function msAssign(code, x, it, n = 1, fin = '') {
   for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, g, m, to);
   collChanged(); haptic('ok');
   const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num, done = moves.reduce((a, mv) => a + mv[2], 0);
-  toast(TN(done, '{name} : édition {ed} posée sur {n} exemplaire', '{name} : édition {ed} posée sur {n} exemplaires', { name, ed }), { label: T('Annuler'), fn: () => {
+  toast(TN(done, '{name} : édition {ed} posée sur {n} exemplaire', '{name} : édition {ed} posée sur {n} exemplaires', { name, ed }), { label: tUndo(), fn: () => {
     for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, to, m, g);
     collChanged();
   } });
@@ -323,7 +323,7 @@ function msAdd(code, x, it, fin = '') {
   collBump(x.k, x.n, 1, { lang: g }); if (typeof collEnrich === 'function') collEnrich();      // carte neuve : ses infos (type, coût, image) sont lues
   haptic('ok');
   const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num + (fo ? ' ✦' : '');
-  toast(T('{name} ajoutée à ta collection ({ed})', { name, ed }), { label: T('Annuler'), fn: () => collBump(x.k, x.n, -1, { lang: g }) });
+  toast(T('{name} ajoutée à ta collection ({ed})', { name, ed }), { label: tUndo(), fn: () => collBump(x.k, x.n, -1, { lang: g }) });
   msActDone(it, T('✓ Ajoutée'), T('Dans ta collection · {ed}', { ed }));
 }
 
@@ -352,7 +352,7 @@ function msWishSheet() {
       const prev = new Map(list.map(x => [x.k, TR.wish[x.k]])), where = x => [setName(code), code.toUpperCase() + ' ' + x.num].filter(Boolean).join(' · ');
       for (const x of list) { const was = TR.wish[x.k]; TR.wish[x.k] = { n: x.n, q: was ? was.q : Math.max(1, MS.o.need - msQ(code, x, '')), i: setvImg(x), w: where(x).slice(0, 90), ...(x.il && x.il !== 'en' ? { l: x.il } : {}) }; }
       trChanged(); haptic('ok'); if (msActive()) collPaintBody(true);
-      toast(TN(list.length, '{n} carte ajoutée à ta liste de souhaits', '{n} cartes ajoutées à ta liste de souhaits'), { label: T('Annuler'), fn: () => {
+      toast(TN(list.length, '{n} carte ajoutée à ta liste de souhaits', '{n} cartes ajoutées à ta liste de souhaits'), { label: tUndo(), fn: () => {
         for (const [k, w] of prev) { if (w) TR.wish[k] = w; else delete TR.wish[k]; }
         trChanged(); if (msActive()) collPaintBody(true);
       } });
