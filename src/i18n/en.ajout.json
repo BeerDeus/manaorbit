@@ -11,7 +11,7 @@
  "Réserve pleine : refusées": "Sideboard full: refused",
  "Pas encore de commandant : l'identité de couleur n'est pas vérifiée.": "No commander yet: color identity is not checked.",
  "Couleurs du commandant pas encore lues : identité de couleur non vérifiée.": "Commander colors not read yet: color identity not checked.",
- "« Annuler » dans le message qui suit remet le deck d'avant.": "“Cancel” in the next message restores the previous deck.",
+ "« Annuler » dans le message qui suit remet le deck d'avant.": "“Undo” in the next message restores the previous deck.",
  "Dans le deck": "In the deck",
  "Ajouter la carte listée": "Add the listed card",
  "Ajouter les {n} cartes listées": "Add the {n} listed cards",

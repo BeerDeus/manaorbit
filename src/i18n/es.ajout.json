@@ -11,7 +11,7 @@
  "Réserve pleine : refusées": "Banquillo lleno: rechazadas",
  "Pas encore de commandant : l'identité de couleur n'est pas vérifiée.": "Aún sin comandante: la identidad de color no se comprueba.",
  "Couleurs du commandant pas encore lues : identité de couleur non vérifiée.": "Colores del comandante aún no leídos: identidad de color no comprobada.",
- "« Annuler » dans le message qui suit remet le deck d'avant.": "«Cancelar» en el siguiente mensaje recupera el mazo anterior.",
+ "« Annuler » dans le message qui suit remet le deck d'avant.": "«Deshacer» en el siguiente mensaje recupera el mazo anterior.",
  "Dans le deck": "En el mazo",
  "Ajouter la carte listée": "Añadir la carta listada",
  "Ajouter les {n} cartes listées": "Añadir las {n} cartas listadas",

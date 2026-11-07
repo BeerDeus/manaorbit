@@ -227,7 +227,7 @@ function plcMoveShown() {
     if (!moves.length) return;
     collChanged(); haptic('ok');
     toast(to ? TN(copies, '{n} exemplaire rangé dans « {place} »', '{n} exemplaires rangés dans « {place} »', { place: plcName(to) }) : TN(copies, '{n} exemplaire n\'est plus rangé', '{n} exemplaires ne sont plus rangés'),
-      { label: T('Annuler'), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
+      { label: tUndo(), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
   } });
 }
 /** « Retirer… » (bandeau d'un emplacement, « Non rangé » compris) : tous les exemplaires affichés (recherche et filtres compris) quittent la collection,
@@ -251,7 +251,7 @@ function plcDelShown() {
       }
       if (!prev.length) return;
       COLL.map = map; collChanged(); haptic('ok');
-      toast(TN(copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection'), { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prev) m2[k] = v; COLL.map = m2; collChanged(); } });
+      toast(TN(copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection'), { label: tUndo(), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prev) m2[k] = v; COLL.map = m2; collChanged(); } });
     });
   });
 }
@@ -321,7 +321,7 @@ function openProxies() {
         const before = { m: COLL.map, p: COLL.prox }, x = COLL.prox[k];
         COLL.prox = lineBump(COLL.prox, k, g, -1);
         COLL.map = mergeColl(COLL.map, [{ k, n: x.n, q: 1, l: g }], 'add'); collChanged(); collEnrich(); haptic('ok'); paint();
-        toast(T('{name} : la vraie carte est dans ta collection', { name: x.n }), { label: T('Annuler'), fn: () => { COLL.map = before.m; COLL.prox = before.p; collChanged(); paint(); } });
+        toast(T('{name} : la vraie carte est dans ta collection', { name: x.n }), { label: tUndo(), fn: () => { COLL.map = before.m; COLL.prox = before.p; collChanged(); paint(); } });
         return;
       }
       const d = Number(b.dataset.d); if (!d) return;

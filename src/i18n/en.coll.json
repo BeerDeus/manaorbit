@@ -345,7 +345,7 @@
  "Ta collection compte <b>{n}</b> cartes différentes.": "Your collection has <b>{n}</b> unique cards.",
  "Elle sera remplacée par l'unique carte de ce fichier.": "It will be replaced by the only card in this file.",
  "Elle sera remplacée par les {n} cartes de ce fichier.": "It will be replaced by the {n} cards in this file.",
- "Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.": "Cards that aren't in the file leave your collection. \"Cancel\", right after, brings it back.",
+ "Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.": "Cards that aren't in the file leave your collection. “Undo”, right after, brings it back.",
  "Déjà dans ta collection ?": "Already in your collection?",
  "<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l'ajouter le compterait deux fois.": "<b>{n}</b> of the {t} copies in this file is already in your collection: adding it would count it twice.",
  "<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.": "<b>{n}</b> of the {t} copies in this file are already in your collection: adding them would count them twice.",

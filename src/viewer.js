@@ -206,10 +206,10 @@ function openCardViewer(items, index) {
     const k = wishKey(), img = urls[0]; if (!k || !img) return;
     const name = it.ln || it.name, was = TR.wish[k], same = !!was && !!was.i && samePrint(was.i, img);
     haptic(same ? 'tap' : 'ok');
-    if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), { label: T('Annuler'), fn: () => { TR.wish[k] = was; trChanged(); wishPaint(); } }); }
+    if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), { label: tUndo(), fn: () => { TR.wish[k] = was; trChanged(); wishPaint(); } }); }
     else {
       TR.wish[k] = { n: name, q: was ? was.q : 1, i: img.replace(/\/(large|png|border_crop)\//, '/normal/'), ...(where ? { w: where.slice(0, 90) } : {}), ...(shown && shown !== 'en' ? { l: shown } : {}) };
-      toast(was ? T('Illustration mise à jour dans ta liste de souhaits') : where ? T('{name} ajoutée à ta liste de souhaits ({where})', { name, where }) : T('{name} ajoutée à ta liste de souhaits', { name }), { label: T('Annuler'), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); wishPaint(); } });
+      toast(was ? T('Illustration mise à jour dans ta liste de souhaits') : where ? T('{name} ajoutée à ta liste de souhaits ({where})', { name, where }) : T('{name} ajoutée à ta liste de souhaits', { name }), { label: tUndo(), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); wishPaint(); } });
     }
     trChanged(); wishPaint();
   };

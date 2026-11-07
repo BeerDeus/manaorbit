@@ -468,7 +468,7 @@ function edhDeckActs(api, r, name) {
       const before = { ...TR.wish }, n = todo.reduce((a, x) => a + x.q, 0);
       for (const x of todo) { const cur = TR.wish[x.k], q = Math.min(99, ((cur && cur.q) || 0) + x.q); TR.wish[x.k] = { ...(cur || {}), n: cur ? cur.n : x.n, q }; added.set(x.k, (added.get(x.k) || 0) + q - ((cur && cur.q) || 0)); }
       trChanged(); haptic('ok'); paint();
-      toast(TN(n, '{n} carte ajoutée à Je recherche', '{n} cartes ajoutées à Je recherche'), { label: T('Annuler'), fn: () => { TR.wish = before; added.clear(); trChanged(); if (api.wrap.isConnected) paint(); } });
+      toast(TN(n, '{n} carte ajoutée à Je recherche', '{n} cartes ajoutées à Je recherche'), { label: tUndo(), fn: () => { TR.wish = before; added.clear(); trChanged(); if (api.wrap.isConnected) paint(); } });
     } else if (act === 'dkwatch') {
       b.disabled = true;
       if (!AC.on) { const res = await alEnable(); if (!res.ok) { b.disabled = false; toast(alWhy(res)); return; } }

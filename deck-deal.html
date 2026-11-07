@@ -8132,8 +8132,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '2d066db8';
-const I18N_FILES = {"de":"i18n/de.fe89accb.js","en":"i18n/en.8025273b.js","es":"i18n/es.ccea1cfa.js","it":"i18n/it.cfe0abba.js","pt":"i18n/pt.a6f50673.js"};
+const DD_BUILD = '4e535784';
+const I18N_FILES = {"de":"i18n/de.f21f956e.js","en":"i18n/en.3cf8b187.js","es":"i18n/es.ae6a5652.js","it":"i18n/it.cfe0abba.js","pt":"i18n/pt.e49766f8.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -13203,7 +13203,8 @@ function tween(el, to) {
 }
 let toastT;
 /** Libellé du bouton d'un toast qui défait ce qui vient d'être fait : « Annuler » en français, mais sa propre clé (« Rückgängig » en allemand, « Undo » en anglais),
- *  distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen »). */
+ *  « Deshacer », « Annulla », « Desfazer »), distincte du « Annuler » des boutons qui ferment sans rien faire (« Abbrechen », « Cancel »). Tout bouton « Annuler »
+ *  d'un toast passe par elle (règle dans DEV.md › Textes). */
 const tUndo = () => { const k = 'Annuler (défaire)'; return I18N.dict && Object.prototype.hasOwnProperty.call(I18N.dict, k) ? T(k) : T('Annuler'); };
 /** act : { label, fn } → bouton dans le toast (ex. tUndo()), affiché plus longtemps. */
 function toast(msg, act) {
@@ -13495,7 +13496,7 @@ function removeCard(key) {
   ta.value = r.text; S.isSample = false; refreshDeck(); paintUndo();
   const rw = $$('.rw', $('#list')).find(el => el.dataset.key === key), go = () => scheduleRecompute(true);
   if (rw && !reduceMotion()) { rw.style.pointerEvents = 'none'; try { rw.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(28px) scale(.97)' }], { duration: 190, easing: 'ease-in', fill: 'forwards' }).onfinish = go; } catch (e) { go(); } } else go();
-  toast(T('{name} retirée', { name: c.name + (c.qty > 1 ? ' × ' + c.qty : '') }), { label: T('Annuler'), fn: () => undoRemove(false) });
+  toast(T('{name} retirée', { name: c.name + (c.qty > 1 ? ' × ' + c.qty : '') }), { label: tUndo(), fn: () => undoRemove(false) });
 }
 /** Annule le dernier retrait, ou tous (dans l'ordre inverse, pour retrouver la liste d'origine). */
 function undoRemove(all) {
@@ -13907,7 +13908,7 @@ function openOfferSheet(key) {
     if (!need0) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'link-btn link-inline ownbtn';
     b.textContent = TN(need0, 'Je possède déjà cette carte', 'Je possède déjà ces {n} exemplaires');
-    b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: T('Annuler'), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
+    b.onclick = () => { collBump(ownKey(c.name), c.name, need0); api.close(); haptic('ok'); scheduleRecompute(true); toast(T('{name} ajoutée à ta collection', { name: c.name }), { label: tUndo(), fn: () => { collBump(ownKey(c.name), c.name, -need0); scheduleRecompute(true); } }); };
     api.body.appendChild(b);
   };
   if (isCm()) {
@@ -18201,7 +18202,7 @@ function dkGoneFlush(id) { const t = DK_GONE.get(id); if (t === undefined) retur
 function dkDelete(id) {
   if (S.deckId === id) S.deckId = null;
   DK_GONE.set(id, setTimeout(() => dkGoneFlush(id), 7000)); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon();
-  toast(T('Deck supprimé'), { label: T('Annuler'), fn: () => { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon(); } });
+  toast(T('Deck supprimé'), { label: tUndo(), fn: () => { const t = DK_GONE.get(id); if (t === undefined) return; clearTimeout(t); DK_GONE.delete(id); renderDecks(); refreshDeck(); if (typeof trSoon === 'function') trSoon(); } });
 }
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) for (const id of [...DK_GONE.keys()]) dkGoneFlush(id); });
 const findDeck = id => (id ? allDecks().find(d => d.id === id) || null : null);
@@ -18586,7 +18587,7 @@ function openDeckSheet(id) {
       const add = list => {
         const before = COLL.map, q = list.reduce((a, c) => a + c.qty, 0);
         collAdd(list.map(c => ({ k: ownKey(c.name), n: c.name, q: c.qty })), 'add'); haptic('ok');
-        toast(TN(q, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+        toast(TN(q, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); } });
         collEnrich();
       };
       api.close();
@@ -19363,10 +19364,10 @@ function openCardViewer(items, index) {
     const k = wishKey(), img = urls[0]; if (!k || !img) return;
     const name = it.ln || it.name, was = TR.wish[k], same = !!was && !!was.i && samePrint(was.i, img);
     haptic(same ? 'tap' : 'ok');
-    if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), { label: T('Annuler'), fn: () => { TR.wish[k] = was; trChanged(); wishPaint(); } }); }
+    if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), { label: tUndo(), fn: () => { TR.wish[k] = was; trChanged(); wishPaint(); } }); }
     else {
       TR.wish[k] = { n: name, q: was ? was.q : 1, i: img.replace(/\/(large|png|border_crop)\//, '/normal/'), ...(where ? { w: where.slice(0, 90) } : {}), ...(shown && shown !== 'en' ? { l: shown } : {}) };
-      toast(was ? T('Illustration mise à jour dans ta liste de souhaits') : where ? T('{name} ajoutée à ta liste de souhaits ({where})', { name, where }) : T('{name} ajoutée à ta liste de souhaits', { name }), { label: T('Annuler'), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); wishPaint(); } });
+      toast(was ? T('Illustration mise à jour dans ta liste de souhaits') : where ? T('{name} ajoutée à ta liste de souhaits ({where})', { name, where }) : T('{name} ajoutée à ta liste de souhaits', { name }), { label: tUndo(), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); wishPaint(); } });
     }
     trChanged(); wishPaint();
   };
@@ -20301,7 +20302,7 @@ function collAsideAsk() {
       haptic('tap'); api.close();
       try { localStorage.removeItem(COLL_ASIDE_KEY); } catch (x) { /* ignore */ }
       if (b.dataset.as === 'add') { collDocSet(mergeDoc3(null, collDocNow(), doc)); collChanged(); collEnrich(); toast(TN(n, '{n} carte ajoutée à ce compte', '{n} cartes ajoutées à ce compte', { n: nf0(n) })); }
-      else toast(T('Collection de l\'autre compte retirée de cet appareil'), { label: T('Annuler'), fn: () => { try { localStorage.setItem(COLL_ASIDE_KEY, raw); } catch (x) { /* ignore */ } COLL.asked = false; collAsideSoon(); } });
+      else toast(T('Collection de l\'autre compte retirée de cet appareil'), { label: tUndo(), fn: () => { try { localStorage.setItem(COLL_ASIDE_KEY, raw); } catch (x) { /* ignore */ } COLL.asked = false; collAsideSoon(); } });
     });
   });
 }
@@ -20608,7 +20609,7 @@ function edSplit(k, g) {
       for (const r of rows) if (r.info && r.q > 0) edRemember(k, l, r.e, r.info);
       const next = collFromLines(cur, lines); if (!next) return;
       COLL.map[k] = next; collChanged(); haptic('ok');
-      toast(T('{name} : exemplaires répartis', { name }), { label: T('Annuler'), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
+      toast(T('{name} : exemplaires répartis', { name }), { label: tUndo(), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
     });
   });
 }
@@ -20647,7 +20648,7 @@ function collSoloApply() {
   }
   if (!n) return 0;
   COLL.map = m; collChanged({ paint: false }); collPaintSoon();
-  toast(TN(n, '{n} carte imprimée une seule fois : son édition est posée', '{n} cartes imprimées une seule fois : leur édition est posée', { n }), { label: T('Annuler'), fn: () => {
+  toast(TN(n, '{n} carte imprimée une seule fois : son édition est posée', '{n} cartes imprimées une seule fois : leur édition est posée', { n }), { label: tUndo(), fn: () => {
     const r = { ...COLL.map }; for (const k in before) { r[k] = before[k]; COLL.solo[k] = '-'; }
     COLL.map = r; Cache.set(COLL_SOLO_KEY, COLL.solo); collChanged();
   } });
@@ -20871,7 +20872,7 @@ function collRemoteApplied(b0, a0, o = {}) {
   for (const k in after) if (!before[k]) add++;
   for (const k in before) if (!after[k]) del++;
   const n0 = Object.keys(before).length, plural = n => TN(n, '{n} carte', '{n} cartes', { n });
-  if (del >= 10 && del * 2 >= n0) toast(TN(del, '{n} carte retirée depuis un autre appareil', '{n} cartes retirées depuis un autre appareil', { n: del }), { label: T('Annuler'), fn: () => { COLL.map = unionColl(COLL.map, before); collChanged(); } });
+  if (del >= 10 && del * 2 >= n0) toast(TN(del, '{n} carte retirée depuis un autre appareil', '{n} cartes retirées depuis un autre appareil', { n: del }), { label: tUndo(), fn: () => { COLL.map = unionColl(COLL.map, before); collChanged(); } });
   else if (o.first && o.had) toast(T('Collection de l\'appareil et du compte fusionnées'));
   else if (o.first) toast(T('Collection de ton compte chargée : {cards}', { cards: plural(add) }));
   else if (add || del) toast(T('Autre appareil : {changes}', { changes: [add && '+' + plural(add), del && '−' + plural(del)].filter(Boolean).join(' · ') }));
@@ -21760,7 +21761,7 @@ function openCollection(tab) {
         if (q) { if (row) $('.qstep b', row).textContent = q; }
         else {
           if (multi) collPaintBody(true); else if (row) row.remove();      // une langue de moins : les autres lignes de la carte se réorganisent
-          toast(T('{name} retirée de la collection', { name: name + (multi ? ' (' + lineTag(ln) + ')' : '') }), { label: T('Annuler'), fn: () => { collBump(k, name, was, { date, lang: ln }); } });
+          toast(T('{name} retirée de la collection', { name: name + (multi ? ' (' + lineTag(ln) + ')' : '') }), { label: tUndo(), fn: () => { collBump(k, name, was, { date, lang: ln }); } });
         }
       };
       if (d < 0) confirmMinus(cur.n, line[1], 'coll', step, tag); else step();
@@ -21857,7 +21858,7 @@ function openCollUnknown() {
       } else { undo = collDrop(k); msg = T('{name} retirée de la collection', { name: x.n }); }
       haptic('ok'); row.remove();
       if (!$('.uk-row', api.body)) api.close();
-      toast(msg, undo ? { label: T('Annuler'), fn: undo } : undefined);
+      toast(msg, undo ? { label: tUndo(), fn: undo } : undefined);
     });
   });
 }
@@ -21876,7 +21877,7 @@ function collBulkLang(l) {
   }
   if (!n) return;
   COLL.map = m; haptic('ok'); collChanged(); collEnrich();      // images dans la langue choisie
-  toast(TN(n, '{n} carte passée en {lang}', '{n} cartes passées en {lang}', { lang: T(LANGS[l]) }), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+  toast(TN(n, '{n} carte passée en {lang}', '{n} cartes passées en {lang}', { lang: T(LANGS[l]) }), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); } });
 }
 /** Bandeau en tête de la liste quand des cartes n'ont pas de langue (« Langue ? ») : les passer toutes en français, en anglais ou dans une autre langue. */
 function collNoLangHtml(v) {
@@ -21988,7 +21989,7 @@ function openCollImport(initial) {
       const before = COLL.map, pl0 = COLL.places, n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
       collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
       if (parsed.format === 'csv' && typeof prgAdd === 'function') prgAdd('imp');      // badge « Déménageur » (progress.js)
-      toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: T('Annuler'), fn: undo });
+      toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: tUndo(), fn: undo });
       collEnrich();
       if (n >= GLANCE_MIN) setTimeout(() => openCollGlance(n, m, undo), reduceMotion() ? 0 : 480);      // après la fermeture de l'import ; l'annulation reste possible depuis le coup d'œil
     };
@@ -22446,7 +22447,7 @@ function plcMoveShown() {
     if (!moves.length) return;
     collChanged(); haptic('ok');
     toast(to ? TN(copies, '{n} exemplaire rangé dans « {place} »', '{n} exemplaires rangés dans « {place} »', { place: plcName(to) }) : TN(copies, '{n} exemplaire n\'est plus rangé', '{n} exemplaires ne sont plus rangés'),
-      { label: T('Annuler'), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
+      { label: tUndo(), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
   } });
 }
 /** « Retirer… » (bandeau d'un emplacement, « Non rangé » compris) : tous les exemplaires affichés (recherche et filtres compris) quittent la collection,
@@ -22470,7 +22471,7 @@ function plcDelShown() {
       }
       if (!prev.length) return;
       COLL.map = map; collChanged(); haptic('ok');
-      toast(TN(copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection'), { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prev) m2[k] = v; COLL.map = m2; collChanged(); } });
+      toast(TN(copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection'), { label: tUndo(), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prev) m2[k] = v; COLL.map = m2; collChanged(); } });
     });
   });
 }
@@ -22540,7 +22541,7 @@ function openProxies() {
         const before = { m: COLL.map, p: COLL.prox }, x = COLL.prox[k];
         COLL.prox = lineBump(COLL.prox, k, g, -1);
         COLL.map = mergeColl(COLL.map, [{ k, n: x.n, q: 1, l: g }], 'add'); collChanged(); collEnrich(); haptic('ok'); paint();
-        toast(T('{name} : la vraie carte est dans ta collection', { name: x.n }), { label: T('Annuler'), fn: () => { COLL.map = before.m; COLL.prox = before.p; collChanged(); paint(); } });
+        toast(T('{name} : la vraie carte est dans ta collection', { name: x.n }), { label: tUndo(), fn: () => { COLL.map = before.m; COLL.prox = before.p; collChanged(); paint(); } });
         return;
       }
       const d = Number(b.dataset.d); if (!d) return;
@@ -22977,7 +22978,7 @@ function srchEditSheet(id) {
   }, () => {
     const before = srchRead(), i = before.findIndex(x => x.id === id); if (i < 0) return;
     srchWrite(before.filter(x => x.id !== id)); haptic('ok'); repaint();
-    toast(T('Recherche « {name} » supprimée', { name: s.n }), { label: T('Annuler'), fn: () => { const l = srchRead().slice(); l.splice(Math.min(i, l.length), 0, s); srchWrite(l.slice(0, SRCH_MAX)); repaint(); } });
+    toast(T('Recherche « {name} » supprimée', { name: s.n }), { label: tUndo(), fn: () => { const l = srchRead().slice(); l.splice(Math.min(i, l.length), 0, s); srchWrite(l.slice(0, SRCH_MAX)); repaint(); } });
   });
 }
 
@@ -23526,7 +23527,7 @@ function edhDeckActs(api, r, name) {
       const before = { ...TR.wish }, n = todo.reduce((a, x) => a + x.q, 0);
       for (const x of todo) { const cur = TR.wish[x.k], q = Math.min(99, ((cur && cur.q) || 0) + x.q); TR.wish[x.k] = { ...(cur || {}), n: cur ? cur.n : x.n, q }; added.set(x.k, (added.get(x.k) || 0) + q - ((cur && cur.q) || 0)); }
       trChanged(); haptic('ok'); paint();
-      toast(TN(n, '{n} carte ajoutée à Je recherche', '{n} cartes ajoutées à Je recherche'), { label: T('Annuler'), fn: () => { TR.wish = before; added.clear(); trChanged(); if (api.wrap.isConnected) paint(); } });
+      toast(TN(n, '{n} carte ajoutée à Je recherche', '{n} cartes ajoutées à Je recherche'), { label: tUndo(), fn: () => { TR.wish = before; added.clear(); trChanged(); if (api.wrap.isConnected) paint(); } });
     } else if (act === 'dkwatch') {
       b.disabled = true;
       if (!AC.on) { const res = await alEnable(); if (!res.ok) { b.disabled = false; toast(alWhy(res)); return; } }
@@ -24234,7 +24235,7 @@ function dfAdd(k) {
     dfPut(d.id, text, dfSnapWith(d.snap, item), before.local ? dfSnapWith(before.local, item) : undefined);
     if (DV.adhoc) DV.savedId = d.id;
     dfShow(DV.adhoc ? dfTextWith(DV.text, name) : text, dfSnapWith(DV.snap, item), at); haptic('ok');
-    toast(T('{name} ajoutée à « {deck} »', { name: shown, deck: d.name }), { label: T('Annuler'), fn: () => {
+    toast(T('{name} ajoutée à « {deck} »', { name: shown, deck: d.name }), { label: tUndo(), fn: () => {
       if (!findDeck(d.id)) return;
       dfPut(d.id, before.text, before.snap, before.local || null); dfShow(before.view, before.vsnap);
     } });
@@ -24580,7 +24581,7 @@ function openBuySheet() {
         const add = rows.filter(r => r.a > 0).map(r => ({ k: r.k, n: r.n, q: r.a, ...(r.l ? { l: r.l } : {}) })); if (!add.length) return;
         const before = COLL.map, prevBuy = XS.buy, n = add.reduce((a, x) => a + x.q, 0);
         collAdd(add, 'add'); collEnrich(); XS.buy = null; buyWrite(); buyPaint(); api.close(); haptic('ok');
-        toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); XS.buy = prevBuy; buyWrite(); buyPaint(); } });
+        toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); XS.buy = prevBuy; buyWrite(); buyPaint(); } });
       };
     };
     paint();
@@ -25396,7 +25397,7 @@ function csChange(e) {
   const kp = e.target.closest('input[data-cs="keep"]');
   if (kp) {      // même effet que « Garder » de l'onglet Échange
     haptic('tap'); if (kp.checked) TR.kept.add(k); else TR.kept.delete(k); trChanged(); csPaint();
-    if (kp.checked) toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); csSoon(); } });
+    if (kp.checked) toast(T('Gardée : elle n\'est plus proposée'), { label: tUndo(), fn: () => { TR.kept.delete(k); trChanged(); csSoon(); } });
   }
 }
 /** « − » de la fiche : pas de confirmation, un toast « Annuler » (la ligne revient, la carte aussi avec sa date d'ajout si c'était son dernier exemplaire). */
@@ -25405,7 +25406,7 @@ function csMinus(k, g) {
   const name = c.n, date = c.d, multi = collLines(c).length > 1, left = collBump(k, name, -1, { lang: g }); haptic('tap');
   const what = multi || lineEd(g) || lineFoil(g) ? ' (' + lineTag(g) + ')' : '';
   toast(left ? T('{name} : un exemplaire retiré{line} · il en reste {n}', { name, line: what, n: left }) : COLL.map[k] ? T('{name} : dernier exemplaire{line} retiré', { name, line: what }) : T('{name} retirée de la collection', { name: name + what }),
-    { label: T('Annuler'), fn: () => { collBump(k, name, 1, { lang: g, date }); } });
+    { label: tUndo(), fn: () => { collBump(k, name, 1, { lang: g, date }); } });
 }
 /** Image de la fiche : la carte en grand (3D, reflet, foil), précédente / suivante parmi les lignes de la carte. */
 function csZoom(k) {
@@ -25419,7 +25420,7 @@ function csZoom(k) {
 /** « Alerte de prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
 async function csWatch(k, b) {
   const w = AC.watch[k];
-  if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: T('Annuler'), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }
+  if (w) { alUnwatch(k); haptic('tap'); toast(T('{name} : prix plus suivi', { name: CS.n }), { label: tUndo(), fn: () => { AC.watch = { ...AC.watch, [k]: w }; alWrite(); alSoon(); csSoon(); } }); csPaint(); return; }
   if (!AC.on) { b.disabled = true; const r = await alEnable(); b.disabled = false; if (!r.ok) { toast(alWhy(r)); return; } }
   alWatch(CS.n, 0, true); haptic('ok'); csPaint();
   toast(T('{name} : tu seras prévenu si son prix bouge fort (hausse ou baisse)', { name: CS.n }), { label: T('Régler'), fn: () => openAlertSheet() });
@@ -25464,7 +25465,7 @@ function csAddSheet(k) {
       const ed = p ? edKey(p.set, p.num) : '', g = lineKey(l, ed, f);
       if (p) edRemember(k, l, ed, edInfoOf(p, l));
       api.close(); CS.g = g; collBump(k, n, 1, { lang: g }); haptic('ok'); if (ed) edSoon();
-      toast(T('{name} : un exemplaire ajouté ({line})', { name: n, line: lineTag(g) || T('sans langue') }), { label: T('Annuler'), fn: () => { collBump(k, n, -1, { lang: g }); } });
+      toast(T('{name} : un exemplaire ajouté ({line})', { name: n, line: lineTag(g) || T('sans langue') }), { label: tUndo(), fn: () => { collBump(k, n, -1, { lang: g }); } });
     });
   });
 }
@@ -25502,7 +25503,7 @@ function csDeckAdd(id, k, n) {
   const d = findDeck(id); if (!d) return;
   if (csDeckQty(d.text, k).q >= dkMaxCopies(dkFmtOf(d.text), k)) { toast(T('{name} est déjà dans « {deck} » (exemplaires au maximum pour ce format)', { name: n, deck: d.name })); return; }
   const prev = d.text; csDeckSave(d, csTextAdd(prev, k, n)); haptic('ok');
-  toast(T('{name} ajoutée à « {deck} »', { name: n, deck: d.name }), { label: T('Annuler'), fn: () => { const c = findDeck(id); if (c) csDeckSave(c, prev); } });
+  toast(T('{name} ajoutée à « {deck} »', { name: n, deck: d.name }), { label: tUndo(), fn: () => { const c = findDeck(id); if (c) csDeckSave(c, prev); } });
 }
 
 
@@ -25909,7 +25910,7 @@ function scanKeep(rows, name) {
   const apart = rows.filter(x => x.dp), nAp = apart.reduce((a, x) => a + x.q, 0), where = (scdPlace() ? ' · ' + plcName(scdPlace()) : '') + (nAp ? ' · ' + T('{n} dans « {place} »', { n: nAp, place: plcName(apart[0].dp) }) : '');
   if (SCD.x) proxAdd(add); else collAdd(add, 'add');
   const msg = SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : name ? (n > 1 ? T('{n} × {name} ajoutées à ta collection', { n, name }) : T('{name} ajoutée à ta collection', { name })) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection');
-  toast(msg + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
+  toast(msg + where, { label: tUndo(), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
   collEnrich();
 }
 /* ── Prix rapide : lire une carte sans l'ajouter (bourse, échange, vide-grenier) ───────────────────────────────────────────
@@ -28326,7 +28327,7 @@ function sssClear() {
 /** « Nouvelle session » du bandeau : scan vidé, « Annuler » rend les cartes (en plus de celles lues entre-temps). */
 function sssNew() {
   const s = sssSnap(); haptic('tap'); sssClear(); if (!s) return;
-  toast(T('Scan effacé'), { label: T('Annuler'), fn: () => { if (SC.el && SC.ctx === s.ctx) { sssApply(s, true); if (s.dest && !scdSet()) scdReset(s.dest); scanPaintTools(); scanPaintList(); } else sssPut(s); } });
+  toast(T('Scan effacé'), { label: tUndo(), fn: () => { if (SC.el && SC.ctx === s.ctx) { sssApply(s, true); if (s.dest && !scdSet()) scdReset(s.dest); scanPaintTools(); scanPaintList(); } else sssPut(s); } });
 }
 /** Des cartes seraient perdues en quittant : lues (même « à vérifier »), en lecture, ou dans la liste « Prix ». Jamais en scan mobile. */
 const sssUnsaved = () => !!SC.el && !SC.remote && (SC.items.size > 0 || SC.pq.length > 0 || SC.pend.length > 0 || SC.queue.length > 0);
@@ -28345,7 +28346,7 @@ function sssQuitAsk(end) {
       api.close();
       if (b.dataset.ss !== 'del') { end(); return; }
       const s = sssSnap(), ctx = SC.ctx; SC.items = new Map(); SC.pq = []; sssDrop(ctx); end(); sssDrop(ctx);
-      toast(T('Scan effacé'), s ? { label: T('Annuler'), fn: () => sssPut(s) } : undefined);
+      toast(T('Scan effacé'), s ? { label: tUndo(), fn: () => sssPut(s) } : undefined);
     });
   });
 }
@@ -28763,7 +28764,7 @@ function bdScanDone() {
       const refused = no.copies + no.side + no.cmdr, nAdd = add.reduce((a, x) => a + x.q, 0);
       const msg = [TN(ok, '{n} carte ajoutée au deck', '{n} cartes ajoutées au deck'), nAdd ? TN(nAdd, '{n} dans ta collection', '{n} dans ta collection') : '',
         refused ? TN(refused, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : ''].filter(Boolean).join(' · ');
-      toast(msg, { label: T('Annuler'), fn: () => {
+      toast(msg, { label: tUndo(), fn: () => {
         Object.assign(BD, { main: before.main, side: before.side, cmdr: before.cmdr, dirty: before.dirty, scanPref: before.pref }); if (add.length) { COLL.map = coll0; collChanged(); }
         bdPaint();
       } });
@@ -29214,7 +29215,7 @@ function bdBulkRun(P, asked) {
   const left = P.have + P.ci + P.basic + P.full + no;
   const msg = (asked ? [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), left ? TN(left, '{n} laissée de côté', '{n} laissées de côté') : '']
     : [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), ...bdBulkParts(P), no ? TN(no, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : '', P.res.length ? bdResMsg(P.res) : '']).filter(Boolean).join(' · ');
-  toast(msg, { label: T('Annuler'), fn: () => { if (BD.el !== el) return; Object.assign(BD, before); bdPaint(); haptic('tap'); } });      // éditeur fermé (ou un autre deck ouvert) entre-temps : rien
+  toast(msg, { label: tUndo(), fn: () => { if (BD.el !== el) return; Object.assign(BD, before); bdPaint(); haptic('tap'); } });      // éditeur fermé (ou un autre deck ouvert) entre-temps : rien
 }
 /** « Ajouter les N cartes listées » : toutes les cartes de la collection qui passent les filtres (exemplaires : ceux des filtres d'exemplaire). */
 function bdBulkListed() {
@@ -31326,7 +31327,7 @@ function dxClick(b, act) {
     const before = new Map([...BD.main].map(([k, c]) => [k, { ...c }])), c = BD.main.get(s.out.k);
     if (c) { if (c.qty > 1) c.qty--; else BD.main.delete(s.out.k); }
     BD.main.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
-    toast(T('{a} → {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }), { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+    toast(T('{a} → {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }), { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
     return true;
   }
   return false;
@@ -33214,11 +33215,11 @@ function trClick(e) {
   else if (act === 'trview') { const p = trPayload(); openPublicTrade(readShare('trade', { ...p, ...profShare(), at: Date.now() }), true); }
   else if (act === 'trmore') { TR.shown += TR_PAGE; collPaintBody(true); }
   else if (act === 'tralert') { haptic('tap'); openAlertSheet({ onClose: trRepaint }); }      // alertes de prix (alerts.js), nombre de cartes surveillées repeint à la fermeture
-  else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); } }); }
+  else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: tUndo(), fn: () => { TR.kept.delete(k); trChanged(); } }); }
   else if (act === 'tunkeep' && k) { TR.kept.delete(k); haptic('tap'); trChanged(); }
   else if ((act === 'wplus' || act === 'wminus') && k && TR.wish[k]) {
     const q = TR.wish[k].q + (act === 'wplus' ? 1 : -1); haptic('tap');
-    if (q <= 0) { const was = TR.wish[k]; delete TR.wish[k]; trChanged(); toast(T('{name} retirée de ta liste', { name: was.n }), { label: T('Annuler'), fn: () => { TR.wish[k] = was; trChanged(); } }); }
+    if (q <= 0) { const was = TR.wish[k]; delete TR.wish[k]; trChanged(); toast(T('{name} retirée de ta liste', { name: was.n }), { label: tUndo(), fn: () => { TR.wish[k] = was; trChanged(); } }); }
     else { TR.wish[k] = { ...TR.wish[k], q: Math.min(99, q) }; trChanged(); }
   }
   else if (act === 'wadd') openWishAdd();
@@ -35851,7 +35852,7 @@ function setvWish(x) {
   const k = x.k, img = setvImg(x); if (!k || BASIC_NAMES.has(k) || !img) return;
   const name = x.dn || x.n, was = TR.wish[k], same = !!was && !!was.i && setvSame(was.i, img);
   haptic(same ? 'tap' : 'ok');
-  const undo = { label: T('Annuler'), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); } };
+  const undo = { label: tUndo(), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); } };
   if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), undo); }
   else {
     const where = setvWhere(x);
@@ -36292,7 +36293,7 @@ function msAssign(code, x, it, n = 1, fin = '') {
   for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, g, m, to);
   collChanged(); haptic('ok');
   const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num, done = moves.reduce((a, mv) => a + mv[2], 0);
-  toast(TN(done, '{name} : édition {ed} posée sur {n} exemplaire', '{name} : édition {ed} posée sur {n} exemplaires', { name, ed }), { label: T('Annuler'), fn: () => {
+  toast(TN(done, '{name} : édition {ed} posée sur {n} exemplaire', '{name} : édition {ed} posée sur {n} exemplaires', { name, ed }), { label: tUndo(), fn: () => {
     for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, to, m, g);
     collChanged();
   } });
@@ -36306,7 +36307,7 @@ function msAdd(code, x, it, fin = '') {
   collBump(x.k, x.n, 1, { lang: g }); if (typeof collEnrich === 'function') collEnrich();      // carte neuve : ses infos (type, coût, image) sont lues
   haptic('ok');
   const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num + (fo ? ' ✦' : '');
-  toast(T('{name} ajoutée à ta collection ({ed})', { name, ed }), { label: T('Annuler'), fn: () => collBump(x.k, x.n, -1, { lang: g }) });
+  toast(T('{name} ajoutée à ta collection ({ed})', { name, ed }), { label: tUndo(), fn: () => collBump(x.k, x.n, -1, { lang: g }) });
   msActDone(it, T('✓ Ajoutée'), T('Dans ta collection · {ed}', { ed }));
 }
 
@@ -36335,7 +36336,7 @@ function msWishSheet() {
       const prev = new Map(list.map(x => [x.k, TR.wish[x.k]])), where = x => [setName(code), code.toUpperCase() + ' ' + x.num].filter(Boolean).join(' · ');
       for (const x of list) { const was = TR.wish[x.k]; TR.wish[x.k] = { n: x.n, q: was ? was.q : Math.max(1, MS.o.need - msQ(code, x, '')), i: setvImg(x), w: where(x).slice(0, 90), ...(x.il && x.il !== 'en' ? { l: x.il } : {}) }; }
       trChanged(); haptic('ok'); if (msActive()) collPaintBody(true);
-      toast(TN(list.length, '{n} carte ajoutée à ta liste de souhaits', '{n} cartes ajoutées à ta liste de souhaits'), { label: T('Annuler'), fn: () => {
+      toast(TN(list.length, '{n} carte ajoutée à ta liste de souhaits', '{n} cartes ajoutées à ta liste de souhaits'), { label: tUndo(), fn: () => {
         for (const [k, w] of prev) { if (w) TR.wish[k] = w; else delete TR.wish[k]; }
         trChanged(); if (msActive()) collPaintBody(true);
       } });
@@ -36849,7 +36850,7 @@ function lotDrop(id) {
   const date = (COLL.map[x.k] || {}).d;
   collBump(x.k, x.n, -x.q, { lang: x.g }); LOT.list = LOT.list.filter(y => y.id !== id); if (LOT.edit === id) { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
   lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-  toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: T('Annuler'), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
+  toast(T('{name} retirée de la collection', { name: x.p || x.n }), { label: tUndo(), fn: () => { collBump(x.k, x.n, x.q, { lang: x.g, date }); LOT.list.unshift(x); LOT.list.sort((a, b) => b.t - a.t); lotSave(); lotPaintList(); lotPaintHead(); } });
 }
 /** Catalogue des noms pour les suggestions : bandeau « Chargement… » tant qu'il n'est pas là, effacé à son arrivée ; échec : message (hors ligne, Scryfall), relancé au retour du réseau. */
 function lotCatLoad(wrap) {
@@ -36986,7 +36987,7 @@ function openLot() {
     else if (act === 'new') {
       const before = LOT.list; if (!before.length) return;
       LOT.list = []; LOT.edit = ''; lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: T('Annuler'), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
+      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: tUndo(), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
     } else if (act === 'edit' || act === 'drop') {
       const row = b.closest('.lot-it'), x = row && LOT.list.find(y => y.id === row.dataset.id); if (!x) return;
       if (act === 'drop') return lotDrop(x.id);
@@ -38790,7 +38791,7 @@ function opnTake(items, o = {}) {
   }
   if (!n) return false;
   opnSave(); opnMeta(); opnPaint();
-  if (o.toast) toast(TN(n, '{n} carte ajoutée à la session', '{n} cartes ajoutées à la session'), { label: T('Annuler'), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
+  if (o.toast) toast(TN(n, '{n} carte ajoutée à la session', '{n} cartes ajoutées à la session'), { label: tUndo(), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
   return true;
 }
 /** Message après un ajout à la main pendant la session (« Ajouter des cartes », « Saisir »). */
@@ -38816,7 +38817,7 @@ function opnDec(id) {
   const was = c.rows.map(x => ({ ...x }));
   if (r.q > 1) r.q--; else c.rows = c.rows.filter(x => x !== r);
   opnSave(); opnPaint(); haptic('tap');
-  toast(T('{name} retirée de la session', { name: opnName(r) }), { label: T('Annuler'), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
+  toast(T('{name} retirée de la session', { name: opnName(r) }), { label: tUndo(), fn: () => { if (OPN.cur !== c) return; c.rows = was; opnSave(); opnPaint(); } });
 }
 
 /* ── Repeints : bandeau du scan, pastille de l'accueil, feuille ouverte, collection, accueil, réglages ─────────────────────────────── */
@@ -38948,7 +38949,7 @@ function opnQuitAsk() {
     api.foot.addEventListener('click', e => {
       if (!e.target.closest('[data-ok]')) return;
       api.close(); opnClose(); OPN.cur = null; opnSave(); opnRefresh(); haptic('tap');
-      toast(T('Session abandonnée'), { label: T('Annuler'), fn: () => { if (OPN.cur) return; OPN.cur = c; opnSave(); opnRefresh(); } });
+      toast(T('Session abandonnée'), { label: tUndo(), fn: () => { if (OPN.cur) return; OPN.cur = c; opnSave(); opnRefresh(); } });
     });
   });
 }
@@ -38991,7 +38992,7 @@ function opnFinish(c, rows) {
   OPN.hist = [rec, ...opnHist().filter(x => x.id !== rec.id)]; opnHistSave();
   if (typeof prgOpen === 'function') prgOpen(t.v, c.paid, rows.reduce((a, r) => Math.max(a, opnEu(r) || 0), 0), t.n, !!c.st);      // niveau et badges (progress.js)
   opnClose(); OPN.cur = null; opnSave(); haptic('ok'); opnRefresh();
-  toast(TN(t.n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: T('Annuler'), fn: () => {
+  toast(TN(t.n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: tUndo(), fn: () => {
     if (OPN.cur) return;
     COLL.map = before; collChanged(); OPN.hist = opnHist().filter(x => x !== rec); opnHistSave(); OPN.cur = c; opnSave(); opnRefresh();
   } });
@@ -39045,7 +39046,7 @@ function opnHistOpen(rec, after) {
       else if (a === 'file') opnDownload(text() + '\n', 'ouverture-' + dayIso(rec.at) + '.txt');
       else if (a === 'del') {
         const was = opnHist(); OPN.hist = was.filter(x => x !== rec); opnHistSave(); api.close(); if (after) after();
-        toast(T('Ouverture supprimée'), { label: T('Annuler'), fn: () => { OPN.hist = was; opnHistSave(); if (after) after(); } });
+        toast(T('Ouverture supprimée'), { label: tUndo(), fn: () => { OPN.hist = was; opnHistSave(); if (after) after(); } });
       }
     });
   });
@@ -39942,7 +39943,7 @@ function trocHistOpen(r, after) {
     api.wrap.addEventListener('click', e => {
       if (!e.target.closest('[data-trc="hdel"]')) return;
       const was = trocHist(); TRC.hist = was.filter(x => x !== r); trocHistSave(); api.close(); if (after) after();
-      toast(T('Échange retiré de l\'historique'), { label: T('Annuler'), fn: () => { TRC.hist = was; trocHistSave(); if (after) after(); } });
+      toast(T('Échange retiré de l\'historique'), { label: tUndo(), fn: () => { TRC.hist = was; trocHistSave(); if (after) after(); } });
     });
   });
 }

@@ -168,7 +168,7 @@ function bdBulkRun(P, asked) {
   const left = P.have + P.ci + P.basic + P.full + no;
   const msg = (asked ? [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), left ? TN(left, '{n} laissée de côté', '{n} laissées de côté') : '']
     : [TN(ok, '{n} carte ajoutée', '{n} cartes ajoutées'), ...bdBulkParts(P), no ? TN(no, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : '', P.res.length ? bdResMsg(P.res) : '']).filter(Boolean).join(' · ');
-  toast(msg, { label: T('Annuler'), fn: () => { if (BD.el !== el) return; Object.assign(BD, before); bdPaint(); haptic('tap'); } });      // éditeur fermé (ou un autre deck ouvert) entre-temps : rien
+  toast(msg, { label: tUndo(), fn: () => { if (BD.el !== el) return; Object.assign(BD, before); bdPaint(); haptic('tap'); } });      // éditeur fermé (ou un autre deck ouvert) entre-temps : rien
 }
 /** « Ajouter les N cartes listées » : toutes les cartes de la collection qui passent les filtres (exemplaires : ceux des filtres d'exemplaire). */
 function bdBulkListed() {

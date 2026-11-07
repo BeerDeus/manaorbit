@@ -169,7 +169,7 @@ function dfAdd(k) {
     dfPut(d.id, text, dfSnapWith(d.snap, item), before.local ? dfSnapWith(before.local, item) : undefined);
     if (DV.adhoc) DV.savedId = d.id;
     dfShow(DV.adhoc ? dfTextWith(DV.text, name) : text, dfSnapWith(DV.snap, item), at); haptic('ok');
-    toast(T('{name} ajoutée à « {deck} »', { name: shown, deck: d.name }), { label: T('Annuler'), fn: () => {
+    toast(T('{name} ajoutée à « {deck} »', { name: shown, deck: d.name }), { label: tUndo(), fn: () => {
       if (!findDeck(d.id)) return;
       dfPut(d.id, before.text, before.snap, before.local || null); dfShow(before.view, before.vsnap);
     } });

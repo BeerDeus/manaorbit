@@ -92,7 +92,7 @@ function collAsideAsk() {
       haptic('tap'); api.close();
       try { localStorage.removeItem(COLL_ASIDE_KEY); } catch (x) { /* ignore */ }
       if (b.dataset.as === 'add') { collDocSet(mergeDoc3(null, collDocNow(), doc)); collChanged(); collEnrich(); toast(TN(n, '{n} carte ajoutée à ce compte', '{n} cartes ajoutées à ce compte', { n: nf0(n) })); }
-      else toast(T('Collection de l\'autre compte retirée de cet appareil'), { label: T('Annuler'), fn: () => { try { localStorage.setItem(COLL_ASIDE_KEY, raw); } catch (x) { /* ignore */ } COLL.asked = false; collAsideSoon(); } });
+      else toast(T('Collection de l\'autre compte retirée de cet appareil'), { label: tUndo(), fn: () => { try { localStorage.setItem(COLL_ASIDE_KEY, raw); } catch (x) { /* ignore */ } COLL.asked = false; collAsideSoon(); } });
     });
   });
 }
@@ -399,7 +399,7 @@ function edSplit(k, g) {
       for (const r of rows) if (r.info && r.q > 0) edRemember(k, l, r.e, r.info);
       const next = collFromLines(cur, lines); if (!next) return;
       COLL.map[k] = next; collChanged(); haptic('ok');
-      toast(T('{name} : exemplaires répartis', { name }), { label: T('Annuler'), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
+      toast(T('{name} : exemplaires répartis', { name }), { label: tUndo(), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
     });
   });
 }
@@ -438,7 +438,7 @@ function collSoloApply() {
   }
   if (!n) return 0;
   COLL.map = m; collChanged({ paint: false }); collPaintSoon();
-  toast(TN(n, '{n} carte imprimée une seule fois : son édition est posée', '{n} cartes imprimées une seule fois : leur édition est posée', { n }), { label: T('Annuler'), fn: () => {
+  toast(TN(n, '{n} carte imprimée une seule fois : son édition est posée', '{n} cartes imprimées une seule fois : leur édition est posée', { n }), { label: tUndo(), fn: () => {
     const r = { ...COLL.map }; for (const k in before) { r[k] = before[k]; COLL.solo[k] = '-'; }
     COLL.map = r; Cache.set(COLL_SOLO_KEY, COLL.solo); collChanged();
   } });
@@ -662,7 +662,7 @@ function collRemoteApplied(b0, a0, o = {}) {
   for (const k in after) if (!before[k]) add++;
   for (const k in before) if (!after[k]) del++;
   const n0 = Object.keys(before).length, plural = n => TN(n, '{n} carte', '{n} cartes', { n });
-  if (del >= 10 && del * 2 >= n0) toast(TN(del, '{n} carte retirée depuis un autre appareil', '{n} cartes retirées depuis un autre appareil', { n: del }), { label: T('Annuler'), fn: () => { COLL.map = unionColl(COLL.map, before); collChanged(); } });
+  if (del >= 10 && del * 2 >= n0) toast(TN(del, '{n} carte retirée depuis un autre appareil', '{n} cartes retirées depuis un autre appareil', { n: del }), { label: tUndo(), fn: () => { COLL.map = unionColl(COLL.map, before); collChanged(); } });
   else if (o.first && o.had) toast(T('Collection de l\'appareil et du compte fusionnées'));
   else if (o.first) toast(T('Collection de ton compte chargée : {cards}', { cards: plural(add) }));
   else if (add || del) toast(T('Autre appareil : {changes}', { changes: [add && '+' + plural(add), del && '−' + plural(del)].filter(Boolean).join(' · ') }));
@@ -1551,7 +1551,7 @@ function openCollection(tab) {
         if (q) { if (row) $('.qstep b', row).textContent = q; }
         else {
           if (multi) collPaintBody(true); else if (row) row.remove();      // une langue de moins : les autres lignes de la carte se réorganisent
-          toast(T('{name} retirée de la collection', { name: name + (multi ? ' (' + lineTag(ln) + ')' : '') }), { label: T('Annuler'), fn: () => { collBump(k, name, was, { date, lang: ln }); } });
+          toast(T('{name} retirée de la collection', { name: name + (multi ? ' (' + lineTag(ln) + ')' : '') }), { label: tUndo(), fn: () => { collBump(k, name, was, { date, lang: ln }); } });
         }
       };
       if (d < 0) confirmMinus(cur.n, line[1], 'coll', step, tag); else step();
@@ -1648,7 +1648,7 @@ function openCollUnknown() {
       } else { undo = collDrop(k); msg = T('{name} retirée de la collection', { name: x.n }); }
       haptic('ok'); row.remove();
       if (!$('.uk-row', api.body)) api.close();
-      toast(msg, undo ? { label: T('Annuler'), fn: undo } : undefined);
+      toast(msg, undo ? { label: tUndo(), fn: undo } : undefined);
     });
   });
 }
@@ -1667,7 +1667,7 @@ function collBulkLang(l) {
   }
   if (!n) return;
   COLL.map = m; haptic('ok'); collChanged(); collEnrich();      // images dans la langue choisie
-  toast(TN(n, '{n} carte passée en {lang}', '{n} cartes passées en {lang}', { lang: T(LANGS[l]) }), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+  toast(TN(n, '{n} carte passée en {lang}', '{n} cartes passées en {lang}', { lang: T(LANGS[l]) }), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); } });
 }
 /** Bandeau en tête de la liste quand des cartes n'ont pas de langue (« Langue ? ») : les passer toutes en français, en anglais ou dans une autre langue. */
 function collNoLangHtml(v) {
@@ -1779,7 +1779,7 @@ function openCollImport(initial) {
       const before = COLL.map, pl0 = COLL.places, n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
       collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
       if (parsed.format === 'csv' && typeof prgAdd === 'function') prgAdd('imp');      // badge « Déménageur » (progress.js)
-      toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: T('Annuler'), fn: undo });
+      toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: tUndo(), fn: undo });
       collEnrich();
       if (n >= GLANCE_MIN) setTimeout(() => openCollGlance(n, m, undo), reduceMotion() ? 0 : 480);      // après la fermeture de l'import ; l'annulation reste possible depuis le coup d'œil
     };

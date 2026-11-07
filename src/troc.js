@@ -758,7 +758,7 @@ function trocHistOpen(r, after) {
     api.wrap.addEventListener('click', e => {
       if (!e.target.closest('[data-trc="hdel"]')) return;
       const was = trocHist(); TRC.hist = was.filter(x => x !== r); trocHistSave(); api.close(); if (after) after();
-      toast(T('Échange retiré de l\'historique'), { label: T('Annuler'), fn: () => { TRC.hist = was; trocHistSave(); if (after) after(); } });
+      toast(T('Échange retiré de l\'historique'), { label: tUndo(), fn: () => { TRC.hist = was; trocHistSave(); if (after) after(); } });
     });
   });
 }

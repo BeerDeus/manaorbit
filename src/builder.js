@@ -406,7 +406,7 @@ function bdScanDone() {
       const refused = no.copies + no.side + no.cmdr, nAdd = add.reduce((a, x) => a + x.q, 0);
       const msg = [TN(ok, '{n} carte ajoutée au deck', '{n} cartes ajoutées au deck'), nAdd ? TN(nAdd, '{n} dans ta collection', '{n} dans ta collection') : '',
         refused ? TN(refused, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : ''].filter(Boolean).join(' · ');
-      toast(msg, { label: T('Annuler'), fn: () => {
+      toast(msg, { label: tUndo(), fn: () => {
         Object.assign(BD, { main: before.main, side: before.side, cmdr: before.cmdr, dirty: before.dirty, scanPref: before.pref }); if (add.length) { COLL.map = coll0; collChanged(); }
         bdPaint();
       } });

@@ -319,7 +319,7 @@ function srchEditSheet(id) {
   }, () => {
     const before = srchRead(), i = before.findIndex(x => x.id === id); if (i < 0) return;
     srchWrite(before.filter(x => x.id !== id)); haptic('ok'); repaint();
-    toast(T('Recherche « {name} » supprimée', { name: s.n }), { label: T('Annuler'), fn: () => { const l = srchRead().slice(); l.splice(Math.min(i, l.length), 0, s); srchWrite(l.slice(0, SRCH_MAX)); repaint(); } });
+    toast(T('Recherche « {name} » supprimée', { name: s.n }), { label: tUndo(), fn: () => { const l = srchRead().slice(); l.splice(Math.min(i, l.length), 0, s); srchWrite(l.slice(0, SRCH_MAX)); repaint(); } });
   });
 }
 

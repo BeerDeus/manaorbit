@@ -88,7 +88,7 @@ function setvWish(x) {
   const k = x.k, img = setvImg(x); if (!k || BASIC_NAMES.has(k) || !img) return;
   const name = x.dn || x.n, was = TR.wish[k], same = !!was && !!was.i && setvSame(was.i, img);
   haptic(same ? 'tap' : 'ok');
-  const undo = { label: T('Annuler'), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); } };
+  const undo = { label: tUndo(), fn: () => { if (was) TR.wish[k] = was; else delete TR.wish[k]; trChanged(); } };
   if (same) { delete TR.wish[k]; toast(T('{name} retirée de ta liste de souhaits', { name }), undo); }
   else {
     const where = setvWhere(x);

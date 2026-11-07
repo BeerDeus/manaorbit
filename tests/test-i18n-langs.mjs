@@ -188,3 +188,10 @@ test('moneyIn : montant tapé (budget, prix cible, frais de port) lu selon la lo
   for (const [s, loc, v] of cases) assert.equal(moneyIn(s, loc), v, `${JSON.stringify(s)} (${loc})`);
   for (const s of ['', '  ', 'abc', '12,3,4', null]) assert.ok(Number.isNaN(moneyIn(s, 'fr-FR')), `illisible : ${JSON.stringify(s)}`);
 });
+
+test('« Annuler » d\'un toast (action qui défait) : tUndo (« Rückgängig », « Undo »…), jamais le « Annuler » des feuilles (« Abbrechen », « Cancel »)', () => {
+  const bad = SRCS.flatMap(({ f, s }) => s.split('\n').map((l, i) => [f, i + 1, l]).filter(([, , l]) => /label:\s*(esc\()?T\('Annuler'\)/.test(l)).map(([f, n]) => `${f}:${n}`));
+  assert.deepEqual(bad, [], 'bouton « Annuler » de toast sans tUndo()');
+  const U = { en: 'Undo', de: 'Rückgängig', es: 'Deshacer', it: 'Annulla', pt: 'Desfazer' };      // italien : « Annulla » sert aux deux (usage d'Android et de Gmail)
+  for (const l of Object.keys(U)) assert.equal(merged(l)['Annuler (défaire)'], U[l], l + ' : « Annuler (défaire) »');
+});
