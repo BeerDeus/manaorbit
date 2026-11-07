@@ -7,6 +7,7 @@
 //   node tools/store-assets.mjs feature      bannières seulement      node tools/store-assets.mjs shots de   captures (et bannière) allemandes seulement
 //   node tools/store-assets.mjs raw fr      captures brutes seulement (SHOTS + MORE) dans shots/store/ (maquettes)
 //   node tools/store-assets.mjs video fr    écrans des vidéos courtes (étapes du scan, QR, guide ManaBox, Carte mystère…) dans shots/video/
+//   VRAIES_CARTES=1 : vraies images Scryfall au lieu des cartes dessinées (téléchargées une fois dans shots/cartes/, tools/insta/scryfall.mjs ; visuels Instagram)
 //   RAW=1 : garde aussi les captures brutes de l'appli (sans bandeau) dans shots/store/ (non versionné) · CHROMIUM : chemin du navigateur
 import '../tests/setup-env.mjs';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, unlinkSync } from 'node:fs';
@@ -14,11 +15,13 @@ import { gunzipSync } from 'node:zlib';
 import { createRequire } from 'node:module';
 import { chromium, startWorld, newPage, signInFake } from '../tests/e2e-world.mjs';
 import { startFakes } from '../tests/amis-fakes.mjs';
+import { carteImage } from './insta/scryfall.mjs';
 
 const require = createRequire(import.meta.url);
 const { edhUnpack } = require('../edhbin.cjs');
 const OUT = 'docs/store/', PORT = 18980;
 const what = process.argv[2] || 'all', onlyLang = process.argv[3] || '';
+const VRAIES = !!process.env.VRAIES_CARTES;      // vraies images Scryfall (contenu de fan : jamais recadrées, artiste et © visibles)
 const LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt'].filter(l => !onlyLang || l === onlyLang);
 const LOCALE = { fr: 'fr-FR', en: 'en-GB', de: 'de-DE', es: 'es-ES', it: 'it-IT', pt: 'pt-BR' };
 const DAY = 86400e3, NOW = Date.now();
@@ -384,7 +387,7 @@ async function scryRoute(route) {
   }
   return nf();
 }
-function imgRoute(route) {
+async function imgRoute(route) {
   const u = new URL(route.request().url()), m = /^\/([a-z_]+)\/(?:front|back)\/(.+)$/.exec(u.pathname);
   let name = '', lang = 'en';
   if (m) {
@@ -392,6 +395,10 @@ function imgRoute(route) {
     if (IMG_OF.has(tail)) name = IMG_OF.get(tail);
     else if (FR_IMG.has('front/' + tail)) { name = FR_IMG.get('front/' + tail); lang = 'fr'; }
     else { const f = /^(fr|x|[0-9a-f])\/(?:[0-9a-f]\/)?(.+?)(?:-v\d+)?(?:-(en|fr))?\.(?:jpg|png)$/.exec(tail); if (f) { name = BY_SLUG.get(f[2]) || f[2].replace(/-/g, ' '); if (f[1] === 'fr' || f[3] === 'fr') lang = 'fr'; } }
+  }
+  if (VRAIES && name && m) {
+    const f = await carteImage(name, { lang, size: ['small', 'normal', 'large', 'png', 'art_crop'].includes(m[1]) ? m[1] : 'normal' }).catch(() => null);
+    if (f) return route.fulfill({ status: 200, headers: { ...CORS, 'cache-control': 'max-age=86400' }, contentType: f.endsWith('.png') ? 'image/png' : 'image/jpeg', body: readFileSync(f) });
   }
   const body = m && m[1] === 'art_crop' ? artCropSvg(name || 'x') : cardSvg(name || 'Carte', lang);
   return route.fulfill({ status: 200, headers: { ...CORS, 'cache-control': 'max-age=86400' }, contentType: 'image/svg+xml', body });
@@ -411,8 +418,9 @@ async function fontRoute(route) {
 }
 
 /* ── Caméra simulée pour le scan : le haut d'une carte posée sur un tapis de jeu (flux d'un canvas) ────────────────────────────────────────── */
+let CAM_IMG = {};      // VRAIES_CARTES : la vraie carte posée sur le tapis (data: URL par langue)
 function camScene(lang) {
-  const inner = cardSvg('Vampiric Tutor', lang).replace('<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680" viewBox="0 0 488 680">', '<svg x="0" y="0" width="488" height="680" viewBox="0 0 488 680">');
+  const inner = CAM_IMG[lang] ? `<svg x="0" y="0" width="488" height="680" viewBox="0 0 488 680"><image href="${CAM_IMG[lang]}" width="488" height="680"/></svg>` : cardSvg('Vampiric Tutor', lang).replace('<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680" viewBox="0 0 488 680">', '<svg x="0" y="0" width="488" height="680" viewBox="0 0 488 680">');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><defs>
     <radialGradient id="mat" cx=".5" cy=".3" r=".9"><stop offset="0" stop-color="#2a2f4a"/><stop offset="1" stop-color="#0c0e18"/></radialGradient>
     <radialGradient id="vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient>
@@ -758,6 +766,11 @@ function featurePage(lang, home, scan) {
 /** Carte mystère : une carte du jeu dessinée ici (même rendu que les autres), en PNG 745 × 1040 par langue, servie au serveur par le faux Scryfall de tests/daily-fakes.mjs. */
 const DLY_CARD = { set: 'tst', num: '17', en: 'Blood Artist', names: { fr: 'Artiste sanglant', de: 'Blutkünstler', es: 'Artista sangriento', it: 'Artista del sangue', pt: 'Artista sangrento' }, type: 'Creature — Vampire', text: 'Whenever a creature dies, target player loses 1 life.' };
 async function dailyPngs() {
+  if (VRAIES) {      // la vraie carte, dans chaque langue où elle existe (sinon l'anglaise)
+    const out = {};
+    for (const l of ['fr', 'en', 'de', 'es', 'it', 'pt']) { const f = await carteImage(DLY_CARD.en, { lang: l, size: 'png' }); if (f) out[l] = readFileSync(f); }
+    if (out.en) return out;
+  }
   const pg = await browser.newPage({ viewport: { width: 745, height: 1040 }, deviceScaleFactor: 1 }), out = {};
   for (const l of ['fr', 'en', 'de', 'es', 'it', 'pt']) {
     const svg = cardSvg(DLY_CARD.en, l).replace('width="488" height="680"', 'width="745" height="1040"');
@@ -771,6 +784,7 @@ async function dailyPngs() {
 FAKES = await startFakes();      // faux Firebase (jetons vérifiés par le serveur) : compte connecté de la Carte mystère
 browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--font-render-hinting=none'] });
 const DLY_PNG = await dailyPngs();
+if (VRAIES) for (const l of LANGS) { const f = await carteImage('Vampiric Tutor', { lang: l, size: 'large' }); if (f) CAM_IMG[l] = 'data:image/jpeg;base64,' + readFileSync(f).toString('base64'); }
 // comme en production : token CardTrader du serveur réservé au compte du propriétaire, le visiteur n'a que Cardmarket
 world = await startWorld({ port: PORT, daily: { cards: [DLY_CARD], png: (set, num, l) => DLY_PNG[l] || DLY_PNG.en }, env: { ALLOWED_UIDS: 'store-owner', FIREBASE_JWKS_URL: FAKES.env.FIREBASE_JWKS_URL, DAILY_MIN_AGE_DAYS: '0' } });
 for (let i = 0; i < 150; i++) { try { const j = await (await fetch(world.url + 'api/daily')).json(); if (j.st === 'ready') break; } catch (e) { /* serveur pas encore là */ } await new Promise(r => setTimeout(r, 200)); }
