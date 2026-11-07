@@ -64,7 +64,7 @@
     $('#acts').hidden = v !== 'vMain'; $('#tabs').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
     if (v !== 'vMain') {      // rien ne reste affiché d'une session admin précédente
-      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#health', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads', '#qrcodes', '#events']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset(); qcReset(); hcReset(); evReset();
+      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#health', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads', '#qrcodes', '#events']) $(id).replaceChildren(); elReset(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset(); qcReset(); hcReset(); evReset();
       $('#uCount').textContent = ''; tb.cur = ''; tb.y = {}; for (const k of TABS) { tabOf(k).hidden = false; badge(k, 0); }      // onglets rendus : la prochaine session redit ce qui est coupé
       const d = $('#dlg'); if (d.open) d.close(); d.replaceChildren();
     }
@@ -89,6 +89,7 @@
     if (prev !== k) { scrollTo(0, tb.y[k] || 0); tabReveal(tabOf(k)); if (k === 'apercu') charts(); }
     if (k === 'fils') thRoute(hashParts()[0] === 'fils' ? hashParts()[1] : '');
     if (prev !== k && k === 'evenements') { evCharts(); events(); }      // Événements : relu à chaque affichage de l'onglet
+    if (prev !== k && k === 'serveur') errLoad(1);      // Erreurs JS des appareils : relues à chaque affichage de l'onglet
     hcSoon();      // Serveur : relu toutes les 20 s tant qu'il est affiché
   }
   /** Onglet demandé (clic, flèches, tuile) : nouvelle entrée de l'historique (retour : hashchange, l'onglet d'avant), sauf replace. */
@@ -1696,6 +1697,78 @@
     fill(box, head, h('div', { class: 'hgrid' }, h('div', { class: 'hcol' }, mem, reqs), h('div', { class: 'hcol' }, up, live, disk, hist)));
     hbars(box);
     $('#hcGo').addEventListener('click', () => health(true));
+  }
+  /* Erreurs JS des appareils (src/errlog.js → proxy.mjs › /api/errlog ; lecture : GET /api/admin/errors) : onglet « Serveur », relu à chaque affichage de l'onglet
+     et par « Actualiser ». Une fiche par signature (message + emplacement + version), de la plus récemment vue à la plus ancienne : nombre, appareils distincts
+     (approximatif : empreinte du réseau), premier et dernier vu, écrans, plateformes, langues ; pile au clic. « Effacer » (deux appuis) : une signature, ou tout.
+     Route absente (ERRLOG=0 : 404) : la section disparaît. Textes écrits en textContent seulement. */
+  const EL_PLAT = { android: 'appli Android', pwa: 'PWA', web: 'navigateur' };
+  const el = { gen: 0, busy: false, page: 0, pages: 0, total: 0 };
+  /** Bouton à deux appuis (« Effacer » → « Confirmer »), fn appelée au second. */
+  function arm2(label, sure, fn) {
+    const b = h('button', { class: 'btn ghost small sdel', type: 'button' }, label); let t = 0;
+    b.addEventListener('click', async () => {
+      if (!b.classList.contains('arm')) { b.classList.add('arm'); b.textContent = sure; clearTimeout(t); t = setTimeout(() => { b.classList.remove('arm'); b.textContent = label; }, 4000); return; }
+      clearTimeout(t); b.disabled = true; await fn(b); b.disabled = false; b.classList.remove('arm'); b.textContent = label;
+    });
+    return b;
+  }
+  /** { clé: n } → « home ×3, coll ×1 » (les plus fréquentes d'abord). */
+  const elCounts = (o, names) => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => ((names && names[k]) || k) + ' ×' + nf(n)).join(', ');
+  const elSum = b => plural(b.sigs, 'signature') + ' · ' + plural(b.reports, 'rapport') + ' · ' + nf(b.n7) + ' vue' + (b.n7 > 1 ? 's' : '') + ' en 7 jours · gardées ' + b.days + ' jours, ' + nf(b.max) + ' au plus';
+  function elReset() { el.gen++; el.busy = false; el.page = el.pages = el.total = 0; const box = $('#errlog'); if (box) { box.hidden = true; box.replaceChildren(); } }
+  async function errLoad(page = 1) {
+    if (el.busy && page > 1) return;
+    const g = ++el.gen, box = $('#errlog'); el.busy = true;
+    if (!$('#elList')) {
+      box.hidden = false;
+      fill(box, fold('errlog', h('h2', null, 'Erreurs JS'), [
+        h('p', { class: 'hint' }, 'Erreurs non rattrapées remontées par les appareils, anonymes : message, emplacement, pile courte, version, écran, langue, plateforme. Ni compte, ni adresse IP, ni données de collection. Désactivable dans l\'appli (Réglages › Confidentialité).'),
+        h('div', { class: 'flags', id: 'elActs' }), h('div', { class: 'scl ell', id: 'elList' }, loading('Chargement des erreurs…')), h('div', { class: 'pager', id: 'elMore' })],
+        { meta: h('span', { id: 'elCount' }) }));
+    }
+    let r; try { r = await call('/errors?page=' + page); } catch (e) { r = null; }
+    if (g !== el.gen) return;
+    el.busy = false;
+    if (r && r.status === 404) return elReset();
+    if (!r || r.status !== 200 || !r.body) { if (!$('#elList .elr')) $('#elList').replaceChildren(empty('Erreurs JS : le serveur ne répond pas.')); return toast((r && r.body && r.body.message) || 'Erreurs JS : le serveur ne répond pas.'); }
+    const b = r.body; el.page = b.page; el.pages = b.pages; el.total = b.sigs;
+    $('#elCount').textContent = elSum(b);
+    const acts = [h('button', { class: 'btn ghost small', type: 'button', id: 'elReload' }, 'Actualiser')];
+    if (b.sigs) acts.push(arm2('Tout effacer', 'Confirmer : tout effacer', async () => {
+      let x; try { x = await call('/errors', 'DELETE'); } catch (e) { x = null; }
+      if (!x || x.status !== 200) return toast((x && x.body && x.body.message) || 'Effacement impossible.');
+      toast('Erreurs effacées.'); errLoad(1);
+    }));
+    fill($('#elActs'), acts, b.bad ? h('p', { class: 'note' }, 'Fichier des erreurs illisible sur le serveur : jamais réécrit (rapports gardés en mémoire seulement).') : null);
+    $('#elReload').addEventListener('click', () => errLoad(1));
+    const rows = b.rows.map(elRow), list = $('#elList');
+    if (page === 1) list.replaceChildren(...(rows.length ? rows : [empty('Aucune erreur remontée.')])); else list.append(...rows);
+    elMore();
+  }
+  function elMore() {
+    const box = $('#elMore'), left = el.total - $$('#elList .elr').length;
+    if (el.page >= el.pages || left <= 0) return box.replaceChildren();
+    const b = h('button', { class: 'btn ghost small', type: 'button' }, 'Afficher les suivantes (' + nf(left) + ')');
+    b.addEventListener('click', () => { b.disabled = true; errLoad(el.page + 1); });
+    box.replaceChildren(b);
+  }
+  function elRow(r) {
+    const art = h('article', { class: 'elr', 'data-id': r.id }, h('div', { class: 'scb' },
+      h('div', { class: 'sct' }, h('span', { class: 'tag' + (r.n > 1 ? ' warn' : '') }, nf(r.n) + ' fois'), h('span', { class: 'tag' }, (r.dev >= r.devMax ? nf(r.devMax) + '+' : nf(r.dev)) + ' appareil' + (r.dev > 1 ? 's' : '')),
+        h('small', null, 'vue ' + ago(r.l) + (r.f && r.f !== r.l ? ' · depuis le ' + D_TIME.format(r.f) : ''))),
+      h('p', { class: 'scc elm' }, h('b', null, r.m)),
+      h('p', { class: 'scm' }, [r.at || 'emplacement inconnu', r.b ? 'version ' + r.b : 'version ?', r.k === 'rejection' ? 'promesse rejetée' : 'erreur'].join(' · ')),
+      h('p', { class: 'scm' }, ['écrans : ' + (elCounts(r.v) || '—'), elCounts(r.p, EL_PLAT), elCounts(r.lg)].filter(Boolean).join(' · ')),
+      r.st ? h('details', { class: 'scd' }, h('summary', null, 'Pile'), h('pre', null, r.st)) : null,
+      h('div', { class: 'flags' }, arm2('Effacer', 'Confirmer l\'effacement', async () => {
+        let x; try { x = await call('/errors/' + encodeURIComponent(r.id), 'DELETE'); } catch (e) { x = null; }
+        if (!x || x.status !== 200) return toast((x && x.body && x.body.message) || 'Effacement impossible.');
+        art.remove(); el.total = Math.max(0, el.total - 1); elMore();
+        if (!$('#elList .elr')) $('#elList').replaceChildren(empty('Aucune erreur remontée.'));
+        toast('Erreur effacée.');
+      }))));
+    return art;
   }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();

@@ -470,9 +470,10 @@ function rateSheet() {
   });
 }
 // Session avec une erreur : pas de demande (une erreur JavaScript, une promesse rejetée sans traitement, une recherche échouée).
+// La même erreur part aussi en rapport anonyme vers /admin (errlog.js › errlogPush : bornée, dédoublonnée, désactivable dans Réglages › Confidentialité).
 if (typeof window !== 'undefined') {
-  window.addEventListener('error', () => { RATE.bad = true; });
-  window.addEventListener('unhandledrejection', () => { RATE.bad = true; });
+  window.addEventListener('error', e => { RATE.bad = true; if (typeof errlogPush === 'function') errlogPush(e, 'error'); });
+  window.addEventListener('unhandledrejection', e => { RATE.bad = true; if (typeof errlogPush === 'function') errlogPush(e, 'rejection'); });
 }
 // « Ajouter N cartes » (ou « Ajouter quand même » : cartes sans édition) à la fin d'un scan (fiche récap de scan.js) : 5 exemplaires ou plus ajoutés = bon moment.
 // Écouté en capture, avant l'ajout, pour compter avant / après (« Ajouter » qui demande d'abord une confirmation n'ajoute rien : pas de demande).

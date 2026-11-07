@@ -132,6 +132,7 @@ const S = {
   deck: { cards: [], basics: [], lines: 0, ignored: 0, copies: 0, basicCopies: 0 },
   view: 'home', tab: 'cards', run: null, res: null, fo: {}, fl: {}, overrides: {}, cur: '', isSample: false, deckId: null, runDelta: null,
   enBusy: null, enCtrl: null, gone: new Set(), haptic: true, sort: 'deck', filter: 'all', removed: [], useColl: true, push: false,
+  errRep: true,      // rapports d'erreur anonymes (errlog.js), Réglages › Confidentialité
 };
 let runSeq = 0;
 /** Critères qui fixent les prix lus : s'ils changent après la recherche, les prix gardés ne correspondent plus. */
@@ -159,7 +160,7 @@ const runLangs = () => [...new Set(S.deck.cards.filter(c => c.need > 0).flatMap(
 function loadStore() { try { return JSON.parse(localStorage.getItem('deckdeal:v1') || '{}'); } catch (e) { return {}; } }
 function saveStore() {
   try {
-    localStorage.setItem('deckdeal:v1', JSON.stringify({ opts: S.opts, src: S.src, token: S.token, appKey: S.appKey, theme: S.theme, haptic: S.haptic, sort: S.sort, useColl: S.useColl, push: S.push, demoPref: S.demoPref, draft: S.isSample ? null : $('#deckText').value }));
+    localStorage.setItem('deckdeal:v1', JSON.stringify({ opts: S.opts, src: S.src, token: S.token, appKey: S.appKey, theme: S.theme, haptic: S.haptic, errRep: S.errRep, sort: S.sort, useColl: S.useColl, push: S.push, demoPref: S.demoPref, draft: S.isSample ? null : $('#deckText').value }));
   } catch (e) { /* stockage indisponible */ }
 }
 
@@ -1286,8 +1287,10 @@ function setConfSheet() {
   openSheet(T('Confidentialité et mentions'), null, api => {
     api.body.innerHTML = `<div id="privBox" class="installbox"><p class="hint">${T('Sans compte, tout reste sur cet appareil. Aucune publicité ni mesure d\'audience.')}</p>
         <div class="cart-actions"><a class="btn ghost small" href="privacy" target="_blank" rel="noopener">${T('Politique de confidentialité')}</a><a class="btn ghost small" href="legal" target="_blank" rel="noopener">${T('Mentions légales')}</a><button class="btn ghost small" type="button" id="btnAbout">${T('Mentions et sources')}</button></div></div>
+      <div class="me-g conf-g"><label class="me-row switch-row" for="setErrRep"><span class="me-t">${T('Envoyer les rapports d\'erreur anonymes')}<small>${T('En cas de bug : le message d\'erreur, la version et l\'écran, sans tes cartes, tes decks ni ton compte.')}</small></span><span class="switch"><input type="checkbox" id="setErrRep" ${S.errRep !== false ? 'checked' : ''}><i></i></span></label></div>
       <p class="hint fan">${FAN_CONTENT}</p>`;
     $('#btnAbout', api.body).onclick = openAbout;
+    $('#setErrRep', api.body).addEventListener('change', e => errlogSet(e.target.checked));
   });
 }
 /** Aide et avis : « Comment ça marche », écrire un avis (help.js). */
@@ -1341,7 +1344,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.ctPub = j.ctPub === true; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.errlog = j.errlog === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.ctPub = j.ctPub === true; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
     if (j && j.ok && typeof j.ptk === 'string' && typeof partiePkKeep === 'function') partiePkKeep(j.ptk);      // compteur de vie : clé publique des cartes joueur (vérifiées sans réseau, partie.js)
   } catch (e) { /* pas de proxy */ }
   finally { if (typeof splashWait === 'function') splashWait(false); }
@@ -1382,7 +1385,7 @@ function init() {
   S.token = saved.token || ''; S.appKey = saved.appKey || ''; S.theme = saved.theme || 'auto';
   S.demoPref = null; S.src = saved.src === 'cm' || saved.src === 'ct' ? saved.src : 'auto';      // 'ct' : CardTrader choisi sans token (encart du token sur « Nouveau panier »)      // ancien interrupteur « Mode démo » retiré (choix enregistré ignoré) : démo seulement sans serveur joignable
   S.useColl = saved.useColl !== false; S.push = saved.push === true;
-  S.haptic = saved.haptic !== false; S.sort = ['deck', 'price-desc', 'price-asc', 'name'].includes(saved.sort) ? saved.sort : 'deck';
+  S.haptic = saved.haptic !== false; S.errRep = saved.errRep !== false; S.sort = ['deck', 'price-desc', 'price-asc', 'name'].includes(saved.sort) ? saved.sort : 'deck';
   S.demo = S.demoPref == null ? !S.token : S.demoPref;
   syncCTX(); applyTheme();
 

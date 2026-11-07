@@ -160,6 +160,9 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
 .scd pre{margin:6px 0 0;padding:8px 10px;max-height:320px;overflow:auto;border-radius:var(--r-sm);background:var(--surface-2);font:12px/1.4 ui-monospace,'JetBrains Mono',monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 .scb .flags{margin:4px 0 0}
 .sdel.arm{border-color:var(--bad);color:var(--bad)}
+.elr{padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg);min-width:0}
+.elm b{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
+#elActs{margin:0 0 10px}
 
 /* Actions : sous le nom de chaque compte ; fenêtre de confirmation (dialog) ; decks publics, journal */
 .uacts{display:inline-flex;flex-wrap:wrap;gap:4px}

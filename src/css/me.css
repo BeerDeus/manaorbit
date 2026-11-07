@@ -46,3 +46,4 @@ button.me-row:active,label.me-row:active{background:var(--surface-2)}
 /* « Badges » (me.js › meBadgesRow) : paliers obtenus en gros, sur le total */
 .me-bdg{display:inline-flex;align-items:baseline;gap:4px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .me-bdg b{font-size:20px;font-weight:800;color:var(--accent);line-height:1}
+.conf-g{margin:14px 0 4px;width:100%}

@@ -114,6 +114,19 @@ const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'evenements', 'discord', 'fil
   assert.match(await txt(p, '#pubrep'), /Decks publics signalés 1 deck .*Atraxa, Praetors' Voice par Jeanne · Jeanne D\. \(je•••@gmail\.com\).*1 signalement Retirer/);
   await tab(p, 'journal'); assert.match(await txt(p, '#journal'), /Aucune action pour l'instant/);
   await tab(p, 'serveur'); await p.waitForSelector('#health .hvd'); assert.match(await txt(p, '#srv'), /^Services/); assert.match(await txt(p, '#health'), /Échanges en direct ouverts 0 \/ 300/);
+  // Erreurs JS des appareils (vrai serveur : POST /api/errlog, puis « Actualiser ») : fiche, pile au clic, effacer une signature, tout effacer
+  await p.waitForSelector('#errlog:not([hidden]) #elList .empty'); assert.match(await txt(p, '#errlog'), /Erreurs JS .*Aucune erreur remontée\./);
+  const elPost = (r, from) => fetch(`http://127.0.0.1:${PORT}/api/errlog`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': from }, body: JSON.stringify({ r }) }).then(r => r.status);
+  const ER = { m: 'TypeError: x is undefined', at: 'page:120:7', st: 'TypeError: x is undefined\nat collPaint (page:120:7)', b: 'abc12345', v: 'coll', l: 'fr', p: 'android', k: 'error', t: Date.now() };
+  assert.equal(await elPost([ER, { ...ER, v: 'home' }], '198.51.100.7'), 200); assert.equal(await elPost([{ ...ER, m: 'Error: autre', p: 'web', l: 'de' }], '198.51.100.8'), 200);
+  await p.click('#elReload'); await p.waitForFunction(() => document.querySelectorAll('#elList .elr').length === 2, null, { timeout: 5000 });
+  assert.match(await txt(p, '#elCount'), /^2 signatures · 3 rapports/);
+  const elTy = await p.$eval('#elList', l => [...l.querySelectorAll('.elr')].findIndex(a => /TypeError/.test(a.textContent)) + 1), ELT = `#elList .elr:nth-child(${elTy})`, ELA = `#elList .elr:nth-child(${3 - elTy})`;
+  assert.match(await txt(p, ELT), /2 fois 1 appareil vue à l'instant TypeError: x is undefined page:120:7 · version abc12345 · erreur écrans : coll ×1, home ×1 · appli Android ×2 · fr ×2 Pile Effacer/);
+  assert.equal(await p.isVisible(ELT + ' pre'), false); await p.click(ELT + ' summary'); assert.match(await txt(p, ELT + ' pre'), /at collPaint \(page:120:7\)/);
+  await p.click(ELA + ' .sdel'); await p.click(ELA + ' .sdel.arm'); await p.waitForFunction(() => document.querySelectorAll('#elList .elr').length === 1 && /TypeError/.test(document.querySelector('#elList .elr').textContent), null, { timeout: 5000 });
+  await p.click('#elActs .sdel'); await p.click('#elActs .sdel.arm'); await p.waitForSelector('#elList .empty', { timeout: 5000 }); assert.match(await txt(p, '#elCount'), /^0 signature · 0 rapport/);
+  ok('Serveur › Erreurs JS : vide, puis 2 signatures (compte, appareils, écrans, plateformes, langues), pile au clic, effacer une signature, tout effacer (deux appuis)');
   await tab(p, 'comptes');
   assert.equal(await p.$$eval('#ulist tr[data-id]', e => e.length), 50); assert.equal(await txt(p, '#pager .pg'), 'Page 1 / 3'); assert.equal(await txt(p, '#uCount'), '(124)');
   const body = await p.evaluate(() => document.body.textContent);

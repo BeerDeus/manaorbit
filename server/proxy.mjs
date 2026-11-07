@@ -12,7 +12,7 @@ import { readFile, writeFile, mkdir, rename, stat, readdir, unlink } from 'node:
 import { createRequire } from 'node:module';
 import { gunzipSync, gzipSync, gzip, gunzip, brotliCompress, constants as zc } from 'node:zlib';
 import { promisify } from 'node:util';
-import { existsSync, readFileSync, readdirSync, writeFileSync, renameSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';      // santé du serveur (/admin › Serveur)
@@ -2935,6 +2935,7 @@ async function codeId() {
 function bootStop(sig) {
   const r = DATA_BOOT.recent[DATA_BOOT.recent.length - 1];
   if (r && !r.s) { r.s = Date.now(); try { const f = join(EDH_DIR, 'boot.json'); writeFileSync(f + '.tmp', JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: r.t, recent: DATA_BOOT.recent })); renameSync(f + '.tmp', f); } catch (e) { /* disque indisponible */ } }
+  try { elFlushSync(); } catch (e) { /* erreurs JS en attente : module pas encore prêt */ }
   process.removeAllListeners(sig); process.kill(process.pid, sig);      // arrêt immédiat comme sans écouteur (process.exit attendrait la compression en cours, plusieurs secondes)
 }
 for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => bootStop(sig));
@@ -3175,6 +3176,7 @@ async function adminApi(req, res, path, url) {
   const u = await admAuth(req, res); if (!u) return;
   const sub = path.replace(/^admin\/?/, '');
   if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
+  if (sub === 'errors' || sub.startsWith('errors/')) return elAdmin(req, res, sub, url);      // erreurs JS des appareils (src/errlog.js) : signatures, tout effacer, une signature
   if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
   if (sub === 'events' || sub.startsWith('events/')) return EVS ? EVS.admin(req, res, sub, url, u) : json(res, 404, { error: 'not_found' }, ADM_HD);      // événements : statistiques et interrupteur à chaud
   if (sub === 'discord' || sub.startsWith('discord/')) return DSC ? DSC.admin(req, res, sub, url) : json(res, 404, { error: 'not_found', message: 'Bot Discord indisponible.' }, ADM_HD);      // messages du bot dans les salons (mêmes garde-fous que admAct)
@@ -3584,6 +3586,141 @@ async function srAdmin(req, res, sub, url) {
   return json(res, 200, { ok: true, ...(await srSummary()) }, ADM_HD);
 }
 
+/* ── Erreurs JavaScript des appareils (src/errlog.js) : remontées anonymement, lues dans /admin › Serveur › « Erreurs JS » ─────────────────────────
+   POST /api/errlog { r: [rapport, …] } (1 à 10 rapports, corps de 8 Ko au plus), envoyé par l'appli après une erreur non rattrapée (sendBeacon à la mise en
+   arrière-plan, sinon fetch keepalive). Rapport : m message (300 caractères), at « fichier:ligne:colonne » (nom de fichier seul), st pile (1 200 caractères),
+   b version de l'appli (DD_BUILD), v écran, l langue, p plateforme (android, pwa, web), k type (error, rejection), t date. Tout est revalidé ici : caractères de
+   contrôle retirés, adresses web réduites au nom du fichier, adresses e-mail et longues chaînes (jetons) masquées, champs inconnus ignorés. Rien d'autre n'est
+   gardé : ni IP (au plus une empreinte HMAC de 10 caractères du réseau, sel tiré au démarrage et changé chaque jour, jamais écrit : elle sert à compter les
+   appareils distincts, ERRLOG_DEV au plus par signature), ni navigateur, ni compte. Regroupés par signature (message + emplacement + version) : compteur,
+   premier et dernier vu, écrans, plateformes et langues comptés. Fichier ERRLOG_FILE (défaut EDH_DATA_DIR/errlog.json), écrit en différé (ERRLOG_SAVE_MS, 15 s ;
+   à l'arrêt propre : tout de suite), atomique ; illisible : jamais réécrit (envois acceptés, gardés en mémoire seulement). Au plus ERRLOG_MAX signatures
+   (2 000 : les moins récemment vues partent), oubliées ERRLOG_DAYS après leur dernier envoi (90 jours). Budget : ERRLOG_PER_H envois par heure et par réseau (30).
+   ERRLOG=0 : coupé (404, /__ping errlog: false : l'appli n'envoie rien). Panneau : GET /api/admin/errors (?page=), DELETE /api/admin/errors (tout effacer),
+   DELETE /api/admin/errors/<id> (une signature) ; compte de l'éditeur (admAuth). */
+const EL_ON = process.env.ERRLOG !== '0';
+const EL_FILE = process.env.ERRLOG_FILE || join(EDH_DIR, 'errlog.json');
+const EL_MAX = Number(process.env.ERRLOG_MAX) > 0 ? Math.floor(Number(process.env.ERRLOG_MAX)) : 2000;
+const EL_TTL = (Number(process.env.ERRLOG_DAYS) > 0 ? Number(process.env.ERRLOG_DAYS) : 90) * 86400e3;
+const EL_RATE = Number(process.env.ERRLOG_PER_H ?? 30);
+const EL_SAVE = Math.max(0, Number(process.env.ERRLOG_SAVE_MS ?? 15e3));
+const EL_DEV = Number(process.env.ERRLOG_DEV) > 0 ? Math.floor(Number(process.env.ERRLOG_DEV)) : 50;
+const EL_BODY = 8 * 1024, EL_N = 10, EL_PER = 50, EL_KEYS = 20;      // corps de la requête, rapports par envoi, signatures par page du panneau, écrans (langues…) comptés par signature
+const EL_PLAT = ['android', 'pwa', 'web'], EL_KIND = ['error', 'rejection'], EL_ID = /^[0-9a-f]{12}$/;
+const EL = { map: null, load: null, bad: false, timer: null, dirty: false, chain: Promise.resolve(), salt: randomBytes(16), saltAt: Date.now() };
+/** Adresse web (avec ou sans « :ligne:colonne ») → nom du fichier seul, sans origine ni query string : « https://manaorbit.app/x/app.js?v=2:10:5 » → « app.js:10:5 ». */
+function elFile(u) {
+  const s = String(u), pos = /(:\d+){1,2}$/.exec(s), base = (pos ? s.slice(0, pos.index) : s).replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]*/i, '').replace(/[?#].*$/, '');
+  return (base.split('/').filter(Boolean).pop() || 'page') + (pos ? pos[0] : '');
+}
+/** Texte d'un rapport : caractères de contrôle et de mise en forme retirés (sauts de ligne gardés si lines), adresses web réduites au nom du fichier,
+ *  e-mails et longues chaînes (jetons, identifiants) masqués, n caractères au plus. Autre chose qu'un texte : ''. */
+function elText(v, n, lines = false) {
+  if (typeof v !== 'string') return '';
+  let s = v.replace(lines ? /[^\S\n]|[\p{Cc}\p{Cf}]/gu : /[\s\p{Cc}\p{Cf}]+/gu, c => (lines && c === '\n' ? '\n' : ' '));
+  s = s.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s()'"<>]+/gi, elFile).replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[e-mail]').replace(/[A-Za-z0-9_-]{32,}/g, '…');
+  s = lines ? s.split('\n').map(x => x.replace(/ {2,}/g, ' ').trim()).filter(Boolean).join('\n') : s.replace(/ {2,}/g, ' ').trim();
+  return [...s].slice(0, n).join('');
+}
+/** Un rapport validé, ou null (sans message). */
+function elClean(x, now) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+  const m = elText(x.m, 300); if (!m) return null;
+  const at = elText(x.at, 120), t = Number(x.t);
+  return {
+    m, at: /^[\w.$~-]{1,90}(:\d{1,7}){0,2}$/.test(at) ? at : '', st: elText(x.st, 1200, true),
+    b: typeof x.b === 'string' && /^[0-9a-z]{1,16}$/i.test(x.b) ? x.b : '', v: typeof x.v === 'string' && /^[a-z0-9][a-z0-9>_-]{0,39}$/i.test(x.v) ? x.v : '',
+    l: typeof x.l === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(x.l) ? x.l : '', p: EL_PLAT.includes(x.p) ? x.p : '', k: EL_KIND.includes(x.k) ? x.k : 'error',
+    t: Number.isFinite(t) && t <= now && t > now - 2 * 86400e3 ? Math.floor(t) : now,      // date de l'appareil acceptée si plausible (envoi différé), sinon celle du serveur
+  };
+}
+const elSig = r => createHash('sha1').update(r.m + '\n' + r.at + '\n' + r.b).digest('hex').slice(0, 12);
+/** Compteurs { clé: n } relus du fichier : clés courtes, nombres entiers, EL_KEYS au plus. */
+const elCounts = o => Object.fromEntries(Object.entries(o && typeof o === 'object' && !Array.isArray(o) ? o : {}).filter(([k, n]) => k.length <= 40 && Number(n) > 0).slice(0, EL_KEYS).map(([k, n]) => [k, Math.floor(Number(n))]));
+/** Signatures, lues une fois : Map id → { id, m, at, st, k, b, n, f, l, v, p, lg, d }. Fichier illisible : vide en mémoire, jamais réécrit. */
+function elLoad() {
+  if (EL.map) return Promise.resolve(EL.map);
+  return EL.load || (EL.load = (async () => {
+    const map = new Map();
+    try {
+      const j = JSON.parse(await readFile(EL_FILE, 'utf8'));
+      for (const x of Array.isArray(j.sigs) ? j.sigs : []) {
+        if (!x || !EL_ID.test(x.id) || typeof x.m !== 'string' || map.has(x.id)) continue;
+        map.set(x.id, { id: x.id, m: String(x.m).slice(0, 300), at: String(x.at || '').slice(0, 120), st: String(x.st || '').slice(0, 1200), k: EL_KIND.includes(x.k) ? x.k : 'error', b: String(x.b || '').slice(0, 16),
+          n: Math.max(1, Math.floor(Number(x.n)) || 1), f: Number(x.f) || 0, l: Number(x.l) || 0, v: elCounts(x.v), p: elCounts(x.p), lg: elCounts(x.lg), d: (Array.isArray(x.d) ? x.d : []).filter(h => typeof h === 'string' && /^[0-9a-f]{10}$/.test(h)).slice(0, EL_DEV) });
+      }
+    } catch (e) { if (e && e.code !== 'ENOENT') { EL.bad = true; console.warn('Erreurs JS : ' + EL_FILE + ' illisible, jamais réécrit (rapports gardés en mémoire seulement)'); } }
+    elTrim(map);
+    return (EL.map = map);
+  })());
+}
+/** Trop vieilles (ERRLOG_DAYS) ou au-delà de ERRLOG_MAX : oubliées, les moins récemment vues d'abord. Retourne le nombre retiré. */
+function elTrim(map, now = Date.now()) {
+  let n = 0;
+  for (const [id, x] of map) if (x.l < now - EL_TTL) { map.delete(id); n++; }
+  if (map.size > EL_MAX) for (const x of [...map.values()].sort((a, b) => a.l - b.l).slice(0, map.size - EL_MAX)) { map.delete(x.id); n++; }
+  return n;
+}
+const elJson = () => ({ v: 1, sigs: [...EL.map.values()] });
+/** Écrit le fichier en différé (un seul envoi par ERRLOG_SAVE_MS). */
+function elLater() {
+  EL.dirty = true; if (EL.bad || EL.timer) return;
+  EL.timer = setTimeout(() => { EL.timer = null; EL.dirty = false; admRun(EL, () => admSave(EL_FILE, elJson())).catch(e => { EL.dirty = true; console.warn('Erreurs JS : fichier impossible à écrire (' + (e && e.code || 'erreur') + ')'); }); }, EL_SAVE);
+  EL.timer.unref();
+}
+/** Arrêt propre (bootStop) : ce qui attend est écrit tout de suite, sans attendre la minuterie. */
+function elFlushSync() {
+  if (!EL.map || EL.bad || !EL.dirty) return;
+  clearTimeout(EL.timer); EL.timer = null; EL.dirty = false;
+  try { mkdirSync(dirname(EL_FILE), { recursive: true }); writeFileSync(EL_FILE + '.tmp', JSON.stringify(elJson())); renameSync(EL_FILE + '.tmp', EL_FILE); } catch (e) { /* disque indisponible */ }
+}
+/** Empreinte du réseau de l'envoi (HMAC, sel en mémoire changé chaque jour) : compte les appareils distincts, ne permet pas de retrouver l'adresse. */
+function elDev(req, now = Date.now()) {
+  if (now - EL.saltAt > 86400e3) { EL.salt = randomBytes(16); EL.saltAt = now; }
+  return createHmac('sha256', EL.salt).update(clientOf(req) || ipOf(req)).digest('hex').slice(0, 10);
+}
+const elInc = (o, k) => { if (!k) return; if (o[k]) o[k]++; else if (Object.keys(o).length < EL_KEYS) o[k] = 1; else o['autre'] = (o['autre'] || 0) + 1; };
+async function errlogApi(req, res) {
+  if (!EL_ON) return json(res, 404, { error: 'not_found' });
+  if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
+  const w = rateWait(req, 'errlog', EL_RATE, 3600e3); if (w) return tooMany(res, w);
+  let b; try { b = JSON.parse((await readBody(req, EL_BODY)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
+  if (!b || typeof b !== 'object' || !Array.isArray(b.r) || !b.r.length || b.r.length > EL_N) return json(res, 400, { error: 'bad_request', message: '1 à ' + EL_N + ' rapports attendus.' });
+  const now = Date.now(), list = b.r.map(x => elClean(x, now)).filter(Boolean);
+  if (!list.length) return json(res, 400, { error: 'bad_report', message: 'Rapport sans message.' });
+  const map = await elLoad(), dev = elDev(req, now);
+  for (const r of list) {
+    const id = elSig(r); let x = map.get(id);
+    if (!x) { x = { id, m: r.m, at: r.at, st: r.st, k: r.k, b: r.b, n: 0, f: r.t, l: r.t, v: {}, p: {}, lg: {}, d: [] }; map.set(id, x); }
+    x.n++; x.f = Math.min(x.f || r.t, r.t); x.l = Math.max(x.l, r.t); if (r.st) x.st = r.st;
+    elInc(x.v, r.v); elInc(x.p, r.p); elInc(x.lg, r.l);
+    if (!x.d.includes(dev) && x.d.length < EL_DEV) x.d.push(dev);
+  }
+  elTrim(map, now); elLater();
+  return json(res, 200, { ok: true, n: list.length });
+}
+/** /api/admin/errors… (compte de l'éditeur déjà vérifié) : signatures du plus récemment vu au plus ancien, par pages ; tout effacer ; une signature. */
+async function elAdmin(req, res, sub, url) {
+  if (!EL_ON) return json(res, 404, { error: 'not_found' }, ADM_HD);
+  const rest = sub.replace(/^errors\/?/, ''), map = await elLoad(), now = Date.now();
+  if (elTrim(map, now)) elLater();
+  if (rest) {
+    if (!EL_ID.test(rest)) return json(res, 404, { error: 'not_found' }, ADM_HD);
+    if (req.method !== 'DELETE') return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+    if (EL.bad) return json(res, 503, { error: 'unavailable', message: 'Fichier des erreurs illisible sur le serveur : jamais réécrit.' }, ADM_HD);
+    if (!map.delete(rest)) return json(res, 404, { error: 'not_found' }, ADM_HD);
+    elLater(); return json(res, 200, { ok: true, sigs: map.size }, ADM_HD);
+  }
+  if (req.method === 'DELETE') {
+    if (EL.bad) return json(res, 503, { error: 'unavailable', message: 'Fichier des erreurs illisible sur le serveur : jamais réécrit.' }, ADM_HD);
+    map.clear(); elLater(); return json(res, 200, { ok: true, sigs: 0 }, ADM_HD);
+  }
+  if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+  const all = [...map.values()].sort((a, b) => b.l - a.l || b.n - a.n), pages = Math.max(1, Math.ceil(all.length / EL_PER)), page = Math.min(pages, Math.max(1, Math.floor(Number(url.searchParams.get('page'))) || 1));
+  const w7 = now - 7 * 86400e3, rows = all.slice((page - 1) * EL_PER, page * EL_PER).map(({ d, ...x }) => ({ ...x, dev: d.length, devMax: EL_DEV }));
+  return json(res, 200, { sigs: all.length, reports: all.reduce((a, x) => a + x.n, 0), n7: all.filter(x => x.l > w7).length, max: EL_MAX, days: Math.round(EL_TTL / 86400e3), bad: EL.bad, page, pages, per: EL_PER, rows }, ADM_HD);
+}
+
 /* ── Bot Discord (discord-srv.mjs) ───────────────────────────────────────────────────────────────────────────────────────────────────
    Un bot permanent sur le serveur Discord de Mana Orbit (README › « Bot Discord ») : « Aide et avis » de l'appli (POST /api/feedback → un fil dans #bugs, #idées ou #aide,
    captures en pièces jointes, « Signalé par @membre » ; sans compte exigé ; FEEDBACK_PER_H par heure et par réseau, autant par compte ; GET /api/feedback/members : membres
@@ -3759,6 +3896,7 @@ async function api(req, res, url) {
   if (path === 'dkw') return DKW ? DKW.api(req, res, url) : json(res, 404, { error: 'not_found' });      // coach de deck Commander : cartes, rôles, cibles, conseils par commandant (agrégats publics)
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
+  if (path === 'errlog') return errlogApi(req, res);      // erreurs JavaScript des appareils (src/errlog.js) : rapport anonyme, borné, sans compte
   if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
   if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
   if (path === 'feedback/members') return DSC ? DSC.members(req, res, url) : json(res, 404, { error: 'not_found' });      // champ « Pseudo Discord » de l'avis : membres du serveur (intention Server Members), borné
@@ -3954,7 +4092,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, ctPub: CT_PUB, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, ctPub: CT_PUB, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, errlog: EL_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
@@ -4021,6 +4159,7 @@ server.listen(PORT, HOST, () => {
     setTimeout(purge, 20e3).unref(); setInterval(purge, 6 * 3600e3).unref();
     console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
   }
+  if (EL_ON) console.log(`Erreurs JS des appareils : ${EL_MAX} signatures au plus, gardées ${Math.round(EL_TTL / 86400e3)} jours après leur dernier envoi.`);
   if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz})${DLY.pushOn ? ', annoncée par une notification aux appareils qui l\'acceptent' : ''}.`); }
   if (DSC_ON) { DSC.start(); console.log(`Bot Discord : avis de l'appli (forums), messages du panneau${DLY && DLY.revealOn ? ', Carte mystère de la veille' : ''}${DSC.linkOn ? ', liaison des comptes (OAuth2)' : ''}${DSC.rolesOn ? ', rôles des comptes liés' : ''}${DSC.cmdOn ? ', commandes /moi et /partie' : ''}${DSC.gwOn ? ', statut « En ligne »' : process.env.DISCORD_PRESENCE === '0' ? '' : ' (statut « En ligne » : Node 22 ou plus)'}${process.env.DISCORD_GUILD_ID ? ' (DISCORD_GUILD_ID)' : ''}.`); }      // jamais le jeton
   if (DSS) { DSS.start(); console.log(`Bot Discord : sorties d'extensions annoncées dans #spoilers (J-7 et jour J, ${DSS.hour} h, ${DSS.tz}).`); }

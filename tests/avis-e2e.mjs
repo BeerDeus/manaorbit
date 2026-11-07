@@ -2,9 +2,11 @@
 // de la session — rechargement compris — et renvoyé tel quel après un échec ; oublié après le succès, l'avis suivant en a un autre) ; notification « Du nouveau
 // sur ton avis » touchée (./?avis=<fil>&g=<serveur> : ouverture de l'appli, ou pushOpen appli ouverte) → feuille « Ton avis sur Discord » avec « Voir sur
 // Discord » (lien exact, onglet à part) ; adresse mal formée : rien ; anglais. /__ping et api/feedback simulés par page.route (port 19864).
+// Rapports d'erreur anonymes (src/errlog.js ; serveur : tests/test-errlog.mjs) : erreur et promesse rejetée → un envoi groupé (api/errlog simulé), sans donnée
+// de collection ; arrière-plan → sendBeacon ; Réglages › Confidentialité › interrupteur coupé → plus rien.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, closeSheets } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, closeSheets, openMe } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 19864 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -79,6 +81,64 @@ ok('nonce : tiré au premier envoi, gardé dans le brouillon (rechargement compr
   await ctx.close();
 }
 ok('notification « Du nouveau sur ton avis » touchée (./?avis=<fil>&g=<serveur>, au lancement ou appli ouverte) : feuille « Ton avis sur Discord », « Voir sur Discord » vers le fil exact ; adresse mal formée : rien ; anglais');
+
+/* ── 3) Rapports d'erreur anonymes (src/errlog.js) : une erreur de la page → un rapport, sans donnée de collection ; réglage coupé → rien ───────────── */
+{
+  const { p, ctx } = await newPage(browser, world, { goto: false });      // erreurs lancées exprès : pas dans errsAll
+  const got = [], hits = [];
+  await ctx.addInitScript(() => {
+    window.__errlogTest = true;      // sous Playwright (navigator.webdriver), rien ne part sans cette variable
+    try { if (!localStorage.getItem('deckdeal:coll:v1')) localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '2 Sol Ring\n1 Edgar Markov', u: 1, s: '', b: null })); } catch (e) { /* ignore */ }
+  });
+  p.on('request', r => { if (new URL(r.url()).pathname.endsWith('/api/errlog')) hits.push({ type: r.resourceType(), body: r.postData() || '' }); });
+  await p.route(u => new URL(u).pathname.endsWith('/api/errlog'), route => { got.push(route.request().postData() || ''); return route.fulfill({ status: 200, json: { ok: true } }); });
+  // un script de la page (adresse avec query string) qui lève une erreur : son emplacement est connu
+  await p.route(u => new URL(u).pathname.endsWith('/errtest.js'), route => route.fulfill({ status: 200, contentType: 'text/javascript', body: 'window.__boom = function () {\n  throw new Error(\'Carte « Sol Ring » introuvable dans "Edgar Markov" pour jeanne@example.net\');\n};\n' }));
+  await p.goto(world.url); await p.waitForTimeout(700);
+  await p.waitForFunction(() => CTX.errlog === true && !S.demo && collCount() > 0, null, { timeout: 8000 });
+  await p.evaluate(() => new Promise(ok => { const sc = document.createElement('script'); sc.src = 'errtest.js?u=secret'; sc.onload = ok; document.head.append(sc); }));
+  await p.evaluate(() => {
+    ERL.wait = 150;
+    setTimeout(__boom, 0); setTimeout(__boom, 10);      // la même erreur deux fois : un seul rapport
+    Promise.reject(new TypeError('Cannot read properties of undefined (reading \'name\')'));
+  });
+  await p.waitForFunction(() => !ERL.q.length && !ERL.t, null, { timeout: 5000 }); await p.waitForTimeout(300);
+  assert.equal(got.length, 1, 'un seul envoi groupé'); assert.equal(hits[0].type, 'fetch', 'en différé : fetch keepalive');
+  const body = JSON.parse(got[0]), [e1, e2] = body.r, build = await p.evaluate(() => DD_BUILD);
+  assert.equal(body.r.length, 2, 'erreur et promesse rejetée ; la même erreur une fois');
+  assert.equal(e1.m, 'Error: Carte «…» introuvable dans "…" pour [e-mail]', 'textes cités et e-mail retirés du message');
+  assert.equal(e1.k, 'error'); assert.equal(e1.at, 'errtest.js:2:9', 'fichier:ligne:colonne, sans origine ni query string'); assert.match(e1.st, /^Error: Carte «…»/);
+  assert.equal(e2.m, 'TypeError: Cannot read properties of undefined (reading \'name\')', 'nom de propriété gardé'); assert.equal(e2.k, 'rejection');
+  for (const e of body.r) {
+    assert.deepEqual(Object.keys(e).sort(), ['at', 'b', 'k', 'l', 'm', 'p', 'st', 't', 'v'], 'champs du rapport, rien d\'autre');
+    assert.equal(e.b, build); assert.equal(e.l, 'fr'); assert.equal(e.p, 'web'); assert.equal(e.v, 'home'); assert.ok(Math.abs(e.t - Date.now()) < 60e3);
+  }
+  assert.ok(!/Sol Ring|Edgar|jeanne|127\.0\.0\.1|localhost|deckdeal|secret|uid|token/i.test(got[0]), 'ni carte, ni e-mail, ni adresse de la page, ni compte : ' + got[0].slice(0, 200));
+  assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:errlog')).n), 2, 'comptés pour la borne du jour');
+  // mise en arrière-plan : navigator.sendBeacon, sans attendre la minuterie
+  await p.evaluate(() => { ERL.wait = 60e3; Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); setTimeout(() => { throw new Error('arrière-plan'); }, 0); });
+  await p.waitForFunction(() => ERL.q.length === 1, null, { timeout: 3000 });
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await p.waitForTimeout(500);
+  assert.equal(got.length, 2, 'rapport parti à la mise en arrière-plan'); assert.equal(hits[1].type, 'ping', 'par navigator.sendBeacon');
+  assert.equal(JSON.parse(got[1]).r[0].m, 'Error: arrière-plan');
+  await p.evaluate(() => { delete document.visibilityState; ERL.wait = 150; });
+  // réglage coupé (Réglages › Confidentialité) : plus rien, même après un rechargement
+  await openMe(p, 'conf'); await p.waitForSelector('#setErrRep');
+  assert.equal(await p.isChecked('#setErrRep'), true, 'activé par défaut');
+  assert.match(await txt(p, 'label[for="setErrRep"]'), /Envoyer les rapports d'erreur anonymes/);
+  await p.click('label[for="setErrRep"]');
+  assert.equal(await p.evaluate(() => [S.errRep, JSON.parse(localStorage.getItem('deckdeal:v1')).errRep].join()), 'false,false', 'gardé avec les réglages');
+  await closeSheets(p);
+  await p.evaluate(() => { setTimeout(() => { throw new Error('après le réglage'); }, 0); Promise.reject(new Error('rejet après le réglage')); });
+  await p.waitForTimeout(600);
+  await p.reload(); await p.waitForFunction(() => CTX.errlog === true, null, { timeout: 8000 });
+  await p.evaluate(() => { ERL.wait = 100; setTimeout(() => { throw new Error('après rechargement'); }, 0); }); await p.waitForTimeout(600);
+  assert.equal(await p.evaluate(() => S.errRep), false);
+  assert.equal(got.length, 2, 'réglage coupé : aucun rapport'); assert.equal(hits.length, 2);
+  await ctx.close();
+}
+ok('rapports d\'erreur anonymes : erreur et promesse rejetée → un envoi groupé en différé (fetch keepalive), la même erreur une fois, textes cités et e-mail retirés, champs minimaux (version, écran, langue, plateforme), rien de la collection ; arrière-plan : sendBeacon ; réglage coupé : plus rien, rechargement compris');
 
 const errs = errsAll.flat().filter(e => !/Firebase|firestore|gstatic|googleapis|ERR_|net::/i.test(e));
 assert.deepEqual(errs, [], 'aucune erreur de page');
