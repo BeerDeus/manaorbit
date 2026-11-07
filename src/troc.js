@@ -61,9 +61,12 @@ function trocMyList() {
 /** Une ligne de ma collection, prête pour la session (give) : sa clé sans emplacement ni détails (ils ne quittent pas l'appareil), foil et édition gardés. */
 function trocMine(k, n, g) {
   g = lineHead(g);
-  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), u = trLinePx(k, g);
-  return { n, q: 1, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u } : {}) };
+  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), pw = trLinePxW(k, g), u = pw.v;
+  return { n, q: 1, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u, ...(pw.w ? { w: 1 } : {}) } : {}) };      // w : foil sans prix foil (prix non foil) : ⚠️ chez les deux joueurs (le serveur le garde)
 }
+/** Prix d'une ligne de la session (x.u, x.w : foil chiffrée au prix non foil) : « 2,00 € », avec ⚠️ comme la collection (collection.js › pxWarn) ; '' sans prix. */
+const trocPx = (u, w, mul = 1) => (u ? esc(fmt(u * mul, trcCur())) + pxWarn(!!w) : '');
+const TRC_PXW = () => ' · ' + T('Prix foil non disponible, prix sans foil affiché');
 /** Pastille foil (✦) d'une ligne de la session ('' sans foil). */
 const trocFo = g => (lineFoil(g) ? `<i class="trc-fo" title="${T('Foil')}" aria-hidden="true">✦</i>` : '');
 async function trocProf() { if (typeof amProf === 'function') { try { return await amProf(); } catch (e) { /* miniature illisible */ } } return { n: PROF.name || '', l: I18N.lang }; }
@@ -199,7 +202,7 @@ async function trocReady(code) {
 }
 /** Déconnecté : la connexion d'abord ; l'échange reprend tout seul une fois connecté (trocUser). */
 function trocLogin(code) {
-  TRC.want = code || '+';      // + : créer (hôte)
+  TRC.want = code || '+';      // + : créer (hôte) ; entry : la feuille « Échange en direct » (entrée de l'onglet Échange)
   openSheet(T('Échange en direct'), null, api => {
     api.body.innerHTML = `<p class="hint">${T('Connecte-toi pour échanger en direct : chacun utilise son compte, et rien ne change dans ta collection sans ta validation.')}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Plus tard')}</button><button class="btn" type="button" data-trc="login">${T('Se connecter')}</button>`);
@@ -208,7 +211,7 @@ function trocLogin(code) {
 }
 /** Compte connecté ou changé (decks.js › onUser) : l'échange qui attendait la connexion reprend ; un autre compte quitte la session de l'ancien. */
 function trocUser(user) {
-  if (user && TRC.want) { const c = TRC.want; TRC.want = ''; setTimeout(() => { if (c === '+') trocHost(); else trocJoinCode(c); }, 700); return; }
+  if (user && TRC.want) { const c = TRC.want; TRC.want = ''; setTimeout(() => { if (c === '+') trocHost(); else if (c === 'entry') trocEntry(); else trocJoinCode(c); }, 700); return; }
   if (TRC.c && (!user || (TRC.uid && TRC.uid !== user.uid))) trocQuit().then(trocCloseWin);
 }
 /** Nouvelle session (hôte) ; inv : un ami à inviter ({ id, n }). */
@@ -378,11 +381,11 @@ function trocOtState(s) {
 }
 function trocTile(x, side) {
   const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g), fo = lineFoil(x.g);
-  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
+  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ') + (x.u && x.w ? TRC_PXW() : '');
   return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}${fo ? ' foil' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
     <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}">
       ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${trocFo(x.g)}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
-    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, trcCur())) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
+    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? trocPx(x.u, x.w) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
 }
 function trocZoneHtml(cls, title, list, side, add, empty, extra = '') {
   const sum = trocSum(list);
@@ -425,7 +428,7 @@ function trocMiniList(list) {
   const by = new Map();
   for (const x of list) { if (x.r) continue; const k = ownKey(x.n) + '|' + (x.g || ''), e = by.get(k); if (e) e.q += x.q; else by.set(k, { ...x }); }
   const meta = g => [lineLang(g) ? flag(lineLang(g)) : '', lineEd(g) ? esc(edLabel(lineEd(g))) : '', lineFoil(g) ? '✦ ' + T('Foil') : ''].filter(Boolean).join(' ');
-  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
+  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? trocPx(x.u, x.w, x.q) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
 }
 function trocConfirmHtml(s) {
   const sg = trocSum(s.ot.give), sv = trocSum(s.me.give), name = esc(trocWho());
@@ -490,7 +493,7 @@ function trocTileSheet(id, side) {
   const list = side === 'me' ? s.me.give : s.ot ? s.ot.give : [], x = list.find(y => y.id === id); if (!x) return;
   if (side === 'ot' && !x.a || !trocOpenSt(s)) { trocZoom(list, x); return; }
   const name = esc(trocName(x)), l = lineLang(x.g), e = lineEd(x.g), who = esc(trocWho());
-  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, trcCur()) }) : ''].filter(Boolean).join(' · ');
+  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, trcCur()) }) + (x.w ? ' ⚠️' : '') : ''].filter(Boolean).join(' · ') + (x.u && x.w ? TRC_PXW() : '');
   openSheet(trocName(x), sub, api => {
     api.wrap.classList.add('trc-ts');
     const own = side === 'me' ? collLines(COLL.map[ownKey(x.n)]).reduce((t, y) => t + (lineHead(y[0]) === x.g ? y[1] : 0), 0) : 0;
@@ -522,7 +525,7 @@ function trocTileSheet(id, side) {
 }
 /** Carte en grand (visionneuse de l'appli), avec ses voisines du même côté. */
 function trocZoom(list, x) {
-  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
+  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) + (y.w ? ' ⚠️' : '') : ''].filter(Boolean).join(' · ') + (y.u && y.w ? TRC_PXW() : '') }));
   haptic('tap'); openCardViewer(items, Math.max(0, list.indexOf(x)));
 }
 
@@ -531,9 +534,9 @@ function trocZoom(list, x) {
 function trocRowHtml(it, kind) {
   const l0 = it.lines[0] ? lineLang(it.lines[0][0]) : '', dn = (l0 && frName(it.k, l0)) || it.dn || it.n, img = it.img || '';
   const tags = it.tags || '';
-  const chips = it.lines.map(([g, q, u]) => {
+  const chips = it.lines.map(([g, q, u, w]) => {
     const l = lineLang(g), e = lineEd(g), fo = lineFoil(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
-    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, trcCur()))}</small>` : ''}</button>`;
+    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${trocPx(u, w)}</small>` : ''}</button>`;
   }).join('');
   const e0 = it.lines[0] ? lineEd(it.lines[0][0]) : '', ia = img ? cardImgA(it.k, it.n, img, kind === 'ask' ? '' : l0, !!(e0 || (kind === 'ask' && l0))) : '';      // image de la 1re ligne : ma carte dans sa langue (sinon celle de l'appli) ; la sienne, langue précisée, telle qu'envoyée
   return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${ia}>` : ''}</span>
@@ -576,7 +579,7 @@ function trocGiveSheet() {
   const st = trState(), meta = k => COLL.meta[k] || {};
   const item = (k, n, ls) => {      // une pastille par ligne sans emplacement ni détails (ils ne partent pas : trocMine) ; foil ou édition : son prix sur la pastille
     const by = new Map(); for (const [g, q] of ls) by.set(lineHead(g), (by.get(lineHead(g)) || 0) + q);
-    const lines = [...by].map(([g, q]) => [g, q, lineFoil(g) || lineEd(g) ? trLinePx(k, g) || 0 : 0]), l0 = lines[0] ? lineLang(lines[0][0]) : '';
+    const lines = [...by].map(([g, q]) => { const pw = lineFoil(g) || lineEd(g) ? trLinePxW(k, g) : { v: 0, w: false }; return [g, q, pw.v || 0, pw.w]; }), l0 = lines[0] ? lineLang(lines[0][0]) : '';
     return { k, n, dn: (l0 && frName(k, l0)) || n, fn: frOf(k), lines, img: collImage(k, l0, meta(k).im).src, u: trPrice(k) };
   };
   const list = st.have.map(x => item(x.k, x.n, x.lines));
@@ -603,7 +606,7 @@ async function trocAskSheet() {
   for (const x of L) {
     const k = ownKey(x.n); let it = by.get(k);
     if (!it) by.set(k, it = { k, n: x.n, dn: trocName(x), fn: x.f || frOf(k), lines: [], img: trocSrc(x), u: x.u || 0, w: want.get(k) });
-    it.lines.push([x.g, x.q, x.u || 0]); if (x.u && (!it.u || x.u < it.u)) it.u = x.u;
+    it.lines.push([x.g, x.q, x.u || 0, !!x.w]); if (x.u && (!it.u || x.u < it.u)) it.u = x.u;
   }
   const rows = [...by.values()].map(it => Object.assign(it, { tags: it.w ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.w.q })}</span>` : '' })).sort((a, b) => (b.w ? 1 : 0) - (a.w ? 1 : 0) || NAME_CMP(a.dn, b.dn));
   const wanted = rows.filter(x => x.w);
@@ -635,7 +638,7 @@ async function trocBalance() {
     for (const x of trState().have) for (const [g, q] of x.lines) cands.push({ ...trocMine(x.k, x.n, g), k: x.k, u: trLinePx(x.k, g) || trPrice(x.k) || 0, avail: q - trocIn(s.me.give, x.k, g) });
   } else {          // je donne plus : de sa liste, ce qui n'est pas déjà de son côté
     let L; try { L = await trocOtList(); } catch (e) { toast(trocErr(e.code)); return; }
-    cands = L.map(x => ({ n: x.n, g: x.g, i: x.i, f: x.f, fl: x.fl, k: ownKey(x.n), u: x.u || 0, avail: x.q - trocIn(s.ot.give, ownKey(x.n), x.g) }));
+    cands = L.map(x => ({ n: x.n, g: x.g, i: x.i, f: x.f, fl: x.fl, k: ownKey(x.n), u: x.u || 0, w: !!x.w, avail: x.q - trocIn(s.ot.give, ownKey(x.n), x.g) }));
   }
   const { picks, rem } = trocFill(cands, Math.abs(d), tol);
   if (!picks.length) { toast(T('Rien d\'assez petit pour équilibrer')); return; }
@@ -647,7 +650,7 @@ async function trocBalance() {
     api.wrap.addEventListener('click', async e => {
       const b = e.target.closest('[data-trc="eqgo"]'); if (!b || b.disabled) return;
       b.disabled = true; haptic('tap');
-      for (const x of picks) { const r = await trocDo({ op: mine ? 'give' : 'ask', card: { n: x.n, q: x.q, g: x.g, ...(x.f ? { f: x.f, fl: x.fl } : {}), ...(x.i ? { i: x.i } : {}), ...(x.u ? { u: x.u } : {}) } }); if (!r) break; }
+      for (const x of picks) { const r = await trocDo({ op: mine ? 'give' : 'ask', card: { n: x.n, q: x.q, g: x.g, ...(x.f ? { f: x.f, fl: x.fl } : {}), ...(x.i ? { i: x.i } : {}), ...(x.u ? { u: x.u, ...(x.w ? { w: 1 } : {}) } : {}) } }); if (!r) break; }
       api.close();
     });
   });
@@ -761,15 +764,16 @@ function trocHistOpen(r, after) {
 }
 
 /* ── Entrée « Échange en direct » (onglet Échange) ───────────────────────────────────────────────────────────────────────── */
-/** Ligne discrète sous les actions du lien (share.js › trShareBoxHtml) ; rien sans le serveur ou sans compte. */
+/** Entrée permanente en tête de l'onglet Échange (share.js › trPanelHtml), avec ou sans compte (sans : « Connecte-toi », trocEntry l'explique) ; rien sans le serveur. */
 function trocBoxHtml() {
-  if (!trocOn() || !D.user) return '';
-  return `<button class="trc-entry" type="button" data-act="trlive">${TRC_SWAP}<span class="trc-et"><b>${T('Échange en direct')}</b><small>${T('Face à face, chacun sur son téléphone')}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+  if (!trocOn()) return '';
+  return `<button class="trc-entry tr-live" type="button" data-act="trlive">${TRC_SWAP}<span class="trc-et"><b>${T('Échange en direct')}</b><small>${D.user ? T('Face à face, chacun sur son téléphone') : T('Face à face, chacun sur son téléphone · connecte-toi pour commencer')}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 }
 /** Feuille « Échange en direct » : créer (QR code et code), « J'ai un code », « Mes échanges ». */
 function trocEntry() {
   if (typeof streamOn === 'function' && streamOn()) { toast(T('Échange en direct indisponible en mode streamer')); return; }
   if (TRC.c && TRC.s && trocOpenSt(TRC.s)) { trocOpenWin(); return; }      // déjà dans un échange : on y retourne
+  if (!D.user) { trocLogin('entry'); return; }      // l'entrée reste visible sans compte : connexion d'abord, puis cette feuille
   const nh = trocHist().length;
   openSheet(T('Échange en direct'), T('Face à face, chacun sur son téléphone'), api => {
     api.wrap.classList.add('trc-entry-sheet');

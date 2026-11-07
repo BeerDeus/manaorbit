@@ -33,3 +33,12 @@
 .dks-empty-b .btn{flex:1 1 auto;height:44px;padding:0 16px;gap:7px;white-space:nowrap}      /* côte à côte s'ils tiennent, sinon l'un sous l'autre : jamais un libellé sur deux lignes */
 .dks-empty-b .btn .i{width:18px;height:18px}
 .dks-empty span{font-size:13px;line-height:1.4}
+/* Échange : « Échange en direct » toujours en tête de l'onglet (troc.js › trocBoxHtml), réserve en clair (share.js › trKeepHtml) */
+.trc-entry.tr-live{margin:0 0 8px;padding:4px 12px 4px 4px;min-height:48px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+.tr-live .trc-et b{font-family:var(--font-body);font-size:14.5px;font-weight:650}
+.tr-live .trc-et small{line-height:1.3}
+.tr-setb{display:flex;width:100%;height:auto;min-height:44px;margin:-2px 0 4px;padding:0 4px;gap:8px;border:0;border-radius:10px;background:none;color:var(--ink-2);font-size:13.5px;font-weight:600;white-space:normal;text-align:left}
+.tr-setb span{flex:1 1 auto;min-width:0}
+.tr-setb .i{color:var(--accent)}
+.tr-setb .i.tr-setc{width:14px;height:14px;color:var(--ink-3);fill:none;stroke:currentColor}
+.tr-setb:active{transform:none;background:var(--surface-2)}

@@ -194,18 +194,20 @@ ok('rythme d\'un siège borné');
 
 // foil : la clé de ligne garde langue, édition et foil (avant : 'en*' perdait langue et foil, 'fr|cmm|400*' son édition) ; prix d'un foil : celui de l'appareil (le fichier n'en a pas)
 {
-  const LIST_F = [{ n: 'Llanowar Elves', q: 2, g: 'en*', u: 300 }, { n: 'Sol Ring', q: 1, g: 'fr|cmm|400*#pk3x9a-cnm', u: 900 }, { n: 'Arcane Signet', q: 1, g: '*' }, { n: 'Sol Ring', q: 1, g: 'zz*' }];
+  const LIST_F = [{ n: 'Llanowar Elves', q: 2, g: 'en*', u: 300, w: 1 }, { n: 'Sol Ring', q: 1, g: 'fr|cmm|400*#pk3x9a-cnm', u: 900 }, { n: 'Arcane Signet', q: 1, g: '*' }, { n: 'Sol Ring', q: 1, g: 'zz*' }];
   r = await create('a', { list: LIST_F }); const AF = { c: r.o.s.c, key: r.o.key };
   r = await join_('b', AF.c); const BF = { c: AF.c, key: r.o.key };
   r = await call('GET', `/list?c=${AF.c}&w=ot`, { key: BF.key });
   assert.deepEqual(r.o.list.map(x => [x.n, x.g, x.u]), [['Llanowar Elves', 'en*', 300], ['Sol Ring', 'fr|cmm|400*', 900], ['Arcane Signet', '*', 60], ['Sol Ring', '*', 120]],
     'foil : langue, édition et foil gardés (emplacement retiré, langue inconnue seule perdue) ; prix de l\'appareil (foil), sinon celui du fichier');
+  assert.deepEqual(r.o.list.map(x => x.w || 0), [1, 0, 1, 1], '⚠️ (w) : foil chiffré au prix non foil par l\'appareil (Llanowar), ou par le fichier (pas de prix foil) ; prix foil de l\'appareil : rien');
   r = await op(BF, { op: 'ask', card: { n: 'Llanowar Elves', q: 1, g: 'en*' } }); assert.equal(r.s, 200, JSON.stringify(r.o));
-  assert.deepEqual(r.o.ot.give.map(x => [x.n, x.g, x.u]), [['Llanowar Elves', 'en*', 300]], 'demande d\'un foil : la ligne foil de sa liste, à son prix');
+  assert.deepEqual(r.o.ot.give.map(x => [x.n, x.g, x.u, x.w]), [['Llanowar Elves', 'en*', 300, 1]], 'demande d\'un foil : la ligne foil de sa liste, à son prix, ⚠️ compris');
   r = await op(BF, { op: 'ask', card: { n: 'Llanowar Elves', q: 1, g: 'en' } }); assert.equal(r.o.error, 'not_listed', 'non foil : pas la même ligne');
   r = await op(AF, { op: 'accept', all: true });
   r = await op(AF, { op: 'give', card: { n: 'Sol Ring', q: 1, g: 'fr|cmm|400*', u: 900 } }); assert.deepEqual(r.o.me.give.map(x => [x.g, x.u]), [['en*', 300], ['fr|cmm|400*', 900]]);
-  r = await op(BF, { op: 'give', card: { n: 'Arcane Signet', q: 1, g: 'en', u: 999 } }); assert.equal(r.o.me.give[0].u, 60, 'ligne sans foil ni édition : prix du serveur, pas celui de l\'appareil');
+  assert.deepEqual(r.o.me.give.map(x => x.w || 0), [1, 0], 'don : ⚠️ de la ligne Llanowar gardé, Sol Ring (prix foil) sans');
+  r = await op(BF, { op: 'give', card: { n: 'Arcane Signet', q: 1, g: 'en', u: 999, w: 1 } }); assert.equal(r.o.me.give[0].u, 60, 'ligne sans foil ni édition : prix du serveur, pas celui de l\'appareil'); assert.equal(r.o.me.give[0].w, undefined, 'non foil : jamais de ⚠️');
   let cv = r.o.cv;
   for (const S of [AF, BF]) { r = await op(S, { op: 'ready', on: true, cv }); assert.equal(r.o.me.ready, true); }
   r = await op(AF, { op: 'undo', on: true }); assert.equal(r.o.error, 'closed', 'pas encore fait : rien à annuler');

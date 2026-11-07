@@ -7379,6 +7379,15 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 .dks-empty-b .btn{flex:1 1 auto;height:44px;padding:0 16px;gap:7px;white-space:nowrap}      /* côte à côte s'ils tiennent, sinon l'un sous l'autre : jamais un libellé sur deux lignes */
 .dks-empty-b .btn .i{width:18px;height:18px}
 .dks-empty span{font-size:13px;line-height:1.4}
+/* Échange : « Échange en direct » toujours en tête de l'onglet (troc.js › trocBoxHtml), réserve en clair (share.js › trKeepHtml) */
+.trc-entry.tr-live{margin:0 0 8px;padding:4px 12px 4px 4px;min-height:48px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+.tr-live .trc-et b{font-family:var(--font-body);font-size:14.5px;font-weight:650}
+.tr-live .trc-et small{line-height:1.3}
+.tr-setb{display:flex;width:100%;height:auto;min-height:44px;margin:-2px 0 4px;padding:0 4px;gap:8px;border:0;border-radius:10px;background:none;color:var(--ink-2);font-size:13.5px;font-weight:600;white-space:normal;text-align:left}
+.tr-setb span{flex:1 1 auto;min-width:0}
+.tr-setb .i{color:var(--accent)}
+.tr-setb .i.tr-setc{width:14px;height:14px;color:var(--ink-3);fill:none;stroke:currentColor}
+.tr-setb:active{transform:none;background:var(--surface-2)}
 
 /* zoom.css : vignettes qui ouvrent la carte en grand (zoom.js) : curseur, zone de toucher d'au moins 44 px, focus au clavier */
 .thumb[data-zoom]{cursor:zoom-in;overflow:visible}                                     /* pas de rognage : la zone de toucher déborde (::before) */
@@ -8125,8 +8134,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'fe3f640f';
-const I18N_FILES = {"de":"i18n/de.cf54ee1e.js","en":"i18n/en.75f2bd35.js","es":"i18n/es.00e19e6b.js","it":"i18n/it.c02f102c.js","pt":"i18n/pt.c2a247c7.js"};
+const DD_BUILD = 'bbce6acf';
+const I18N_FILES = {"de":"i18n/de.3b47687c.js","en":"i18n/en.f3c500e2.js","es":"i18n/es.28e5beae.js","it":"i18n/it.01445b58.js","pt":"i18n/pt.4f1502ad.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -33103,7 +33112,7 @@ function trShareBoxHtml(st) {
   const rules = TR.err === 'rules' ? '<p class="hint warn">' + T('Règles Firestore à publier pour le partage (voir README) : le lien ne peut pas être mis à jour.') + '</p>'
     : TR.err === 'big' ? '<p class="hint warn">' + T('Liste trop longue : le lien ne peut plus être mis à jour (trop de cartes recherchées).') + '</p>' : '';
   if (!D.user) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Connecte-toi pour créer un lien public : tes amis voient tes doublons et ce que tu cherches, sans rien pouvoir modifier.')}</p><button class="btn ghost" type="button" data-act="login">${T('Se connecter')}</button></div>`;
-  const live = typeof trocBoxHtml === 'function' ? trocBoxHtml() : '';      // « Échange en direct » (troc.js), sous les actions du lien
+  const live = '';      // « Échange en direct » : entrée permanente en tête de l'onglet (trPanelHtml)
   if (!TR.share) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Un lien public, en lecture seule, toujours à jour : tes {have} doublons et les {want} cartes que tu cherches, avec recherche par nom.', { have: nf0(st.have.length), want: nf0(st.want.length) })}</p>${rules}<button class="btn" type="button" data-act="tron">${T('Créer le lien')}</button>${live}</div>`;
   return `<div class="tr-box on"><b>${T('Lien public actif')}</b><div class="tr-link"><input type="text" readonly value="${esc(shareUrl(TR.share))}" aria-label="${T('Lien de ta liste d\'échange')}"></div>
     ${rules}${TR.err === 'net' ? '<p class="hint warn">' + T('Mise à jour du lien en attente (hors ligne).') + '</p>' : '<p class="hint">' + T('Mis à jour tout seul quand ta collection, tes decks ou ta liste changent. Lecture seule.') + '</p>'}
@@ -33140,14 +33149,22 @@ function trPanelHtml() {
   const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x }, x.lines ? { eds: [...new Set(x.lines.map(([g]) => edSet(lineEd(g))))] } : {})), f).map(i => i.src);      // eds : filtre « Extension »
   const { rows: list, sum } = tradeView(fil, { price: trRowPx, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
   TR.bv = bv && list.length ? { list, want } : null;
-  return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
+  return `${typeof trocBoxHtml === 'function' ? trocBoxHtml() : ''}${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
     <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
+    ${want ? '' : trKeepHtml()}
     ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>${typeof alEntryHtml === 'function' ? alEntryHtml() : ''}` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : act && filterActive(f) ? collNoMatchHtml() : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
     ${bv ? '' : moreBtn(shown.length, list.length, TR_PAGE, 'data-act="trmore"')}
     ${!want && held.length ? `<details class="tr-held"><summary>${T('Gardées à la main ({n})', { n: nf0(held.length) })}</summary><div class="coll-list">${held.map(x => `<div class="crow tr-row" data-k="${esc(x.k)}"><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta"><span class="tag">${T('{n} en trop', { n: x.q })}</span></span></span><span class="tr-q"><button class="link-btn" type="button" data-act="tunkeep">${T('Remettre')}</button></span></div>`).join('')}</div></details>` : ''}`;
+}
+/** Réserve de l'échange (TR.keep) et règles de rangement, en clair : « Je garde 1 exemplaire de chaque » ; ouvre « Réglages de l'échange » (densite.js › trSetSheet). */
+function trKeepHtml() {
+  const ps = typeof trPlcPlaces === 'function' ? trPlcPlaces() : [], n = ps.filter(x => placeTrade(COLL.places, x.id)).length;
+  const k = TR.keep > 0 ? TN(TR.keep, 'Je garde {n} exemplaire de chaque', 'Je garde {n} exemplaires de chaque') : T('Je propose tout ce qui dépasse mes decks');
+  const t = T('Réglages de l\'échange') + ' · ' + k + (n ? ' · ' + TN(n, '{n} règle de rangement', '{n} règles de rangement') : '');
+  return `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog" aria-label="${esc(t)}" title="${esc(t)}"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span>${esc(k)}${n ? ' · ' + esc(TN(n, '{n} règle de rangement', '{n} règles de rangement')) : ''}</span><svg class="i tr-setc" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 }
 /** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier) ; sur la ligne des sous-onglets (.tr-top). */
 function trSumHtml(list, all, sum, act, want, bv) {
@@ -36595,7 +36612,6 @@ function cvwMount(wrap, md) {
     if (sort) { sort.classList.add('ib'); sort.insertAdjacentHTML('afterbegin', CVW_SORT_IC); box.appendChild(sort); }
     if (ms) { ms.classList.add('ib'); ms.setAttribute('aria-label', T('Masterset')); ms.title = T('Masterset'); box.appendChild(ms); }
     if (md === 'coll') box.insertAdjacentHTML('beforeend', `<button type="button" class="icon-btn cvw-btn" data-act="cvwmenu" aria-haspopup="dialog"></button>`);
-    if (md === 'trade') box.insertAdjacentHTML('beforeend', `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span></span><b hidden></b></button>`);
     row.appendChild(box);
   }
   const sc = $('.dv-scroll', wrap); let on = false, raf = 0;
@@ -36641,7 +36657,7 @@ function trBarHtml(st) {
   const w = warn ? `<p class="hint warn tr-bar-w">${esc(warn)}</p>` : '';
   const chev = '<svg class="i tr-bar-chev" aria-hidden="true"><use href="#i-chev"/></svg>';
   if (!D.user) return `<div class="tr-box tr-bar"><button class="tr-bar-main" type="button" data-act="login">${TR_LINK_IC}<span><b>${T('Connecte-toi pour partager')}</b><small>${T('Un lien public pour tes amis, en lecture seule')}</small></span>${chev}</button></div>`;
-  const lv = typeof trocBoxHtml === 'function' ? trocBoxHtml() : '', live = lv ? lv.replace('class="trc-entry"', `class="trc-entry tr-bar-live" aria-label="${esc(T('Échange en direct'))}" title="${esc(T('Échange en direct'))}"`) : '';      // « Échange en direct » (troc.js) : sa ligne, en icône au bout de la barre (son texte reste dans le bouton)
+  const live = '';      // « Échange en direct » : son entrée permanente en tête de l'onglet (share.js › trPanelHtml, troc.js › trocBoxHtml)
   if (!TR.share) return `<div class="tr-box tr-bar"><span class="tr-bar-main">${TR_LINK_IC}<span><b>${T('Partager ta liste')}</b><small>${T('Lien public · lecture seule')}</small></span></span><button class="btn small tr-bar-go" type="button" data-act="tron">${T('Créer mon lien')}</button>${live}${w}</div>`;
   const net = TR.err === 'net' ? `<small class="warn">${T('Mise à jour en attente')}</small>` : `<small>${T('Toujours à jour')}</small>`;
   return `<div class="tr-box tr-bar on"><button class="tr-bar-main" type="button" data-act="trlink" aria-haspopup="dialog" aria-label="${esc(T('Lien actif : copier, aperçu, image, arrêter…'))}">${TR_LINK_IC}<span><b>${T('Lien actif')}</b>${net}</span>${chev}</button>
@@ -36674,15 +36690,10 @@ function trSetSheet() {
     trSetPaint();
   });
 }
-/** Roue des réglages (« Garde 1 ex. », nombre de règles de rangement) et feuille ouverte tenues à jour. */
+/** Ligne des réglages (« Je garde 1 exemplaire de chaque », nombre de règles de rangement : share.js › trKeepHtml) et feuille ouverte tenues à jour. */
 function trSetPaint() {
   const el = COLL.el, b = el && $('.tr-setb', el);
-  const ps = typeof trPlcPlaces === 'function' ? trPlcPlaces() : [], n = ps.filter(x => placeTrade(COLL.places, x.id)).length;
-  if (b) {
-    $('span', b).textContent = T('Garde {n} ex.', { n: TR.keep }); const c = $('b', b); c.hidden = !n; c.textContent = n;
-    const t = T('Réglages de l\'échange') + ' · ' + T('Garde {n} ex.', { n: TR.keep }) + (n ? ' · ' + TN(n, '{n} règle de rangement', '{n} règles de rangement') : '');
-    b.setAttribute('aria-label', t); b.title = t;
-  }
+  if (b) b.outerHTML = trKeepHtml();
   const box = $('.sheet-wrap .trs-plc');
   if (box) box.innerHTML = `<p class="hint">${T('Ce qui part dans l\'échange, rangement par rangement')}</p>${trPlcBtnHtml() || `<p class="hint">${T('Aucun rangement pour l\'instant : ouvre une carte, puis « Ranger dans ».')}</p>`}`;
 }
@@ -39235,9 +39246,12 @@ function trocMyList() {
 /** Une ligne de ma collection, prête pour la session (give) : sa clé sans emplacement ni détails (ils ne quittent pas l'appareil), foil et édition gardés. */
 function trocMine(k, n, g) {
   g = lineHead(g);
-  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), u = trLinePx(k, g);
-  return { n, q: 1, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u } : {}) };
+  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), pw = trLinePxW(k, g), u = pw.v;
+  return { n, q: 1, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u, ...(pw.w ? { w: 1 } : {}) } : {}) };      // w : foil sans prix foil (prix non foil) : ⚠️ chez les deux joueurs (le serveur le garde)
 }
+/** Prix d'une ligne de la session (x.u, x.w : foil chiffrée au prix non foil) : « 2,00 € », avec ⚠️ comme la collection (collection.js › pxWarn) ; '' sans prix. */
+const trocPx = (u, w, mul = 1) => (u ? esc(fmt(u * mul, trcCur())) + pxWarn(!!w) : '');
+const TRC_PXW = () => ' · ' + T('Prix foil non disponible, prix sans foil affiché');
 /** Pastille foil (✦) d'une ligne de la session ('' sans foil). */
 const trocFo = g => (lineFoil(g) ? `<i class="trc-fo" title="${T('Foil')}" aria-hidden="true">✦</i>` : '');
 async function trocProf() { if (typeof amProf === 'function') { try { return await amProf(); } catch (e) { /* miniature illisible */ } } return { n: PROF.name || '', l: I18N.lang }; }
@@ -39373,7 +39387,7 @@ async function trocReady(code) {
 }
 /** Déconnecté : la connexion d'abord ; l'échange reprend tout seul une fois connecté (trocUser). */
 function trocLogin(code) {
-  TRC.want = code || '+';      // + : créer (hôte)
+  TRC.want = code || '+';      // + : créer (hôte) ; entry : la feuille « Échange en direct » (entrée de l'onglet Échange)
   openSheet(T('Échange en direct'), null, api => {
     api.body.innerHTML = `<p class="hint">${T('Connecte-toi pour échanger en direct : chacun utilise son compte, et rien ne change dans ta collection sans ta validation.')}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Plus tard')}</button><button class="btn" type="button" data-trc="login">${T('Se connecter')}</button>`);
@@ -39382,7 +39396,7 @@ function trocLogin(code) {
 }
 /** Compte connecté ou changé (decks.js › onUser) : l'échange qui attendait la connexion reprend ; un autre compte quitte la session de l'ancien. */
 function trocUser(user) {
-  if (user && TRC.want) { const c = TRC.want; TRC.want = ''; setTimeout(() => { if (c === '+') trocHost(); else trocJoinCode(c); }, 700); return; }
+  if (user && TRC.want) { const c = TRC.want; TRC.want = ''; setTimeout(() => { if (c === '+') trocHost(); else if (c === 'entry') trocEntry(); else trocJoinCode(c); }, 700); return; }
   if (TRC.c && (!user || (TRC.uid && TRC.uid !== user.uid))) trocQuit().then(trocCloseWin);
 }
 /** Nouvelle session (hôte) ; inv : un ami à inviter ({ id, n }). */
@@ -39552,11 +39566,11 @@ function trocOtState(s) {
 }
 function trocTile(x, side) {
   const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g), fo = lineFoil(x.g);
-  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
+  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ') + (x.u && x.w ? TRC_PXW() : '');
   return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}${fo ? ' foil' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
     <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}">
       ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${trocFo(x.g)}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
-    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, trcCur())) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
+    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? trocPx(x.u, x.w) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
 }
 function trocZoneHtml(cls, title, list, side, add, empty, extra = '') {
   const sum = trocSum(list);
@@ -39599,7 +39613,7 @@ function trocMiniList(list) {
   const by = new Map();
   for (const x of list) { if (x.r) continue; const k = ownKey(x.n) + '|' + (x.g || ''), e = by.get(k); if (e) e.q += x.q; else by.set(k, { ...x }); }
   const meta = g => [lineLang(g) ? flag(lineLang(g)) : '', lineEd(g) ? esc(edLabel(lineEd(g))) : '', lineFoil(g) ? '✦ ' + T('Foil') : ''].filter(Boolean).join(' ');
-  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
+  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? trocPx(x.u, x.w, x.q) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
 }
 function trocConfirmHtml(s) {
   const sg = trocSum(s.ot.give), sv = trocSum(s.me.give), name = esc(trocWho());
@@ -39664,7 +39678,7 @@ function trocTileSheet(id, side) {
   const list = side === 'me' ? s.me.give : s.ot ? s.ot.give : [], x = list.find(y => y.id === id); if (!x) return;
   if (side === 'ot' && !x.a || !trocOpenSt(s)) { trocZoom(list, x); return; }
   const name = esc(trocName(x)), l = lineLang(x.g), e = lineEd(x.g), who = esc(trocWho());
-  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, trcCur()) }) : ''].filter(Boolean).join(' · ');
+  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, trcCur()) }) + (x.w ? ' ⚠️' : '') : ''].filter(Boolean).join(' · ') + (x.u && x.w ? TRC_PXW() : '');
   openSheet(trocName(x), sub, api => {
     api.wrap.classList.add('trc-ts');
     const own = side === 'me' ? collLines(COLL.map[ownKey(x.n)]).reduce((t, y) => t + (lineHead(y[0]) === x.g ? y[1] : 0), 0) : 0;
@@ -39696,7 +39710,7 @@ function trocTileSheet(id, side) {
 }
 /** Carte en grand (visionneuse de l'appli), avec ses voisines du même côté. */
 function trocZoom(list, x) {
-  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
+  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) + (y.w ? ' ⚠️' : '') : ''].filter(Boolean).join(' · ') + (y.u && y.w ? TRC_PXW() : '') }));
   haptic('tap'); openCardViewer(items, Math.max(0, list.indexOf(x)));
 }
 
@@ -39705,9 +39719,9 @@ function trocZoom(list, x) {
 function trocRowHtml(it, kind) {
   const l0 = it.lines[0] ? lineLang(it.lines[0][0]) : '', dn = (l0 && frName(it.k, l0)) || it.dn || it.n, img = it.img || '';
   const tags = it.tags || '';
-  const chips = it.lines.map(([g, q, u]) => {
+  const chips = it.lines.map(([g, q, u, w]) => {
     const l = lineLang(g), e = lineEd(g), fo = lineFoil(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
-    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, trcCur()))}</small>` : ''}</button>`;
+    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${trocPx(u, w)}</small>` : ''}</button>`;
   }).join('');
   const e0 = it.lines[0] ? lineEd(it.lines[0][0]) : '', ia = img ? cardImgA(it.k, it.n, img, kind === 'ask' ? '' : l0, !!(e0 || (kind === 'ask' && l0))) : '';      // image de la 1re ligne : ma carte dans sa langue (sinon celle de l'appli) ; la sienne, langue précisée, telle qu'envoyée
   return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${ia}>` : ''}</span>
@@ -39750,7 +39764,7 @@ function trocGiveSheet() {
   const st = trState(), meta = k => COLL.meta[k] || {};
   const item = (k, n, ls) => {      // une pastille par ligne sans emplacement ni détails (ils ne partent pas : trocMine) ; foil ou édition : son prix sur la pastille
     const by = new Map(); for (const [g, q] of ls) by.set(lineHead(g), (by.get(lineHead(g)) || 0) + q);
-    const lines = [...by].map(([g, q]) => [g, q, lineFoil(g) || lineEd(g) ? trLinePx(k, g) || 0 : 0]), l0 = lines[0] ? lineLang(lines[0][0]) : '';
+    const lines = [...by].map(([g, q]) => { const pw = lineFoil(g) || lineEd(g) ? trLinePxW(k, g) : { v: 0, w: false }; return [g, q, pw.v || 0, pw.w]; }), l0 = lines[0] ? lineLang(lines[0][0]) : '';
     return { k, n, dn: (l0 && frName(k, l0)) || n, fn: frOf(k), lines, img: collImage(k, l0, meta(k).im).src, u: trPrice(k) };
   };
   const list = st.have.map(x => item(x.k, x.n, x.lines));
@@ -39777,7 +39791,7 @@ async function trocAskSheet() {
   for (const x of L) {
     const k = ownKey(x.n); let it = by.get(k);
     if (!it) by.set(k, it = { k, n: x.n, dn: trocName(x), fn: x.f || frOf(k), lines: [], img: trocSrc(x), u: x.u || 0, w: want.get(k) });
-    it.lines.push([x.g, x.q, x.u || 0]); if (x.u && (!it.u || x.u < it.u)) it.u = x.u;
+    it.lines.push([x.g, x.q, x.u || 0, !!x.w]); if (x.u && (!it.u || x.u < it.u)) it.u = x.u;
   }
   const rows = [...by.values()].map(it => Object.assign(it, { tags: it.w ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.w.q })}</span>` : '' })).sort((a, b) => (b.w ? 1 : 0) - (a.w ? 1 : 0) || NAME_CMP(a.dn, b.dn));
   const wanted = rows.filter(x => x.w);
@@ -39809,7 +39823,7 @@ async function trocBalance() {
     for (const x of trState().have) for (const [g, q] of x.lines) cands.push({ ...trocMine(x.k, x.n, g), k: x.k, u: trLinePx(x.k, g) || trPrice(x.k) || 0, avail: q - trocIn(s.me.give, x.k, g) });
   } else {          // je donne plus : de sa liste, ce qui n'est pas déjà de son côté
     let L; try { L = await trocOtList(); } catch (e) { toast(trocErr(e.code)); return; }
-    cands = L.map(x => ({ n: x.n, g: x.g, i: x.i, f: x.f, fl: x.fl, k: ownKey(x.n), u: x.u || 0, avail: x.q - trocIn(s.ot.give, ownKey(x.n), x.g) }));
+    cands = L.map(x => ({ n: x.n, g: x.g, i: x.i, f: x.f, fl: x.fl, k: ownKey(x.n), u: x.u || 0, w: !!x.w, avail: x.q - trocIn(s.ot.give, ownKey(x.n), x.g) }));
   }
   const { picks, rem } = trocFill(cands, Math.abs(d), tol);
   if (!picks.length) { toast(T('Rien d\'assez petit pour équilibrer')); return; }
@@ -39821,7 +39835,7 @@ async function trocBalance() {
     api.wrap.addEventListener('click', async e => {
       const b = e.target.closest('[data-trc="eqgo"]'); if (!b || b.disabled) return;
       b.disabled = true; haptic('tap');
-      for (const x of picks) { const r = await trocDo({ op: mine ? 'give' : 'ask', card: { n: x.n, q: x.q, g: x.g, ...(x.f ? { f: x.f, fl: x.fl } : {}), ...(x.i ? { i: x.i } : {}), ...(x.u ? { u: x.u } : {}) } }); if (!r) break; }
+      for (const x of picks) { const r = await trocDo({ op: mine ? 'give' : 'ask', card: { n: x.n, q: x.q, g: x.g, ...(x.f ? { f: x.f, fl: x.fl } : {}), ...(x.i ? { i: x.i } : {}), ...(x.u ? { u: x.u, ...(x.w ? { w: 1 } : {}) } : {}) } }); if (!r) break; }
       api.close();
     });
   });
@@ -39935,15 +39949,16 @@ function trocHistOpen(r, after) {
 }
 
 /* ── Entrée « Échange en direct » (onglet Échange) ───────────────────────────────────────────────────────────────────────── */
-/** Ligne discrète sous les actions du lien (share.js › trShareBoxHtml) ; rien sans le serveur ou sans compte. */
+/** Entrée permanente en tête de l'onglet Échange (share.js › trPanelHtml), avec ou sans compte (sans : « Connecte-toi », trocEntry l'explique) ; rien sans le serveur. */
 function trocBoxHtml() {
-  if (!trocOn() || !D.user) return '';
-  return `<button class="trc-entry" type="button" data-act="trlive">${TRC_SWAP}<span class="trc-et"><b>${T('Échange en direct')}</b><small>${T('Face à face, chacun sur son téléphone')}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+  if (!trocOn()) return '';
+  return `<button class="trc-entry tr-live" type="button" data-act="trlive">${TRC_SWAP}<span class="trc-et"><b>${T('Échange en direct')}</b><small>${D.user ? T('Face à face, chacun sur son téléphone') : T('Face à face, chacun sur son téléphone · connecte-toi pour commencer')}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 }
 /** Feuille « Échange en direct » : créer (QR code et code), « J'ai un code », « Mes échanges ». */
 function trocEntry() {
   if (typeof streamOn === 'function' && streamOn()) { toast(T('Échange en direct indisponible en mode streamer')); return; }
   if (TRC.c && TRC.s && trocOpenSt(TRC.s)) { trocOpenWin(); return; }      // déjà dans un échange : on y retourne
+  if (!D.user) { trocLogin('entry'); return; }      // l'entrée reste visible sans compte : connexion d'abord, puis cette feuille
   const nh = trocHist().length;
   openSheet(T('Échange en direct'), T('Face à face, chacun sur son téléphone'), api => {
     api.wrap.classList.add('trc-entry-sheet');

@@ -9,5 +9,9 @@
   "{n} exemplaires de ta collection réservés pour ce deck.": "{n} copies from your collection reserved for this deck.",
   "Réserve ses cartes de ta collection pour ce deck.": "Reserves its cards from your collection for this deck.",
   "Aucun deck pour le moment": "No decks yet",
-  "Une liste toute prête ? Colle-la dans l'onglet « Prix d'une liste », puis touche « Enregistrer ».": "Got a ready-made list? Paste it in the “Price a list” tab, then tap “Save”."
+  "Une liste toute prête ? Colle-la dans l'onglet « Prix d'une liste », puis touche « Enregistrer ».": "Got a ready-made list? Paste it in the “Price a list” tab, then tap “Save”.",
+  "Je garde {n} exemplaire de chaque": "I keep {n} copy of each",
+  "Je garde {n} exemplaires de chaque": "I keep {n} copies of each",
+  "Je propose tout ce qui dépasse mes decks": "I offer everything my decks don't use",
+  "Face à face, chacun sur son téléphone · connecte-toi pour commencer": "Face to face, each on their own phone · sign in to start"
 }

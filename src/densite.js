@@ -115,7 +115,6 @@ function cvwMount(wrap, md) {
     if (sort) { sort.classList.add('ib'); sort.insertAdjacentHTML('afterbegin', CVW_SORT_IC); box.appendChild(sort); }
     if (ms) { ms.classList.add('ib'); ms.setAttribute('aria-label', T('Masterset')); ms.title = T('Masterset'); box.appendChild(ms); }
     if (md === 'coll') box.insertAdjacentHTML('beforeend', `<button type="button" class="icon-btn cvw-btn" data-act="cvwmenu" aria-haspopup="dialog"></button>`);
-    if (md === 'trade') box.insertAdjacentHTML('beforeend', `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span></span><b hidden></b></button>`);
     row.appendChild(box);
   }
   const sc = $('.dv-scroll', wrap); let on = false, raf = 0;
@@ -161,7 +160,7 @@ function trBarHtml(st) {
   const w = warn ? `<p class="hint warn tr-bar-w">${esc(warn)}</p>` : '';
   const chev = '<svg class="i tr-bar-chev" aria-hidden="true"><use href="#i-chev"/></svg>';
   if (!D.user) return `<div class="tr-box tr-bar"><button class="tr-bar-main" type="button" data-act="login">${TR_LINK_IC}<span><b>${T('Connecte-toi pour partager')}</b><small>${T('Un lien public pour tes amis, en lecture seule')}</small></span>${chev}</button></div>`;
-  const lv = typeof trocBoxHtml === 'function' ? trocBoxHtml() : '', live = lv ? lv.replace('class="trc-entry"', `class="trc-entry tr-bar-live" aria-label="${esc(T('Échange en direct'))}" title="${esc(T('Échange en direct'))}"`) : '';      // « Échange en direct » (troc.js) : sa ligne, en icône au bout de la barre (son texte reste dans le bouton)
+  const live = '';      // « Échange en direct » : son entrée permanente en tête de l'onglet (share.js › trPanelHtml, troc.js › trocBoxHtml)
   if (!TR.share) return `<div class="tr-box tr-bar"><span class="tr-bar-main">${TR_LINK_IC}<span><b>${T('Partager ta liste')}</b><small>${T('Lien public · lecture seule')}</small></span></span><button class="btn small tr-bar-go" type="button" data-act="tron">${T('Créer mon lien')}</button>${live}${w}</div>`;
   const net = TR.err === 'net' ? `<small class="warn">${T('Mise à jour en attente')}</small>` : `<small>${T('Toujours à jour')}</small>`;
   return `<div class="tr-box tr-bar on"><button class="tr-bar-main" type="button" data-act="trlink" aria-haspopup="dialog" aria-label="${esc(T('Lien actif : copier, aperçu, image, arrêter…'))}">${TR_LINK_IC}<span><b>${T('Lien actif')}</b>${net}</span>${chev}</button>
@@ -194,15 +193,10 @@ function trSetSheet() {
     trSetPaint();
   });
 }
-/** Roue des réglages (« Garde 1 ex. », nombre de règles de rangement) et feuille ouverte tenues à jour. */
+/** Ligne des réglages (« Je garde 1 exemplaire de chaque », nombre de règles de rangement : share.js › trKeepHtml) et feuille ouverte tenues à jour. */
 function trSetPaint() {
   const el = COLL.el, b = el && $('.tr-setb', el);
-  const ps = typeof trPlcPlaces === 'function' ? trPlcPlaces() : [], n = ps.filter(x => placeTrade(COLL.places, x.id)).length;
-  if (b) {
-    $('span', b).textContent = T('Garde {n} ex.', { n: TR.keep }); const c = $('b', b); c.hidden = !n; c.textContent = n;
-    const t = T('Réglages de l\'échange') + ' · ' + T('Garde {n} ex.', { n: TR.keep }) + (n ? ' · ' + TN(n, '{n} règle de rangement', '{n} règles de rangement') : '');
-    b.setAttribute('aria-label', t); b.title = t;
-  }
+  if (b) b.outerHTML = trKeepHtml();
   const box = $('.sheet-wrap .trs-plc');
   if (box) box.innerHTML = `<p class="hint">${T('Ce qui part dans l\'échange, rangement par rangement')}</p>${trPlcBtnHtml() || `<p class="hint">${T('Aucun rangement pour l\'instant : ouvre une carte, puis « Ranger dans ».')}</p>`}`;
 }

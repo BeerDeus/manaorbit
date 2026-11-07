@@ -342,7 +342,7 @@ function trShareBoxHtml(st) {
   const rules = TR.err === 'rules' ? '<p class="hint warn">' + T('Règles Firestore à publier pour le partage (voir README) : le lien ne peut pas être mis à jour.') + '</p>'
     : TR.err === 'big' ? '<p class="hint warn">' + T('Liste trop longue : le lien ne peut plus être mis à jour (trop de cartes recherchées).') + '</p>' : '';
   if (!D.user) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Connecte-toi pour créer un lien public : tes amis voient tes doublons et ce que tu cherches, sans rien pouvoir modifier.')}</p><button class="btn ghost" type="button" data-act="login">${T('Se connecter')}</button></div>`;
-  const live = typeof trocBoxHtml === 'function' ? trocBoxHtml() : '';      // « Échange en direct » (troc.js), sous les actions du lien
+  const live = '';      // « Échange en direct » : entrée permanente en tête de l'onglet (trPanelHtml)
   if (!TR.share) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Un lien public, en lecture seule, toujours à jour : tes {have} doublons et les {want} cartes que tu cherches, avec recherche par nom.', { have: nf0(st.have.length), want: nf0(st.want.length) })}</p>${rules}<button class="btn" type="button" data-act="tron">${T('Créer le lien')}</button>${live}</div>`;
   return `<div class="tr-box on"><b>${T('Lien public actif')}</b><div class="tr-link"><input type="text" readonly value="${esc(shareUrl(TR.share))}" aria-label="${T('Lien de ta liste d\'échange')}"></div>
     ${rules}${TR.err === 'net' ? '<p class="hint warn">' + T('Mise à jour du lien en attente (hors ligne).') + '</p>' : '<p class="hint">' + T('Mis à jour tout seul quand ta collection, tes decks ou ta liste changent. Lecture seule.') + '</p>'}
@@ -379,14 +379,22 @@ function trPanelHtml() {
   const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x }, x.lines ? { eds: [...new Set(x.lines.map(([g]) => edSet(lineEd(g))))] } : {})), f).map(i => i.src);      // eds : filtre « Extension »
   const { rows: list, sum } = tradeView(fil, { price: trRowPx, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
   TR.bv = bv && list.length ? { list, want } : null;
-  return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
+  return `${typeof trocBoxHtml === 'function' ? trocBoxHtml() : ''}${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
     <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
+    ${want ? '' : trKeepHtml()}
     ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div><p class="hint tr-wrule">${T('Ce qui manque pour avoir tous tes decks suivis en même temps (réserve comprise), plus ta liste de souhaits.')}</p>${typeof alEntryHtml === 'function' ? alEntryHtml() : ''}` : ''}
     ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : act && filterActive(f) ? collNoMatchHtml() : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
     ${bv ? '' : moreBtn(shown.length, list.length, TR_PAGE, 'data-act="trmore"')}
     ${!want && held.length ? `<details class="tr-held"><summary>${T('Gardées à la main ({n})', { n: nf0(held.length) })}</summary><div class="coll-list">${held.map(x => `<div class="crow tr-row" data-k="${esc(x.k)}"><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta"><span class="tag">${T('{n} en trop', { n: x.q })}</span></span></span><span class="tr-q"><button class="link-btn" type="button" data-act="tunkeep">${T('Remettre')}</button></span></div>`).join('')}</div></details>` : ''}`;
+}
+/** Réserve de l'échange (TR.keep) et règles de rangement, en clair : « Je garde 1 exemplaire de chaque » ; ouvre « Réglages de l'échange » (densite.js › trSetSheet). */
+function trKeepHtml() {
+  const ps = typeof trPlcPlaces === 'function' ? trPlcPlaces() : [], n = ps.filter(x => placeTrade(COLL.places, x.id)).length;
+  const k = TR.keep > 0 ? TN(TR.keep, 'Je garde {n} exemplaire de chaque', 'Je garde {n} exemplaires de chaque') : T('Je propose tout ce qui dépasse mes decks');
+  const t = T('Réglages de l\'échange') + ' · ' + k + (n ? ' · ' + TN(n, '{n} règle de rangement', '{n} règles de rangement') : '');
+  return `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog" aria-label="${esc(t)}" title="${esc(t)}"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span>${esc(k)}${n ? ' · ' + esc(TN(n, '{n} règle de rangement', '{n} règles de rangement')) : ''}</span><svg class="i tr-setc" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 }
 /** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier) ; sur la ligne des sous-onglets (.tr-top). */
 function trSumHtml(list, all, sum, act, want, bv) {

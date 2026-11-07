@@ -71,8 +71,8 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   assert.deepEqual(have, [['llanowar elves', '× 2'], ['sol ring', '× 3']], 'réserve 1 : Sol Ring 5 − 1 (deck) − 1 ; Swords 2 − 1 − 1 = 0 ; Wrath 1 − 1 = 0 ; terrains de base exclus');
   assert.match(await tc(p, '.tr-list .tr-row[data-k="sol ring"] .row-name'), /Anneau solaire|Sol Ring/);
   assert.ok(!(await p.$('.coll-main .tr-keep')), 'réserve : plus dans l\'écran, dans « Réglages de l\'échange »');
-  assert.equal(await p.$eval('.coll.m-trade .tr-setb', b => [b.querySelector('span').textContent, b.getAttribute('aria-label')].join(' | ')), 'Garde 1 ex. | Réglages de l\'échange · Garde 1 ex.', 'la roue rappelle la réserve');
-  assert.ok(await p.evaluate(() => { const f = document.querySelector('.coll.m-trade .fbtn').getBoundingClientRect(), g = document.querySelector('.coll.m-trade .tr-setb').getBoundingClientRect(); return Math.abs(f.top - g.top) < 2 && g.left > f.right; }), 'roue à côté de Filtres');
+  assert.equal(await p.$eval('.coll.m-trade .tr-setb', b => [b.querySelector('span').textContent, b.getAttribute('aria-label')].join(' | ')), 'Je garde 1 exemplaire de chaque | Réglages de l\'échange · Je garde 1 exemplaire de chaque', 'la ligne dit la réserve en clair');
+  assert.ok(await p.evaluate(() => { const t = document.querySelector('.coll.m-trade .tr-top').getBoundingClientRect(), g = document.querySelector('.coll.m-trade .tr-setb').getBoundingClientRect(); return g.top >= t.bottom - 1; }), 'sous les sous-onglets');
   await setOpen();
   assert.equal(await txt(p, '.sheet-wrap.open .sheet-head h2'), 'Réglages de l\'échange');
   assert.equal(await txt(p, '.tr-keep .label'), 'Garder en plus de mes decks : 0–4 exemplaires'); assert.equal(await txt(p, '.tr-keep .hint'), 'Tu proposes seulement ce que tu as en trop.');
@@ -103,7 +103,7 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 2 && document.querySelector('.tr-list .tr-row').dataset.k === 'llanowar elves');
   await p.waitForTimeout(600); await p.screenshot({ path: 'shots/trade-1-echange.png' });
   await setOpen(); await p.click('#trKeep [data-v="0"]'); await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 4);
-  assert.equal(await txt(p, '.coll.m-trade .tr-setb span'), 'Garde 0 ex.', 'la roue suit le réglage'); await sheetsClose();
+  assert.equal(await txt(p, '.coll.m-trade .tr-setb span'), 'Je propose tout ce qui dépasse mes decks', 'la ligne suit le réglage'); await sheetsClose();
   assert.deepEqual(await p.$$eval('.tr-list .tr-row', r => r.map(x => x.dataset.k + ' ' + x.querySelector('.tr-q b').textContent.trim())), ['llanowar elves × 3', 'sol ring × 4', 'swords to plowshares × 1', 'wrath of god × 1'], 'réserve 0 : tout ce que les decks n\'utilisent pas');
   await p.click('.tr-row[data-k="wrath of god"] [data-act="tkeep"]'); await p.waitForFunction(() => !document.querySelector('.tr-list .tr-row[data-k="wrath of god"]'));
   assert.match(await txt(p, '.tr-held summary'), /Gardées à la main \(1\)/);
@@ -125,7 +125,7 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   await p.click(`.sheet-wrap.open .trp-row[data-p="${pid}"] [data-v="all"]`);      // 3 quoi qu'il arrive + (2 − 2 gardés) = 3
   await p.waitForFunction(() => /× 3$/.test((document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b') || {}).textContent || ''));
   await p.click('.sheet-wrap.open:last-child .sheet-head [data-close]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 1 && !document.querySelector('.trp-row'));      // « Mes rangements » fermée : retour aux réglages
-  assert.equal(await txt(p, '.tr-plc small'), '1', 'compteur : une règle posée'); assert.equal(await p.$eval('.coll.m-trade .tr-setb b', b => b.hidden ? '' : b.textContent), '1', 'et sur la roue');
+  assert.equal(await txt(p, '.tr-plc small'), '1', 'compteur : une règle posée'); assert.match(await txt(p, '.coll.m-trade .tr-setb span'), / · 1 règle de rangement$/, 'et sur la ligne des réglages');
   await p.click('#trKeep [data-v="4"]');      // réserve 4 : plus rien de classique à proposer, les 3 du bac partent quand même
   await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 1 && /× 3$/.test(document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b').textContent));
   await p.click('#trKeep [data-v="1"]'); await sheetsClose(); await p.evaluate(id => plcDelete(id), pid);      // retour à l'état d'avant : emplacement supprimé (cartes « Non rangé »), réserve 1
