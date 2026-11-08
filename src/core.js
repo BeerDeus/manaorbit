@@ -1594,9 +1594,12 @@ const placesText = places => Object.keys(places || {}).sort().map(id => { const 
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
-/** Plafond du texte de la collection dans le compte (document Firestore ≤ 1 Mo, firestore.rules : 900 000 caractères ≈ 22 000 lignes) ; avertissement dès 80 %.
- *  Objet (pas une constante) : les tests le baissent pour ne pas écrire 900 Ko. */
-const COLL_LIM = { max: 900000, warn: 0.8 };
+/** Plafonds de la collection dans le compte. one : texte d'un document unique (document Firestore ≤ 1 Mo, firestore.rules : 900 000 caractères ≈ 22 000 lignes) ;
+ *  au-delà, découpée en morceaux (cloud.js › collPlan) de part octets au plus (règles : 800 000 caractères), coupés après min octets sur une ligne dont l'empreinte
+ *  vaut 0 modulo div, n morceaux au plus (règles : 12). max : plafond total (≈ 50 000 lignes ; deux copies du texte sont gardées sur l'appareil, dont le stockage
+ *  plafonne vers 5 millions de caractères) ; avertissement dès 80 %. Objet (pas une constante) : les tests le baissent pour ne pas écrire des Mo.
+ *  Même valeurs que cloud.js › COLL_PARTS_DEF (cloud.js chargé seul sous Node). */
+const COLL_LIM = { max: 2000000, one: 900000, part: 800000, min: 400000, div: 4096, n: 12, warn: 0.8 };
 /** Taille du texte de la collection → '' (loin du plafond), 'warn' (80 % ou plus), 'over' (au-delà : plus d'envoi au compte). */
 const collSizeLevel = (len, lim = COLL_LIM) => (len > lim.max ? 'over' : len >= lim.max * lim.warn ? 'warn' : '');
 /** Part du plafond utilisée, en points (« 87 % ») ; jamais 100 tant que ça passe, jamais moins de 101 au-delà. */

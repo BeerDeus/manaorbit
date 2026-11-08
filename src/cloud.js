@@ -120,6 +120,76 @@ function sumMerge(m0, m1, ours) {
   return out;
 }
 
+/* ── Collection découpée (depuis le 7 novembre 2026) ───────────────────────────────────────────────────────────────────────────
+   Un document Firestore pèse au plus 1 Mo : au-delà de COLL_LIM.one caractères (900 000, firestore.rules), le texte de la collection est découpé en
+   morceaux users/{uid}/meta/collection/parts/{0…11} = { text, h } (≤ COLL_LIM.part octets chacun, coupés aux fins de ligne) ; le document principal
+   garde count et updatedAt, perd text et gagne parts: [{ h, n, i }] (empreinte, longueur et numéro du document de chaque morceau, dans l'ordre du texte). Sous le plafond : un seul document, EXACTEMENT
+   comme avant (aucune lecture ni écriture de plus) ; repassée sous le plafond : document unique de nouveau, parts: [] (les règles l'exigent une fois).
+   · Découpe fixée par le contenu (collSplit) : coupure après une ligne dont l'empreinte tombe sur 0 modulo div, une fois min octets atteints, au plus part
+     octets. Deux appareils découpent le même texte de la même façon ; une carte ajoutée ne change que son morceau (parfois le voisin).
+   · Écriture : la transaction de la collection écrit le principal et seulement les morceaux nouveaux, chacun dans le document d'un morceau disparu s'il y en
+     a un (sinon le premier numéro libre), et supprime les documents restés sans morceau : atomique. Un morceau inchangé garde son document même s'il change
+     de place (une carte qui ajoute un morceau au début ne fait pas réécrire tous les suivants).
+   · Lecture : l'écoute reste sur le principal (1 lecture par modification) ; un morceau n'est relu sur le serveur que si son empreinte est inconnue ici :
+     morceaux déjà lus ou écrits (mémoire), morceaux du dernier état du compte connu de l'appareil (collection.js › collBaseText, redécoupé), cache du SDK.
+   · Sous-collection (pas meta/collection-1…) : les 2 agrégations de la vérification du sommaire (meta, updatedAt > 0) et sa réparation ne les voient pas.
+   · Ancienne version de l'appli face à un compte découpé : pas de champ text → elle garde sa copie et tente une fois de réécrire le principal avec ses
+     seules cartes ; les règles le refusent (principal découpé : parts exigé), d'où « Règles Firestore à publier » chez elle, sans nouvel essai.
+   · Règles pas encore publiées : l'écriture découpée est refusée en bloc → erreur too-big (rules) : collection.js reste « trop grosse, pas d'envoi ». */
+const COLL_PARTS_DEF = { one: 900000, part: 800000, min: 400000, div: 4096, n: 12, max: 2000000 };      // = core.js › COLL_LIM (cloud.js chargé seul sous Node)
+const collLimits = () => (typeof COLL_LIM === 'object' && COLL_LIM && COLL_LIM.part ? COLL_LIM : COLL_PARTS_DEF);
+const COLL_PART_RETRY = { first: 3000, max: 30 * 60e3 };      // morceaux illisibles (hors ligne, écriture croisée) : nouvel essai, délai doublé
+/** Octets UTF-8 d'un texte (Firestore compte les octets : 1 Mo par document, 10 Mo par transaction). */
+function utf8Len(s) { let n = 0; for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c < 0x80) n++; else if (c < 0x800) n += 2; else if (c >= 0xd800 && c < 0xdc00 && i + 1 < s.length) { n += 4; i++; } else n += 3; } return n; }
+/** Empreinte d'un morceau (cyrb53, base 36) : vérifiée avec sa longueur. */
+function collHash(s) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+/** Empreinte d'une ligne (FNV-1a 32 bits) : où couper. */
+function lineHash(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
+/** Texte → morceaux (lignes consécutives ; morceaux.join('\n') === texte). Une ligne seule plus grosse qu'un morceau : morceau trop gros (refusé par collPlan). */
+function collSplit(text, L = collLimits()) {
+  const out = []; let cur = [], bytes = 0;
+  for (const ln of text.split('\n')) {
+    const b = utf8Len(ln) + 1;
+    if (cur.length && bytes + b > L.part) { out.push(cur.join('\n')); cur = []; bytes = 0; }
+    cur.push(ln); bytes += b;
+    if (bytes >= L.min && lineHash(ln) % L.div === 0) { out.push(cur.join('\n')); cur = []; bytes = 0; }
+  }
+  if (cur.length || !out.length) out.push(cur.join('\n'));
+  return out;
+}
+/** Morceaux annoncés par un document principal, dans l'ordre du texte : [{ h, n, i (numéro du document) }] ([] : document unique). */
+const collPartsOf = d => (d && Array.isArray(d.parts) ? d.parts.map((p, k) => (p && typeof p.h === 'string' && Number.isFinite(p.n) ? { h: p.h, n: p.n, i: Number.isInteger(p.i) ? p.i : k } : null)).filter(Boolean) : []);
+const collTooBig = (len, rules) => Object.assign(new Error('Collection trop grosse'), { code: 'too-big', len, ...(rules ? { rules: true } : {}) });
+/** Écriture d'une collection out = { text, count, updatedAt } sur le principal cur (null : absent) → { main, put: [[numéro, { text, h }]], del: [numéro], split, chunks }.
+ *  Sous le plafond : le document d'avant, tel quel (+ parts: [] s'il était découpé). Sinon : morceaux nouveaux seulement. Trop gros : erreur too-big. */
+function collPlan(out, cur, L = collLimits()) {
+  const old = collPartsOf(cur), text = out.text;
+  if (text.length <= L.one && (text.length * 3 <= 1e6 || utf8Len(text) <= 1e6)) {
+    const main = { ...out }; if (old.length) main.parts = [];
+    return { main, put: [], del: old.map(p => p.i), split: false, chunks: [] };
+  }
+  if (text.length > L.max) throw collTooBig(text.length);
+  const chunks = collSplit(text, L);
+  if (chunks.length > L.n || chunks.some(c => utf8Len(c) > L.part)) throw collTooBig(text.length);
+  const parts = chunks.map(c => ({ h: collHash(c), n: c.length, i: -1 })), put = [], used = new Set(), had = new Map();
+  for (const o of old) if (!had.has(o.h + '.' + o.n)) had.set(o.h + '.' + o.n, o.i);
+  for (const p of parts) { const s = had.get(p.h + '.' + p.n); if (s != null && !used.has(s)) { p.i = s; used.add(s); } }      // inchangé : son document
+  const free = old.map(o => o.i).filter(i => !used.has(i));
+  parts.forEach((p, k) => {
+    if (p.i >= 0) return;
+    let i = 0; if (free.length) i = free.shift(); else while (used.has(i)) i++;      // document d'un morceau disparu, sinon le premier numéro libre
+    p.i = i; used.add(i); put.push([i, { text: chunks[k], h: p.h }]);
+  });
+  const main = { ...out, parts }, del = free; delete main.text;
+  return { main, put, del, split: true, chunks };
+}
+
 /** Moteur du sommaire pour makeCloud : abonnements (watch*), écritures avec le sommaire, relectures. */
 function makeSum(m, db, col) {
   const fs = m.fs, engines = new Map();
@@ -132,6 +202,55 @@ function makeSum(m, db, col) {
   const safe = (f, ...a) => { try { f(...a); } catch (e) { console.error(e); } };
   /** Abonnement suivi directement (écoute d'avant, quel que soit le mode) : la collection. */
   const direct = s => s.kind === 'meta' && s.id === SUM_OUT;
+
+  /* ── Collection découpée (voir collPlan) : morceaux connus de cet appareil, texte reconstitué ── */
+  const partRef = (uid, i) => fs.doc(db, 'users', uid, 'meta', SUM_OUT, 'parts', String(i));
+  const known = new Map(), pk = p => p.h + '.' + p.n;      // known : uid → { m : morceaux du dernier principal lu ('h.n' → texte), w : ceux de notre dernière écriture, src : base redécoupée, b : ses morceaux }
+  const partsMem = uid => { let k = known.get(uid); if (!k) known.set(uid, k = { m: new Map(), w: new Map(), src: null, b: null }); return k; };
+  /** Morceau déjà connu ici : lu ou écrit, sinon dans le dernier état du compte connu de l'appareil (collection.js › collBaseText), redécoupé une fois par texte. */
+  function partKnown(uid, p) {
+    const k = partsMem(uid), key = pk(p); if (k.m.has(key)) return k.m.get(key); if (k.w.has(key)) return k.w.get(key);
+    const base = typeof collBaseText === 'function' ? collBaseText() : null;
+    if (typeof base !== 'string' || base.length < collLimits().min) return null;
+    if (k.src !== base) { k.src = base; k.b = new Map(); for (const c of collSplit(base)) k.b.set(collHash(c) + '.' + c.length, c); }
+    return k.b.has(key) ? k.b.get(key) : null;
+  }
+  /** Morceau lu : cache du SDK s'il est le bon, sinon le serveur (1 lecture). */
+  async function partGet(uid, i, p) {
+    if (fs.getDocFromCache) { try { const c = await fs.getDocFromCache(partRef(uid, i)), x = c.exists() ? c.data() : null; if (x && x.h === p.h && typeof x.text === 'string' && x.text.length === p.n) return x; } catch (e) { /* pas dans le cache */ } }
+    const s = await fs.getDocFromServer(partRef(uid, i)); return s.exists() ? s.data() : null;
+  }
+  /** Texte d'une collection découpée d : morceaux connus ici, les autres par get(i, p). Morceau absent ou différent de son empreinte : erreur « parts ». */
+  async function collText(uid, d, get) {
+    const parts = collPartsOf(d), out = new Array(parts.length), miss = [];
+    parts.forEach((p, i) => { const t = partKnown(uid, p); if (t != null) out[i] = t; else miss.push(i); });
+    if (miss.length) {
+      const got = await Promise.all(miss.map(k => get(parts[k].i, parts[k])));
+      miss.forEach((i, j) => {
+        const x = got[j], p = parts[i];
+        if (!x || typeof x.text !== 'string' || x.text.length !== p.n || collHash(x.text) !== p.h) throw Object.assign(new Error('Morceau de la collection illisible'), { code: 'parts' });
+        out[i] = x.text;
+      });
+    }
+    partsMem(uid).m = new Map(parts.map((p, i) => [pk(p), out[i]]));
+    return out.join('\n');
+  }
+  /** Version reçue par l'écoute de la collection : document unique telle quelle ; découpée et confirmée par le serveur : livrée avec son texte reconstitué
+   *  (morceaux inconnus relus d'abord). Morceaux illisibles (hors ligne, écriture faite entre-temps) : livrée comme une copie locale, nouvel essai plus tard. */
+  function collSnap(E, s, data, pending, fromCache) {
+    const seq = s.cseq = (s.cseq || 0) + 1; clearTimeout(s.ct); s.ct = 0;
+    if (pending || fromCache || !collPartsOf(data).length) { s.onData(data, pending, fromCache); return; }
+    collText(E.uid, data, (i, p) => partGet(E.uid, i, p)).then(text => {
+      if (s.cseq !== seq || s.off || E.stopped) return;
+      s.ctry = 0; s.onData({ ...data, text }, false, false);
+    }, e => {
+      if (s.cseq !== seq || s.off || E.stopped) return;
+      console.warn('Collection : morceaux illisibles', e && (e.code || e.message));
+      s.onData(data, false, true);
+      s.ctry = (s.ctry || 0) + 1;
+      s.ct = setTimeout(() => { if (s.cseq === seq && !s.off && !E.stopped) collSnap(E, s, data, false, false); }, Math.min(COLL_PART_RETRY.max, COLL_PART_RETRY.first * 2 ** Math.min(10, s.ctry - 1)));
+    });
+  }
 
   /* ── Moteur d'un compte ── */
   function engine(uid) {
@@ -162,7 +281,7 @@ function makeSum(m, db, col) {
     };
     const ok = (f, ...a) => { s.retry = 0; f(...a); };
     if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => ok(s.onData, snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites, snap.metadata.fromCache), err);
-    else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => ok(s.onData, x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);
+    else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => ok(direct(s) ? (d, p, c) => collSnap(E, s, d, p, c) : s.onData, x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);      // collection : texte des morceaux reconstitué (collSnap)
   }
   /** Retour du réseau ou de l'appli au premier plan : les écoutes en attente de relance repartent tout de suite. */
   function relance() {
@@ -407,20 +526,31 @@ function makeSum(m, db, col) {
     if (!(err && err.code === 'permission-denied')) return Promise.reject(err);
     return x.plain().then(r => { denied(uid); const E = engines.get(uid); if (E) x.keys.forEach(k => E.plain.add(k)); return r; });
   }
-  /** Collection : transaction seule, comme avant (hors du sommaire : 1 lecture + 1 écriture par envoi). */
+  /** Collection : transaction seule, comme avant (hors du sommaire : 1 lecture + 1 écriture par envoi). fn reçoit et rend { text, count, updatedAt } :
+   *  découpée, le texte des morceaux est reconstitué avant (morceaux inconnus lus dans la transaction), puis seuls les morceaux changés sont écrits (collPlan).
+   *  Écriture découpée refusée (règles des morceaux pas encore publiées) : erreur too-big { rules: true }, comme une collection trop grosse. */
   function tx(uid, fn) {
-    const ref = metaRef(uid, SUM_OUT);
+    const ref = metaRef(uid, SUM_OUT); let plan = null, len = 0;
     return fs.runTransaction(db, async t => {
-      const s = await t.get(ref), out = fn(s.exists() ? s.data() : null);
-      if (out) t.set(ref, out);
+      plan = null;
+      const s = await t.get(ref), cur = s.exists() ? s.data() : null;
+      const doc = collPartsOf(cur).length ? { ...cur, text: await collText(uid, cur, async i => { const x = await t.get(partRef(uid, i)); return x.exists() ? x.data() : null; }) } : cur;
+      const out = fn(doc);
+      if (!out) return out;
+      len = typeof out.text === 'string' ? out.text.length : 0;
+      plan = collPlan(out, cur);
+      if (plan.split) partsMem(uid).w = new Map(plan.main.parts.map((p, k) => [pk(p), plan.chunks[k]]));      // écho de notre écriture (il peut arriver avant la fin de la transaction) : rien à relire
+      for (const [i, c] of plan.put) t.set(partRef(uid, i), c);
+      for (const i of plan.del) t.delete(partRef(uid, i));
+      t.set(ref, plan.main);
       return out;
-    });
+    }).catch(err => { if (plan && plan.split && err && err.code === 'permission-denied') throw collTooBig(len, true); throw err; });
   }
   /** Lecture « sur le serveur » d'un document annexe : sommaire suivi et à jour → la copie confirmée (aucune lecture) ; sinon le serveur.
    *  Collection : le serveur (l'écoute ouverte en partage la cible : rien à relire si elle est à jour). */
   async function pull(uid, id) {
     const E = engines.get(uid);
-    if (id === SUM_OUT) { const s = await fs.getDocFromServer(metaRef(uid, id)); return { data: s.exists() ? s.data() : null }; }
+    if (id === SUM_OUT) { const s = await fs.getDocFromServer(metaRef(uid, id)), d = s.exists() ? s.data() : null; return { data: collPartsOf(d).length ? { ...d, text: await collText(uid, d, (i, p) => partGet(uid, i, p)) } : d }; }
     if (E && E.mode === 'wait') await Promise.race([E.ready, new Promise(r => setTimeout(r, 4000))]);
     if (E && trusted(E, false)) { const r = await resolve(E, 'p:' + id, false); if (r && r.data !== undefined) return { data: r.data }; if (r && r.same) { const c = await fs.getDocFromCache(metaRef(uid, id)).catch(() => null); if (c) return { data: c.exists() ? c.data() : null }; } }
     const s = await fs.getDocFromServer(metaRef(uid, id)); return { data: s.exists() ? s.data() : null };
@@ -430,12 +560,12 @@ function makeSum(m, db, col) {
     if (E.mode === 'legacy' || direct(s)) legacyOn(E, s);
     else { E.last.delete(s.kind === 'decks' ? 'decks' : 'p:' + s.id); resolve(E, s.kind === 'decks' ? 'decks' : 'p:' + s.id, E.mode !== 'sum'); }
     return () => {
-      s.off = true; E.subs.delete(s); clearTimeout(s.rt); s.rt = 0;
+      s.off = true; E.subs.delete(s); clearTimeout(s.rt); clearTimeout(s.ct); s.rt = s.ct = 0;
       if (s.lu) { const u = s.lu; s.lu = null; try { u(); } catch (e) { /* déjà arrêtée */ } }
       if (!E.subs.size && engines.get(uid) === E) { E.stopped = true; clearTimeout(E.initT); stopMan(E); hotOff(E); engines.delete(uid); E.readyRes(); }
     };
   }
-  return { sub, put, tx, pull, relance, manRef, metaRef, deckRef, state: uid => { const E = engines.get(uid); return E ? { mode: E.mode, canWrite: E.canWrite, hot: !!E.hot, plain: [...E.plain] } : null; } };
+  return { sub, put, tx, pull, relance, manRef, metaRef, deckRef, partRef, state: uid => { const E = engines.get(uid); return E ? { mode: E.mode, canWrite: E.canWrite, hot: !!E.hot, plain: [...E.plain] } : null; } };
 }
 
 /** Construit l'API cloud à partir des modules du SDK (injectables pour les tests). */
@@ -480,10 +610,9 @@ function makeCloud(m) {
     newId: uid => m.fs.doc(col(uid)).id,
     save: (uid, id, data) => sm.put(uid, [['d:' + id, stampOf(data)]], b => b.set(dref(uid, id), data), () => m.fs.setDoc(dref(uid, id), data)),
     remove: (uid, id) => sm.put(uid, [['d:' + id, null]], b => b.delete(dref(uid, id)), () => m.fs.deleteDoc(dref(uid, id))),
-    /** Collection possédée : un seul document users/{uid}/meta/collection { text, count, updatedAt }. onData(données | null, écritureEnAttente, vientDuCache).
-     *  Écoutée directement (hors du sommaire, voir makeSum). */
+    /** Collection possédée : un document users/{uid}/meta/collection { text, count, updatedAt } (au-delà de 900 000 caractères : découpée, voir collPlan ;
+     *  l'appli reçoit toujours le texte entier). onData(données | null, écritureEnAttente, vientDuCache). Écoutée directement (hors du sommaire, voir makeSum). */
     watchColl: (uid, onData, onErr) => sm.sub(uid, { kind: 'meta', id: 'collection', onData, onErr }),
-    saveColl: (uid, data) => m.fs.setDoc(mref(uid, SUM_OUT), data),
     /** Lecture-modification-écriture atomique : fn(données | null) retourne le nouveau document (ou null = rien à écrire). Rejouée si un autre appareil écrit entre-temps. Exige le réseau. */
     txColl: (uid, fn) => sm.tx(uid, fn),
     /** Version du serveur : { data | null } (l'écoute ouverte à jour la donne sans relecture). */
@@ -517,7 +646,8 @@ function makeCloud(m) {
       const ref = (...p) => m.fs.doc(db, 'users', uid, ...p);
       // lectures en parallèle (hors ligne, chacune attend ~10 s avant d'échouer) ; decks illisibles : arrêt avant d'avoir rien effacé
       const slow = new Promise((ok, ko) => setTimeout(() => ko(Object.assign(new Error('Serveur injoignable'), { code: 'unavailable' })), 12000));      // le SDK peut attendre longtemps avant de se déclarer hors ligne
-      const [tr, decks] = await Promise.race([Promise.all([m.fs.getDocFromServer(ref('meta', 'trade')).catch(() => null), m.fs.getDocsFromServer(col(uid))]), slow]), td = tr && tr.exists() ? tr.data() : {};
+      const [tr, decks, cl] = await Promise.race([Promise.all([m.fs.getDocFromServer(ref('meta', 'trade')).catch(() => null), m.fs.getDocsFromServer(col(uid)), m.fs.getDocFromServer(ref('meta', SUM_OUT)).catch(() => null)]), slow]), td = tr && tr.exists() ? tr.data() : {};
+      const parts = cl && cl.exists() ? collPartsOf(cl.data()).map(p => sm.partRef(uid, p.i)) : [];      // collection découpée : ses morceaux partent avec elle
       const shares = [...new Set([td.share, ...Object.values(td.dsh || {}), ...local].filter(x => typeof x === 'string' && x))];
       let failed = 0;
       for (const id of shares) {
@@ -531,7 +661,7 @@ function makeCloud(m) {
       const pubs = await m.fs.getDocsFromServer(m.fs.query(m.fs.collection(db, 'pubdecks'), m.fs.where('o', '==', tag))).catch(e => { failed++; console.warn('Decks publics illisibles :', e && e.code); return { docs: [] }; });
       for (const d of pubs.docs) { try { await m.fs.deleteDoc(d.ref); } catch (e) { failed++; console.warn('Deck public non retiré :', d.id, e && e.code); } }
       // sommaire d'abord : les autres appareils repassent aussitôt aux écoutes d'avant et voient les documents disparaître (compte supprimé ailleurs, decks.js)
-      const refs = [ref('meta', SUM_ID), ...decks.docs.map(d => d.ref), ...['collection', 'engaged', 'history', 'trade', 'profile', 'scan', 'prefs', 'masterset', 'progress', 'prices', 'events'].map(id => ref('meta', id)), ref('binder', 'lands')];
+      const refs = [ref('meta', SUM_ID), ...decks.docs.map(d => d.ref), ...['collection', 'engaged', 'history', 'trade', 'profile', 'scan', 'prefs', 'masterset', 'progress', 'prices', 'events'].map(id => ref('meta', id)), ...parts, ref('binder', 'lands')];
       for (let i = 0; i < refs.length; i += 400) { const b = m.fs.writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
       return { decks: decks.docs.length, shares: shares.length, pub: pubs.docs.length, failed };
     },
@@ -599,4 +729,4 @@ async function shareFetch(id, fetchFn) {
   return out;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { FIREBASE_CONFIG, authMessage, makeCloud, makeSum, shareFetch, SHARE_ID_RE, cloudClearLocal, SUM, SUM_ID, SUB_RETRY, sumMerge };
+if (typeof module !== 'undefined' && module.exports) module.exports = { FIREBASE_CONFIG, authMessage, makeCloud, makeSum, shareFetch, SHARE_ID_RE, cloudClearLocal, SUM, SUM_ID, SUB_RETRY, sumMerge, COLL_PARTS_DEF, COLL_PART_RETRY, collSplit, collPlan, collHash, collPartsOf, utf8Len };

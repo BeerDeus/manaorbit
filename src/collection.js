@@ -541,6 +541,15 @@ function collNowText() { const w = COLL.wt; return w && w.dv === COLL.dv && w.ma
 const collOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 /** Taille du texte de la collection (plafond du compte, core.js › COLL_LIM) : celui gardé sur l'appareil (collWrite), sans tout réécrire à chaque « + ». */
 const collLen = () => (typeof COLL.disk === 'string' ? COLL.disk : collDocText(collDocNow())).length;
+/** Collection découpée refusée par le compte (règles Firestore des morceaux pas encore publiées, cloud.js › tx) : notée par compte, 24 h. Pendant ce temps,
+ *  le plafond est celui d'un document unique (900 000 caractères : avertie dès 80 %, au-delà pas d'envoi) ; nouvel essai ensuite (1 lecture), jamais en boucle. */
+const COLL_SPLIT_KEY = 'deckdeal:coll:split:v1';
+function collSplitNote(uid, at) {
+  try { const o = JSON.parse(localStorage.getItem(COLL_SPLIT_KEY) || '{}') || {}; if (at) o[uid] = at; else if (!(uid in o)) return; else delete o[uid]; localStorage.setItem(COLL_SPLIT_KEY, JSON.stringify(o)); } catch (e) { /* stockage indisponible : nouvel essai à la prochaine ouverture */ }
+}
+const collSplitNo = () => { if (!D.user) return false; try { const at = Number((JSON.parse(localStorage.getItem(COLL_SPLIT_KEY) || '{}') || {})[D.user.uid]) || 0; return Date.now() - at < DAY; } catch (e) { return false; } };
+/** Plafond en vigueur pour ce compte : celui de la collection découpée, ou d'un document unique tant que le découpage est refusé. */
+const collLimNow = () => (collSplitNo() ? { ...COLL_LIM, max: COLL_LIM.one } : COLL_LIM);
 /** Envoi groupé. Un envoi = une transaction : 1 lecture + 1 écriture, et 1 lecture de plus pour chaque appareil qui suit le compte (quota Firestore).
  *  Changement isolé : parti 0,7 s après le dernier. Rafale (n changements en win ms : scan mobile reçu sur le PC, page « Ajouter des cartes ») :
  *  au plus un envoi toutes les burst ms, chacun emportant tout ce qui s'est accumulé. Jamais perdu : tout est déjà sur l'appareil (collWrite),
@@ -568,8 +577,8 @@ async function collPush() {
   if (!cloudOn() || !D.cloud.txColl || acctHeld(D.user.uid)) return;                  // compte en cours de suppression (ici ou ailleurs) : rien ne part
   if (COLL.pushing) { COLL.again = true; return; }
   if (collOffline()) { COLL.cloud = 'offline'; collPaintHead(); return; }
-  const len = collLen();
-  if (collSizeHold(len, COLL.big)) { COLL.cloud = 'error'; COLL.tooBig = len > COLL_LIM.max ? len : COLL.tooBig || len; COLL.err = T('Collection trop grosse pour le compte'); collPaintHead(); return; }      // trop grosse : ni lecture du compte ni analyse de 900 Ko à chaque « + » ; repart dès qu'elle a baissé
+  const len = collLen(), lim = collLimNow();
+  if (collSizeHold(len, COLL.big, lim)) { COLL.cloud = 'error'; COLL.tooBig = len > lim.max ? len : COLL.tooBig || len; COLL.err = T('Collection trop grosse pour le compte'); collPaintHead(); return; }      // trop grosse : ni lecture du compte ni analyse de 900 Ko à chaque « + » ; repart dès qu'elle a baissé
   const uid = D.user.uid, id = ++COLL.runId;
   let used = null, merged = null, wrote = null, had = false;
   COLL.pushing = id; COLL.pushAt = Date.now(); COLL.again = false; COLL.cloud = 'sync'; COLL.err = ''; collPaintHead();
@@ -582,12 +591,13 @@ async function collPush() {
       merged = mergeDoc3(rdoc && COLL.s === uid ? COLL.base : null, used, remote);
       if (rdoc ? sameDoc(merged, remote) : sameDoc(merged, collDoc())) { wrote = null; return null; }              // le compte a déjà tout
       wrote = { text: collDocText(merged), count: Object.keys(merged.map).length, updatedAt: Math.max(Date.now(), (Number(rdoc && rdoc.updatedAt) || 0) + 1) };      // count : cartes, sans les proxys
-      if (collSizeLevel(wrote.text.length) === 'over') throw Object.assign(new Error('Collection trop grosse'), { code: 'too-big', len: wrote.text.length });      // firestore.rules : 900 000 caractères
+      if (collSizeLevel(wrote.text.length, lim) === 'over') throw Object.assign(new Error('Collection trop grosse'), { code: 'too-big', len: wrote.text.length });      // plafond total (ou d'un document unique tant que le découpage est refusé)
       return wrote;
     });
     if (D.uid !== uid) return;
     if (had || wrote) acctSaw('collection', uid);
     if (wrote) COLL.ru = Math.max(COLL.ru, wrote.updatedAt);
+    if (wrote && wrote.text.length > COLL_LIM.one) collSplitNote(uid, 0);      // découpée et acceptée : règles des morceaux publiées
     const before = collDocNow(), next = mergeDoc3(used, before, merged);                                                // + ce qui a été touché ici pendant l'envoi
     COLL.s = uid; collBaseSet(merged, wrote && wrote.text); collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.big = COLL.tooBig = 0; COLL.live = true; collWrite();
     if (!sameDoc(before, next)) collRemoteApplied(before, next);
@@ -598,7 +608,8 @@ async function collPush() {
     const c = err && err.code;
     if (c === 'held') return;                                             // decks.js vérifie le compte, puis déconnecte ou relance la synchro
     if (c === 'permission-denied') { COLL.cloud = 'error'; COLL.err = T('Règles Firestore à publier pour la collection'); }
-    else if (c === 'too-big') { COLL.cloud = 'error'; COLL.err = T('Collection trop grosse pour le compte'); COLL.big = collLen(); COLL.tooBig = err.len || COLL.big; }      // plus d'envoi tant qu'elle n'a pas baissé (collSizeHold)
+    else if (c === 'too-big') { if (err.rules) collSplitNote(uid, Date.now()); COLL.cloud = 'error'; COLL.err = T('Collection trop grosse pour le compte'); COLL.big = collLen(); COLL.tooBig = err.len || COLL.big; }      // plus d'envoi tant qu'elle n'a pas baissé (collSizeHold) ; rules : découpage refusé par le compte
+    else if (c === 'parts') { COLL.cloud = 'error'; COLL.err = T('Synchronisation impossible'); }      // morceau de la collection absent ou abîmé dans le compte : pas de nouvel essai seul (Réessayer)
     else if (c === 'unavailable' || collOffline()) { COLL.cloud = 'offline'; collRetry(COLL_RETRY.off); }
     else { COLL.cloud = 'error'; COLL.err = T('Synchronisation impossible'); collRetry(COLL_RETRY.err); }
   } finally {
@@ -641,6 +652,7 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
   COLL.live = true; COLL.cloud = 'ok'; COLL.err = '';
   if (data && typeof data.text === 'string') {
     acctSaw('collection', uid);
+    if (Array.isArray(data.parts) && data.parts.length) collSplitNote(uid, 0);      // découpée dans le compte : les règles des morceaux sont publiées
     const first = COLL.s !== uid, remote = first ? collDocFromText(data.text) : collDocOf(data.text), known = !first && collHasBase(), before = collDocNow();      // écho de notre envoi : texte déjà connu
     const next = mergeDoc3(first ? null : COLL.base, before, remote);
     COLL.ru = Math.max(COLL.ru, ru); COLL.s = uid; collBaseSet(remote, data.text); collDocSet(next); collWrite();
@@ -1169,9 +1181,9 @@ function collSyncInfo() {
 /** Collection près du plafond du compte (80 %) ou au-delà : bandeau qui dit quoi faire (big : affiché même en simple avertissement) ; null : loin du plafond. */
 function collBigInfo() {
   const acts = [['export', T('Exporter')]];
-  if (COLL.cloud === 'error' && COLL.tooBig) return { k: 'bad', big: true, acts, t: T('Pas sauvegardée dans ton compte : ta collection est trop grosse ({p} de la place permise). Elle reste sur cet appareil ; retire des cartes pour qu\'elle reparte, ou exporte-la pour en garder une copie.', { p: pct(collSizePct(COLL.tooBig)) }) };
-  const len = collLen(); if (collSizeLevel(len) !== 'warn') return null;
-  return { k: 'warn', big: true, acts, t: T('Collection presque trop grosse pour ton compte ({p} de la place permise) : au-delà, elle ne sera plus sauvegardée. Retire des cartes ou exporte-la pour en garder une copie.', { p: pct(collSizePct(len)) }) };
+  if (COLL.cloud === 'error' && COLL.tooBig) return { k: 'bad', big: true, acts, t: T('Pas sauvegardée dans ton compte : ta collection est trop grosse ({p} de la place permise). Elle reste sur cet appareil ; retire des cartes pour qu\'elle reparte, ou exporte-la pour en garder une copie.', { p: pct(collSizePct(COLL.tooBig, collLimNow())) }) };
+  const len = collLen(); if (collSizeLevel(len, collLimNow()) !== 'warn') return null;
+  return { k: 'warn', big: true, acts, t: T('Collection presque trop grosse pour ton compte ({p} de la place permise) : au-delà, elle ne sera plus sauvegardée. Retire des cartes ou exporte-la pour en garder une copie.', { p: pct(collSizePct(len, collLimNow())) }) };
 }
 /** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
  *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
@@ -1789,11 +1801,11 @@ function openCollImport(initial) {
       a.wrap.addEventListener('click', e => { const b = e.target.closest('[data-ci]'); if (b) { a.close(); on(b.dataset.ci); } });
     });
     /** Taille de la collection après cet import, quand elle passerait au-delà du plafond du compte (connecté, pas déjà au-delà) ; 0 sinon. */
-    const bigAfter = (p, m) => { if (!D.user || collSizeLevel(collLen()) === 'over') return 0; const n = collDocText(collDoc(mergeColl(COLL.map, p.items, m), COLL.prox, COLL.places)).length; return collSizeLevel(n) === 'over' ? n : 0; };
+    const bigAfter = (p, m) => { const lim = collLimNow(); if (!D.user || collSizeLevel(collLen(), lim) === 'over') return 0; const n = collDocText(collDoc(mergeColl(COLL.map, p.items, m), COLL.prox, COLL.places)).length; return collSizeLevel(n, lim) === 'over' ? n : 0; };
     /** Import, après avoir prévenu s'il rend la collection trop grosse pour le compte ; later : une autre fiche vient de se fermer. */
     const runChecked = (p, m, later) => {
       const n = bigAfter(p, m); if (!n) { run(p, m); return; }
-      const open = () => { haptic('tap'); ask(T('Collection trop grosse pour ton compte'), `<p class="cf-msg"><span>${T('Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.', { p: pct(collSizePct(n)) })}</span><span>${T('Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.')}</span></p>`,
+      const open = () => { haptic('tap'); ask(T('Collection trop grosse pour ton compte'), `<p class="cf-msg"><span>${T('Avec ce fichier, ta collection dépasserait la place permise dans ton compte ({p}) : elle ne serait plus sauvegardée, seulement gardée sur cet appareil.', { p: pct(collSizePct(n, collLimNow())) })}</span><span>${T('Importe une partie du fichier, ou retire des cartes de ta collection avant. Exporter ta collection en garde une copie.')}</span></p>`,
         `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ci="go">${T('Importer quand même')}</button>`, c => { if (c === 'go') run(p, m); }); };
       if (later) setTimeout(open, reduceMotion() ? 0 : 300); else open();
     };
