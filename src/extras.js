@@ -88,9 +88,13 @@ function engApplied() {
   if (S.run && S.view === 'results') scheduleRecompute(true);
 }
 function engSaved() { engWrite(); xsPushSoon('engaged'); engApplied(); }
-/** Monte un deck : réserve les exemplaires possédés de sa liste. */
+/** Exemplaires d'une carte qu'un deck peut réserver : possédés moins ceux déjà réservés par les AUTRES decks montés (deux decks ne se réservent pas le même exemplaire). */
+const engFreeQty = id => k => engFree(collQty(k), XS.eng, k, id);
+/** Rien à réserver pour ce deck : message selon que ses cartes manquent ou sont toutes réservées par d'autres decks. */
+const engNoneMsg = text => Object.keys(engSnapshot(text, collQty)).length ? T('Ses cartes de ta collection sont déjà réservées par tes autres decks montés') : T('Aucune carte de ce deck n\'est dans ta collection');
+/** Monte un deck : réserve les exemplaires possédés de sa liste qui ne sont pas déjà réservés ailleurs. */
 function engSet(id, name, text) {
-  XS.eng = { ...XS.eng, [id]: { n: String(name || '').slice(0, 120), at: Date.now(), q: engSnapshot(text, collQty) } };
+  XS.eng = { ...XS.eng, [id]: { n: String(name || '').slice(0, 120), at: Date.now(), q: engSnapshot(text, engFreeQty(id)) } };
   engSaved(); if (typeof prgSoon === 'function') prgSoon('deck');      // deck monté (badge « Monteur »)
   if (typeof plcDeckOf === 'function' && plcDeckOf(id)) plcMount(id, name, text);      // rangé dans « Deck : … » (places.js) : l'emplacement suit la liste
 }
@@ -105,7 +109,7 @@ function engClear(id, quiet) {
 /** Liste enregistrée à nouveau : un deck monté suit sa liste (nouveau relevé des cartes possédées). */
 function engRefresh(id, name, text) {
   if (!engIsOn(id)) return;
-  const q = engSnapshot(text, collQty), cur = XS.eng[id];
+  const q = engSnapshot(text, engFreeQty(id)), cur = XS.eng[id];
   if (JSON.stringify(q) === JSON.stringify(cur.q) && cur.n === name) return;
   engSet(id, name, text);
 }
@@ -121,7 +125,7 @@ function engBindSwitch(id, cb, hint) {
   cb.onchange = () => {
     if (cb.checked) {
       const d = findDeck(id);
-      if (!d || !Object.keys(engSnapshot(d.text, collQty)).length) { cb.checked = false; toast(T('Aucune carte de ce deck n\'est dans ta collection')); return; }
+      if (!d || !Object.keys(engSnapshot(d.text, engFreeQty(id))).length) { cb.checked = false; toast(d ? engNoneMsg(d.text) : T('Aucune carte de ce deck n\'est dans ta collection')); return; }
       engSet(id, d.name, d.text); haptic('ok'); toast(T('Deck monté : cartes réservées'));
     } else { engClear(id); haptic('tap'); toast(T('Deck démonté : cartes à nouveau disponibles')); }
     paint();

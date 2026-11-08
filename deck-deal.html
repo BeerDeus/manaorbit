@@ -8171,8 +8171,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'c75433db';
-const I18N_FILES = {"de":"i18n/de.fc158436.js","en":"i18n/en.814fdba0.js","es":"i18n/es.48c1972d.js","it":"i18n/it.cf5436cb.js","pt":"i18n/pt.78502452.js"};
+const DD_BUILD = '5f20d94f';
+const I18N_FILES = {"de":"i18n/de.71184715.js","en":"i18n/en.077b12df.js","es":"i18n/es.f6796e9c.js","it":"i18n/it.4659445c.js","pt":"i18n/pt.befec36f.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -24826,9 +24826,13 @@ function engApplied() {
   if (S.run && S.view === 'results') scheduleRecompute(true);
 }
 function engSaved() { engWrite(); xsPushSoon('engaged'); engApplied(); }
-/** Monte un deck : réserve les exemplaires possédés de sa liste. */
+/** Exemplaires d'une carte qu'un deck peut réserver : possédés moins ceux déjà réservés par les AUTRES decks montés (deux decks ne se réservent pas le même exemplaire). */
+const engFreeQty = id => k => engFree(collQty(k), XS.eng, k, id);
+/** Rien à réserver pour ce deck : message selon que ses cartes manquent ou sont toutes réservées par d'autres decks. */
+const engNoneMsg = text => Object.keys(engSnapshot(text, collQty)).length ? T('Ses cartes de ta collection sont déjà réservées par tes autres decks montés') : T('Aucune carte de ce deck n\'est dans ta collection');
+/** Monte un deck : réserve les exemplaires possédés de sa liste qui ne sont pas déjà réservés ailleurs. */
 function engSet(id, name, text) {
-  XS.eng = { ...XS.eng, [id]: { n: String(name || '').slice(0, 120), at: Date.now(), q: engSnapshot(text, collQty) } };
+  XS.eng = { ...XS.eng, [id]: { n: String(name || '').slice(0, 120), at: Date.now(), q: engSnapshot(text, engFreeQty(id)) } };
   engSaved(); if (typeof prgSoon === 'function') prgSoon('deck');      // deck monté (badge « Monteur »)
   if (typeof plcDeckOf === 'function' && plcDeckOf(id)) plcMount(id, name, text);      // rangé dans « Deck : … » (places.js) : l'emplacement suit la liste
 }
@@ -24843,7 +24847,7 @@ function engClear(id, quiet) {
 /** Liste enregistrée à nouveau : un deck monté suit sa liste (nouveau relevé des cartes possédées). */
 function engRefresh(id, name, text) {
   if (!engIsOn(id)) return;
-  const q = engSnapshot(text, collQty), cur = XS.eng[id];
+  const q = engSnapshot(text, engFreeQty(id)), cur = XS.eng[id];
   if (JSON.stringify(q) === JSON.stringify(cur.q) && cur.n === name) return;
   engSet(id, name, text);
 }
@@ -24859,7 +24863,7 @@ function engBindSwitch(id, cb, hint) {
   cb.onchange = () => {
     if (cb.checked) {
       const d = findDeck(id);
-      if (!d || !Object.keys(engSnapshot(d.text, collQty)).length) { cb.checked = false; toast(T('Aucune carte de ce deck n\'est dans ta collection')); return; }
+      if (!d || !Object.keys(engSnapshot(d.text, engFreeQty(id))).length) { cb.checked = false; toast(d ? engNoneMsg(d.text) : T('Aucune carte de ce deck n\'est dans ta collection')); return; }
       engSet(id, d.name, d.text); haptic('ok'); toast(T('Deck monté : cartes réservées'));
     } else { engClear(id); haptic('tap'); toast(T('Deck démonté : cartes à nouveau disponibles')); }
     paint();
@@ -29241,9 +29245,9 @@ function bdSave() {
   if (typeof dwSaved === 'function') dwSaved(id);      // réglages du coach (thèmes, bracket, budget) gardés avec le deck
   let reserved = 0;
   if (prev) engRefresh(id, name, text);                                   // deck déjà monté : ses cartes réservées suivent la liste
-  else reserved = Object.values(engSnapshot(text, collQty)).reduce((a, x) => a + x, 0);      // nouveau deck : rien de réservé d'office, le toast le propose
+  else reserved = Object.values(engSnapshot(text, engFreeQty(id))).reduce((a, x) => a + x, 0);      // nouveau deck : rien de réservé d'office, le toast le propose
   let ranged = 0, place = '';
-  if (BD.scanPref && BD.scanPref.size && typeof plcMount === 'function' && Object.values(engSnapshot(text, collQty)).some(q => q > 0)) {      // deck scanné : monté et rangé dans « Deck : … »
+  if (BD.scanPref && BD.scanPref.size && typeof plcMount === 'function' && Object.values(engSnapshot(text, engFreeQty(id))).some(q => q > 0)) {      // deck scanné : monté et rangé dans « Deck : … »
     if (!engIsOn(id)) engSet(id, name, text);
     const pref = BD.scanPref, pid = plcMount(id, name, text, (k, g) => { const set = pref.get(k); return !!set && set.has(lineKey(lineLang(g), lineEd(g), lineFoil(g))); });
     if (pid) { ranged = (plcStats().get(pid) || { q: 0 }).q; place = plcName(pid); }
@@ -29259,7 +29263,7 @@ function bdSave() {
 function bdReserve(id, name, text) {
   if (engIsOn(id)) return;
   const d = findDeck(id) || { name, text };
-  if (!Object.keys(engSnapshot(d.text, collQty)).length) { toast(T('Aucune carte de ce deck n\'est dans ta collection')); return; }
+  if (!Object.keys(engSnapshot(d.text, engFreeQty(id))).length) { toast(engNoneMsg(d.text)); return; }
   engSet(id, d.name, d.text); haptic('ok'); toast(T('Deck monté : cartes réservées'));
 }
 

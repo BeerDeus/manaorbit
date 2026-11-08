@@ -664,9 +664,9 @@ function bdSave() {
   if (typeof dwSaved === 'function') dwSaved(id);      // réglages du coach (thèmes, bracket, budget) gardés avec le deck
   let reserved = 0;
   if (prev) engRefresh(id, name, text);                                   // deck déjà monté : ses cartes réservées suivent la liste
-  else reserved = Object.values(engSnapshot(text, collQty)).reduce((a, x) => a + x, 0);      // nouveau deck : rien de réservé d'office, le toast le propose
+  else reserved = Object.values(engSnapshot(text, engFreeQty(id))).reduce((a, x) => a + x, 0);      // nouveau deck : rien de réservé d'office, le toast le propose
   let ranged = 0, place = '';
-  if (BD.scanPref && BD.scanPref.size && typeof plcMount === 'function' && Object.values(engSnapshot(text, collQty)).some(q => q > 0)) {      // deck scanné : monté et rangé dans « Deck : … »
+  if (BD.scanPref && BD.scanPref.size && typeof plcMount === 'function' && Object.values(engSnapshot(text, engFreeQty(id))).some(q => q > 0)) {      // deck scanné : monté et rangé dans « Deck : … »
     if (!engIsOn(id)) engSet(id, name, text);
     const pref = BD.scanPref, pid = plcMount(id, name, text, (k, g) => { const set = pref.get(k); return !!set && set.has(lineKey(lineLang(g), lineEd(g), lineFoil(g))); });
     if (pid) { ranged = (plcStats().get(pid) || { q: 0 }).q; place = plcName(pid); }
@@ -682,6 +682,6 @@ function bdSave() {
 function bdReserve(id, name, text) {
   if (engIsOn(id)) return;
   const d = findDeck(id) || { name, text };
-  if (!Object.keys(engSnapshot(d.text, collQty)).length) { toast(T('Aucune carte de ce deck n\'est dans ta collection')); return; }
+  if (!Object.keys(engSnapshot(d.text, engFreeQty(id))).length) { toast(engNoneMsg(d.text)); return; }
   engSet(id, d.name, d.text); haptic('ok'); toast(T('Deck monté : cartes réservées'));
 }

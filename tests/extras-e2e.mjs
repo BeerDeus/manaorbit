@@ -83,7 +83,15 @@ const errsOf = [];
   await p.evaluate(() => putDeck('deckB', deckDoc({ name: 'Deck B', text: '1 Wrath of God' })));
   await p.waitForTimeout(200); await p.evaluate(() => openDeckSheet('deckB')); await p.waitForSelector('#dkMount'); await p.evaluate(() => document.querySelector('#dkMount').click());
   await p.waitForTimeout(150); assert.equal(await p.$eval('#dkMount', c => c.checked), false); assert.match(await txt(p, '#toast'), /Aucune carte de ce deck/);
-  ok('decks montés : cartes réservées, déduction des autres decks, deck rattaché épargné, pastille collection, suivi de la liste, démontage');
+  // deux decks montés ne se réservent pas le même exemplaire : le second ne prend que ce qui reste libre
+  const own = await p.evaluate(() => collQty('sol ring')); assert.ok(own > 0);
+  const two = await p.evaluate(() => { engSet('dX', 'X', '99 Sol Ring'); engSet('dY', 'Y', '1 Sol Ring\n1 Wrath of God'); const r = [XS.eng.dX.q['sol ring'] || 0, XS.eng.dY.q['sol ring'] || 0]; engRefresh('dX', 'X', '99 Sol Ring'); r.push(XS.eng.dX.q['sol ring'] || 0); return r; });
+  assert.deepEqual(two, [own, 0, own], 'deck X prend tous les Sol Ring, deck Y aucun, X garde les siens en suivant sa liste');
+  await p.evaluate(() => { engClear('dY', true); putDeck('dZ', deckDoc({ name: 'Deck Z', text: '1 Sol Ring' })); }); await p.waitForTimeout(200);
+  await p.evaluate(() => openDeckSheet('dZ')); await p.waitForSelector('#dkMount'); await p.evaluate(() => document.querySelector('#dkMount').click());
+  await p.waitForTimeout(150); assert.equal(await p.$eval('#dkMount', c => c.checked), false); assert.match(await txt(p, '#toast'), /déjà réservées par tes autres decks/);
+  await p.keyboard.press('Escape'); await p.evaluate(() => { engClear('dX'); }); await p.waitForTimeout(200);
+  ok('decks montés : cartes réservées, déduction des autres decks, deck rattaché épargné, pastille collection, suivi de la liste, démontage, pas deux decks sur le même exemplaire');
   await p.context().close();
 }
 
