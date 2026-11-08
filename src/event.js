@@ -245,7 +245,7 @@ function evFind(x) {
   const z = x.zones[x.k], h = x.host, hr = h.getBoundingClientRect(), ar = z.a ? z.a.getBoundingClientRect() : hr, pad = z.pad || 0;
   const top = Math.max(hr.top, ar.top - pad, tourTopInEv()), bot = Math.min(hr.bottom, ar.bottom + pad, innerHeight - (document.body.classList.contains('nav-on') && !evSheetTop() ? 96 : 8), evDockTop());      // barre du bas : sous les feuilles (z-index), elle ne cache rien d'une feuille ouverte ; bouton fixe du bas de l'écran (.dock) : au-dessus
   const left = Math.max(hr.left, ar.left - pad, 0), right = Math.min(hr.right, ar.right + pad, innerWidth), S = (x.size || EV_PK) + 6;
-  const ok = bot - top >= S && right - left >= S && !(ar.bottom < 0 || ar.top > innerHeight), band = evAdBand();
+  const ok = bot - top >= S + 6 && right - left >= S + 6 && !(ar.bottom < 0 || ar.top > innerHeight), band = evAdBand();
   let hit = null;
   if (ok) {
     const pts = []; for (let y = top + 3; y + S <= bot - 3; y += 11) if (!band || y + S <= band[0] || y >= band[1]) for (let xx = left + 3; xx + S <= right - 3; xx += 11) pts.push([xx, y]);
