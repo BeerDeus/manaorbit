@@ -90,10 +90,10 @@ assert.ok(await p.$('.bd-row[data-k="swords to plowshares"][data-t="side"]'), 'l
 await p.click('.bd [data-act="close"]'); await p.waitForSelector('#bdLeave'); assert.match(await txt(p, '.sheet'), /Les changements de ce deck seront perdus/);
 await p.click('.sheet [data-close].btn'); await p.waitForTimeout(500); assert.ok(await p.$('.bd'), 'Continuer : on reste dans l\'éditeur');
 await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
-assert.equal(await txt(p, '#toast .toast-act'), 'Réserver mes 3 cartes'); await p.click('#toast .toast-act');      // Signet × 2 + Swords (réserve comprise)
+assert.equal(await txt(p, '#toast .toast-act'), 'Réserver mes 2 cartes'); await p.click('#toast .toast-act');      // Signet × 1 (2 possédées, 1 déjà réservée par « Vampires Boros v1 ») + Swords (réserve comprise)
 const bn = await p.evaluate(() => { const d = allDecks().find(x => x.name === 'Burn'); return { text: d.text, cards: d.cards, eng: XS.eng[d.id].q }; });
 assert.match(bn.text, /\n4 Arcane Signet\n20 Mountain\n\nSB: 1 Swords to Plowshares$/); assert.equal(bn.cards, 1, 'la réserve n\'est pas comptée parmi les cartes à chercher');
-assert.deepEqual(bn.eng, { 'arcane signet': 2, 'swords to plowshares': 1 }, 'réserve incluse dans les cartes mises de côté (Signet : 2 possédées)');
+assert.deepEqual(bn.eng, { 'arcane signet': 1, 'swords to plowshares': 1 }, 'réserve incluse dans les cartes mises de côté (Signet : 2 possédées, 1 déjà réservée par l\'autre deck monté : seule la libre est prise)');
 ok('Standard : 4 max (réserve comprise), réserve facultative, engagée ailleurs signalée, confirmation avant de quitter, SB: enregistré');
 
 /* ── C) Modifier un deck existant ─────────────────────────────────────────────────────────── */
@@ -205,8 +205,8 @@ ok('deck créé : chargé dans la saisie comme un deck importé');
   await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
   const pl = await p.evaluate(() => { const pid = Object.keys(COLL.places).find(i => COLL.places[i].t === 'deck' && COLL.places[i].n === 'Scan'); return { pid, lines: Object.fromEntries(['sol ring', 'swords to plowshares'].map(k => [k, collLines(COLL.map[k]).filter(([g]) => linePlace(g) === pid).map(([g, q]) => [g.split('#')[0], q])])) }; });
   assert.ok(pl.pid, 'emplacement « Deck : Scan » créé');
-  assert.deepEqual(pl.lines, { 'sol ring': [['fr|cmm|400', 1]], 'swords to plowshares': [['en', 1]] }, 'cartes possédées rangées ; Sol Ring : l\'exemplaire scanné (FR CMM 400), pas l\'anglais');
-  assert.match(await txt(p, '#toast'), /Deck créé · 2 cartes rangées dans « Deck : Scan »/);
+  assert.deepEqual(pl.lines, { 'sol ring': [['fr|cmm|400', 1]], 'swords to plowshares': [] }, 'cartes possédées libres rangées ; Sol Ring : l\'exemplaire scanné (FR CMM 400), pas l\'anglais ; Swords : son seul exemplaire est réservé par Burn (monté), il reste avec lui');
+  assert.match(await txt(p, '#toast'), /Deck créé · 1 carte rangée dans « Deck : Scan »/);
   ok('scanner dans le deck : « Au deck », les ajouter à la collection (Annuler), les prendre dans la collection (règle des 4 exemplaires), réserve depuis Chercher ; à l\'enregistrement, rangées dans « Deck : Scan » (l\'exemplaire scanné d\'abord)');
 }
 
