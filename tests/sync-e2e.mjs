@@ -243,7 +243,7 @@ ok('prix du jour partagés : relus par A, appliqués sur B (même valeur), relev
    du compte ni envoi à chaque « + », message qui dit quoi faire (Exporter) ; des cartes retirées : l'envoi repart ; import qui le dépasserait : prévenu */
 {
   const TOP = '#sheetRoot > .sheet-wrap.open:last-child';
-  const len = await A.p.evaluate(() => collLen());
+  const len = await A.p.evaluate(() => collLen()), MAX0 = await A.p.evaluate(() => COLL_LIM.max);
   await A.p.evaluate(m => { COLL_LIM.max = m; openCollection(); }, Math.ceil(len / 0.85));
   await A.p.waitForSelector('.coll.on .coll-sync:not([hidden])', { timeout: 5000 });
   let si = await A.p.evaluate(() => collSyncInfo());
@@ -275,7 +275,7 @@ ok('prix du jour partagés : relus par A, appliqués sur B (même valeur), relev
   await A.p.click('#ciGo'); await A.p.waitForSelector(TOP + ' [data-ci="go"]'); await A.p.click(TOP + ' [data-ci="go"]');
   await A.p.waitForFunction(() => COLL.map['mox jet'] && COLL.cloud === 'error', null, { timeout: 5000 });
   // plafond remis : tout repart
-  await A.p.evaluate(() => { COLL_LIM.max = 900000; collPushSoon(); });
+  await A.p.evaluate(m => { COLL_LIM.max = m; collPushSoon(); }, MAX0);
   await A.p.waitForFunction(() => COLL.cloud === 'ok', null, { timeout: 6000 });
   await Promise.all([expectMap(B, await mapOf(A), 'B reçoit l\'import une fois la place revenue')]);
   await A.p.evaluate(() => { for (const k of ['mox sapphire', 'mox jet', 'mox emerald', 'timetwister']) collBump(k, k, -1); });
@@ -307,5 +307,158 @@ assert.equal((await mapOf(B))['black lotus'], '1', 'B garde ses cartes sur le t�
 await reloaded; assert.ok(notes.includes('alDisable') && notes.includes('pushDisable'), 'A : alertes de prix et notifications coupées');
 ok('compte supprimé sur A : B et C (restés connectés) ne recréent ni collection, ni decks complets, ni liste d\'échange, même en modifiant pendant la vérification ; déconnectés avec un message');
 for (const P of [A, B, C]) noErrs(P);
+
+/* 15) collection découpée (cloud.js › collPlan, makeSum › tx, collSnap : le vrai code, sur un faux Firestore à documents et transactions comptés ;
+   plafonds baissés par COLL_LIM) : découpée au-delà du plafond, relue sur un 2e appareil ; une carte : seul son morceau écrit et relu ; relance : rien
+   à relire ; repassée sous le plafond : document unique ; version d'avant de l'appli : refusée par les règles ; règles des morceaux pas publiées :
+   « trop grosse », ni lecture ni envoi à chaque « + », nouvel essai après 24 h */
+{
+  const SP = { docs: new Map(), ver: 0, reads: {}, writes: 0, log: [], subs: new Map(), parts: true };
+  const LIM = { one: 3000, part: 2000, min: 800, div: 8, n: 12, max: 40000 };
+  const MAIN = 'users/u2/meta/collection', isSplit = d => !!(d && Array.isArray(d.parts) && d.parts.length);
+  // firestore.rules (bornes baissées comme COLL_LIM) : principal, morceaux, principal découpé gardé
+  const spRule = (path, d, prev) => {
+    if (d == null) return true;
+    if (path === MAIN) {
+      if (typeof d.updatedAt !== 'number' || Object.keys(d).some(k => !['text', 'count', 'updatedAt', 'parts'].includes(k))) return false;
+      if (isSplit(d) ? 'text' in d || d.parts.length > 12 : !(typeof d.text === 'string' && d.text.length <= LIM.one)) return false;
+      return !isSplit(prev) || 'parts' in d;
+    }
+    const m = /^users\/u2\/meta\/collection\/parts\/([0-9]|1[01])$/.exec(path);
+    return !!m && SP.parts && typeof d.text === 'string' && d.text.length <= LIM.part && typeof d.h === 'string' && Object.keys(d).length === 2;
+  };
+  const spCommit = (reads, w) => {
+    for (const [p, v] of Object.entries(reads)) if (((SP.docs.get(p) || {}).ver || 0) !== v) return { conflict: 1 };
+    if (!w.every(([p, d]) => spRule(p, d, (SP.docs.get(p) || {}).data))) return { denied: 1 };
+    for (const [p, d] of w) { SP.writes++; SP.log.push('W ' + p); if (d == null) SP.docs.delete(p); else SP.docs.set(p, { data: d, ver: ++SP.ver }); }
+    for (const p of new Set(w.map(x => x[0]))) {
+      for (const [n, m] of SP.subs) {
+        if (!m.has(p)) continue;
+        SP.reads[n] = (SP.reads[n] || 0) + 1; SP.log.push(n + ' L ' + p);
+        const d = (SP.docs.get(p) || {}).data || null;
+        setTimeout(() => m.get(p).evaluate(([p, d]) => window.__spCb && (window.__spCb[p] || new Set()).forEach(cb => cb(d)), [p, d]).catch(() => {}), 30);
+      }
+    }
+    return { ok: 1 };
+  };
+  async function splitSignIn(P) {
+    await P.p.evaluate(L => {
+      Object.assign(COLL_LIM, L);
+      const unav = () => Object.assign(new Error('unavailable'), { code: 'unavailable' }), clone = d => (d == null ? null : JSON.parse(JSON.stringify(d)));
+      const snap = d => ({ exists: () => d != null, data: () => clone(d), metadata: { hasPendingWrites: false, fromCache: false } });
+      window.__spCb = {};
+      const fs = {
+        doc: (db, ...p) => ({ path: p.join('/') }),
+        onSnapshot(ref, o, next) {
+          const cb = d => next(snap(d)), set = window.__spCb[ref.path] = window.__spCb[ref.path] || new Set();
+          set.add(cb); window.__spSub(ref.path); window.__spGet(ref.path, 'L').then(r => { if (set.has(cb)) cb(r.data); });
+          return () => set.delete(cb);
+        },
+        getDocFromServer: async ref => snap((await window.__spGet(ref.path, 'G')).data),
+        getDocFromCache: async () => { throw unav(); },      // pas de cache du SDK : les morceaux connus viennent de la mémoire ou de la base de l'appareil
+        async runTransaction(db, fn) {
+          for (let k = 0; k < 5; k++) {
+            const reads = {}, w = [], t = { get: async ref => { const r = await window.__spGet(ref.path, 'T'); reads[ref.path] = r.ver; return snap(r.data); }, set: (ref, d) => w.push([ref.path, clone(d)]), delete: ref => w.push([ref.path, null]) };
+            const out = await fn(t); if (!w.length) return out;
+            const c = await window.__spCommit(reads, w);
+            if (c.denied) throw Object.assign(new Error('refusé'), { code: 'permission-denied' });
+            if (c.ok) return out;
+          }
+          throw Object.assign(new Error('aborted'), { code: 'aborted' });
+        },
+      };
+      const sm = makeSum({ fs }, {}, () => ({ path: 'users/u2/decks' }));
+      D.cloud = {
+        onUser() {}, watch: (uid, cb) => { cb([], false); return () => {}; }, newId: () => 'x', save: async () => {}, remove: async () => {},
+        watchColl: (uid, onData, onErr) => sm.sub(uid, { kind: 'meta', id: 'collection', onData, onErr }), txColl: (uid, fn) => sm.tx(uid, fn), pullColl: uid => sm.pull(uid, 'collection'),
+        watchMeta(uid, id, cb) { cb(null, false, true); setTimeout(() => cb(null, false, false), 50); return () => {}; }, saveMeta: async () => {},
+        signOut: async () => { onUser(null); }, provider: () => 'password', reauth: async () => {},
+      };
+      D.state = 'ready'; D.err = ''; COLL_RETRY.off = 600; COLL_RETRY.err = 600; COLL_PUSH.n = 1e9;
+      onUser({ uid: 'u2', email: 'split@example.com', displayName: 'Split', reload: async () => {} });
+    }, LIM);
+  }
+  async function splitPhone(name) {
+    const { p, ctx, errs } = await newPage(browser, world, { goto: false });
+    await p.route('https://www.gstatic.com/**', r => r.abort());
+    await p.exposeFunction('__spGet', async (path, kind) => { await sleep(30); SP.reads[name] = (SP.reads[name] || 0) + 1; SP.log.push(name + ' ' + kind + ' ' + path); const x = SP.docs.get(path); return { data: x ? x.data : null, ver: x ? x.ver : 0 }; });
+    await p.exposeFunction('__spSub', path => { let m = SP.subs.get(name); if (!m) SP.subs.set(name, m = new Map()); m.set(path, p); });
+    await p.exposeFunction('__spCommit', async (reads, w) => { await sleep(30); return spCommit(reads, w); });
+    const P = { name, p, ctx, errs };
+    await p.goto(world.url); await p.waitForFunction(() => D.authReady, null, { timeout: 15000 });
+    await splitSignIn(P);
+    return P;
+  }
+  const live = P => P.p.waitForFunction(() => COLL.cloud === 'ok' && !COLL.pushing && !COLL.pushT, null, { timeout: 10000 });
+  const spQuiet = async () => { let w; do { w = SP.log.length; await sleep(1500); } while (w !== SP.log.length); };
+  const spCount = () => ({ r: { ...SP.reads }, w: SP.writes, l: SP.log.length });
+  const spSince = (c0, n) => ({ r: (SP.reads[n] || 0) - (c0.r[n] || 0), w: SP.writes - c0.w, log: SP.log.slice(c0.l) });
+  const partsNow = () => [...SP.docs.keys()].filter(k => k.startsWith(MAIN + '/parts/')).sort();
+  const partW = log => log.filter(l => /^W .*\/parts\//.test(l)).length;
+  const cards = (from, n) => Array.from({ length: n }, (_, i) => ({ n: 'Split Card ' + (from + i), q: 1 + (i % 3) }));
+  const X = await splitPhone('X'), Y = await splitPhone('Y');
+  await Promise.all([live(X), live(Y)]);
+  await X.p.evaluate(c => collAdd(c.map(x => ({ ...x, k: ownKey(x.n) })), 'add'), cards(0, 60)); await live(X); await spQuiet();
+  assert.ok(!isSplit(SP.docs.get(MAIN).data) && typeof SP.docs.get(MAIN).data.text === 'string', 'sous le plafond : un seul document, comme avant'); assert.deepEqual(partsNow(), []);
+  // au-delà du plafond : découpée sur X, relue sur Y
+  let c0 = spCount();
+  await X.p.evaluate(c => collAdd(c.map(x => ({ ...x, k: ownKey(x.n) })), 'add'), cards(60, 90));
+  await expectMap(Y, await mapOf(X), 'collection découpée relue sur Y', 12000); await spQuiet();
+  let main = SP.docs.get(MAIN).data;
+  const k0 = main.parts.length;
+  assert.ok(isSplit(main) && !('text' in main) && k0 >= 2, 'découpée : principal sans text, ' + k0 + ' morceaux'); assert.equal(main.count, 150); assert.equal(partsNow().length, k0);
+  let dx = spSince(c0, 'X'), dy = spSince(c0, 'Y');
+  assert.equal(dx.w, 1 + k0, 'découpage : principal + ' + k0 + ' morceaux écrits'); assert.equal(dx.r, 2, 'X : transaction (1) + écho du principal, morceaux connus (' + dx.log.join(', ') + ')');
+  assert.ok(dy.r >= 1 && dy.r <= 1 + k0, 'Y : principal + morceaux inconnus (' + dy.r + ')');
+  // une carte de plus sur Y : seul son morceau écrit, relu sur X
+  c0 = spCount();
+  await add(Y, 'Split Card 7', 1);
+  await expectMap(X, await mapOf(Y), 'une carte de Y sur X'); await spQuiet();
+  dx = spSince(c0, 'X'); dy = spSince(c0, 'Y');
+  const k1 = SP.docs.get(MAIN).data.parts.length, pw = partW(dy.log);
+  assert.ok(pw >= 1 && pw <= 2, 'une carte : principal + ' + pw + ' morceau(x) écrits (' + dy.log.filter(l => l.startsWith('W')).join(', ') + ')');
+  assert.equal(dx.r, 1 + pw, 'X : principal + le(s) morceau(x) changé(s) seulement (' + dx.log.join(', ') + ')');
+  // relance de X : la base de l'appareil (dernier état du compte) redécoupée, aucun morceau relu
+  c0 = spCount();
+  await X.p.reload(); await X.p.waitForFunction(() => D.authReady, null, { timeout: 15000 }); await splitSignIn(X); await live(X); await spQuiet();
+  const rl = spSince(c0, 'X');
+  assert.ok(rl.r <= 2 && !rl.log.some(l => /\/parts\//.test(l)), 'relance : le principal seul (écoute, et lecture directe au premier plan), aucun morceau (' + rl.log.join(', ') + ')');
+  assert.deepEqual(await mapOf(X), await mapOf(Y), 'relance : même collection');
+  // version d'avant de l'appli : réécrit le principal avec ses seules cartes (transaction sans parts) → refusée par les règles, rien de perdu
+  const before = JSON.stringify(SP.docs.get(MAIN).data);
+  assert.deepEqual(spCommit({ [MAIN]: SP.docs.get(MAIN).ver }, [[MAIN, { text: '1 Sol Ring', count: 1, updatedAt: SP.docs.get(MAIN).data.updatedAt + 1 }]]), { denied: 1 }, 'version d\'avant : refusée');
+  assert.equal(JSON.stringify(SP.docs.get(MAIN).data), before, 'principal découpé gardé');
+  // repassée sous le plafond : document unique (parts: []), morceaux supprimés ; Y suit
+  c0 = spCount();
+  await X.p.evaluate(c => { for (const x of c) collBump(ownKey(x.n), x.n, -collQty(ownKey(x.n))); }, cards(50, 100));
+  await expectMap(Y, await mapOf(X), 'retour sous le plafond', 12000); await spQuiet();
+  main = SP.docs.get(MAIN).data;
+  assert.deepEqual([typeof main.text, main.parts, partsNow()], ['string', [], []], 'document unique, parts: [], morceaux supprimés');
+  assert.equal(partW(spSince(c0, 'X').log), k1, 'morceaux supprimés dans la même transaction');
+  await add(X, 'Sol Ring', 1); await expectMap(Y, await mapOf(X), 'ensuite comme avant'); await spQuiet();
+  assert.ok(!('parts' in SP.docs.get(MAIN).data), 'ensuite : exactement le document d\'avant');
+  // règles des morceaux pas publiées : écriture découpée refusée → « trop grosse » (plafond d'un document), ni lecture ni envoi à chaque « + »
+  SP.parts = false;
+  await X.p.evaluate(c => collAdd(c.map(x => ({ ...x, k: ownKey(x.n) })), 'add'), cards(200, 90));
+  await X.p.waitForFunction(() => COLL.cloud === 'error' && COLL.tooBig > 0, null, { timeout: 8000 });
+  const si = await X.p.evaluate(() => collSyncInfo());
+  assert.equal(si.k, 'bad'); assert.match(si.t, /^Pas sauvegardée dans ton compte : ta collection est trop grosse \(1\d\d % de la place permise\)/, 'message d\'avant, place d\'un document unique');
+  assert.ok(!isSplit(SP.docs.get(MAIN).data) && partsNow().length === 0, 'rien d\'écrit');
+  assert.ok(await X.p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:split:v1')).u2 > 0), 'refus noté (24 h)');
+  c0 = spCount();
+  for (let i = 0; i < 3; i++) { await add(X, 'Split Card 205', 1); await sleep(900); }
+  assert.deepEqual([spSince(c0, 'X').r, spSince(c0, 'X').w], [0, 0], 'pas de boucle : ni lecture ni envoi à chaque « + »');
+  // relance pendant les 24 h : plafond d'un document unique (« trop grosse » sans rien tenter) ; ensuite (règles publiées) : nouvel essai, découpée
+  c0 = spCount();
+  await X.p.reload(); await X.p.waitForFunction(() => D.authReady, null, { timeout: 15000 }); await splitSignIn(X);
+  await X.p.waitForFunction(() => COLL.cloud === 'error' && COLL.tooBig > 0, null, { timeout: 8000 }); await sleep(1500);
+  assert.equal(spSince(c0, 'X').w, 0, 'relance dans les 24 h : rien d\'envoyé'); assert.ok(spSince(c0, 'X').r <= 2 && !spSince(c0, 'X').log.some(l => / T /.test(l)), 'écoute (et lecture directe) du principal seulement, aucune transaction (' + spSince(c0, 'X').log.join(', ') + ')');
+  SP.parts = true;
+  await X.p.evaluate(() => { localStorage.setItem('deckdeal:coll:split:v1', JSON.stringify({ u2: Date.now() - DAY - 1 })); COLL.big = 0; collPushSoon(); });
+  await expectMap(Y, await mapOf(X), 'règles publiées : découpée et reçue sur Y', 12000); await spQuiet();
+  assert.ok(isSplit(SP.docs.get(MAIN).data), 'découpée'); assert.equal(await X.p.evaluate(() => localStorage.getItem('deckdeal:coll:split:v1')), '{}', 'refus oublié');
+  for (const P of [X, Y]) noErrs(P);
+  ok('collection découpée : au-delà du plafond en morceaux (principal + ' + k0 + ' morceaux), relue sur Y ; une carte : seul son morceau écrit et relu ; relance : principal seul ; version d\'avant refusée ; retour au document unique ; règles pas publiées : « trop grosse », sans boucle, nouvel essai après 24 h');
+}
 
 await browser.close(); world.stop(); console.log("\nSYNC E2E OK"); process.exit(0);

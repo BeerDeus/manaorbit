@@ -55,7 +55,10 @@ service cloud.firestore {
     }
 
     // Deck Deal : données annexes du compte, un document chacune
-    //  · collection : cartes possédées (liste « 3 Sol Ring » une carte par ligne)
+    //  · collection : cartes possédées (liste « 3 Sol Ring » une carte par ligne) ; au-delà de 900 000 caractères, découpée (src/cloud.js › collPlan) :
+    //                 { count, updatedAt, parts: [{ h, n }] } sans text, le texte dans users/{uid}/meta/collection/parts/{0…11} (règle plus bas).
+    //                 Principal découpé : toute écriture doit garder le champ parts (parts: [] pour revenir au document unique). Une version de l'appli
+    //                 d'avant le découpage réécrirait le document avec ses seules cartes (sans parts) : refusée, la collection découpée est gardée.
     //  · engaged    : cartes réservées par des decks « montés » ({ decks: { idDeck: { n, at, q: { carte: exemplaires } } } })
     //  · history    : valeur de la collection dans le temps ({ pts: [{ t, v: centimes, n: cartes, q: exemplaires }, …], reset? }, un par jour, 420 au plus ; pas de tableaux imbriqués dans Firestore ;
     //                 reset : date de « Recommencer la courbe », aucun relevé d'avant ne revient)
@@ -74,10 +77,13 @@ service cloud.firestore {
         && request.resource.data.updatedAt is number
         && (
           (docId == 'collection'
-            && request.resource.data.keys().hasOnly(['text', 'count', 'updatedAt'])
-            && request.resource.data.keys().hasAll(['text', 'updatedAt'])
-            && request.resource.data.text is string && request.resource.data.text.size() <= 900000
-            && (!('count' in request.resource.data) || request.resource.data.count is number))
+            && request.resource.data.keys().hasOnly(['text', 'count', 'updatedAt', 'parts'])
+            && (!('count' in request.resource.data) || request.resource.data.count is number)
+            && ((collSplit(request.resource.data) && !('text' in request.resource.data) && request.resource.data.parts.size() <= 12)
+                || (!collSplit(request.resource.data)
+                    && request.resource.data.text is string && request.resource.data.text.size() <= 900000
+                    && (!('parts' in request.resource.data) || request.resource.data.parts is list)))
+            && (resource == null || !collSplit(resource.data) || 'parts' in request.resource.data))
           || (docId == 'engaged'
             && request.resource.data.keys().hasOnly(['decks', 'updatedAt'])
             && request.resource.data.keys().hasAll(['decks', 'updatedAt'])
@@ -135,6 +141,22 @@ service cloud.firestore {
                 || (request.resource.data.photo is string && request.resource.data.photo.size() <= 40000
                     && request.resource.data.photo.matches('data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+'))))
         );
+      // collection découpée : champ parts, liste non vide
+      function collSplit(d) { return 'parts' in d && d.parts is list && d.parts.size() > 0; }
+    }
+
+    // Mana Orbit : morceaux de la collection découpée (src/cloud.js › collPlan) : users/{uid}/meta/collection/parts/{0…11} = { text, h }, écrits dans la même
+    // transaction que le document principal (qui liste leurs empreintes h et longueurs n). Propriétaire seul ; 800 000 caractères au plus par morceau.
+    // NE JAMAIS republier ces règles sans ce bloc : une collection découpée ne serait plus lisible. Sans lui (pas encore publié), l'appli ne découpe pas :
+    // au-delà de 900 000 caractères, la collection reste sur l'appareil (« trop grosse », comme avant).
+    match /users/{uid}/meta/collection/parts/{pid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && pid.matches('[0-9]|1[01]')
+        && request.resource.data.keys().hasOnly(['text', 'h'])
+        && request.resource.data.keys().hasAll(['text', 'h'])
+        && request.resource.data.text is string && request.resource.data.text.size() <= 800000
+        && request.resource.data.h is string && request.resource.data.h.size() <= 40;
     }
 
     // Mana Orbit : sommaire du compte (src/cloud.js › makeSum), users/{uid}/meta/sommaire = { v, p: { document annexe: updatedAt }, d: { deck: updatedAt }, at, old }.

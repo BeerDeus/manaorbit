@@ -47,7 +47,7 @@ const table = [];
 const note = (who, what, P) => { const r = reads(P); table.push([who, what, r.reads, r.writes]); return r; };
 /** Réglages de test posés avant la connexion (le moteur du compte les lit à sa création). */
 // niveau et badges (progress.js, ouverts à tous depuis 2fc48f7) : leur envoi au compte (un par appareil et par jour, 8 s après l'ouverture) tombait au hasard dans une mesure
-const tune = (P, o = {}) => P.p.evaluate(o => { SUM.init = 300; window.prgPushSoon = () => {}; COLL_PUSH.burst = o.burst || COLL_PUSH.burst; if (o.verify) sumNote(o.uid, { v: 0 }); if (o.legacy != null) { SUM.legacy = o.legacy; sumNote(o.uid, { leg: 0 }); } if (o.denied != null) SUM.denied = o.denied; }, { uid: P.uid, ...o });
+const tune = (P, o = {}) => P.p.evaluate(o => { SUM.init = 300; window.prgPushSoon = () => {}; COLL_PUSH.burst = o.burst || COLL_PUSH.burst; if (o.verify) sumNote(o.uid, { v: 0 }); if (o.legacy != null) { SUM.legacy = o.legacy; sumNote(o.uid, { leg: 0 }); } if (o.denied != null) SUM.denied = o.denied; if (o.lim) Object.assign(COLL_LIM, o.lim); }, { uid: P.uid, ...o });
 /** Attend la fin de la synchro : collection « ok », decks attendus, mode décidé ; puis le temps que les dernières réponses arrivent (comptées). */
 async function settle(P, nDecks, ms = 2500) {
   await P.p.waitForFunction(n => COLL.cloud === 'ok' && D.list.length === n && D.cloud.sumState(D.uid) && D.cloud.sumState(D.uid).mode !== 'wait', nDecks, { timeout: 25000 });
@@ -212,7 +212,9 @@ await until(Dv, () => D.list.some(d => d.id === 'c1') && collQty(ownKey('Sol Rin
 await Dv.p.evaluate(() => removeDeck('deck2'));
 await until(C, () => !D.list.some(d => d.id === 'deck2'), null, 'D → C : deck supprimé');
 await relaunch(C, N_DECKS); r = note('C', 'relance, règles sans le sommaire', C);
-assert.equal((await st(C)).mode, 'legacy'); assert.ok(r.reads <= N_DECKS + 6 + 1, 'comme avant (' + r.reads + ')');
+// relevé de valeur du jour (value.js › valCommit : history, prices) : écrit à un moment qui dépend de l'arrivée des prix, parfois pendant la mesure ; sa relecture n'est pas comptée
+const daily = r.names.filter(n => /meta\/(history|prices)$/.test(n)), redo = daily.length - new Set(daily).size;
+assert.equal((await st(C)).mode, 'legacy'); assert.ok(r.reads - redo <= N_DECKS + 6 + 1, 'comme avant (' + r.reads + ' : ' + r.names.join(', ') + ')');
 ok(`règles sans le sommaire : écoutes d'avant (${r.reads} lectures par ouverture, comme avant), tout se synchronise ; création retentée dans 24 h`);
 await E.rules(RULES);
 await relaunch(C, N_DECKS, { denied: 0 }); await sleep(1500);
@@ -220,6 +222,65 @@ m = await man('u2'); assert.ok(m && m.v === 1 && m.d.c1 && !('deck2' in m.d), 'r
 await relaunch(C, N_DECKS); r = note('C', 'relance après publication des règles', C); assert.equal((await st(C)).mode, 'sum'); assert.equal(r.reads, 2);
 ok('règles publiées : sommaire créé à l\'ouverture suivante, puis 2 lectures par relance');
 noErrs(C, Dv);
+
+/* ═══ 7. Collection découpée (cloud.js › collPlan ; plafonds baissés par COLL_LIM : 3 000 caractères par document, morceaux de 800 à 2 000 octets) ═══ */
+{
+  const LIM = { one: 3000, part: 2000, min: 800, div: 8, n: 12, max: 40000 }, CP = 'users/u3/meta/collection';
+  const NO_PARTS = RULES.replace(/\n    match \/users\/\{uid\}\/meta\/collection\/parts\/\{pid\} \{[\s\S]*?\n    \}\n/, '\n');      // règles d'avant le découpage : pas de morceaux
+  assert.ok(NO_PARTS.length < RULES.length && !/collection\/parts\/\{pid\}/.test(NO_PARTS), 'règles sans les morceaux');
+  await seed('u3');      // collection de 200 lignes (≈ 3 600 caractères) : au-delà du plafond baissé, mais un seul document tant que rien n'est écrit
+  const G = await open('u3', N_DECKS, { lim: LIM }), H = await open('u3', N_DECKS, { lim: LIM });
+  const partsOf = async () => (await E.list(CP + '/parts')).map(d => d.id).sort();
+  assert.deepEqual(await partsOf(), [], 'pas encore découpée');
+  resetReads(G); resetReads(H);
+  await G.p.evaluate(() => collBump(ownKey('Zz Split Card'), 'Zz Split Card', 1));
+  await until(H, () => collQty(ownKey('Zz Split Card')) === 1, null, 'découpée sur G, vue sur H'); await sleep(2500);
+  let main = await E.get(CP), k0 = main.parts.length;
+  assert.ok(k0 >= 2 && !('text' in main) && main.count === 201, 'découpée : principal sans text, ' + k0 + ' morceaux'); assert.equal((await partsOf()).length, k0);
+  r = note('G', `collection découpée (1 carte : principal + ${k0} morceaux)`, G); assert.equal(r.writes, 1 + k0, 'principal + morceaux (' + r.writes + ')'); assert.equal(r.reads, 2, 'transaction + écho, morceaux connus (' + r.names.join(', ') + ')');
+  r = note('H', '… vue sur H (base de l\'appareil redécoupée)', H); assert.ok(r.reads >= 2 && r.reads <= 1 + k0, 'principal + les morceaux inconnus de sa base seulement (' + r.names.join(', ') + ')');
+  ok(`collection au-delà du plafond : découpée en ${k0} morceaux (${1 + k0} écritures), relue sur H avec ${r.reads} lectures (morceaux déjà connus par sa base : pas relus)`);
+  // une carte changée sur H : seul son morceau écrit, relu sur G
+  resetReads(G); resetReads(H);
+  await H.p.evaluate(() => collBump(ownKey('Card Number 5'), 'Card Number 5', 2));
+  await until(G, () => collQty(ownKey('Card Number 5')) === 3, null, 'carte de H vue sur G'); await sleep(2500);
+  const rh = note('H', 'collection découpée : 1 carte changée', H), rg = note('G', '… vue sur G', G);
+  assert.ok(rh.writes >= 2 && rh.writes <= 3, 'principal + 1 morceau (au plus 2) : ' + rh.writes); assert.equal(rh.reads, 2, 'transaction + écho (' + rh.names.join(', ') + ')');
+  assert.equal(rg.reads, rh.writes, 'G : principal + le(s) morceau(x) écrit(s) seulement (' + rg.names.join(', ') + ')');
+  ok(`collection découpée, une carte : ${rh.writes} écritures (principal + morceau), ${rg.reads} lectures sur l'autre appareil`);
+  // relance : principal seul (morceaux de la base de l'appareil)
+  await relaunch(G, N_DECKS, { lim: LIM }); r = note('G', 'relance, collection découpée', G);
+  assert.equal(r.reads, 2, 'sommaire + principal, aucun morceau (' + r.names.join(', ') + ')'); assert.equal(await G.p.evaluate(() => collQty(ownKey('Card Number 5'))), 3);
+  ok('relance avec une collection découpée : 2 lectures, comme avant (morceaux retrouvés dans la base de l\'appareil)');
+  // version d'avant de l'appli (sa transaction : principal réécrit avec ses seules cartes, sans parts) : refusée par les règles, rien de perdu
+  const old = await G.p.evaluate(async () => {
+    const fs = await import(FB_BASE + 'firebase-firestore.js'), ref = fs.doc(self.__db, 'users', D.uid, 'meta', 'collection');
+    try { await fs.runTransaction(self.__db, async t => { const s = await t.get(ref); t.set(ref, { text: '1 Sol Ring', count: 1, updatedAt: s.data().updatedAt + 1 }); }); return 'écrit'; } catch (e) { return e.code; }
+  });
+  assert.equal(old, 'permission-denied', 'version d\'avant : refusée'); assert.equal((await E.get(CP)).parts.length, (await partsOf()).length, 'collection découpée gardée');
+  ok('version d\'avant de l\'appli sur une collection découpée : sa réécriture est refusée par les règles, rien de perdu');
+  // repassée sous le plafond : document unique (parts: []), morceaux supprimés dans la même transaction
+  const kNow = (await partsOf()).length; resetReads(G); resetReads(H);
+  await G.p.evaluate(() => { for (let i = 0; i < 120; i++) collBump(ownKey('Card Number ' + i), 'Card Number ' + i, -collQty(ownKey('Card Number ' + i))); });
+  await until(H, () => !collQty(ownKey('Card Number 5')) && collQty(ownKey('Card Number 150')) === 1, null, 'retour au document unique vu sur H'); await sleep(2500);
+  main = await E.get(CP); assert.deepEqual([typeof main.text, main.parts, await partsOf()], ['string', [], []], 'document unique, parts: [], morceaux supprimés');
+  r = note('G', 'collection repassée sous le plafond (morceaux supprimés)', G); assert.equal(r.writes, 1 + kNow, 'principal + suppression des ' + kNow + ' morceaux, dans la même transaction');
+  const rh2 = note('H', '… vue sur H', H); assert.equal(rh2.reads, 1, 'H : le principal seul');
+  ok(`collection repassée sous le plafond : document unique, morceaux supprimés (${r.writes} écritures)`);
+  // règles des morceaux pas publiées : découpage refusé en bloc → « trop grosse » (place d'un document unique), pas de boucle
+  await E.rules(NO_PARTS); resetReads(G);
+  await G.p.evaluate(() => { for (let i = 0; i < 120; i++) collBump(ownKey('Back Card ' + i), 'Back Card ' + i, 1); });
+  await until(G, () => COLL.cloud === 'error' && COLL.tooBig > 0, null, 'découpage refusé : trop grosse');
+  assert.equal(await G.p.evaluate(() => /trop grosse \(1\d\d % de la place permise\)/.test(collSyncInfo().t)), true, 'message d\'avant');
+  assert.ok(!(await E.get(CP)).parts.length && !(await partsOf()).length, 'rien d\'écrit'); await sleep(1500);
+  const r7 = reads(G);
+  for (let i = 0; i < 3; i++) { await G.p.evaluate(() => collBump(ownKey('Back Card 1'), 'Back Card 1', 1)); await sleep(1000); }
+  assert.deepEqual([reads(G).reads, reads(G).writes], [r7.reads, r7.writes], 'pas de boucle : ni lecture ni écriture à chaque « + »');
+  r = note('G', 'règles des morceaux pas publiées : un essai refusé (écritures demandées, rien d\'écrit), puis 3 « + »', G); assert.ok(r.reads <= 2 && r.writes <= 1 + LIM.n, r.reads + ' / ' + r.writes);      // writes : opérations du lot refusé (comptées à l'envoi ; refusé : rien d'écrit)
+  ok(`règles des morceaux pas publiées : collection « trop grosse » comme avant (${r.reads} lecture(s), un seul lot refusé, rien d'écrit), rien de plus à chaque « + »`);
+  await E.rules(RULES);
+  noErrs(G, H);
+}
 
 console.log('\nLectures (et écritures) mesurées, facturation Firestore :');
 for (const [w, what, n, wr] of table) console.log(`  ${w}  ${String(n).padStart(3)} lect. ${String(wr).padStart(3)} écr.  ${what}`);

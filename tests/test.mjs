@@ -1773,13 +1773,16 @@ test('gen-flavor-names.mjs : impression Scryfall → « nom alternatif \t anglai
   for (const c of [null, { name: 'Sol Ring', set: 'c21', collector_number: '1', lang: 'en' }, { name: 'X', flavor_name: 'X', set: 'a', collector_number: '1', lang: 'en' }, { name: 'X', flavor_name: 'Y\tZ', set: 'a', collector_number: '1', lang: 'en' }]) assert.equal(flavorRow(c), '');
 });
 
-test('collSizeLevel / collSizePct / collSizeHold : plafond de la collection dans le compte (900 000 caractères, avertissement à 80 %)', () => {
-  assert.equal(C.COLL_LIM.max, 900000, 'même borne que firestore.rules');
-  assert.equal(C.collSizeLevel(0), ''); assert.equal(C.collSizeLevel(719999), ''); assert.equal(C.collSizeLevel(720000), 'warn', '80 % : avertissement');
-  assert.equal(C.collSizeLevel(900000), 'warn', 'la borne elle-même passe (règles : 900 000 permis)'); assert.equal(C.collSizeLevel(900001), 'over');
-  assert.equal(C.collSizePct(720000), 80); assert.equal(C.collSizePct(899999), 99, 'jamais « 100 % » tant que ça passe'); assert.equal(C.collSizePct(900400), 101, 'au-delà : jamais « 100 % »'); assert.equal(C.collSizePct(1080000), 120);
-  assert.equal(C.collSizeHold(900001, 0), true, 'au-delà du plafond : pas d\'envoi');
-  assert.equal(C.collSizeHold(850000, 0), false, 'sous le plafond, jamais refusée : envoi');
+test('collSizeLevel / collSizePct / collSizeHold : plafonds de la collection dans le compte (document unique 900 000 caractères, découpée 2 000 000, avertissement à 80 %)', () => {
+  assert.equal(C.COLL_LIM.one, 900000, 'document unique : même borne que firestore.rules'); assert.equal(C.COLL_LIM.part, 800000, 'morceau : même borne que firestore.rules'); assert.equal(C.COLL_LIM.n, 12, 'morceaux 0…11 (firestore.rules)');
+  assert.equal(C.COLL_LIM.max, 2000000, 'découpée : plafond total'); assert.ok(C.COLL_LIM.max * 2 <= C.COLL_LIM.n * C.COLL_LIM.min, 'le plafond total tient en n morceaux, même à 2 octets par caractère');
+  assert.equal(C.collSizeLevel(1599999), ''); assert.equal(C.collSizeLevel(1600000), 'warn', '80 % du plafond total'); assert.equal(C.collSizeLevel(2000001), 'over');
+  const one = { max: C.COLL_LIM.one, warn: 0.8 };      // découpage refusé par le compte (règles pas publiées) : plafond d'un document unique (collection.js › collLimNow)
+  assert.equal(C.collSizeLevel(0, one), ''); assert.equal(C.collSizeLevel(719999, one), ''); assert.equal(C.collSizeLevel(720000, one), 'warn', '80 % : avertissement');
+  assert.equal(C.collSizeLevel(900000, one), 'warn', 'la borne elle-même passe (règles : 900 000 permis)'); assert.equal(C.collSizeLevel(900001, one), 'over');
+  assert.equal(C.collSizePct(720000, one), 80); assert.equal(C.collSizePct(899999, one), 99, 'jamais « 100 % » tant que ça passe'); assert.equal(C.collSizePct(900400, one), 101, 'au-delà : jamais « 100 % »'); assert.equal(C.collSizePct(1080000, one), 120);
+  assert.equal(C.collSizeHold(900001, 0, one), true, 'au-delà du plafond : pas d\'envoi'); assert.equal(C.collSizeHold(900001, 0), false, 'découpée : envoi');
+  assert.equal(C.collSizeHold(850000, 0, one), false, 'sous le plafond, jamais refusée : envoi');
   assert.equal(C.collSizeHold(850000, 850000), true, 'refusée à cette taille (compte + appareil trop gros) : pas de nouvel essai à chaque « + »');
   assert.equal(C.collSizeHold(850040, 850000), true, 'plus grosse encore : toujours rien');
   assert.equal(C.collSizeHold(849960, 850000), false, 'des cartes retirées : nouvel essai');
