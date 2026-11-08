@@ -119,7 +119,7 @@ un(); unsub();
 
 { // Suppression du compte (faux SDK : le vrai Firestore hors ligne ne lit pas le serveur) : liens publics, decks publics, decks, documents annexes, puis le compte
   const T1 = createHash('sha256').update('u1').digest('hex'), T2 = createHash('sha256').update('u2').digest('hex');
-  const log = [], store = new Map([['users/u1/decks/d1', {}], ['users/u1/decks/d2', {}], ['users/u1/meta/trade', { share: 'S1', dsh: { d1: 'S2', d2: '' } }], ['users/u1/meta/collection', {}], ['shares/S1', {}], ['shares/S2', {}], ['shares/S3', {}], ['shares/REFUS', {}], ['shares/AUTRE', {}], [`pubdecks/${T1}_0`, { o: T1 }], [`pubdecks/${T1}_4`, { o: T1 }], [`pubdecks/${T2}_0`, { o: T2 }]]);
+  const log = [], store = new Map([['users/u1/decks/d1', {}], ['users/u1/decks/d2', {}], ['users/u1/meta/trade', { share: 'S1', dsh: { d1: 'S2', d2: '' } }], ['users/u1/meta/collection', { count: 1, updatedAt: 1, parts: [{ h: 'a', n: 1 }, { h: 'b', n: 1 }] }], ['users/u1/meta/collection/parts/0', {}], ['users/u1/meta/collection/parts/1', {}], ['shares/S1', {}], ['shares/S2', {}], ['shares/S3', {}], ['shares/REFUS', {}], ['shares/AUTRE', {}], [`pubdecks/${T1}_0`, { o: T1 }], [`pubdecks/${T1}_4`, { o: T1 }], [`pubdecks/${T2}_0`, { o: T2 }]]);
   const ref = (...p) => ({ path: p.slice(1).join('/') });
   const user = { email: 'a@b.c', providerData: [{ providerId: 'password' }] };
   let google = { refuse: false };
@@ -142,13 +142,13 @@ un(); unsub();
   assert.equal(c.provider(), 'password');
   await assert.rejects(c.reauth('mauvais'), e => e.code === 'auth/invalid-credential');
   await c.reauth('ok');
-  // lot : sommaire, decks, 11 documents annexes (dont events, événements saisonniers), classeur ; liens connus de l'appareil seulement (S3), déjà retiré (PARTI : pas de suppression tentée), doublon (S1), refusé (REFUS : compté, on continue)
+  // lot : sommaire, decks, 11 documents annexes (dont events, événements saisonniers), les 2 morceaux de la collection découpée, classeur ; liens connus de l'appareil seulement (S3), déjà retiré (PARTI : pas de suppression tentée), doublon (S1), refusé (REFUS : compté, on continue)
   const r = await c.wipe('u1', ['S3', 'S1', 'PARTI', 'REFUS', '']); await c.deleteUser();
   assert.deepEqual(r, { decks: 2, shares: 5, pub: 2, failed: 1 });
   assert.deepEqual([...store.keys()], ['shares/REFUS', 'shares/AUTRE', `pubdecks/${T2}_0`], 'tout le compte effacé (sauf le lien refusé), rien d\'autre');
-  assert.deepEqual(log, ['reauth:mauvais', 'reauth:ok', 'del:shares/S1', 'del:shares/S2', 'del:shares/S3', 'del:shares/REFUS', `del:pubdecks/${T1}_0`, `del:pubdecks/${T1}_4`, 'batch:15', 'deleteUser:a@b.c']);
+  assert.deepEqual(log, ['reauth:mauvais', 'reauth:ok', 'del:shares/S1', 'del:shares/S2', 'del:shares/S3', 'del:shares/REFUS', `del:pubdecks/${T1}_0`, `del:pubdecks/${T1}_4`, 'batch:17', 'deleteUser:a@b.c']);
   user.providerData = [{ providerId: 'google.com' }]; assert.equal(c.provider(), 'google'); await c.reauth(null); assert.equal(log.at(-1), 'popup');
-  console.log('✓ suppression du compte : reconnexion, liens publics (compte + appareil, absents ignorés, échecs comptés), decks publics du compte, decks et documents annexes effacés, puis le compte');
+  console.log('✓ suppression du compte : reconnexion, liens publics (compte + appareil, absents ignorés, échecs comptés), decks publics du compte, decks, documents annexes et morceaux de la collection effacés, puis le compte');
 
   // cache Firestore de l'appareil : par le SDK (arrêt puis effacement), sinon bases IndexedDB « firestore/… »
   log.length = 0; assert.equal(await cloudClearLocal(c), true); assert.deepEqual(log, ['terminate', 'clearPersistence']);
@@ -203,6 +203,135 @@ un(); unsub();
   assert.equal(calls, 6, 'abonnement arrêté pendant l\'attente : pas relancé');
   Object.assign(SUB_RETRY, keep);
   console.log('✓ écoute Firestore en erreur (quota) : abonné prévenu, relancée seule (délai croissant) puis tout de suite par relance(), jamais après l\'arrêt');
+}
+{      // collection découpée (cloud.js › collSplit, collPlan, makeSum › tx, collSnap, pull) : fonctions pures, puis deux « appareils » sur un faux Firestore
+  const X = require('../src/cloud.js'), C = require('../src/core.js');
+  for (const k of ['one', 'part', 'min', 'div', 'n', 'max']) assert.equal(C.COLL_LIM[k], X.COLL_PARTS_DEF[k], 'core.js › COLL_LIM = cloud.js › COLL_PARTS_DEF : ' + k);
+  assert.deepEqual([C.COLL_LIM.one, C.COLL_LIM.part, C.COLL_LIM.n], [900000, 800000, 12], 'mêmes bornes que firestore.rules (document unique, morceau, nombre de morceaux)');
+  const L = { one: 300, part: 400, min: 100, div: 4, n: 12, max: 5000 };
+  const lines = n => Array.from({ length: n }, (_, i) => `${1 + (i % 3)} Carte numéro ${i} *FR*`), big = lines(60).join('\n');
+  assert.equal(X.utf8Len('aé€😀'), 1 + 2 + 3 + 4); assert.equal(X.collHash(big), X.collHash(big)); assert.notEqual(X.collHash(big), X.collHash(big + ' '));
+  const ch = X.collSplit(big, L);
+  assert.equal(ch.join('\n'), big, 'morceaux recollés = texte'); assert.ok(ch.length > 3 && ch.every(c => X.utf8Len(c) <= L.part), 'morceaux ≤ part octets');
+  assert.ok(ch.slice(0, -1).every(c => X.utf8Len(c) + 1 >= L.min), 'coupés après min octets'); assert.ok(ch.every(c => !c.startsWith('\n')), 'aux fins de ligne');
+  assert.deepEqual(X.collSplit(big, L), ch, 'même texte, même découpe (deux appareils)');
+  assert.deepEqual(X.collSplit('', L), [''], 'texte vide : un morceau');
+  const ins = lines(60); ins.splice(30, 0, '4 Carte ajoutée'); const ch2 = X.collSplit(ins.join('\n'), L);
+  const changed = ch2.filter(c => !ch.includes(c)).length;
+  assert.ok(changed >= 1 && changed <= 2, 'une ligne ajoutée au milieu : son morceau (au plus le voisin) change seulement (' + changed + ' sur ' + ch2.length + ')');
+  // plans d'écriture : document unique tel quel ; découpée ; une carte changée ; retour au document unique ; trop grosse
+  const out = (text, at = 5) => ({ text, count: 7, updatedAt: at });
+  assert.deepEqual(X.collPlan(out('1 Sol Ring'), null, L), { main: out('1 Sol Ring'), put: [], del: [], split: false, chunks: [] }, 'sous le plafond : exactement le document d\'avant');
+  assert.deepEqual(X.collPlan(out('1 Sol Ring'), { text: 'x', updatedAt: 1, parts: [] }, L).main, out('1 Sol Ring'), 'déjà revenue au document unique : plus de parts');
+  const p1 = X.collPlan(out(big), { text: 'x', updatedAt: 1 }, L);
+  assert.equal(p1.split, true); assert.equal(p1.put.length, ch.length, 'découpage : tous les morceaux écrits'); assert.deepEqual(p1.del, []);
+  assert.deepEqual(Object.keys(p1.main).sort(), ['count', 'parts', 'updatedAt'], 'principal : sans text'); assert.deepEqual(p1.main.parts.map(p => p.n), ch.map(c => c.length));
+  const p2 = X.collPlan(out(ins.join('\n'), 6), p1.main, L), slots = pl => pl.main.parts.map(p => p.i);
+  assert.equal(p2.put.length, changed, 'une carte de plus : seuls les morceaux nouveaux écrits'); assert.ok(p2.put.every(([i, c]) => p2.main.parts.some(p => p.i === i && p.h === c.h) && typeof c.text === 'string'));
+  assert.ok(p2.main.parts.every((p, k) => !ch.includes(ch2[k]) || p1.main.parts[ch.indexOf(ch2[k])].i === p.i), 'morceau inchangé : même document, même s\'il change de place');
+  assert.equal(new Set(slots(p2)).size, ch2.length, 'un document par morceau'); assert.ok(slots(p2).every(i => i >= 0 && i < L.n), 'numéros 0…n-1 (règles : 0…11)');
+  const p3 = X.collPlan(out(lines(60).slice(0, 35).join('\n'), 7), p2.main, L);
+  assert.ok(p3.del.length > 0 && p3.del.every(i => slots(p2).includes(i) && !slots(p3).includes(i)) && slots(p2).every(i => slots(p3).includes(i) || p3.del.includes(i)), 'documents restés sans morceau supprimés');
+  const p4 = X.collPlan(out('1 Sol Ring', 8), p3.main, L);
+  assert.deepEqual([p4.split, p4.main.parts, p4.main.text, p4.del.sort()], [false, [], '1 Sol Ring', slots(p3).sort()], 'repassée sous le plafond : document unique, parts: [], morceaux supprimés');
+  assert.throws(() => X.collPlan(out('x'.repeat(5001)), null, L), e => e.code === 'too-big' && e.len === 5001 && !e.rules, 'au-delà du plafond total : trop grosse');
+  assert.throws(() => X.collPlan(out('1 a\n' + 'x'.repeat(450)), null, L), e => e.code === 'too-big', 'une ligne plus grosse qu\'un morceau : trop grosse');
+  assert.throws(() => X.collPlan(out(lines(400).join('\n').slice(0, 4999)), null, { ...L, n: 3 }), e => e.code === 'too-big', 'plus de n morceaux : trop grosse');
+  console.log('✓ collection découpée : morceaux aux fins de ligne (≤ part octets, recollés à l\'identique, même découpe partout, une carte ajoutée ne change que son morceau) ; plans d\'écriture (document unique tel quel, découpage, morceaux changés seuls, retour au document unique, trop grosse)');
+
+  // faux Firestore partagé : lectures (écoute, lecture directe, transaction) et écritures comptées ; règles des morceaux publiées ou non ; latence nulle
+  globalThis.COLL_LIM = { ...L, warn: 0.8 };
+  const db = { docs: new Map(), reads: 0, writes: 0, subs: new Set(), rules: true, log: [] };
+  const clone = d => (d == null ? null : JSON.parse(JSON.stringify(d)));
+  const snapOf = (d, md = {}) => ({ exists: () => d != null, data: () => clone(d), metadata: { hasPendingWrites: false, fromCache: false, ...md } });
+  const tick = () => new Promise(r => setTimeout(r, 0));
+  const notify = path => { for (const s of db.subs) if (s.path === path) { db.reads++; db.log.push('L ' + path); s.next(snapOf(db.docs.get(path))); } };
+  const fake = { doc: (_, ...p) => ({ path: p.join('/') }),
+    onSnapshot: (ref, o, next) => { const s = { path: ref.path, next }; db.subs.add(s); tick().then(() => { if (db.subs.has(s)) { db.reads++; db.log.push('L ' + ref.path); next(snapOf(db.docs.get(ref.path))); } }); return () => db.subs.delete(s); },
+    getDocFromServer: async ref => { db.reads++; db.log.push('G ' + ref.path); return snapOf(db.docs.get(ref.path)); },
+    getDocFromCache: async () => { throw Object.assign(new Error('absent'), { code: 'unavailable' }); },
+    runTransaction: async (_, fn) => {
+      const w = [], t = { get: async ref => { db.reads++; db.log.push('T ' + ref.path); return snapOf(db.docs.get(ref.path)); }, set: (ref, d) => w.push([ref.path, clone(d)]), delete: ref => w.push([ref.path, null]) };
+      const r = await fn(t);
+      if (!db.rules && w.some(([p, d]) => /\/parts\//.test(p) || (d && 'parts' in d))) throw Object.assign(new Error('refusé'), { code: 'permission-denied' });      // règles d'avant : ni morceaux ni parts
+      for (const [p, d] of w) { db.writes++; db.log.push('W ' + p); if (d == null) db.docs.delete(p); else db.docs.set(p, d); }
+      await tick(); for (const p of new Set(w.map(x => x[0]))) notify(p);
+      return r;
+    } };
+  const MAIN = 'users/u9/meta/collection', parts = () => [...db.docs.keys()].filter(k => k.startsWith(MAIN + '/parts/')).sort();
+  const dev = () => { const sm = X.makeSum({ fs: fake }, {}, () => ({ path: 'users/u9/decks' })), got = []; const off = sm.sub('u9', { kind: 'meta', id: 'collection', onData: (d, p, c) => got.push({ d, p, c }), onErr: e => got.push({ err: e.code }) }); return { sm, got, off, last: () => got.at(-1) }; };
+  const wait = async (f, ms = 2000) => { for (const t0 = Date.now(); !f(); ) { if (Date.now() - t0 > ms) throw new Error('délai'); await new Promise(r => setTimeout(r, 5)); } };
+  const count = () => ({ r: db.reads, w: db.writes }), since = c0 => ({ r: db.reads - c0.r, w: db.writes - c0.w });
+  db.docs.set(MAIN, { text: '1 Sol Ring', count: 1, updatedAt: 1 });
+  const A = dev(), B = dev();
+  await wait(() => A.got.length && B.got.length);
+  assert.deepEqual(A.last().d, { text: '1 Sol Ring', count: 1, updatedAt: 1 }, 'document unique : livré tel quel');
+  let c0 = count();
+  await A.sm.tx('u9', d => ({ text: '2 Sol Ring', count: 1, updatedAt: d.updatedAt + 1 }));
+  await wait(() => B.last().d.text === '2 Sol Ring');
+  assert.deepEqual(since(c0), { r: 3, w: 1 }, 'sous le plafond : 1 lecture + 1 écriture, 1 lecture par appareil qui écoute (comme avant)'); assert.deepEqual(db.docs.get(MAIN), { text: '2 Sol Ring', count: 1, updatedAt: 2 });
+  // au-delà : découpée sur A, relue sur B
+  c0 = count(); db.log.length = 0;
+  await A.sm.tx('u9', d => ({ text: big, count: 120, updatedAt: d.updatedAt + 1 }));
+  await wait(() => B.last().d.text === big);
+  assert.deepEqual(parts(), ch.map((c, i) => MAIN + '/parts/' + i).sort(), 'morceaux 0…n-1'); assert.equal(db.docs.get(MAIN).text, undefined, 'principal sans text');
+  assert.deepEqual(since(c0), { r: 1 + 2 + ch.length, w: 1 + ch.length }, 'découpage : principal + tous les morceaux écrits ; A (écho) : rien à relire, B : principal + chaque morceau (' + db.log.join(', ') + ')');
+  assert.equal(A.last().d.text, big, 'A : texte reconstitué depuis ce qu\'il vient d\'écrire'); assert.deepEqual([B.last().p, B.last().c, B.last().d.count, B.last().d.updatedAt], [false, false, 120, 3]);
+  // une carte de plus sur B : seul son morceau écrit, et relu sur A
+  const big2 = ins.join('\n'); c0 = count(); db.log.length = 0;
+  await B.sm.tx('u9', d => { assert.equal(d.text, big, 'transaction : texte reconstitué sans relire les morceaux connus'); return { text: big2, count: 121, updatedAt: d.updatedAt + 1 }; });
+  await wait(() => A.last().d.text === big2);
+  assert.deepEqual(since(c0), { r: 1 + 2 + changed, w: 1 + changed + p2.del.length }, 'une carte : principal + ' + changed + ' morceau(x) écrits ; A relit le principal et ce(s) morceau(x) seulement (' + db.log.join(', ') + ')');
+  assert.deepEqual(db.docs.get(MAIN).parts, p2.main.parts, 'même découpe que le plan calculé à part');
+  // nouvel appareil (relance) : dernier état du compte connu de l'appareil (collection.js › collBaseText) redécoupé → aucun morceau relu
+  globalThis.collBaseText = () => big2; c0 = count(); db.log.length = 0;
+  const Cv = dev(); await wait(() => Cv.got.length && Cv.last().d.text === big2);
+  assert.deepEqual(since(c0), { r: 1, w: 0 }, 'relance : le principal seul (' + db.log.join(', ') + ')');
+  globalThis.collBaseText = () => big; c0 = count();
+  const Dv = dev(); await wait(() => Dv.got.length && Dv.last().d.text === big2);
+  assert.deepEqual(since(c0), { r: 1 + changed, w: 0 }, 'base plus ancienne : seuls les morceaux changés depuis relus');
+  delete globalThis.collBaseText; Cv.off(); Dv.off();
+  // lecture directe (Réessayer, retour au premier plan) : texte entier
+  assert.equal((await B.sm.pull('u9', 'collection')).data.text, big2);
+  // repassée sous le plafond : document unique (parts: []), morceaux supprimés ; puis comme avant
+  c0 = count();
+  await A.sm.tx('u9', d => ({ text: '3 Sol Ring', count: 1, updatedAt: d.updatedAt + 1 }));
+  await wait(() => B.last().d.text === '3 Sol Ring');
+  assert.deepEqual(parts(), [], 'morceaux supprimés'); assert.deepEqual(db.docs.get(MAIN), { text: '3 Sol Ring', count: 1, updatedAt: 5, parts: [] });
+  assert.deepEqual(since(c0), { r: 3, w: 1 + p2.main.parts.length }, 'retour : principal + suppression des morceaux');
+  await B.sm.tx('u9', d => ({ text: '4 Sol Ring', count: 1, updatedAt: d.updatedAt + 1 }));
+  assert.deepEqual(db.docs.get(MAIN), { text: '4 Sol Ring', count: 1, updatedAt: 6 }, 'ensuite : exactement le document d\'avant');
+  // règles des morceaux pas publiées : écriture découpée refusée en bloc → too-big { rules }, rien d'écrit
+  db.rules = false; c0 = count();
+  await assert.rejects(A.sm.tx('u9', d => ({ text: big, count: 120, updatedAt: d.updatedAt + 1 })), e => e.code === 'too-big' && e.rules === true && e.len === big.length);
+  assert.deepEqual([since(c0).w, parts(), db.docs.get(MAIN).text], [0, [], '4 Sol Ring'], 'refusé : rien d\'écrit, document d\'avant gardé');
+  await A.sm.tx('u9', d => ({ text: '5 Sol Ring', count: 1, updatedAt: d.updatedAt + 1 })); assert.equal(db.docs.get(MAIN).text, '5 Sol Ring', 'sous le plafond : marche comme avant');
+  db.rules = true;
+  // morceau abîmé ou manquant dans le compte : jamais livré comme la collection ; écoute : copie locale (fromCache) puis nouvel essai ; transaction : erreur « parts »
+  const keep = { ...X.COLL_PART_RETRY }; X.COLL_PART_RETRY.first = 20;
+  await A.sm.tx('u9', d => ({ text: big, count: 120, updatedAt: d.updatedAt + 1 }));
+  await wait(() => B.last().d.text === big);
+  const E = dev(); db.docs.set(MAIN + '/parts/1', { text: 'abîmé', h: 'zz' });
+  await wait(() => E.got.length > 0); await new Promise(r => setTimeout(r, 30));
+  assert.ok(E.got.every(x => x.c === true && x.d.text === undefined), 'morceau abîmé : livré comme une copie locale, jamais comme le compte');
+  const r0 = db.reads; await new Promise(r => setTimeout(r, 120)); assert.ok(db.reads > r0, 'nouvel essai plus tard');
+  await assert.rejects(E.sm.pull('u9', 'collection'), e => e.code === 'parts');
+  const F2 = X.makeSum({ fs: fake }, {}, () => ({}));
+  await assert.rejects(F2.tx('u9', d => ({ ...d, updatedAt: d.updatedAt + 1 })), e => e.code === 'parts', 'transaction : erreur, rien d\'écrit');
+  E.off(); Object.assign(X.COLL_PART_RETRY, keep); const r1 = db.reads; await new Promise(r => setTimeout(r, 120)); assert.ok(db.reads - r1 <= 1, 'écoute arrêtée : plus de nouvel essai');
+  A.off(); B.off(); delete globalThis.COLL_LIM;
+  console.log('✓ collection découpée (faux Firestore, 2 appareils) : découpée au-delà du plafond, relue sur l\'autre ; une carte : seul son morceau écrit et relu ; relance : morceaux de la base, aucun relu ; retour au document unique (parts: []) puis comme avant ; règles pas publiées : too-big, rien d\'écrit ; morceau abîmé : jamais livré, erreur « parts »');
+}
+{      // vrai SDK hors ligne : principal découpé écrit ici (en attente) livré tel quel, sans relire de morceau ; lecture directe : rejet propre
+  globalThis.COLL_LIM = { one: 300, part: 200, min: 100, div: 8, n: 12, max: 5000, warn: 0.8 };
+  const fsdb = fs.getFirestore(app.getApp()), u = 'uid-split';
+  const got = []; const un3 = cloud.watchColl(u, (data, pending, fromCache) => got.push({ data, pending, fromCache }), e => got.push({ err: e.code }));
+  fs.setDoc(fs.doc(fsdb, 'users', u, 'meta', 'collection'), { count: 2, updatedAt: 9, parts: [{ h: 'a', n: 3 }] }).catch(() => {});
+  await new Promise(r => setTimeout(r, 400));
+  const l = got.at(-1); assert.ok(l && l.pending === true && l.data.parts.length === 1 && l.data.text === undefined, 'écriture en attente livrée telle quelle (collection.js l\'ignore)');
+  const race = await Promise.race([cloud.pullColl(u).then(() => 'ok', e => 'rejet'), new Promise(r => setTimeout(() => r('suspendu'), 30000))]);
+  assert.equal(race, 'rejet', 'pullColl hors ligne : rejet propre'); un3(); delete globalThis.COLL_LIM;
+  console.log('✓ vrai SDK hors ligne : principal découpé en attente livré tel quel, pullColl rejetée proprement');
 }
 console.log('\nCLOUD OK');
 process.exit(0);

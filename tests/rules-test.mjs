@@ -210,6 +210,46 @@ await T.assertFails(setDoc(doc(u1, 'users/u1/meta/collection'), coll({ count: '1
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/collection'), coll({ evil: 1 })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/collection'), coll({ updatedAt: '1' })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/collection'), drop(coll(), 'updatedAt')));
+// collection découpée (cloud.js › collPlan) : principal { count, updatedAt, parts: [{ h, n }] } sans text, morceaux meta/collection/parts/{0…11} = { text, h }
+{
+  const CP = 'users/u1/meta/collection', part = i => doc(u1, `${CP}/parts/${i}`), pdata = (extra = {}) => ({ text: '1 Sol Ring\n2 Island', h: 'abc123', ...extra });
+  const split = (n = 2, extra = {}) => ({ count: 3, updatedAt: Date.now(), parts: Array.from({ length: n }, (_, i) => ({ h: 'h' + i, n: 10 })), ...extra });
+  await T.assertSucceeds(setDoc(part(0), pdata()));
+  await T.assertSucceeds(setDoc(part(11), pdata({ text: 'x'.repeat(800000) })));
+  await T.assertFails(setDoc(part(1), pdata({ text: 'x'.repeat(800001) })));
+  await T.assertFails(setDoc(part(12), pdata()));      // 12 morceaux au plus (0…11)
+  await T.assertFails(setDoc(part('x'), pdata()));
+  await T.assertFails(setDoc(part(1), pdata({ evil: 1 })));
+  await T.assertFails(setDoc(part(1), drop(pdata(), 'h')));
+  await T.assertFails(setDoc(part(1), pdata({ text: 12 })));
+  await T.assertFails(setDoc(part(1), pdata({ h: 'x'.repeat(41) })));
+  await T.assertFails(setDoc(doc(u2, `${CP}/parts/1`), pdata()));
+  await T.assertFails(getDoc(doc(u2, `${CP}/parts/0`))); await T.assertFails(getDoc(doc(anon, `${CP}/parts/0`))); await T.assertSucceeds(getDoc(part(0)));
+  await T.assertFails(getDocs(collection(u2, `${CP}/parts`))); await T.assertFails(deleteDoc(doc(u2, `${CP}/parts/0`))); await T.assertFails(getDocs(collectionGroup(u1, 'parts')));
+  await T.assertSucceeds(deleteDoc(part(11)));
+  // principal découpé : sans text, 12 morceaux au plus ; jamais text et morceaux à la fois
+  await T.assertSucceeds(setDoc(doc(u1, CP), split()));
+  await T.assertFails(setDoc(doc(u1, CP), split(13)));
+  await T.assertFails(setDoc(doc(u1, CP), split(2, { text: '1 Sol Ring' })));
+  await T.assertFails(setDoc(doc(u1, CP), split(2, { parts: 'h0' })));
+  // version d'avant le découpage : réécrit le principal avec ses seules cartes (setDoc dans sa transaction, sans parts) → refusé, rien de perdu
+  await T.assertFails(setDoc(doc(u1, CP), coll()));
+  await T.assertFails(F.runTransaction(u1, async tx => { const s = await tx.get(doc(u1, CP)); tx.set(doc(u1, CP), { text: '1 Sol Ring', count: 1, updatedAt: (s.data().updatedAt || 0) + 1 }); }));
+  await T.assertFails(updateDoc(doc(u1, CP), { parts: deleteField(), text: '1 Sol Ring' }));
+  assert.equal((await getDoc(doc(u1, CP))).data().parts.length, 2, 'collection découpée gardée');
+  // retour au document unique : parts: [] (une fois), puis comme avant ; morceaux supprimés dans la même transaction
+  await T.assertSucceeds(F.runTransaction(u1, async tx => { await tx.get(doc(u1, CP)); tx.delete(part(0)); tx.delete(part(1)); tx.set(doc(u1, CP), coll({ parts: [] })); }));
+  await T.assertSucceeds(setDoc(doc(u1, CP), coll()));
+  await T.assertFails(setDoc(doc(u1, CP), coll({ parts: 'x' })));
+  // découpage : principal et morceaux dans une seule transaction
+  await T.assertSucceeds(F.runTransaction(u1, async tx => { await tx.get(doc(u1, CP)); tx.set(part(0), pdata()); tx.set(part(1), pdata()); tx.set(doc(u1, CP), split()); }));
+  await T.assertSucceeds(setDoc(doc(u1, CP), split(3)));      // nouvelle version découpée : parts gardé
+  await T.assertFails(setDoc(doc(u1, CP), coll()));      // découpé : sans parts, refusé
+  await T.assertSucceeds(setDoc(doc(u1, CP), coll({ parts: [] })));      // remis en document unique pour la suite
+  await T.assertFails(F.runTransaction(u1, async tx => { await tx.get(doc(u1, CP)); tx.set(part(0), pdata()); tx.set(part(1), pdata({ text: 'x'.repeat(800001) })); tx.set(doc(u1, CP), split()); }));      // un morceau refusé : rien n'est écrit
+  assert.equal(typeof (await getDoc(doc(u1, CP))).data().text, 'string', 'transaction refusée : principal inchangé');
+  ok('collection découpée : morceaux { text, h } (0…11, 800 000 caractères, propriétaire seul) ; principal sans text, parts gardé tant qu\'il est découpé (version d\'avant refusée) ; retour au document unique par parts: []');
+}
 const eng = (extra = {}) => ({ decks: { d1: { n: 'Rakdos', at: 1, q: { 'sol ring': 2 } } }, updatedAt: Date.now(), ...extra });
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/engaged'), eng()));
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/engaged'), eng({ decks: keys(80) })));
@@ -403,7 +443,7 @@ await T.assertFails(deleteDoc(doc(v2, `pubreports/${t1}_0~${t2}`)));
 ok('signalements : un par compte et par deck, à son nom, jamais relus, modifiés ni effacés par l\'appli');
 
 // Suppression du compte (cloud.js, wipe) : un seul lot efface decks, documents annexes et classeur, qu'ils existent ou non
-const wipe = (db, uid) => { const b = writeBatch(db); for (const p of ['meta/sommaire', 'decks/d1', 'decks/x', 'meta/collection', 'meta/engaged', 'meta/history', 'meta/trade', 'meta/profile', 'binder/lands']) b.delete(doc(db, `users/${uid}/${p}`)); return b.commit(); };
+const wipe = (db, uid) => { const b = writeBatch(db); for (const p of ['meta/sommaire', 'decks/d1', 'decks/x', 'meta/collection', 'meta/collection/parts/0', 'meta/collection/parts/1', 'meta/engaged', 'meta/history', 'meta/trade', 'meta/profile', 'binder/lands']) b.delete(doc(db, `users/${uid}/${p}`)); return b.commit(); };
 await T.assertFails(wipe(u2, 'u1'));
 assert.ok((await getDoc(doc(u1, 'users/u1/meta/profile'))).exists(), 'lot refusé : rien d\'effacé');
 await T.assertSucceeds(wipe(u1, 'u1'));
