@@ -36,11 +36,11 @@ const cvwCls = () => ' cvw-' + cvwView();
 
 /** Fiche de la carte (cardsheet.js) : la ligne entière l'ouvre (collection.js, toucher de la ligne) ; sans elle, la ligne se déplie sur place. */
 const cvwSheetOk = () => typeof openCardSheet === 'function';
-/** Prix affiché d'une ligne : Cardmarket (estimation), sinon l'offre CardTrader lue. */
+/** Prix affiché d'une ligne : Cardmarket (estimation), sinon l'offre CardTrader lue ; t : le texte, w : foil sans prix foil (le prix non foil, avec ⚠️). */
 function cvwPrice(it) {
-  if (Number.isFinite(it.eu)) return fmt(it.eu, mkCur()) + (it.f && collLinePx(it.k, it.g ?? it.l).w ? ' ⚠️' : '');      // foil sans prix foil : le non foil (message sur la fiche de la carte)
-  if (Number.isFinite(it.rp)) return fmt(it.rp, it.rc || 'EUR');
-  return '';
+  if (Number.isFinite(it.eu)) return { t: fmt(it.eu, mkCur()), w: !!(it.f && collLinePx(it.k, it.g ?? it.l).w) };
+  if (Number.isFinite(it.rp)) return { t: fmt(it.rp, it.rc || 'EUR'), w: false };
+  return { t: '', w: false };
 }
 /** Une ligne de la liste selon la vue (collection.js › collRowsHtml). */
 function cvwRow(it) {
@@ -48,18 +48,18 @@ function cvwRow(it) {
   if (v === 'detail') return crowHtml(it);
   if (CVW.open.has(id)) return `<div class="cvw-x">${crowHtml(it)}<button type="button" class="link-btn cvw-fold" data-act="cvwfold" aria-expanded="true">${T('Replier')}</button></div>`;
   const nm = it.dn || it.n, im0 = collLineImage(it.k, g, it.im), img = im0.src, letter = esc((nm.trim()[0] || '?').toUpperCase()), hue = hash32(it.k) % 360, px = cvwPrice(it), sub = it.li > 0;
-  const lab = esc(T(cvwSheetOk() ? 'Ouvrir la fiche de {name}' : 'Afficher le détail de {name}', { name: nm }) + ' · × ' + it.q + (px ? ' · ' + px : ''));
+  const lab = esc(T(cvwSheetOk() ? 'Ouvrir la fiche de {name}' : 'Afficher le détail de {name}', { name: nm }) + ' · × ' + it.q + (px.t ? ' · ' + px.t : '') + (px.w ? ' · ' + T('Prix foil non disponible, prix sans foil affiché') : ''));      // ⚠️ : la vignette entière est un bouton, son nom le dit
   const hit = `<button type="button" class="cvw-hit" aria-label="${lab}"${cvwSheetOk() ? ' aria-haspopup="dialog"' : ' aria-expanded="false"'}></button>`;
   const data = `data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}`;
   if (v === 'grid') {
     return `<div class="crow cvw-g${it.f ? ' foil' : ''}" ${data} style="--h:${hue}"><span class="cvw-art">${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
-      <span class="cvw-ov"><span class="row-name">${esc(nm)}</span><span class="cvw-gm">${it.q > 1 ? `<b>×${it.q}</b>` : ''}${px ? `<i>${esc(px)}</i>` : ''}</span></span>${it.l ? `<span class="cvw-fl">${flag(it.l)}</span>` : ''}${it.f ? '<span class="cvw-fo" aria-hidden="true">✦</span>' : ''}${hit}</div>`;
+      <span class="cvw-ov"><span class="row-name">${esc(nm)}</span><span class="cvw-gm">${it.q > 1 ? `<b>×${it.q}</b>` : ''}${px.t ? `<i>${esc(px.t)}${pxWarn(px.w)}</i>` : ''}</span></span>${it.l ? `<span class="cvw-fl">${flag(it.l)}</span>` : ''}${it.f ? '<span class="cvw-fo" aria-hidden="true">✦</span>' : ''}${hit}</div>`;
   }
   const p = plcOf(g), e = it.e || '';
   const meta = [it.f ? `<span class="cvw-fo">✦ ${T('Foil')}</span>` : '', e ? `<span class="cvw-ed">${esc(edSet(e).toUpperCase())}</span>` : '', p ? `<span class="cvw-plc"><i style="--c:${plcColor(p)}"></i>${esc(plcName(p))}</span>` : '', !it.l ? `<span class="cvw-nl">${T('Langue ?')}</span>` : ''].filter(Boolean).join('');
   return `<div class="crow cvw-c${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" ${data}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span>${meta ? `<span class="cvw-sub">${meta}</span>` : ''}</span>
-    <span class="cvw-r">${px ? `<b class="cvw-p">${esc(px)}</b>` : ''}<b class="cvw-q">×${it.q}</b></span>${hit}</div>`;
+    <span class="cvw-r">${px.t ? `<b class="cvw-p">${esc(px.t)}${pxWarn(px.w)}</b>` : ''}<b class="cvw-q">×${it.q}</b></span>${hit}</div>`;
 }
 /** Item d'une rangée affichée : pour la déplier ou la replier sur place. */
 function cvwItemOf(row) {

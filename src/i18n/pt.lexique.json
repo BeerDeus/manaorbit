@@ -32,6 +32,5 @@
   "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Nada a monitorar por enquanto: salve um deck em que faltem cartas, ou adicione um alerta de preço a uma carta.",
   "Pas encore de cartes": "Nenhuma carta ainda",
   "Venir de ManaBox": "Vir do ManaBox",
-  "Ta collection est dans une autre appli ?": "Sua coleção está em outro app?",
-  "Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer un fichier</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Venir de ManaBox</button>": "Exporte sua coleção em CSV no app antigo (ManaBox: aba Collection › menu no canto superior direito › <b>Export</b>) e depois <b>Coleção</b> › <b>Importar um arquivo</b> › <b>Escolher um arquivo</b>: quantidades, edições e idiomas vêm junto. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Vir do ManaBox</button>"
+  "Ta collection est dans une autre appli ?": "Sua coleção está em outro app?"
 }

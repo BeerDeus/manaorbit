@@ -363,8 +363,8 @@ function opnCollHead(el) {
 function opnCollBody(el, host) {
   if (!streamOn() || COLL.mode === 'decks' || !host) return false;
   opnMeta();      // prix et images des cartes pas encore lues (rechargement hors ligne…)
-  const px = $('.coll-px', el), fw = $('.coll-fwrap', el), ct = $('.coll-controls', el);
-  if (px) px.hidden = true; if (fw) fw.hidden = true; if (ct) ct.hidden = COLL.mode !== 'coll';      // ni prix réels, ni recherche, ni filtres : la session seule
+  const fw = $('.coll-fwrap', el), ct = $('.coll-controls', el);
+  if (fw) fw.hidden = true; if (ct) ct.hidden = COLL.mode !== 'coll';      // ni prix réels, ni recherche, ni filtres : la session seule
   const rows = OPN.cur.rows.slice().sort((a, b) => ((opnEu(b) || 0) * b.q - (opnEu(a) || 0) * a.q) || b.t - a.t);      // les plus chères d'abord
   host.innerHTML = COLL.mode === 'trade' ? `<div class="dv-empty opn-hide">${OPN_EYE}<b>${T('Échange masqué')}</b><p>${T('Mode streamer : ta liste d\'échange, ton lien et ton QR code reviennent à la fin de la session.')}</p><button class="btn ghost" type="button" data-opn="sheet">${T('Session en cours')}</button></div>`
     : COLL.tab === 'stats' ? opnStatsHtml(rows)

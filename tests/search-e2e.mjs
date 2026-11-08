@@ -157,7 +157,7 @@ if (SHOTS) { await p.evaluate(() => { document.querySelector('.coll .fbar').scro
 /* ── Recherches enregistrées ─────────────────────────────────────────────────────────────────────────────────── */
 await opt('lang', 'fr'); await settle(); assert.deepEqual(await cardKeys(), ['edgar markov']);
 await p.click('.coll [data-ssave]'); await p.waitForSelector('.sheet-wrap.open #srchName');
-assert.equal(await p.$eval('#srchName', i => i.value), 'Mythiques · FR', 'nom proposé');
+assert.equal(await p.$eval('#srchName', i => i.value), 'Mythiques · FR', 'nom proposé'); assert.equal(await top(), 'Enregistrer cette recherche');
 await p.fill('#srchName', 'Mythiques FR'); await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
 await p.waitForSelector('.coll .srch-pw.on .srch-pill');
 assert.equal(await txt(p, '.coll .srch-pw.on .srch-pill'), 'Mythiques FR'); assert.equal(await p.$('.coll [data-ssave]'), null, 'recherche appliquée : pas de second « Enregistrer »');
@@ -180,7 +180,8 @@ await p.fill('#srchName', 'Mes mythiques'); await p.press('#srchName', 'Enter');
 assert.deepEqual(await p.$$eval('.coll .srch-pill', b => b.map(x => x.textContent.trim())), ['Mes mythiques', 'FR · non rangées']);
 assert.equal(await badge(), '2', 'appui long : la recherche reste appliquée (pas de clic en plus)');
 // ⋯ : supprimer, puis Annuler
-await p.click('.coll .srch-pmore'); await p.waitForSelector('.sheet-wrap.open [data-del]'); await p.click('.sheet-wrap.open [data-del]'); await p.waitForFunction(() => !sheets.length); await settle();
+assert.equal(await p.$$eval('.coll .srch-pw .srch-pmore', b => b.filter(x => x.offsetParent).length), 2, '« … » sur chaque recherche enregistrée, appliquée ou non');
+await p.click('.coll .srch-pw.on .srch-pmore'); await p.waitForSelector('.sheet-wrap.open [data-del]'); await p.click('.sheet-wrap.open [data-del]'); await p.waitForFunction(() => !sheets.length); await settle();
 assert.deepEqual(await p.$$eval('.coll .srch-pill', b => b.map(x => x.textContent.trim())), ['FR · non rangées']);
 assert.ok(await p.$('.coll [data-ssave]'), 'supprimée : « Enregistrer » revient');
 await p.click('#toast button'); await settle();

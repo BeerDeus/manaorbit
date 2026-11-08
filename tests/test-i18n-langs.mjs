@@ -121,7 +121,7 @@ const PL_KEEP = {
   'Dé à {n} faces': 'dé de 2 faces ou plus',
   'Ce lot compte {n} exemplaires de {name} : en retirer un': 'montré seulement au-delà de 1',
   '{n} pareilles': 'groupe de 2 ou plus (diagnostic du scan)',
-  '{n} recherches enregistrées au plus : supprimes-en une d\'abord (appui long sur son nom)': 'constante (SRCH_MAX)',
+  '{n} recherches enregistrées au plus : supprimes-en une d\'abord (« … » à côté de son nom)': 'constante (SRCH_MAX)',
   'Réservée par {n} decks montés': 'montré seulement au-delà de 1 deck',
   '{n} relevés · de {min} à {max}': 'courbe montrée à partir de 2 relevés',
 };

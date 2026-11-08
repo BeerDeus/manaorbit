@@ -4,7 +4,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync } from 'node:fs';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome, slug, signInFake } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, slug, signInFake, collTool } from './e2e-world.mjs';
 
 const SHOTS = process.env.FR_SHOTS || 'shots';
 mkdirSync(SHOTS, { recursive: true });
@@ -86,7 +86,7 @@ ok('relevé du serveur : vignettes sans requête (catalogue français), au lieu 
 
 /* ── 2) import de collection en français : langue des cartes, noms à vérifier avant l'import ─────── */
 await p.click('#btnBack'); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await collTool(p, 'import'); await p.waitForSelector('#ciText');
 assert.equal(await p.$eval('#ciLang', s => s.value), 'fr', 'langue de ces cartes : celle de l\'interface');
 const LIST = ['2 Anneau solaire', '1 Retour au pays', '1 Cachet d\'ésotérisme', '1 Colère de Dieu', '1 Béhémoth caveur de cratères', '1 Tour de commandement', '1 Elfes de Llanowar', '1 Faucon du rôdeur', '1 Edgar Markov', '1 Foudre', '1 Rhystik Study', '1 Éclair fourchu'];
 await p.fill('#ciText', LIST.join('\n'));
@@ -136,14 +136,14 @@ assert.equal(await p.evaluate(() => !!COLL.map['eclair fourchu']), false); asser
 ok('Supprimer : la ligne inconnue sort de la collection (annulable)');
 
 /* ── 5) cartes sans langue → en une fois ; saisie « Anneau solaire » ──────────────────────────── */
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText'); await p.selectOption('#ciLang', ''); await p.fill('#ciText', '2 Counterspell'); await p.waitForTimeout(200); await p.click('#ciGo'); await sheetGone();
+await collTool(p, 'import'); await p.waitForSelector('#ciText'); await p.selectOption('#ciLang', ''); await p.fill('#ciText', '2 Counterspell'); await p.waitForTimeout(200); await p.click('#ciGo'); await sheetGone();
 await p.waitForSelector('.coll-nolang'); assert.match(await txt(p, '.coll-nolang'), /^1 carte sans langue → Français Anglais/);
 await p.click('.coll-nolang [data-l="en"]'); await p.waitForFunction(() => !document.querySelector('.coll-nolang'));
 assert.equal(await p.evaluate(() => COLL.map.counterspell.l), 'en'); assert.match(await txt(p, '#toast'), /1 carte passée en anglais/);
 ok('« 1 carte sans langue → Anglais » : en une fois, annulable');
 await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('#caName'); await p.fill('#caName', 'anneau sol');
 await p.waitForSelector('.ca-opt'); assert.equal(await p.$eval('.ca-opt span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Anneau solaire Sol Ring');
-await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Anneau solaire · 3 dans ta collection/);
+await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForSelector('.lot-name em.lot-done'); assert.match(await txt(p, '.lot-name'), /^Anneau solaire Sol Ring ✓ 3 dans ta collection$/);
 assert.deepEqual(await p.evaluate(() => COLL.map['sol ring'].l), 'fr', 'nom français choisi : exemplaire français');
 await p.fill('#caName', 'Retour au'); await p.waitForSelector('.ca-opt'); assert.match(await txt(p, '.ca-opt'), /Retour au pays Swords to Plowshares/);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 });

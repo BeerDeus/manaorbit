@@ -114,7 +114,7 @@ function lotTakeBack1(k, n, l, q, e) {
 /** Sans compte : explication, puis connexion. */
 function mobNeedAccount() {
   openSheet(T('Scan mobile'), '', api => {
-    api.body.innerHTML = `<p class="cf-msg">${T('Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici, dans ce lot.')}</p>`;
+    api.body.innerHTML = `<p class="cf-msg">${T('Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.')}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Plus tard')}</button><button class="btn" type="button" data-go>${T('Se connecter')}</button>`);
     api.foot.addEventListener('click', e => { if (e.target.closest('[data-go]')) { api.close(); openAccount(); } });
   });

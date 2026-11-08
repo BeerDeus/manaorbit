@@ -792,7 +792,6 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .coll-controls[hidden],.coll-fwrap[hidden]{display:none}
 .coll-top{display:flex;align-items:center;gap:10px}
 .coll-top .seg{flex:1;min-width:0}
-.coll-px{flex:none}.coll-px .i{width:21px;height:21px}      /* prix réels : pièce € (sprite i-coin) */
 .coll-fwrap{display:flex;flex-direction:column;gap:8px}
 .coll-sort{align-self:flex-start}
 .coll-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-radius:12px;font-size:12.5px;line-height:1.35;background:var(--surface-2);color:var(--ink-2)}

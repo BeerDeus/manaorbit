@@ -52,6 +52,8 @@
 .tour-pill.new .tour-pill-t{flex:1 1 0;font-size:14.5px}
 .tour-pill-a{flex:1 0 100%;display:flex;justify-content:flex-end;align-items:center;gap:6px}
 .tour-pill-a .link-btn{color:var(--ink-2)}
+.tour-pill.inline{position:relative;left:auto;bottom:auto;z-index:1;width:auto;max-width:none;transform:translateY(8px)}      /* téléphone : l'offre de la visite dans la page, sous l'orbe (tour.js › tourPillShow), sans rien cacher */
+.tour-pill.inline.on{transform:none}
 @media (prefers-reduced-motion:reduce){.tour-pill{transition:none}}
 
 /* Aide : « Visite guidée » en tête de « Comment ça marche » */

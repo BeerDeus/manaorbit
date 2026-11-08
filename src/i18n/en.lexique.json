@@ -32,6 +32,5 @@
   "Rien à surveiller pour l'instant : enregistre un deck auquel il manque des cartes, ou ajoute une alerte de prix sur une carte.": "Nothing to watch yet: save a deck that is missing cards, or add a price alert on a card.",
   "Pas encore de cartes": "No cards yet",
   "Venir de ManaBox": "Coming from ManaBox",
-  "Ta collection est dans une autre appli ?": "Is your collection in another app?",
-  "Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer un fichier</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Venir de ManaBox</button>": "Export your collection as CSV from your old app (ManaBox: Collection tab › top-right menu › <b>Export</b>), then <b>Collection</b> › <b>Import a file</b> › <b>Choose a file</b>: quantities, printings and languages come along. <button class=\"link-btn hp-swg\" type=\"button\" data-help=\"switch\">Coming from ManaBox</button>"
+  "Ta collection est dans une autre appli ?": "Is your collection in another app?"
 }

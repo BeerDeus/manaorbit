@@ -2,8 +2,9 @@
    Recherche par nom (anglais ou imprimé) → la carte en grand avec son édition (symbole, extension, numéro, prix Cardmarket de l'édition), quantité, langue → « Ajouter ».
    Extension « collante » : la dernière choisie à la main est proposée d'office aux cartes suivantes qui existent dans cette extension (sinon : édition non précisée) ;
    toujours modifiable, carte par carte. La langue choisie reste aussi d'une carte à l'autre.
-   Le lot : les cartes ajoutées depuis « Nouveau lot » (gardé sur cet appareil), avec leur édition, langue, quantité et prix ; chacune se modifie ou se retire
-   (la collection suit). « Nouveau lot » vide la liste, les cartes restent dans la collection.
+   « Dernières ajoutées » (le lot, gardé sur cet appareil) : les cartes ajoutées depuis « Vider la liste », avec leur édition, langue, quantité et prix ; chacune se modifie
+   ou se retire (la collection suit). « Vider la liste » vide la liste, les cartes restent dans la collection.
+   Après un ajout, un seul retour : « ✓ N dans ta collection » sous le nom de la carte (le bandeau ne sert plus qu'au catalogue, à la session d'ouverture et à une ligne modifiée).
    Scanner : le scan s'ouvre au-dessus ; ses cartes rejoignent le lot (langue lue, extension collante si la carte y existe). */
 const LOT_KEY = 'deckdeal:lot:v1', LOT_MAX = 400;
 const LOT = { el: null, list: [], set: '', lang: '', cur: null, edit: '', cat: null, seq: 0 };
@@ -86,7 +87,7 @@ function lotPaintCard() {
   imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" ${imgLA(c.n, lotImg(c), lotImgL(c))}></button>
       ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, mkCur()))}</b></span>` : ''}</div>
     <div class="lot-f">
-      <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
+      <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em${c.done ? ' class="lot-done"' : ''}>${c.done ? '✓ ' : ''}${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
       <button type="button" class="lot-ed${c.pick ? ' on' : ''}${c.auto ? ' auto' : ''}" data-act="ed"${c.prints && !c.prints.length ? ' disabled' : ''} aria-haspopup="dialog">${edBtn}<svg class="i lot-caret" aria-hidden="true"><use href="#i-chev"/></svg></button>
       ${c.err ? `<p class="hint lot-err">${esc(c.err)} <button class="link-btn" type="button" data-act="retry">${T('Réessayer')}</button></p>` : ''}
       <div class="lot-row"><span>${T('Quantité')}</span><span class="qstep"><button type="button" data-act="qm" aria-label="${T('Un de moins')}"${c.q <= 1 ? ' disabled' : ''}>−</button><b>${c.q}</b><button type="button" data-act="qp" aria-label="${T('Un de plus')}">+</button></span></div>
@@ -115,7 +116,7 @@ function lotEdSheet() {
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.lot-ev'); if (!b) return;
       const i = Number(b.dataset.i), p = i >= 0 ? c.prints[i] : null; haptic('tap');
-      c.pick = p; c.e = p ? edKey(p.set, p.num) : ''; c.auto = false;
+      c.pick = p; c.e = p ? edKey(p.set, p.num) : ''; c.auto = false; c.done = false;
       const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? cardLang(p.l) : '';
       if (pl && (typeof CARD_LANG_LIST === 'undefined' || CARD_LANG_LIST.includes(pl))) c.l = pl;      // impression d'une seule langue (NEO 295 : japonais) : cette carte passe dans cette langue (les suivantes gardent la leur)
       if (p) LOT.set = p.set;      // choisie à la main : l'extension devient collante pour les cartes suivantes
@@ -138,8 +139,8 @@ function lotAdd() {
   const x = { id: was ? was.id : 'l' + Date.now().toString(36) + (++LOT.seq), k: c.k, n: c.n, p: c.p, g, q: c.q, t: was ? was.t : Date.now(), im: c.pick ? c.pick.th : '', eu: lotEu(c) };
   if (was) LOT.list = LOT.list.map(y => (y.id === was.id ? x : y)); else LOT.list.unshift(x);
   LOT.edit = ''; lotSave();
-  lotSay(T('{name} · {q} dans ta collection', { name: c.p || frName(c.k, l) || c.n, q: collQty(c.k) }), true);
-  if (was) { LOT.cur = null; lotPaintCard(); } else lotPaintCard();
+  if (was) { lotSay(T('{name} · {q} dans ta collection', { name: c.p || frName(c.k, l) || c.n, q: collQty(c.k) }), true); LOT.cur = null; lotPaintCard(); }      // ligne modifiée : le panneau se ferme, le bandeau le dit
+  else { c.done = true; lotSay(''); lotPaintCard(); }      // ajout : « ✓ N dans ta collection » sous le nom, seul retour (avant : bandeau + ce texte + la ligne de la liste, audit du 6 novembre)
   lotPaintList(); lotPaintHead();
   const inp = $('#caName', LOT.el); if (inp && !was) { inp.select(); }
 }
@@ -165,7 +166,7 @@ function lotTotals() { let n = 0, v = 0; for (const x of LOT.list) { n += x.q; c
 function lotPaintHead() {
   const el = LOT.el; if (!el) return;
   const t = lotTotals();
-  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte dans ce lot', '{n} cartes dans ce lot') + (t.v ? ' · ' + fmt(t.v, mkCur()) : '') : cnT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
+  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte ajoutée', '{n} cartes ajoutées') + (t.v ? ' · ' + fmt(t.v, mkCur()) : '') : cnT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
   const sticky = $('.lot-sticky', el);
   sticky.hidden = !LOT.set; if (LOT.set) sticky.innerHTML = `<span class="ls-l">${T('Extension proposée')}</span><span class="ls-v">${setIcHtml(LOT.set)}<b>${esc(setName(LOT.set) || LOT.set.toUpperCase())}</b></span><button type="button" class="link-btn" data-act="unstick" aria-label="${T('Ne plus proposer cette extension')}">${T('Retirer')}</button>`;
 }
@@ -235,7 +236,7 @@ function openLot() {
       <div class="mob-pc" hidden></div>
       <div class="lot-sticky" hidden></div>
       <section class="lot-card" hidden aria-live="polite"></section>
-      <div class="lot-lh" hidden><h3 class="cs-h">${T('Ce lot')}</h3><button class="link-btn" type="button" data-act="new">${T('Nouveau lot')}</button></div>
+      <div class="lot-lh" hidden><h3 class="cs-h">${T('Dernières ajoutées')}</h3><button class="link-btn" type="button" data-act="new">${T('Vider la liste')}</button></div>
       <div class="lot-list"></div>
     </div></div>`;
   LOT.el = wrap; const prevFocus = document.activeElement;
@@ -265,7 +266,7 @@ function openLot() {
   });
   wrap.addEventListener('change', e => {
     const s = e.target.closest('.lot-lang'); if (!s || !LOT.cur) return;
-    const c = LOT.cur; c.l = s.value; LOT.lang = s.value; lotSave(); s.blur(); lotPrints(c, !c.e);      // langue : retenue pour les cartes suivantes ; impressions relues dans cette langue
+    const c = LOT.cur; c.l = s.value; c.done = false; LOT.lang = s.value; lotSave(); s.blur(); lotPrints(c, !c.e);      // langue : retenue pour les cartes suivantes ; impressions relues dans cette langue
   });
   wrap.addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) { const th = e.target.closest('.lot-it .thumb'); if (th) lotZoom(th.closest('.lot-it')); return; }
@@ -274,9 +275,9 @@ function openLot() {
     else if (act === 'scan') { haptic('tap'); openScan({ lot: true }); }
     else if (act === 'ed') lotEdSheet();
     else if (act === 'retry' && c) lotPrints(c, !c.e);
-    else if (act === 'qm' && c && c.q > 1) { c.q--; haptic('tap'); lotPaintCard(); }
-    else if (act === 'qp' && c && c.q < 99) { c.q++; haptic('tap'); lotPaintCard(); }
-    else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
+    else if (act === 'qm' && c && c.q > 1) { c.q--; c.done = false; haptic('tap'); lotPaintCard(); }      // done : le « ✓ » de l'ajout tombe dès qu'on prépare le suivant
+    else if (act === 'qp' && c && c.q < 99) { c.q++; c.done = false; haptic('tap'); lotPaintCard(); }
+    else if (act === 'foil' && c) { c.f = !c.f; c.done = false; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
     else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? cardLang(c.pick.l) || c.pick.l : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
@@ -286,7 +287,7 @@ function openLot() {
     else if (act === 'new') {
       const before = LOT.list; if (!before.length) return;
       LOT.list = []; LOT.edit = ''; lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: tUndo(), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
+      toast(T('Liste vidée : les cartes restent dans ta collection'), { label: tUndo(), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
     } else if (act === 'edit' || act === 'drop') {
       const row = b.closest('.lot-it'), x = row && LOT.list.find(y => y.id === row.dataset.id); if (!x) return;
       if (act === 'drop') return lotDrop(x.id);

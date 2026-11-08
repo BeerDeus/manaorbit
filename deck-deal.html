@@ -819,7 +819,6 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .coll-controls[hidden],.coll-fwrap[hidden]{display:none}
 .coll-top{display:flex;align-items:center;gap:10px}
 .coll-top .seg{flex:1;min-width:0}
-.coll-px{flex:none}.coll-px .i{width:21px;height:21px}      /* prix réels : pièce € (sprite i-coin) */
 .coll-fwrap{display:flex;flex-direction:column;gap:8px}
 .coll-sort{align-self:flex-start}
 .coll-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-radius:12px;font-size:12.5px;line-height:1.35;background:var(--surface-2);color:var(--ink-2)}
@@ -5528,7 +5527,7 @@ button.opn-pick>.row-px{grid-column:3;grid-row:1/span 2;align-self:center}
 /* ── Mode streamer : rien de la vraie collection ni du compte à l'écran (le contenu, lui, est remplacé par opening.js) ── */
 html.streamer #hmTrade{display:none}                                                          /* lien d'échange, QR code, listes d'amis */
 html.streamer .dv.coll .coll-sync,html.streamer .dv.coll .coll-status,html.streamer .dv.coll .coll-alert{display:none!important}      /* synchro, lecture (« 120 / 3 000 »), prix qui ont bougé */
-html.streamer .dv.coll [data-act="import"],html.streamer .dv.coll [data-act="export"],html.streamer .dv.coll .coll-dot{display:none}
+html.streamer .dv.coll [data-act="import"],html.streamer .dv.coll [data-act="menu"],html.streamer .dv.coll .coll-dot{display:none}      /* « … » de la collection : importer, exporter, prix réels (collection.js › openCollMenu) */
 html.streamer .rc-facts>div:nth-child(-n+2){display:none}                                     /* récap du scan : « Nouvelles / Déjà possédées » */
 html.streamer .sc-item.pr .tag.good,html.streamer .lot-name em{display:none}                 /* « possédée », « 3 dans ta collection » */
 html.streamer .ca-opt i{visibility:hidden}                                                    /* exemplaires possédés dans les suggestions */
@@ -6386,7 +6385,8 @@ html.opn-on .lot .lot-lh,html.opn-on .lot .lot-list{display:none}               
 /* pastille du réglage des éditions (en bas de l'image) */
 .sc-edm{flex:1;min-width:0;min-height:36px;display:flex;align-items:center;justify-content:center;gap:4px;padding:2px 12px;border-radius:18px;line-height:1.1;border:1px solid rgba(255,255,255,.16);background:rgba(10,14,30,.66);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#dfe4f5;font:inherit;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-edm .i{width:14px;height:14px;transform:rotate(90deg)}
-.sc-edm-t{min-width:0;overflow:hidden;white-space:normal;text-align:center;text-wrap:balance;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}      /* « Éditions : comme la 1re » sur deux lignes plutôt que « Éditions : com… » */
+.sc-edm .sc-edm-i{flex:none;width:15px;height:15px;transform:none;opacity:.85}      /* (i) : touchée, la pastille ouvre les choix expliqués */
+.sc-edm-t{min-width:0;overflow:hidden;white-space:normal;text-align:center;text-wrap:balance;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}      /* « Éditions : même extension » sur deux lignes plutôt que coupé */
 .sc-edm .ms-gear{display:none}
 .sc-edm.ico{flex:none;width:36px;padding:0}      /* à côté de « Ranger dans » : la roue seule (le texte se coupait en « comme ») */
 .sc-edm.ico .sc-edm-t,.sc-edm.ico>.i:not(.ms-gear){display:none}
@@ -6595,12 +6595,13 @@ html.opn-on .lot .lot-lh,html.opn-on .lot .lot-list{display:none}               
 .srch-saved::-webkit-scrollbar{display:none}
 .srch-pw{flex:none;display:inline-flex;align-items:stretch;border-radius:99px;border:1px solid var(--line);background:var(--surface);transition:background .2s,border-color .2s}
 .srch-pw.on{background:var(--accent);border-color:var(--accent)}
-.srch-pill{display:inline-flex;align-items:center;gap:6px;height:38px;max-width:240px;padding:0 14px 0 12px;border:0;background:none;border-radius:99px;font-size:13px;font-weight:650;color:var(--ink-2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.srch-pill{display:inline-flex;align-items:center;gap:6px;height:38px;max-width:240px;padding:0 2px 0 12px;border:0;background:none;border-radius:99px;font-size:13px;font-weight:650;color:var(--ink-2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .srch-pill span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .srch-pill .i{width:15px;height:15px;flex:none;color:var(--accent)}
 .srch-pw.on .srch-pill{color:var(--accent-ink);padding-right:4px}
 .srch-pw.on .srch-pill .i{color:inherit}
-.srch-pmore{display:grid;place-items:center;width:38px;height:38px;border:0;background:none;border-radius:99px;color:var(--accent-ink)}
+.srch-pmore{display:grid;place-items:center;width:36px;height:38px;border:0;background:none;border-radius:99px;color:var(--ink-3)}      /* « … » de chaque recherche enregistrée : renommer, supprimer */
+.srch-pw.on .srch-pmore{color:var(--accent-ink)}
 .srch-pmore .i{width:18px;height:18px}
 .srch-pill:focus-visible,.srch-pmore:focus-visible,.srch-chip:focus-visible,.srch-save:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .srch-act{display:flex;flex-wrap:wrap;gap:6px}
@@ -7006,6 +7007,8 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 .tour-pill.new .tour-pill-t{flex:1 1 0;font-size:14.5px}
 .tour-pill-a{flex:1 0 100%;display:flex;justify-content:flex-end;align-items:center;gap:6px}
 .tour-pill-a .link-btn{color:var(--ink-2)}
+.tour-pill.inline{position:relative;left:auto;bottom:auto;z-index:1;width:auto;max-width:none;transform:translateY(8px)}      /* téléphone : l'offre de la visite dans la page, sous l'orbe (tour.js › tourPillShow), sans rien cacher */
+.tour-pill.inline.on{transform:none}
 @media (prefers-reduced-motion:reduce){.tour-pill{transition:none}}
 
 /* Aide : « Visite guidée » en tête de « Comment ça marche » */
@@ -7342,6 +7345,41 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 }
 @media (min-width:700px){.trc-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}}
 @media (prefers-reduced-motion:reduce){.trc-card.new .trc-art,.trc-tick,.trc-ln.pop,.trc-net .dot{animation:none}.trc-mark,.trc-art,.trc-ln{transition:none}}
+
+/* ── uicol.css : pistes d'interface de l'audit du 6 novembre (collection, scan, Ajouter des cartes, recherches enregistrées, premier lancement) ── */
+
+/* « … » de « Ma collection » (collection.js › openCollMenu) : une action par ligne, son nom et ce qu'elle fait */
+.cm-opts{display:flex;flex-direction:column;gap:8px}
+.cm-opt{display:flex;align-items:center;gap:14px;min-height:60px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cm-opt>.i{flex:none;width:24px;height:24px;color:var(--accent)}
+.cm-opt span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cm-opt b{font-size:15px;font-weight:650}
+.cm-opt small{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
+.cm-opt:active{background:var(--surface-2)}
+.cm-opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Scan (scan.js) : modes « Collection | Prix rapide » à la largeur de leurs mots ; sans appareil photo, « Taper un nom » à la place du cercle */
+.sc-seg{width:auto;flex:none;grid-template-columns:auto auto}
+.sc-seg button{padding:0 10px;white-space:nowrap}
+.sc-type{display:none;align-items:center;gap:8px;min-height:48px;padding:0 18px;border-radius:24px;white-space:nowrap}
+.sc-type .i{width:18px;height:18px}
+.sc-stage[data-cam="no"]~.sc-bar .sc-shot{display:none}
+.sc-stage[data-cam="no"]~.sc-bar .sc-type{display:inline-flex}
+.sc-edm{gap:6px;padding:2px 10px}
+.sc-edm .sc-edm-t{display:flex;flex-direction:column;align-items:flex-start;text-align:left;-webkit-line-clamp:unset}      /* « Éditions » en petit, le choix dessous (« Même extension ») */
+.sc-edm .sc-edm-t small{font-size:10.5px;font-weight:600;opacity:.75}
+.sc-edm .sc-edm-t b{font-size:12.5px;white-space:normal;line-height:1.1}
+
+/* « Ajouter des cartes » (lot.js) : l'appareil photo calé à droite (il suivait la largeur du titre) ; « ✓ N dans ta collection » après un ajout */
+.lot .dv-head>[data-act="scan"]{margin-left:auto}
+.lot-name em.lot-done{font-weight:700;transform-origin:0 50%;animation:lotDone .5s var(--spring,ease-out)}
+@keyframes lotDone{0%{transform:scale(.85);opacity:.3}60%{transform:scale(1.06)}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.lot-name em.lot-done{animation:none}}
+
+/* ⚠️ des vues compacte et grille (densite.js › cvwRow) : par-dessus le bouton de la vignette, touché il dit son message (collection.js › pxWarn) */
+.cvw-c .px-warn,.cvw-g .px-warn{position:relative;z-index:2;pointer-events:auto}
+.cvw-c .px-warn::before,.cvw-g .px-warn::before{content:"";position:absolute;inset:-9px -7px}
+.cvw-g .cvw-gm i:has(.px-warn){position:relative;z-index:2}      /* son opacité en fait un contexte d'empilement : sans ça, ⚠️ restait sous le bouton */
 
 /* ── Viewer d'un deck : deux actions principales, une rangée légère, le reste dans « Plus » (viewer.js › dvActsHtml, dvMenu) ── */
 .dvw>.dv-head .dv-title{flex:1 1 auto}      /* titre sur toute la largeur : le partage reste au bord droit, même après un nom court */
@@ -8133,8 +8171,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'e04e1595';
-const I18N_FILES = {"de":"i18n/de.27648dee.js","en":"i18n/en.f31306f7.js","es":"i18n/es.7aab7c1a.js","it":"i18n/it.81278b50.js","pt":"i18n/pt.5c29fa5d.js"};
+const DD_BUILD = 'f9810068';
+const I18N_FILES = {"de":"i18n/de.fc158436.js","en":"i18n/en.814fdba0.js","es":"i18n/es.48c1972d.js","it":"i18n/it.cf5436cb.js","pt":"i18n/pt.78502452.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -21609,7 +21647,7 @@ function collPaintBody(keep) {
   const v = collAll(), all = v.all, none = !all.length;
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
-  $('.coll-px', el).hidden = none || mkUs(); $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
+  $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
   $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); if (typeof cvwPaint === 'function') cvwPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // cvwPaint : tri, vue, réglages de l'échange (densite.js)
   if (!keep && typeof cvwHead === 'function') cvwHead();      // carte de valeur : onglet Stats seulement      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
@@ -21650,6 +21688,24 @@ function collMore() {
   const left = sorted.length - COLL.shown;
   if (left > 0) btn.textContent = moreLabel(left, COLL_PAGE); else btn.remove();
 }
+/** « … » de « Ma collection » (audit du 6 novembre, U5) : les actions rares, chacune avec son nom et ce qu'elle fait (les icônes seules ↓ ↑ € se lisaient mal) ;
+ *  « + » (Ajouter des cartes) reste dans l'en-tête. Sans carte : Importer et ManaBox seulement ; prix réels : pas sur le marché TCGplayer (mkUs). */
+function openCollMenu() {
+  const n = collCount(), row = (k, ic, t, sub) => `<button type="button" class="cm-opt" data-cm="${k}"><svg class="i" aria-hidden="true"><use href="#${ic}"/></svg><span><b>${t}</b><small>${sub}</small></span></button>`;
+  haptic('tap');
+  openSheet(T('Ma collection'), n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(collCopies(), '{n} exemplaire', '{n} exemplaires') : '', api => {
+    api.wrap.classList.add('cm-sheet');
+    api.body.innerHTML = `<div class="cm-opts">${row('import', 'i-download', T('Importer un fichier'), T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».'))}
+      ${n ? row('export', 'i-upload', T('Exporter ma collection'), T('Un fichier CSV ou texte : à garder, ou à ouvrir dans une autre appli.')) : ''}
+      ${n && !mkUs() ? row('prices', 'i-coin', T('Prix réels CardTrader'), T('L\'offre la moins chère de chaque carte, à la place de l\'estimation Cardmarket.')) : ''}
+      ${row('swg', 'i-swap', T('Venir de ManaBox'), T('Le guide en 2 minutes : exporter, puis importer ici.'))}</div>`;
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('[data-cm]'); if (!b) return;
+      const k = b.dataset.cm; api.close();
+      if (k === 'import') openCollImport(); else if (k === 'export') collExport(); else if (k === 'prices') openCollPrices(); else if (k === 'swg') swgOpen({ from: 'coll' });
+    });
+  });
+}
 function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */
 /** Trois sections sur le même écran (barre du bas, nav.js) : « Ma collection » (Cartes · Stats), « Échange » (liste d'échange seule)
@@ -21666,8 +21722,7 @@ function openCollection(tab) {
   const md = COLL.mode, title = md === 'trade' ? T('Échange') : md === 'decks' ? T('Decks') : T('Ma collection');
   const wrap = document.createElement('div'); wrap.className = `dv coll sec m-${md}${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', title);
   const tools = md === 'coll' ? `<button class="icon-btn" type="button" data-act="add" aria-label="${T('Ajouter des cartes')}" title="${T('Ajouter des cartes')}"><svg class="i"><use href="#i-plus"/></svg></button>
-        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier')}" title="${T('Importer un fichier')}"><svg class="i"><use href="#i-download"/></svg></button>
-        <button class="icon-btn" type="button" data-act="export" aria-label="${T('Exporter ma collection')}" title="${T('Exporter')}"><svg class="i"><use href="#i-upload"/></svg></button>`
+        <button class="icon-btn" type="button" data-act="menu" aria-haspopup="dialog" aria-label="${T('Importer, exporter…')}" title="${T('Importer, exporter…')}"><svg class="i"><use href="#i-more"/></svg></button>`
     : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="dv-title"><b>${title}</b>${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}<span></span></div>
@@ -21677,7 +21732,7 @@ function openCollection(tab) {
       <div class="coll-sync" hidden></div>
       <div class="coll-status" hidden></div>
       <div class="coll-alert" hidden></div>
-      <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div><button class="icon-btn coll-px" type="button" data-act="prices" aria-label="${T('Lire les prix réels des cartes (CardTrader)')}" title="${T('Prix réels')}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg></button></div>
+      <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div></div>
         <div class="coll-fwrap"><div id="collF"></div><div class="coll-srow"><label class="sortsel coll-sort"><span>${T('Trier')}</span><select id="collSort" aria-label="${T('Trier la collection')}">${SORT_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>${md === 'coll' && typeof msBarHtml === 'function' ? msBarHtml() : ''}</div><div class="coll-when" id="collWhen" hidden></div></div></div>
       <div class="coll-main"></div></div></div>`;
   COLL.el = wrap; const prevFocus = document.activeElement;
@@ -21728,6 +21783,7 @@ function openCollection(tab) {
       const act = b.dataset.act;
       if (act === 'close') wrap.__close();
       else if (act === 'add') openLot();
+      else if (act === 'menu') openCollMenu();
       else if (act === 'ed') { const r = b.closest('.crow'); if (r && r.dataset.k) collEdPick(r.dataset.k, rowG(r)); }
       else if (act === 'scan') openScan();
       else if (act === 'dnew') openDeckNew();
@@ -22914,9 +22970,9 @@ function srchBarPaint(box, f, api) {
   if (box.dataset.k === key) return; box.dataset.k = key;
   const saved = list.length ? `<div class="srch-saved" role="group" aria-label="${esc(T('Recherches enregistrées'))}">${list.map(s => {
     const p = s === on;
-    return `<span class="srch-pw${p ? ' on' : ''}"><button type="button" class="srch-pill" data-sid="${esc(s.id)}" aria-pressed="${p}" title="${esc(p ? T('Retirer cette recherche') : T('Appliquer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span>${esc(s.n)}</span></button>${p ? `<button type="button" class="srch-pmore" data-smore="${esc(s.id)}" aria-label="${esc(T('Renommer ou supprimer « {name} »', { name: s.n }))}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg></button>` : ''}</span>`;
+    return `<span class="srch-pw${p ? ' on' : ''}"><button type="button" class="srch-pill" data-sid="${esc(s.id)}" aria-pressed="${p}" title="${esc(p ? T('Retirer cette recherche') : T('Appliquer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg><span>${esc(s.n)}</span></button><button type="button" class="srch-pmore" data-smore="${esc(s.id)}" aria-label="${esc(T('Renommer ou supprimer « {name} »', { name: s.n }))}"><svg class="i" aria-hidden="true"><use href="#i-more"/></svg></button></span>`;
   }).join('')}</div>` : '';
-  const row = chips.length || (act && !on) ? `<div class="srch-act" role="group" aria-label="${esc(T('Filtres actifs'))}">${chips.map((c, i) => `<button type="button" class="srch-chip" data-ci="${i}" aria-label="${esc(T('Retirer le filtre : {name}', { name: c.t }))}">${c.h}<svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}${act && !on ? `<button type="button" class="srch-save" data-ssave aria-label="${esc(T('Enregistrer cette recherche'))}"><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>${esc(T('Enregistrer'))}</button>` : ''}</div>` : '';
+  const row = chips.length || (act && !on) ? `<div class="srch-act" role="group" aria-label="${esc(T('Filtres actifs'))}">${chips.map((c, i) => `<button type="button" class="srch-chip" data-ci="${i}" aria-label="${esc(T('Retirer le filtre : {name}', { name: c.t }))}">${c.h}<svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('')}${act && !on ? `<button type="button" class="srch-save" data-ssave><svg class="i" aria-hidden="true"><use href="#i-bookmark"/></svg>${esc(T('Enregistrer cette recherche'))}</button>` : ''}</div>` : '';
   box.__chips = chips;
   box.innerHTML = saved + row; box.hidden = !(saved || row);
 }
@@ -22967,7 +23023,7 @@ function srchNameSheet(title, sub, name, onOk, onDel) {
 }
 function srchSaveSheet(f, fire) {
   const list = srchRead();
-  if (list.length >= SRCH_MAX) { toast(T('{n} recherches enregistrées au plus : supprimes-en une d\'abord (appui long sur son nom)', { n: SRCH_MAX })); return; }
+  if (list.length >= SRCH_MAX) { toast(T('{n} recherches enregistrées au plus : supprimes-en une d\'abord (« … » à côté de son nom)', { n: SRCH_MAX })); return; }
   const o = srchSer(f);
   srchNameSheet(T('Enregistrer cette recherche'), srchChips(f, true).map(c => c.t).join(' · '), srchAutoName(f), n => {
     let id = ''; do id = Math.random().toString(36).slice(2, 10); while (srchRead().some(x => x.id === id));
@@ -25806,10 +25862,10 @@ function scanPaintList() {
     const f = r && (keep.a ? $(`[data-a="${keep.a}"]`, r) : keep.cls ? $('.' + CSS.escape(keep.cls), r) : null); if (f) f.focus({ preventScroll: true });
   }
   const go = $('.sc-head [data-act="done"]', el);
-  go.disabled = !t.n; go.textContent = SC.deck ? T('Au deck') : T('Ajouter');      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
+  go.disabled = !t.n; go.textContent = SC.deck ? T('Au deck') : t.n ? TN(t.n, 'Ajouter {n} carte', 'Ajouter {n} cartes') : T('Ajouter');      // le nombre : « Ajouter » seul se confondait avec le mode (audit du 6 novembre)      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
   const td = scanEdTodo(), nTodo = td.n - td.load;
   let val = 0; for (const x of SC.items.values()) { if (x.maybe) continue; const fq = Math.min(x.fq || 0, x.q); val += scanEu(x.key, x.pk, false) * (x.q - fq) + scanEu(x.key, x.pk, true) * fq; }      // foil : au prix foil
-  head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, mkCur()) : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : scanFull() ? T('Carte entière dans le cadre') : T('Nom de la carte dans la bande'));
+  head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, mkCur()) : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : scanFull() ? T('Place la carte entière dans le cadre') : T('Place le nom dans la bande'));
   if (SC.remote) { go.disabled = false; go.textContent = T('Terminer'); mobSync(); scanPaintRemote(); }      // scan mobile : chaque carte (et chaque correction) part vers le PC
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
   if (SC.recap) SC.recap();
@@ -25822,11 +25878,12 @@ function scanPaintList() {
 const scanDeckPlace = () => (SC.deck && typeof BD !== 'undefined' && BD.el ? T('Deck : {name}', { name: BD.name.trim() || T('Deck') }) : '');
 function scanPaintTools() {
   const el = SC.el; if (!el) return;
-  const b = $('.sc-edm', el); if (b) { b.innerHTML = `<span class="sc-edm-t">${esc(scsEdLabel())}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg>${typeof MS_GEAR === 'string' ? MS_GEAR : ''}`; b.setAttribute('aria-label', T('Réglages du scan') + ' · ' + scsEdLabel()); b.title = scsEdLabel(); }      // roue (masterset.js) : pastille réduite à côté de « Ranger dans »
+  const b = $('.sc-edm', el); if (b) { b.innerHTML = `<svg class="i sc-edm-i" aria-hidden="true"><use href="#i-info"/></svg><span class="sc-edm-t"><small>${T('Éditions')}</small><b>${esc(scsEdVal())}</b></span>${typeof MS_GEAR === 'string' ? MS_GEAR : ''}`; b.title = scsEdLabel(); }      // (i) : touchée, la liste des choix, chacun expliqué (scanset.js › scsChoose)      // roue (masterset.js) : pastille réduite à côté de « Ranger dans »
   const d = $('.sc-dest', el), dk = scanDeckPlace();
   if (d && dk) { d.hidden = false; d.innerHTML = `<i style="--c:#c79bff"></i><span>${esc(dk)}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + dk); }      // mode deck : l'emplacement du deck, pas celui du scan
   else if (d) { d.hidden = !scdSet(); d.innerHTML = `<i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span>${esc(scdLabel())}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + scdLabel()); }      // pastille « Ranger dans » : seulement si le scan range ailleurs
-  if (b && d) b.classList.toggle('ico', !d.hidden);      // « Ranger dans » affiché : plus la place pour « Éditions : comme la 1re » (coupé en « comme ») → la roue des réglages seule
+  if (b && d) b.classList.toggle('ico', !d.hidden);
+  if (b) b.setAttribute('aria-label', (b.classList.contains('ico') ? T('Réglages du scan') : T('Éditions des cartes scannées')) + ' · ' + scsEdLabel());      // « Ranger dans » affiché : plus la place pour « Éditions : même extension » → la roue des réglages seule
   auSync();      // scan automatique : interrupteur, cercle, lecture en continu (scanauto.js)
   sssSoon();      // « Ranger dans » gardé avec la session (scansess.js)
 }
@@ -25908,7 +25965,7 @@ function scanRecap() {
 function scanKeep(rows, name) {
   const n = rows.reduce((a, x) => a + x.q, 0); if (!n) return;
   if (typeof opnTake === 'function' && opnTake(rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e, !!x.f), p: x.e ? x.p : null, eu: x.eu, im: x.im })), { toast: true })) return;      // session d'ouverture : les cartes vont dans la session, ajoutées à la collection à la fin
-  if (SC.lot && LOT.el) { lotFromScan(rows).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n }))); return; }
+  if (SC.lot && LOT.el) { lotFromScan(rows).then(() => toast(TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection', { n }))); return; }
   for (const x of rows) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
   const add = rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: x.dp ? lineKey(x.l, x.e, !!x.f, { p: x.dp }) : scdLine(x.l, x.e, x.f) })), before = COLL.map, px0 = COLL.prox;      // mises à part (alerte de prix) : dans leur emplacement
   const apart = rows.filter(x => x.dp), nAp = apart.reduce((a, x) => a + x.q, 0), where = (scdPlace() ? ' · ' + plcName(scdPlace()) : '') + (nAp ? ' · ' + T('{n} dans « {place} »', { n: nAp, place: plcName(apart[0].dp) }) : '');
@@ -26503,7 +26560,7 @@ function artAttach(m, src) {
   const sig = artSig(src), sym = typeof symSig === 'function' ? symSig(src) : null; return sig ? { ...m, sig, ...(sym ? { sym } : {}) } : m;
 }
 /** Consigne sous la caméra, selon le cadrage. */
-const camHint = () => (scanFull() ? T('Carte entière dans le cadre, à 15 cm environ') : CAM_HINT);      // un peu loin : la mise au point tient (trop près, sous la distance minimale de l'objectif, elle cherche)
+const camHint = () => (scanFull() ? T('Place la carte entière dans le cadre, à 15 cm environ') : CAM_HINT);      // un peu loin : la mise au point tient (trop près, sous la distance minimale de l'objectif, elle cherche)
 const auHint = () => (scanFull() ? T('Dans le cadre, à 15 cm environ : elle s\'ajoute seule') : T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'));
 /** Cadrage changé (réglages) ou écran ouvert : cadre de l'écran, légendes ; caméra native replacée sur la nouvelle zone. */
 async function scanFrameApply() {
@@ -26704,7 +26761,7 @@ async function scanWarm() {
   } catch (e) { /* hors ligne ou CDN bloqué : le premier appui retentera et dira pourquoi */ }
   finally { SC.warm = false; SC.workEnd = performance.now(); if (SC.el && SC.session === s) { othWarm(); fvWarm(); } }      // autres langues : téléchargées après le moteur OCR (la 1re lecture d'abord)
 }
-const CAM_HINT = T('Nom de la carte dans la bande, puis appuie sur le cercle');
+const CAM_HINT = T('Place le nom dans la bande, puis touche le cercle');
 /* — Appli Android (Capacitor) : appareil photo natif, comme les applis photo (aperçu Camera1 du plugin camera-preview placé derrière la page, sous la bande du guide),
    et lecture du texte par ML Kit sur le téléphone. Dans un navigateur ou la PWA : getUserMedia + Tesseract, inchangés. — */
 const NAT = { on: false };
@@ -26815,7 +26872,15 @@ function scanPhotos(files, cam) {
   list.forEach((f, i) => scanEnqueue({ label: cam ? T('Carte {n}', { n: ++SC.cap }) : T('Photo {n}', { n: i + 1 }) + (f.name && f.name.length <= 24 ? ' · ' + f.name : ''), file: f }));
 }
 
-function closeScan() { if (SC.el) SC.el.__close('keep'); }      // scan rouvert par-dessus lui-même : sans question, la session reste gardée
+function closeScan() { if (SC.el) SC.el.__close('keep'); }
+/** Sans appareil photo (le cercle est caché) : « Taper un nom ». Scan ordinaire et vide : « Ajouter des cartes » (lot.js) ; ouvert depuis cet écran : on y revient ;
+ *  sinon (deck, scan mobile, prix rapide, cartes déjà dans le scan) : la carte tapée rejoint le scan, comme une carte lue (scanTyped). */
+function scanTypeName() {
+  const el = SC.el; if (!el) return; haptic('tap');
+  if (SC.lot && LOT.el) { el.__close('keep'); setTimeout(() => { const i = LOT.el && $('#caName', LOT.el); if (i) i.focus(); }, 300); return; }
+  if (!SC.deck && !SC.remote && !SC.pm && !SC.items.size && !SC.pend.length) { el.__close('keep'); openLot(); return; }
+  openCollAdd({ pick: c => scanTyped(0, c) });
+}      // scan rouvert par-dessus lui-même : sans question, la session reste gardée
 /** o.lot : scan ouvert depuis « Ajouter des cartes » : « Ajouter » envoie les cartes dans le lot (extension collante) au lieu de la collection seule.
  *  o.remote : « Scan mobile » (téléphone) : chaque carte reconnue part tout de suite vers le lot du PC (mobscan.js), rien n'est ajouté ici ; « Terminer » ferme. */
 function openScan(o) {
@@ -26828,21 +26893,22 @@ function openScan(o) {
       <p class="sc-nocam">${T('Pas d\'appareil photo : utilise « Photos » ci-dessous.')}</p>
       <div class="sc-tools"><button class="sc-ic" type="button" data-act="close" aria-label="${T('Fermer le scan')}"><svg class="i"><use href="#i-back"/></svg></button><h2 class="sc-ttl">${T('Scanner des cartes')}</h2>
         <span class="sc-tr"><button class="sc-ic sc-lamp" type="button" data-act="lamp" aria-pressed="false" aria-label="${T('Allumer la lampe')}" hidden><svg class="i"><use href="#i-bolt"/></svg></button><button class="sc-ic sc-set" type="button" data-act="scset" aria-label="${T('Réglages du scan')}"><svg class="i"><use href="#i-gear"/></svg></button><button class="sc-ic sc-help" type="button" data-act="note" aria-label="${T('Afficher l\'aide')}" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-help"/></svg></button></span></div>
-      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Ajouter')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix')}</button></div><button type="button" class="sc-dest" data-act="scdest" hidden></button><button type="button" class="sc-edm" data-act="scset"></button></div></div>
+      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Collection')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix rapide')}</button></div><button type="button" class="sc-dest" data-act="scdest" hidden></button><button type="button" class="sc-edm" data-act="sced" aria-haspopup="dialog"></button></div></div>
     <div class="sc-remote" hidden aria-live="polite"></div>
     <div class="sc-cat coll-status" hidden></div>
     <div class="sc-note" hidden><p class="hint">${nmT('Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (français d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.',
       'Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu ({lang} d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.',
       'Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (en anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.')}</p><p class="hint sc-note-full">${T('Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l\'édition exacte est posée d\'office, et la langue imprimée sur la carte retenue. Cartes d\'avant 2014 : l\'édition se choisit comme d\'habitude.')}</p><button class="sc-x" type="button" data-act="note" aria-label="${T('Fermer l\'aide')}"><svg class="i"><use href="#i-close"/></svg></button></div>
-    <div class="dv-foot sc-head"><div class="sc-headt"><b class="sc-count">${T('Scanner des cartes')}</b><span class="sc-sub">${T('Nom de la carte dans la bande')}</span></div><div class="sc-total" aria-live="polite" hidden></div><button class="btn" type="button" data-act="done" disabled>${T('Ajouter')}</button></div>
+    <div class="dv-foot sc-head"><div class="sc-headt"><b class="sc-count">${T('Scanner des cartes')}</b><span class="sc-sub">${T('Place le nom dans la bande')}</span></div><div class="sc-total" aria-live="polite" hidden></div><button class="btn" type="button" data-act="done" disabled>${T('Ajouter')}</button></div>
     <p class="sc-diag" hidden></p>
     <div class="dv-scroll sc-list"></div>
     <div class="sc-bar">
       <label class="sc-photo"><span class="sc-bi"><svg class="i"><use href="#i-image"/></svg></span>${T('Photos')}<input type="file" id="scFile" accept="image/*" multiple></label>
-      <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button>
+      <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button><button class="btn sc-type" type="button" data-act="type"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>${T('Taper un nom')}</button>
       <span class="sc-bslot"><button class="sc-auto" type="button" role="switch" data-act="auto" aria-checked="false" hidden><span class="sc-sw" aria-hidden="true"><i></i></span>${T('Auto')}</button></span></div>`;
   if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
   SC.lot = !!(o && o.lot); SC.deck = !!(o && o.deck); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.alt = []; SC.calt = null; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.show = SC_SHOW; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  if (SC.deck) $('.sc-amode', wrap).textContent = T('Deck');      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
   sssResume();      // session gardée de ce contexte : reprise (scansess.js)
   SC.paq = []; if (SCS.pa && typeof pxTable === 'function') pxTable().then(() => { if (SC.el === wrap) scanPaintList(); }, () => {});      // alerte de prix : prix « à partir de » de chaque carte (fichier du jour), sans attendre Scryfall
   auReset();
@@ -26882,6 +26948,8 @@ function openScan(o) {
       else if (act === 'ssnew') sssNew();      // bandeau « Scan repris » (scansess.js)
       else if (act === 'ssok') { SC.resume = null; scanPaintList(); }
       else if (act === 'scset') scsSheet();
+      else if (act === 'sced') { if (b.classList.contains('ico')) scsSheet(); else { haptic('tap'); scsChoose('ed', scanPaintTools); } }      // pastille des éditions : leurs choix expliqués ; réduite à la roue (« Ranger dans » affiché) : les réglages
+      else if (act === 'type') scanTypeName();
       else if (act === 'scdest') { if (scanDeckPlace()) toast(T('Les cartes du deck sont rangées dans « {place} » à son enregistrement.', { place: scanDeckPlace() })); else scdPick(scanPaintTools); }
       else if (act === 'pmode') { const on = b.dataset.v === '1'; if (on !== SC.pm) { haptic('tap'); scanPriceMode(on); } }
       else if (act === 'done') { if (SC.remote) scanEdDone(() => wrap.__close()); else if (SC.deck && typeof bdScanDone === 'function' && BD.el) bdScanDone(); else scanRecap(); }      // cartes sans édition : confirmation (scaned.js)
@@ -27999,7 +28067,7 @@ const SCS_FRAMES = [
   ['name', 'Nom seulement', 'Caméra compacte : seul le nom est lu.'],
 ];
 const SCS_EDS = [
-  ['scan', 'Comme la 1re carte', 'Booster, boîte : tu choisis l\'édition de la 1re carte, les suivantes la prennent ; une carte d\'une autre extension te demande la sienne.'],
+  ['scan', 'Même extension', 'Booster, boîte : tu choisis l\'édition de la 1re carte, les suivantes la prennent ; une carte d\'une autre extension te demande la sienne.'],
   ['card', 'Carte par carte', 'Deck, classeur : choisies à la fin du scan, en voyant les illustrations.'],
   ['none', 'Sans édition', 'Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.'],
 ];
@@ -28012,13 +28080,15 @@ const scsPaParse = v => { const n = moneyIn(v); return Number.isFinite(n) && n >
 /** Cadrage ou éditions : la liste des choix, avec leur explication. */
 function scsChoose(k, done) {
   const [title, list] = k === 'frame' ? [T('Cadrage'), SCS_FRAMES] : [T('Éditions'), SCS_EDS];
-  openSheet(title, '', api => {
+  openSheet(title, k === 'ed' ? T('L\'édition (extension, numéro) donne l\'illustration et le prix exacts de chaque carte.') : '', api => {
     api.body.innerHTML = `<div class="scs-eds" role="radiogroup" aria-label="${esc(title)}">${list.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-v="${v}" aria-checked="${SCS[k] === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>`;
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic('tap'); scsSet({ [k]: b.dataset.v }); api.close(); if (done) done(); });
   });
 }
 /** Libellé court du réglage des éditions (pastille de l'écran de scan). */
-const scsEdLabel = () => (SCS.ed === 'card' ? T('Éditions : à la fin') : SCS.ed === 'none' ? T('Sans édition') : T('Éditions : comme la 1re'));
+const scsEdLabel = () => (SCS.ed === 'card' ? T('Éditions : à la fin') : SCS.ed === 'none' ? T('Sans édition') : T('Éditions : même extension'));
+/** Pastille de l'écran de scan : le choix seul (« Même extension »), sous le petit titre « Éditions ». */
+const scsEdVal = () => T((SCS_EDS.find(o => o[0] === SCS.ed) || SCS_EDS[0])[1]);
 const scsLangName = l => { const n = LANGS[l] || l; return n.charAt(0).toUpperCase() + n.slice(1); };
 function scsHtml() {
   const chip = (k, v, label, on) => `<button type="button" class="fopt" data-s="${k}" data-v="${esc(String(v))}" aria-pressed="${on}">${esc(label)}</button>`;
@@ -34735,9 +34805,9 @@ function amInit() {
 
 /* ── onboard.js : premier lancement ───────────────────────────────────────────────────────────────
    Trois écrans, une seule fois, seulement sur un appareil vierge (ni collection, ni deck, ni token) :
-   1. Bienvenue · 2. Ta collection (importer un fichier, scanner, plus tard) · 3. Sauvegarde ta collection : « Continuer avec Google » en une touche
-   (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne ou service de compte
-   injoignable : un mot et « Plus tard » seulement ; déjà connecté : « C'est parti ». Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
+   1. Bienvenue · 2. Ta collection (importer un fichier, ajouter, scanner ; « Continuer sans ajouter de cartes » : l'étape suivante) · 3. Sauvegarde ta collection :
+   « Continuer avec Google » en une touche (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne
+   ou service de compte injoignable : un mot et « Continuer sans compte » (bouton principal) ; déjà connecté : « C'est parti ». « Tout passer » (en haut, étapes 1 et 2) : l'appli tout de suite. Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
    lien discret « Tu as un token CardTrader ? »).
    4. Notifications (evpush.js), seulement si elles ont un sens ici (serveur qui les propose, fenêtre d'autorisation possible : evpAskable) : à quoi elles servent,
    « Activer les notifications » ouvre la fenêtre native (Android, navigateur ; iPhone : app installée seulement), « Plus tard » ; jamais redemandé ensuite
@@ -34760,7 +34830,7 @@ function obOpen() {
   const el = OB.el = document.createElement('div');
   el.className = 'ob'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', T('Bienvenue dans Mana Orbit'));
   el.innerHTML = `<div class="ob-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    <button class="link-btn ob-skip" type="button" data-ob="skip">${T('Passer')}</button>
+    <button class="link-btn ob-skip" type="button" data-ob="skip">${T('Tout passer')}</button>
     <div class="ob-track">
       <section class="ob-s" aria-label="${T('Bienvenue')}">
         <div class="ob-lang" role="group" aria-label="${T('Langue')}">${i18nLangs().map(([c, n]) => `<button type="button" class="ob-chip${c === I18N.lang ? ' on' : ''}" data-ob="lang:${c}" aria-pressed="${c === I18N.lang}">${esc(n)}</button>`).join('')}</div>
@@ -34859,7 +34929,7 @@ function obSavePaint() {
   const had = box.contains(document.activeElement); box.dataset.k = k;
   const later = `<button class="btn ghost block" type="button" data-ob="done">${T('Plus tard')}</button>`;
   if (k === 'in') box.innerHTML = `<p class="ob-save-ok">${T('Tu es connecté : ta collection est sauvegardée sur ton compte.')}</p><button class="btn block" type="button" data-ob="done">${T('C\'est parti')}</button>`;
-  else if (k === 'off') box.innerHTML = `<p class="ob-save-off" role="status">${T('Pas de connexion pour l\'instant. Ta collection reste sur cet appareil : tu pourras la sauvegarder plus tard dans Compte et réglages.')}</p>${later}`;
+  else if (k === 'off') box.innerHTML = `<p class="ob-save-off" role="status">${T('Pas de connexion pour l\'instant. Ta collection reste sur cet appareil : tu pourras la sauvegarder plus tard dans Compte et réglages.')}</p><button class="btn block" type="button" data-ob="done">${T('Continuer sans compte')}</button>`;      // hors ligne : rien d'autre à faire ici, le bouton principal continue
   else box.innerHTML = `${googleBtnHtml(`data-ob="google"${k === 'wait' ? ' disabled aria-busy="true"' : ''}`, true)}
     <button class="link-btn" type="button" data-ob="account">${T('Autres options (e-mail)')}</button>
     <div class="auth-msg" id="obMsg" role="alert" hidden></div>
@@ -36537,11 +36607,11 @@ const cvwCls = () => ' cvw-' + cvwView();
 
 /** Fiche de la carte (cardsheet.js) : la ligne entière l'ouvre (collection.js, toucher de la ligne) ; sans elle, la ligne se déplie sur place. */
 const cvwSheetOk = () => typeof openCardSheet === 'function';
-/** Prix affiché d'une ligne : Cardmarket (estimation), sinon l'offre CardTrader lue. */
+/** Prix affiché d'une ligne : Cardmarket (estimation), sinon l'offre CardTrader lue ; t : le texte, w : foil sans prix foil (le prix non foil, avec ⚠️). */
 function cvwPrice(it) {
-  if (Number.isFinite(it.eu)) return fmt(it.eu, mkCur()) + (it.f && collLinePx(it.k, it.g ?? it.l).w ? ' ⚠️' : '');      // foil sans prix foil : le non foil (message sur la fiche de la carte)
-  if (Number.isFinite(it.rp)) return fmt(it.rp, it.rc || 'EUR');
-  return '';
+  if (Number.isFinite(it.eu)) return { t: fmt(it.eu, mkCur()), w: !!(it.f && collLinePx(it.k, it.g ?? it.l).w) };
+  if (Number.isFinite(it.rp)) return { t: fmt(it.rp, it.rc || 'EUR'), w: false };
+  return { t: '', w: false };
 }
 /** Une ligne de la liste selon la vue (collection.js › collRowsHtml). */
 function cvwRow(it) {
@@ -36549,18 +36619,18 @@ function cvwRow(it) {
   if (v === 'detail') return crowHtml(it);
   if (CVW.open.has(id)) return `<div class="cvw-x">${crowHtml(it)}<button type="button" class="link-btn cvw-fold" data-act="cvwfold" aria-expanded="true">${T('Replier')}</button></div>`;
   const nm = it.dn || it.n, im0 = collLineImage(it.k, g, it.im), img = im0.src, letter = esc((nm.trim()[0] || '?').toUpperCase()), hue = hash32(it.k) % 360, px = cvwPrice(it), sub = it.li > 0;
-  const lab = esc(T(cvwSheetOk() ? 'Ouvrir la fiche de {name}' : 'Afficher le détail de {name}', { name: nm }) + ' · × ' + it.q + (px ? ' · ' + px : ''));
+  const lab = esc(T(cvwSheetOk() ? 'Ouvrir la fiche de {name}' : 'Afficher le détail de {name}', { name: nm }) + ' · × ' + it.q + (px.t ? ' · ' + px.t : '') + (px.w ? ' · ' + T('Prix foil non disponible, prix sans foil affiché') : ''));      // ⚠️ : la vignette entière est un bouton, son nom le dit
   const hit = `<button type="button" class="cvw-hit" aria-label="${lab}"${cvwSheetOk() ? ' aria-haspopup="dialog"' : ' aria-expanded="false"'}></button>`;
   const data = `data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}`;
   if (v === 'grid') {
     return `<div class="crow cvw-g${it.f ? ' foil' : ''}" ${data} style="--h:${hue}"><span class="cvw-art">${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
-      <span class="cvw-ov"><span class="row-name">${esc(nm)}</span><span class="cvw-gm">${it.q > 1 ? `<b>×${it.q}</b>` : ''}${px ? `<i>${esc(px)}</i>` : ''}</span></span>${it.l ? `<span class="cvw-fl">${flag(it.l)}</span>` : ''}${it.f ? '<span class="cvw-fo" aria-hidden="true">✦</span>' : ''}${hit}</div>`;
+      <span class="cvw-ov"><span class="row-name">${esc(nm)}</span><span class="cvw-gm">${it.q > 1 ? `<b>×${it.q}</b>` : ''}${px.t ? `<i>${esc(px.t)}${pxWarn(px.w)}</i>` : ''}</span></span>${it.l ? `<span class="cvw-fl">${flag(it.l)}</span>` : ''}${it.f ? '<span class="cvw-fo" aria-hidden="true">✦</span>' : ''}${hit}</div>`;
   }
   const p = plcOf(g), e = it.e || '';
   const meta = [it.f ? `<span class="cvw-fo">✦ ${T('Foil')}</span>` : '', e ? `<span class="cvw-ed">${esc(edSet(e).toUpperCase())}</span>` : '', p ? `<span class="cvw-plc"><i style="--c:${plcColor(p)}"></i>${esc(plcName(p))}</span>` : '', !it.l ? `<span class="cvw-nl">${T('Langue ?')}</span>` : ''].filter(Boolean).join('');
   return `<div class="crow cvw-c${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" ${data}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span>${meta ? `<span class="cvw-sub">${meta}</span>` : ''}</span>
-    <span class="cvw-r">${px ? `<b class="cvw-p">${esc(px)}</b>` : ''}<b class="cvw-q">×${it.q}</b></span>${hit}</div>`;
+    <span class="cvw-r">${px.t ? `<b class="cvw-p">${esc(px.t)}${pxWarn(px.w)}</b>` : ''}<b class="cvw-q">×${it.q}</b></span>${hit}</div>`;
 }
 /** Item d'une rangée affichée : pour la déplier ou la replier sur place. */
 function cvwItemOf(row) {
@@ -36707,8 +36777,9 @@ function trSetPaint() {
    Recherche par nom (anglais ou imprimé) → la carte en grand avec son édition (symbole, extension, numéro, prix Cardmarket de l'édition), quantité, langue → « Ajouter ».
    Extension « collante » : la dernière choisie à la main est proposée d'office aux cartes suivantes qui existent dans cette extension (sinon : édition non précisée) ;
    toujours modifiable, carte par carte. La langue choisie reste aussi d'une carte à l'autre.
-   Le lot : les cartes ajoutées depuis « Nouveau lot » (gardé sur cet appareil), avec leur édition, langue, quantité et prix ; chacune se modifie ou se retire
-   (la collection suit). « Nouveau lot » vide la liste, les cartes restent dans la collection.
+   « Dernières ajoutées » (le lot, gardé sur cet appareil) : les cartes ajoutées depuis « Vider la liste », avec leur édition, langue, quantité et prix ; chacune se modifie
+   ou se retire (la collection suit). « Vider la liste » vide la liste, les cartes restent dans la collection.
+   Après un ajout, un seul retour : « ✓ N dans ta collection » sous le nom de la carte (le bandeau ne sert plus qu'au catalogue, à la session d'ouverture et à une ligne modifiée).
    Scanner : le scan s'ouvre au-dessus ; ses cartes rejoignent le lot (langue lue, extension collante si la carte y existe). */
 const LOT_KEY = 'deckdeal:lot:v1', LOT_MAX = 400;
 const LOT = { el: null, list: [], set: '', lang: '', cur: null, edit: '', cat: null, seq: 0 };
@@ -36791,7 +36862,7 @@ function lotPaintCard() {
   imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" ${imgLA(c.n, lotImg(c), lotImgL(c))}></button>
       ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, mkCur()))}</b></span>` : ''}</div>
     <div class="lot-f">
-      <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
+      <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em${c.done ? ' class="lot-done"' : ''}>${c.done ? '✓ ' : ''}${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
       <button type="button" class="lot-ed${c.pick ? ' on' : ''}${c.auto ? ' auto' : ''}" data-act="ed"${c.prints && !c.prints.length ? ' disabled' : ''} aria-haspopup="dialog">${edBtn}<svg class="i lot-caret" aria-hidden="true"><use href="#i-chev"/></svg></button>
       ${c.err ? `<p class="hint lot-err">${esc(c.err)} <button class="link-btn" type="button" data-act="retry">${T('Réessayer')}</button></p>` : ''}
       <div class="lot-row"><span>${T('Quantité')}</span><span class="qstep"><button type="button" data-act="qm" aria-label="${T('Un de moins')}"${c.q <= 1 ? ' disabled' : ''}>−</button><b>${c.q}</b><button type="button" data-act="qp" aria-label="${T('Un de plus')}">+</button></span></div>
@@ -36820,7 +36891,7 @@ function lotEdSheet() {
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.lot-ev'); if (!b) return;
       const i = Number(b.dataset.i), p = i >= 0 ? c.prints[i] : null; haptic('tap');
-      c.pick = p; c.e = p ? edKey(p.set, p.num) : ''; c.auto = false;
+      c.pick = p; c.e = p ? edKey(p.set, p.num) : ''; c.auto = false; c.done = false;
       const pl = p && p.l !== 'en' && p.l !== (SCRY_LANG[lotLangOf(c)] || 'en') ? cardLang(p.l) : '';
       if (pl && (typeof CARD_LANG_LIST === 'undefined' || CARD_LANG_LIST.includes(pl))) c.l = pl;      // impression d'une seule langue (NEO 295 : japonais) : cette carte passe dans cette langue (les suivantes gardent la leur)
       if (p) LOT.set = p.set;      // choisie à la main : l'extension devient collante pour les cartes suivantes
@@ -36843,8 +36914,8 @@ function lotAdd() {
   const x = { id: was ? was.id : 'l' + Date.now().toString(36) + (++LOT.seq), k: c.k, n: c.n, p: c.p, g, q: c.q, t: was ? was.t : Date.now(), im: c.pick ? c.pick.th : '', eu: lotEu(c) };
   if (was) LOT.list = LOT.list.map(y => (y.id === was.id ? x : y)); else LOT.list.unshift(x);
   LOT.edit = ''; lotSave();
-  lotSay(T('{name} · {q} dans ta collection', { name: c.p || frName(c.k, l) || c.n, q: collQty(c.k) }), true);
-  if (was) { LOT.cur = null; lotPaintCard(); } else lotPaintCard();
+  if (was) { lotSay(T('{name} · {q} dans ta collection', { name: c.p || frName(c.k, l) || c.n, q: collQty(c.k) }), true); LOT.cur = null; lotPaintCard(); }      // ligne modifiée : le panneau se ferme, le bandeau le dit
+  else { c.done = true; lotSay(''); lotPaintCard(); }      // ajout : « ✓ N dans ta collection » sous le nom, seul retour (avant : bandeau + ce texte + la ligne de la liste, audit du 6 novembre)
   lotPaintList(); lotPaintHead();
   const inp = $('#caName', LOT.el); if (inp && !was) { inp.select(); }
 }
@@ -36870,7 +36941,7 @@ function lotTotals() { let n = 0, v = 0; for (const x of LOT.list) { n += x.q; c
 function lotPaintHead() {
   const el = LOT.el; if (!el) return;
   const t = lotTotals();
-  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte dans ce lot', '{n} cartes dans ce lot') + (t.v ? ' · ' + fmt(t.v, mkCur()) : '') : cnT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
+  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte ajoutée', '{n} cartes ajoutées') + (t.v ? ' · ' + fmt(t.v, mkCur()) : '') : cnT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
   const sticky = $('.lot-sticky', el);
   sticky.hidden = !LOT.set; if (LOT.set) sticky.innerHTML = `<span class="ls-l">${T('Extension proposée')}</span><span class="ls-v">${setIcHtml(LOT.set)}<b>${esc(setName(LOT.set) || LOT.set.toUpperCase())}</b></span><button type="button" class="link-btn" data-act="unstick" aria-label="${T('Ne plus proposer cette extension')}">${T('Retirer')}</button>`;
 }
@@ -36940,7 +37011,7 @@ function openLot() {
       <div class="mob-pc" hidden></div>
       <div class="lot-sticky" hidden></div>
       <section class="lot-card" hidden aria-live="polite"></section>
-      <div class="lot-lh" hidden><h3 class="cs-h">${T('Ce lot')}</h3><button class="link-btn" type="button" data-act="new">${T('Nouveau lot')}</button></div>
+      <div class="lot-lh" hidden><h3 class="cs-h">${T('Dernières ajoutées')}</h3><button class="link-btn" type="button" data-act="new">${T('Vider la liste')}</button></div>
       <div class="lot-list"></div>
     </div></div>`;
   LOT.el = wrap; const prevFocus = document.activeElement;
@@ -36970,7 +37041,7 @@ function openLot() {
   });
   wrap.addEventListener('change', e => {
     const s = e.target.closest('.lot-lang'); if (!s || !LOT.cur) return;
-    const c = LOT.cur; c.l = s.value; LOT.lang = s.value; lotSave(); s.blur(); lotPrints(c, !c.e);      // langue : retenue pour les cartes suivantes ; impressions relues dans cette langue
+    const c = LOT.cur; c.l = s.value; c.done = false; LOT.lang = s.value; lotSave(); s.blur(); lotPrints(c, !c.e);      // langue : retenue pour les cartes suivantes ; impressions relues dans cette langue
   });
   wrap.addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) { const th = e.target.closest('.lot-it .thumb'); if (th) lotZoom(th.closest('.lot-it')); return; }
@@ -36979,9 +37050,9 @@ function openLot() {
     else if (act === 'scan') { haptic('tap'); openScan({ lot: true }); }
     else if (act === 'ed') lotEdSheet();
     else if (act === 'retry' && c) lotPrints(c, !c.e);
-    else if (act === 'qm' && c && c.q > 1) { c.q--; haptic('tap'); lotPaintCard(); }
-    else if (act === 'qp' && c && c.q < 99) { c.q++; haptic('tap'); lotPaintCard(); }
-    else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
+    else if (act === 'qm' && c && c.q > 1) { c.q--; c.done = false; haptic('tap'); lotPaintCard(); }      // done : le « ✓ » de l'ajout tombe dès qu'on prépare le suivant
+    else if (act === 'qp' && c && c.q < 99) { c.q++; c.done = false; haptic('tap'); lotPaintCard(); }
+    else if (act === 'foil' && c) { c.f = !c.f; c.done = false; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
     else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? cardLang(c.pick.l) || c.pick.l : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
@@ -36991,7 +37062,7 @@ function openLot() {
     else if (act === 'new') {
       const before = LOT.list; if (!before.length) return;
       LOT.list = []; LOT.edit = ''; lotSave(); lotPaintList(); lotPaintHead(); haptic('tap');
-      toast(T('Nouveau lot : les cartes restent dans ta collection'), { label: tUndo(), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
+      toast(T('Liste vidée : les cartes restent dans ta collection'), { label: tUndo(), fn: () => { LOT.list = before; lotSave(); lotPaintList(); lotPaintHead(); } });
     } else if (act === 'edit' || act === 'drop') {
       const row = b.closest('.lot-it'), x = row && LOT.list.find(y => y.id === row.dataset.id); if (!x) return;
       if (act === 'drop') return lotDrop(x.id);
@@ -37132,7 +37203,7 @@ function lotTakeBack1(k, n, l, q, e) {
 /** Sans compte : explication, puis connexion. */
 function mobNeedAccount() {
   openSheet(T('Scan mobile'), '', api => {
-    api.body.innerHTML = `<p class="cf-msg">${T('Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici, dans ce lot.')}</p>`;
+    api.body.innerHTML = `<p class="cf-msg">${T('Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici.')}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Plus tard')}</button><button class="btn" type="button" data-go>${T('Se connecter')}</button>`);
     api.foot.addEventListener('click', e => { if (e.target.closest('[data-go]')) { api.close(); openAccount(); } });
   });
@@ -37354,8 +37425,8 @@ const HELP_MAIL = 'contact@manaorbit.app', HELP_SUBJECT = 'Mana Orbit · avis'; 
 /** Questions et réponses de l'aide (texte français, traduit par T ; HTML fixe, aucune donnée de l'utilisateur). Réponse en fonction : texte qui dépend de l'appli (langue des noms lus au scan, nmT). */
 const HELP_QA = [
   ['Cardmarket ou CardTrader : quels prix ?', 'Par défaut, Mana Orbit affiche le <b>prix tendance Cardmarket</b>, relevé chaque jour : gratuit et sans compte, idéal pour estimer. <b>CardTrader</b> donne les vraies offres des vendeurs (état, langue, port) et remplit ton panier, avec ton token CardTrader (Réglages). Le choix se fait dans Decks › « Prix d\'une liste » › Critères › <b>Prix</b> ; sans token, choisir CardTrader explique comment l\'obtenir.'],
-  ['Comment ajouter mes cartes ?', () => nmT('Touche <b>Collection</b> dans la barre du bas, puis les boutons du haut : <b>Importer</b> un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en français ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis les boutons du haut : <b>Importer</b> un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en {lang} ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis les boutons du haut : <b>Importer</b> un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte ; <b>+</b> pour chercher une carte par son nom.')],
-  ['Je viens de ManaBox (ou Moxfield…) : comment tout récupérer ?', 'Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>Importer un fichier</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class="link-btn hp-swg" type="button" data-help="switch">Venir de ManaBox</button>'],
+  ['Comment ajouter mes cartes ?', () => nmT('Touche <b>Collection</b> dans la barre du bas, puis, en haut : <b>…</b> › <b>Importer un fichier</b> pour un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en français ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis, en haut : <b>…</b> › <b>Importer un fichier</b> pour un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte, en {lang} ou en anglais ; <b>+</b> pour chercher une carte par son nom.', 'Touche <b>Collection</b> dans la barre du bas, puis, en haut : <b>…</b> › <b>Importer un fichier</b> pour un fichier CSV (ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox…) ou une liste « 3 Sol Ring » ; <b>Scanner</b> (le rond du milieu de la barre) : l\'appareil photo lit le nom de la carte ; <b>+</b> pour chercher une carte par son nom.')],
+  ['Je viens de ManaBox (ou Moxfield…) : comment tout récupérer ?', 'Exporte ta collection en CSV depuis ton ancienne appli (ManaBox : onglet Collection › menu en haut à droite › <b>Export</b>), puis <b>Collection</b> › <b>…</b> › <b>Importer un fichier</b> › <b>Choisir un fichier</b> : quantités, éditions et langues suivent. <button class="link-btn hp-swg" type="button" data-help="switch">Venir de ManaBox</button>'],
   ['Comment scanner tout un paquet ?', 'Dans le scan, active <b>Auto</b> (en bas à droite) : pose les cartes l\'une après l\'autre, le nom dans la bande ; chacune s\'ajoute dès que son nom est lu deux fois de suite, sans toucher l\'écran ; retire-la (ou montre la suivante) pour continuer. <b>Éditions</b> : choisis celle de la 1re carte, les suivantes la prennent si elles existent dans les extensions du scan ; une carte d\'une autre extension te demande la sienne. Pour un deck ou un classeur, les <b>réglages</b> du scan proposent de tout choisir à la fin, en voyant les illustrations (ou de scanner sans édition). Une seule langue dans le paquet : impose-la dans les réglages, c\'est plus rapide.'],
   ['Comment est calculée la valeur de ma collection ?', 'Pour chaque carte, le <b>prix tendance Cardmarket</b> (relevé par Scryfall) multiplié par tes exemplaires. C\'est une estimation : l\'édition, l\'état et le foil ne changent rien, et une carte sans prix n\'est pas comptée. Les prix sont relus une fois par jour au plus ; la courbe garde un relevé par jour. Dans « Prix d\'une liste », le prix Cardmarket est un « à partir de » : la tendance de l\'impression la moins chère.'],
   ['Quels decks puis-je construire avec ma collection ?', '<b>Decks</b> › Idées de decks compare ta collection aux decks des commandants les plus joués : deck moyen EDHREC et decks récents d\'Archidekt (Budget, Premium, cEDH). Tu vois la part que tu as déjà, les cartes à acheter et leur prix. Un deck monté ? Marque-le « Deck monté » : ses cartes lui sont réservées. Il faut un compte (Google, ou e-mail vérifié par le lien reçu).'],
@@ -38112,7 +38183,7 @@ function swgOpen(o) {
     api.body.innerHTML = `<p class="swg-lead">${helpNb(T('Ta collection te suit : exporte-la en CSV depuis ManaBox, puis importe le fichier ici.'))}</p>
       <ol class="swg-steps">
         ${step(1, T('Dans ManaBox'), helpNb(T('Onglet <b>Collection</b> : menu en haut à droite › <b>Export</b>. Choisis <b>CSV</b> si l\'appli le demande, confirme avec <b>Export</b>, puis enregistre le fichier (Fichiers, Drive…) ou envoie-le-toi.')), helpNb(T('Un seul classeur ? Le même menu, depuis le classeur.')))}
-        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>Importer</b> (la flèche vers le bas, en haut de l\'écran) › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
+        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>…</b> (en haut à droite) › <b>Importer un fichier</b> › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
         ${step(3, T('Vérifie et importe'), helpNb(T('L\'aperçu compte tes cartes et signale les noms inconnus. <b>Ajouter</b> ou <b>Remplacer ma collection</b>, puis <b>Importer</b> : images et prix arrivent tout seuls.')))}
       </ol>
       <h3 class="cs-h">${T('Ce qui est gardé')}</h3>
@@ -39201,8 +39272,8 @@ function opnCollHead(el) {
 function opnCollBody(el, host) {
   if (!streamOn() || COLL.mode === 'decks' || !host) return false;
   opnMeta();      // prix et images des cartes pas encore lues (rechargement hors ligne…)
-  const px = $('.coll-px', el), fw = $('.coll-fwrap', el), ct = $('.coll-controls', el);
-  if (px) px.hidden = true; if (fw) fw.hidden = true; if (ct) ct.hidden = COLL.mode !== 'coll';      // ni prix réels, ni recherche, ni filtres : la session seule
+  const fw = $('.coll-fwrap', el), ct = $('.coll-controls', el);
+  if (fw) fw.hidden = true; if (ct) ct.hidden = COLL.mode !== 'coll';      // ni prix réels, ni recherche, ni filtres : la session seule
   const rows = OPN.cur.rows.slice().sort((a, b) => ((opnEu(b) || 0) * b.q - (opnEu(a) || 0) * a.q) || b.t - a.t);      // les plus chères d'abord
   host.innerHTML = COLL.mode === 'trade' ? `<div class="dv-empty opn-hide">${OPN_EYE}<b>${T('Échange masqué')}</b><p>${T('Mode streamer : ta liste d\'échange, ton lien et ton QR code reviennent à la fin de la session.')}</p><button class="btn ghost" type="button" data-opn="sheet">${T('Session en cours')}</button></div>`
     : COLL.tab === 'stats' ? opnStatsHtml(rows)
@@ -43953,7 +44024,7 @@ const PRG_HOW = {
   sc_auto: 'Allume le scan automatique (réglages du scan) : chaque carte ajoutée pendant qu\'il est allumé compte.',
   sc_night: 'Scanne des cartes entre minuit et 5 h du matin (heure de ton téléphone).',
   sc_morning: 'Scanne des cartes entre 5 h et 7 h du matin (heure de ton téléphone).',
-  sc_quick: 'Utilise Prix rapide (dans le scan, ou l\'appui long sur l\'icône) pour estimer une carte sans l\'ajouter. Chaque estimation compte.',
+  sc_quick: 'Utilise Prix rapide (en haut du scan, à côté de « Collection ») pour estimer une carte sans l\'ajouter. Chaque estimation compte.',
   sc_report: 'Signale un scan qui s\'est trompé (« Signaler ce scan » sur sa ligne) : ça aide à améliorer la reconnaissance.',
   co_playset: 'Possède des cartes en 4 exemplaires ou plus (toutes éditions confondues). Chaque carte concernée compte une fois.',
   co_jp: 'Possède des cartes en japonais. Chaque exemplaire compte.',
@@ -45965,7 +46036,7 @@ function evPushOpen() {
    utilisateur existant, une fois après une mise à jour : « Découvre les nouveautés ». Seulement sur l'accueil au calme : ni scan, ni échange en
    direct, ni feuille, ni mode streamer (streamOn), ni lien ouvert de l'extérieur (?p=…). Toujours relançable : Aide (en tête) et Compte et
    réglages › Aide et avis.
-   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages et mode Auto du scan,
+   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages, mode Auto et Prix rapide du scan,
    « Ajouter en ami » de la liste d'un autre, « Partager en image » des Stats, « Ranger ces cartes… » d'un emplacement, options du masterset,
    filtre Extension, rond de l'édition d'une ligne, nom d'un joueur du compteur de vie, « Où trouver mes cartes » d'un deck, badges de la fiche
    « Niveau et badges », qui est une feuille) ; une seule à la fois, effacée au premier toucher ou après 7 s. Vue pour de bon si elle est restée
@@ -46043,8 +46114,8 @@ const TOUR_STEPS = [
   { id: 'live', at: 'trade', ok: () => typeof trocEntry === 'function' && !!(CTX.proxy && CTX.troc && D.user), el: () => tourIn('.trc-entry') || tourIn('.tr-box'),      // sans compte : sautée (rien à montrer, la ligne serait « Connecte-toi »)
     t: () => T('Échange en direct'),
     x: () => T('Cette icône lance un échange face à face, chacun sur son téléphone : vous choisissez vos cartes, validez, et vos collections suivent.') },
-  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="import"]'),      // quelques cartes : le bouton de la collection
-    t: () => T('Importer un fichier'), x: () => tourImportX() },
+  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="menu"]'),      // quelques cartes : « … » de la collection (Importer un fichier, Exporter, Prix réels)
+    t: () => T('Importer un fichier'), x: () => tourImportX(), x2: () => T('Touche « … », en haut à droite, puis « Importer un fichier ».') },
   { id: 'masterset', v: 2, at: 'list', ok: () => typeof msBarHtml === 'function', el: () => tourIn('.coll-ms:not([hidden])') || tourIn('#collSeg [data-v="list"]'),
     t: () => T('Masterset'),
     x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, dans l\'ordre : en couleur tes cartes, en noir et blanc celles qui manquent. La roue crantée règle foil et variantes.')
@@ -46356,7 +46427,8 @@ function tourPillShow(kind) {
     if (a === 'go') tourStart({ from: TOUR.pillK, since: TOUR.pillK === 'news' ? since : 0, mode: TOUR.pillK === 'more' ? 'adv' : TOUR.pillK === 'new' && tourFew() ? 'basic' : '' });      // nouveautés : seulement les étapes ajoutées depuis la version déjà vue ; nouvel utilisateur : l'essentiel
     else if (a === 'later') toast(T('La visite t\'attend dans « Comment ça marche ? », en bas de l\'accueil.'));
   });
-  document.body.appendChild(el);
+  const hero = kind === 'new' && !(typeof homeDeskOn === 'function' && homeDeskOn()) ? $('#viewHome > .hm-hero') : null;      // téléphone : dans la page, sous l'orbe (en bas de l'écran, elle cachait « Venir de ManaBox » de « Pour commencer »)
+  if (hero) { el.classList.add('inline'); hero.after(el); } else document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => { if (TOUR.pill === el) el.classList.add('on'); }));
 }
 function tourPillHide(now) {
@@ -46385,6 +46457,7 @@ const TIP_DEFS = {
   fset: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode !== 'decks', top => { const b = $('.fset', top); return b && !b.closest('[hidden]') ? b : null; }, () => T('Une seule extension à la fois : cherche-la par son nom, son code ou son année.')],      // panneau des filtres ouvert (filters.js)
   ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
+  pq: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote && !SC.deck && !SC.pm, top => $('.sc-pmode', top), () => T('Prix rapide : estime une carte sans l\'ajouter à ta collection.')],      // le mode existait, seulement trouvé par un appui long sur l'icône de l'appli (audit du 6 novembre)
   pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
   dvfind: [top => typeof DV !== 'undefined' && top === DV.el, top => $('.dv-fetch', top), () => T('Où trouver mes cartes : les cartes de ce deck que tu as, classeur par classeur, et celles qui manquent.')],      // viewer d'un deck (viewer.js), tout deck
   // depuis la version 3 de la visite

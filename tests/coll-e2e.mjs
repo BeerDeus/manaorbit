@@ -2,7 +2,7 @@
 // commandant ; évolution des prix ; filtres du viewer ; partage et reprise.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, done, txt, ok, CARDS, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, done, txt, ok, CARDS, toInput, toHome, collTool } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18900 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -17,7 +17,7 @@ assert.match(await txt(p, '#collSub'), /Ajoute tes cartes/); assert.equal(await 
 await p.screenshot({ path: 'shots/coll-0-saisie.png' });
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 assert.match(await txt(p, '.coll .dv-empty'), /Pas encore de cartes Scanne/); assert.equal(await p.$eval('#collSeg', e => !!e.offsetParent), true, 'onglets visibles sans carte'); assert.equal(await p.$eval('#app', a => a.inert), true);
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await collTool(p, 'import'); await p.waitForSelector('#ciText');
 // sans « Collector number » : pas d'édition, les impressions d'une même carte s'additionnent (éditions gardées : edition-e2e.mjs)
 const CSV = `Name,Set code,Set name,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency
 Sol Ring,CMM,Commander Masters,normal,uncommon,1,1,x,1.00,false,false,near_mint,en,EUR
@@ -103,7 +103,7 @@ assert.equal((await rows()).length, 2); assert.match(await txt(p, '#toast'), /Sw
 await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3); ok('+ / −, retrait à zéro et Annuler');
 await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('.lot #caName'); await p.fill('#caName', 'arca');      // « Ajouter des cartes » (lot.js) : choisir, puis « Ajouter »
 await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt span', s => s.map(x => x.textContent)), ['Arcane Signet']);
-await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Arcane Signet · 1 dans ta collection/);
+await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForSelector('.lot-name em.lot-done'); assert.match(await txt(p, '.lot-name'), /^Arcane Signet ✓ 1 dans ta collection$/);
 await p.fill('#caName', 'ring'); await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt i', s => s.map(x => x.textContent)), ['× 3'], 'quantité déjà possédée affichée');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 }); await p.waitForSelector('.coll.on');
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4); assert.match(await txt(p, '.coll .dv-title span'), /^4 cartes · 10 ex\./);
@@ -135,11 +135,15 @@ assert.match(await txt(p, '.sheet-wrap.open .sync-sheet'), /ne sont que sur cet 
   assert.deepEqual(acts, unav ? ['export'] : ['login', 'export'], 'Exporter une copie (et Se connecter quand le compte est joignable)'); }
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
 assert.equal(await p.$('.coll-sync [data-act="export"]'), null, 'Exporter : plus dans le bandeau');
-assert.deepEqual(await p.$$eval('.coll-tools .icon-btn', l => l.map(b => [b.dataset.act, b.querySelector('use').getAttribute('href')])), [['add', '#i-plus'], ['import', '#i-download'], ['export', '#i-upload']], 'Exporter à côté d\'Importer (flèche vers le bac : importer ; qui en sort : exporter)');
-await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="txt"]');
+assert.deepEqual(await p.$$eval('.coll-tools .icon-btn', l => l.map(b => [b.dataset.act, b.querySelector('use').getAttribute('href')])), [['add', '#i-plus'], ['menu', '#i-more']], '« + » dans l\'en-tête ; Importer, Exporter, Prix réels dans « … »');
+await p.click('.coll.on .coll-tools [data-act="menu"]'); await p.waitForSelector('.sheet-wrap.open.cm-sheet');
+assert.deepEqual(await p.$$eval('.cm-sheet .cm-opt', l => l.map(b => [b.dataset.cm, b.querySelector('b').textContent, !!b.querySelector('small').textContent])), [['import', 'Importer un fichier', true], ['export', 'Exporter ma collection', true], ['prices', 'Prix réels CardTrader', true], ['swg', 'Venir de ManaBox', true]], '« … » : chaque action avec son nom et ce qu\'elle fait (audit U5)');
+await p.click('.cm-sheet .cm-opt[data-cm="swg"]'); await p.waitForSelector('.sheet-wrap.open.swg-sheet'); assert.match(await txt(p, '.swg-sheet'), /Collection › … \(en haut à droite\) › Importer un fichier › Choisir un fichier/, 'guide ManaBox : le chemin du « … »');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
+await collTool(p, 'export'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="txt"]');
 const [dl] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="txt"]')]);
 assert.match(dl.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.txt$/); const exported = (await import('node:fs')).readFileSync(await dl.path(), 'utf8'); assert.match(exported, /\d+ Sol Ring/); assert.equal(exported.trim().split('\n').length, 4, 'une ligne par carte (réimportable)');
-await p.waitForTimeout(400); await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="csv"]');
+await p.waitForTimeout(400); await collTool(p, 'export'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="csv"]');
 const [dc] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="csv"]')]);
 assert.match(dc.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.csv$/); const csv = (await import('node:fs')).readFileSync(await dc.path(), 'utf8');
 assert.equal(csv.split('\n')[0], 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'); assert.match(csv, /\n3,2,Sol Ring,,Near Mint,English,,\n/, 'Tradelist Count : 3 − 1 de réserve (aucun deck)');
@@ -149,11 +153,11 @@ assert.equal(await p.$('#exScope'), null, 'sans filtre : pas de question, toute 
 // filtre en cours (vert) : on demande quoi exporter ; « Avec les filtres » d'abord (les cartes affichées), « Toute la collection » au choix
 await p.waitForTimeout(400); await p.click('.coll .fbtn'); await p.waitForSelector('.coll .fpanel:not([hidden])'); await p.click('.coll .fcol[data-c="G"]');
 assert.equal(await p.$eval('.coll .fpanel', e => getComputedStyle(e).overscrollBehaviorY), 'auto', 'en bas des filtres, le geste continue sur la page');
-await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open #exScope .seg-opt');
+await collTool(p, 'export'); await p.waitForSelector('.sheet-wrap.open #exScope .seg-opt');
 assert.deepEqual(await p.$$eval('#exScope .seg-opt', l => l.map(b => [b.dataset.v, b.getAttribute('aria-checked'), [...b.children].map(c => c.textContent.trim()).join(' ')])), [['shown', 'true', 'Avec les filtres 1 carte'], ['all', 'false', 'Toute la collection 4 cartes']]);
 { const [d1] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="txt"]')]);
   assert.match(d1.suggestedFilename(), /^ma-collection-filtree-\d{4}-\d{2}-\d{2}\.txt$/); const t = (await import('node:fs')).readFileSync(await d1.path(), 'utf8').trim().split('\n'); assert.equal(t.length, 1); assert.match(t[0], /Llanowar Elves/); }
-await p.waitForTimeout(400); await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open #exScope .seg-opt'); await p.click('#exScope .seg-opt[data-v="all"]');
+await p.waitForTimeout(400); await collTool(p, 'export'); await p.waitForSelector('.sheet-wrap.open #exScope .seg-opt'); await p.click('#exScope .seg-opt[data-v="all"]');
 assert.match(await txt(p, '.sheet-wrap.open .sheet-head p'), /4 cartes/);
 { const [d2] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="txt"]')]);
   assert.match(d2.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.txt$/); assert.equal((await import('node:fs')).readFileSync(await d2.path(), 'utf8').trim().split('\n').length, 4); }
@@ -195,7 +199,7 @@ await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 
 /* ── 6) deck : la collection est déduite ─────────────────────────────────────────────────────── */
 // collection de départ propre : 1 Sol Ring, 1 Llanowar Elves (le deck en veut 2)
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await collTool(p, 'import'); await p.waitForSelector('#ciText');
 await p.fill('#ciText', '1 Sol Ring\n1 Llanowar Elves'); await p.click('#ciMode [data-v="replace"]'); await p.waitForTimeout(150);
 assert.match(await txt(p, '#ciSum'), /remplace les 4 cartes actuelles/); await p.click('#ciGo');
 await p.waitForSelector('.sheet-wrap.open [data-ci="replace"]'); await p.click('.sheet-wrap.open [data-ci="replace"]'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 2);      // « Remplacer ta collection ? » (bloc 12)

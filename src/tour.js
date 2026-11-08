@@ -18,7 +18,7 @@
    utilisateur existant, une fois après une mise à jour : « Découvre les nouveautés ». Seulement sur l'accueil au calme : ni scan, ni échange en
    direct, ni feuille, ni mode streamer (streamOn), ni lien ouvert de l'extérieur (?p=…). Toujours relançable : Aide (en tête) et Compte et
    réglages › Aide et avis.
-   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages et mode Auto du scan,
+   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages, mode Auto et Prix rapide du scan,
    « Ajouter en ami » de la liste d'un autre, « Partager en image » des Stats, « Ranger ces cartes… » d'un emplacement, options du masterset,
    filtre Extension, rond de l'édition d'une ligne, nom d'un joueur du compteur de vie, « Où trouver mes cartes » d'un deck, badges de la fiche
    « Niveau et badges », qui est une feuille) ; une seule à la fois, effacée au premier toucher ou après 7 s. Vue pour de bon si elle est restée
@@ -96,8 +96,8 @@ const TOUR_STEPS = [
   { id: 'live', at: 'trade', ok: () => typeof trocEntry === 'function' && !!(CTX.proxy && CTX.troc && D.user), el: () => tourIn('.trc-entry') || tourIn('.tr-box'),      // sans compte : sautée (rien à montrer, la ligne serait « Connecte-toi »)
     t: () => T('Échange en direct'),
     x: () => T('Cette icône lance un échange face à face, chacun sur son téléphone : vous choisissez vos cartes, validez, et vos collections suivent.') },
-  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="import"]'),      // quelques cartes : le bouton de la collection
-    t: () => T('Importer un fichier'), x: () => tourImportX() },
+  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="menu"]'),      // quelques cartes : « … » de la collection (Importer un fichier, Exporter, Prix réels)
+    t: () => T('Importer un fichier'), x: () => tourImportX(), x2: () => T('Touche « … », en haut à droite, puis « Importer un fichier ».') },
   { id: 'masterset', v: 2, at: 'list', ok: () => typeof msBarHtml === 'function', el: () => tourIn('.coll-ms:not([hidden])') || tourIn('#collSeg [data-v="list"]'),
     t: () => T('Masterset'),
     x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, dans l\'ordre : en couleur tes cartes, en noir et blanc celles qui manquent. La roue crantée règle foil et variantes.')
@@ -409,7 +409,8 @@ function tourPillShow(kind) {
     if (a === 'go') tourStart({ from: TOUR.pillK, since: TOUR.pillK === 'news' ? since : 0, mode: TOUR.pillK === 'more' ? 'adv' : TOUR.pillK === 'new' && tourFew() ? 'basic' : '' });      // nouveautés : seulement les étapes ajoutées depuis la version déjà vue ; nouvel utilisateur : l'essentiel
     else if (a === 'later') toast(T('La visite t\'attend dans « Comment ça marche ? », en bas de l\'accueil.'));
   });
-  document.body.appendChild(el);
+  const hero = kind === 'new' && !(typeof homeDeskOn === 'function' && homeDeskOn()) ? $('#viewHome > .hm-hero') : null;      // téléphone : dans la page, sous l'orbe (en bas de l'écran, elle cachait « Venir de ManaBox » de « Pour commencer »)
+  if (hero) { el.classList.add('inline'); hero.after(el); } else document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => { if (TOUR.pill === el) el.classList.add('on'); }));
 }
 function tourPillHide(now) {
@@ -438,6 +439,7 @@ const TIP_DEFS = {
   fset: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode !== 'decks', top => { const b = $('.fset', top); return b && !b.closest('[hidden]') ? b : null; }, () => T('Une seule extension à la fois : cherche-la par son nom, son code ou son année.')],      // panneau des filtres ouvert (filters.js)
   ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
+  pq: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote && !SC.deck && !SC.pm, top => $('.sc-pmode', top), () => T('Prix rapide : estime une carte sans l\'ajouter à ta collection.')],      // le mode existait, seulement trouvé par un appui long sur l'icône de l'appli (audit du 6 novembre)
   pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
   dvfind: [top => typeof DV !== 'undefined' && top === DV.el, top => $('.dv-fetch', top), () => T('Où trouver mes cartes : les cartes de ce deck que tu as, classeur par classeur, et celles qui manquent.')],      // viewer d'un deck (viewer.js), tout deck
   // depuis la version 3 de la visite

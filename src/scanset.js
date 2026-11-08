@@ -68,7 +68,7 @@ const SCS_FRAMES = [
   ['name', 'Nom seulement', 'Caméra compacte : seul le nom est lu.'],
 ];
 const SCS_EDS = [
-  ['scan', 'Comme la 1re carte', 'Booster, boîte : tu choisis l\'édition de la 1re carte, les suivantes la prennent ; une carte d\'une autre extension te demande la sienne.'],
+  ['scan', 'Même extension', 'Booster, boîte : tu choisis l\'édition de la 1re carte, les suivantes la prennent ; une carte d\'une autre extension te demande la sienne.'],
   ['card', 'Carte par carte', 'Deck, classeur : choisies à la fin du scan, en voyant les illustrations.'],
   ['none', 'Sans édition', 'Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.'],
 ];
@@ -81,13 +81,15 @@ const scsPaParse = v => { const n = moneyIn(v); return Number.isFinite(n) && n >
 /** Cadrage ou éditions : la liste des choix, avec leur explication. */
 function scsChoose(k, done) {
   const [title, list] = k === 'frame' ? [T('Cadrage'), SCS_FRAMES] : [T('Éditions'), SCS_EDS];
-  openSheet(title, '', api => {
+  openSheet(title, k === 'ed' ? T('L\'édition (extension, numéro) donne l\'illustration et le prix exacts de chaque carte.') : '', api => {
     api.body.innerHTML = `<div class="scs-eds" role="radiogroup" aria-label="${esc(title)}">${list.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-v="${v}" aria-checked="${SCS[k] === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>`;
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic('tap'); scsSet({ [k]: b.dataset.v }); api.close(); if (done) done(); });
   });
 }
 /** Libellé court du réglage des éditions (pastille de l'écran de scan). */
-const scsEdLabel = () => (SCS.ed === 'card' ? T('Éditions : à la fin') : SCS.ed === 'none' ? T('Sans édition') : T('Éditions : comme la 1re'));
+const scsEdLabel = () => (SCS.ed === 'card' ? T('Éditions : à la fin') : SCS.ed === 'none' ? T('Sans édition') : T('Éditions : même extension'));
+/** Pastille de l'écran de scan : le choix seul (« Même extension »), sous le petit titre « Éditions ». */
+const scsEdVal = () => T((SCS_EDS.find(o => o[0] === SCS.ed) || SCS_EDS[0])[1]);
 const scsLangName = l => { const n = LANGS[l] || l; return n.charAt(0).toUpperCase() + n.slice(1); };
 function scsHtml() {
   const chip = (k, v, label, on) => `<button type="button" class="fopt" data-s="${k}" data-v="${esc(String(v))}" aria-pressed="${on}">${esc(label)}</button>`;

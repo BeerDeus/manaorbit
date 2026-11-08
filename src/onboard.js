@@ -1,8 +1,8 @@
 /* ── onboard.js : premier lancement ───────────────────────────────────────────────────────────────
    Trois écrans, une seule fois, seulement sur un appareil vierge (ni collection, ni deck, ni token) :
-   1. Bienvenue · 2. Ta collection (importer un fichier, scanner, plus tard) · 3. Sauvegarde ta collection : « Continuer avec Google » en une touche
-   (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne ou service de compte
-   injoignable : un mot et « Plus tard » seulement ; déjà connecté : « C'est parti ». Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
+   1. Bienvenue · 2. Ta collection (importer un fichier, ajouter, scanner ; « Continuer sans ajouter de cartes » : l'étape suivante) · 3. Sauvegarde ta collection :
+   « Continuer avec Google » en une touche (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne
+   ou service de compte injoignable : un mot et « Continuer sans compte » (bouton principal) ; déjà connecté : « C'est parti ». « Tout passer » (en haut, étapes 1 et 2) : l'appli tout de suite. Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
    lien discret « Tu as un token CardTrader ? »).
    4. Notifications (evpush.js), seulement si elles ont un sens ici (serveur qui les propose, fenêtre d'autorisation possible : evpAskable) : à quoi elles servent,
    « Activer les notifications » ouvre la fenêtre native (Android, navigateur ; iPhone : app installée seulement), « Plus tard » ; jamais redemandé ensuite
@@ -25,7 +25,7 @@ function obOpen() {
   const el = OB.el = document.createElement('div');
   el.className = 'ob'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', T('Bienvenue dans Mana Orbit'));
   el.innerHTML = `<div class="ob-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    <button class="link-btn ob-skip" type="button" data-ob="skip">${T('Passer')}</button>
+    <button class="link-btn ob-skip" type="button" data-ob="skip">${T('Tout passer')}</button>
     <div class="ob-track">
       <section class="ob-s" aria-label="${T('Bienvenue')}">
         <div class="ob-lang" role="group" aria-label="${T('Langue')}">${i18nLangs().map(([c, n]) => `<button type="button" class="ob-chip${c === I18N.lang ? ' on' : ''}" data-ob="lang:${c}" aria-pressed="${c === I18N.lang}">${esc(n)}</button>`).join('')}</div>
@@ -124,7 +124,7 @@ function obSavePaint() {
   const had = box.contains(document.activeElement); box.dataset.k = k;
   const later = `<button class="btn ghost block" type="button" data-ob="done">${T('Plus tard')}</button>`;
   if (k === 'in') box.innerHTML = `<p class="ob-save-ok">${T('Tu es connecté : ta collection est sauvegardée sur ton compte.')}</p><button class="btn block" type="button" data-ob="done">${T('C\'est parti')}</button>`;
-  else if (k === 'off') box.innerHTML = `<p class="ob-save-off" role="status">${T('Pas de connexion pour l\'instant. Ta collection reste sur cet appareil : tu pourras la sauvegarder plus tard dans Compte et réglages.')}</p>${later}`;
+  else if (k === 'off') box.innerHTML = `<p class="ob-save-off" role="status">${T('Pas de connexion pour l\'instant. Ta collection reste sur cet appareil : tu pourras la sauvegarder plus tard dans Compte et réglages.')}</p><button class="btn block" type="button" data-ob="done">${T('Continuer sans compte')}</button>`;      // hors ligne : rien d'autre à faire ici, le bouton principal continue
   else box.innerHTML = `${googleBtnHtml(`data-ob="google"${k === 'wait' ? ' disabled aria-busy="true"' : ''}`, true)}
     <button class="link-btn" type="button" data-ob="account">${T('Autres options (e-mail)')}</button>
     <div class="auth-msg" id="obMsg" role="alert" hidden></div>

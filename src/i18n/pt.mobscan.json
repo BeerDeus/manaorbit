@@ -5,7 +5,6 @@
   "{n} cartes reçues du téléphone": "{n} cartas recebidas do celular",
   "{name} reçue du téléphone": "{name} recebida do celular",
   "Scan mobile": "Escaneamento móvel",
-  "Connecte-toi avec le même compte sur ce PC et sur ton téléphone : les cartes scannées avec le téléphone arrivent ici, dans ce lot.": "Entre com a mesma conta neste computador e no celular: as cartas escaneadas com o celular chegam aqui, neste lote.",
   "Règles Firestore à publier (document « scan ») : le scan mobile ne peut pas encore passer par ton compte.": "Regras do Firestore a publicar (documento “scan”): o escaneamento móvel ainda não pode passar pela sua conta.",
   "Connexion au compte perdue : les cartes arriveront au retour du réseau.": "Conexão com a conta perdida: as cartas chegarão quando a rede voltar.",
   "Compte injoignable pour l'instant : réessaie dans un instant.": "Conta inacessível no momento: tente de novo em instantes.",

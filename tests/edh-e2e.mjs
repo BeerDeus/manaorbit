@@ -3,7 +3,7 @@
 // Faux edh.tsv servi par une route Playwright.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome, signInFake } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, signInFake, collTool } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18930 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -33,7 +33,7 @@ const sortBy = (v, pg = p) => pg.selectOption('select[data-act="dsort"]', v);
 
 /* ── collection : Edgar Markov, Sol Ring ×2, Arcane Signet, Llanowar Elves, Craterhoof ──────── */
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
+await collTool(p, 'import'); await p.waitForSelector('#ciText');
 await p.fill('#ciText', '1 Edgar Markov\n2 Sol Ring\n1 Arcane Signet\n1 Llanowar Elves\n1 Craterhoof Behemoth\n3 Plains'); await p.waitForTimeout(150); await p.click('#ciGo');
 await p.waitForFunction(() => document.querySelectorAll('.crow:not(.dk)').length === 6); await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length >= 5, null, { timeout: 8000 });
 
@@ -263,7 +263,7 @@ await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 await p.close();
 mode = 'absent';
 const b = await newPage(browser, world); await signInFake(b.p); await b.p.route('**/edh.tsv', r => { hits++; return r.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"asset_missing"}' }); });
-await toHome(b.p); await b.p.click('#btnColl'); await b.p.waitForSelector('.coll.on'); await b.p.click('.coll-tools [data-act="import"]'); await b.p.waitForSelector('#ciText'); await b.p.fill('#ciText', '1 Edgar Markov\n1 Sol Ring'); await b.p.waitForTimeout(150); await b.p.click('#ciGo');
+await toHome(b.p); await b.p.click('#btnColl'); await b.p.waitForSelector('.coll.on'); await collTool(b.p, 'import'); await b.p.waitForSelector('#ciText'); await b.p.fill('#ciText', '1 Edgar Markov\n1 Sol Ring'); await b.p.waitForTimeout(150); await b.p.click('#ciGo');
 await b.p.waitForFunction(() => document.querySelectorAll('.crow').length === 2); await b.p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length >= 2, null, { timeout: 8000 });
 await b.p.evaluate(() => navOpen(() => openCollection('decks'))); await b.p.waitForSelector('.coll-main .dv-empty'); assert.match(await txt(b.p, '.coll-main .dv-empty'), /Decks indisponibles.*pas disponibles pour le moment/); assert.ok(!/edh\.bin/.test(await txt(b.p, '.coll-main .dv-empty')), 'message lisible, sans nom de fichier');
 await b.p.click('#nav [data-nav="coll"]'); await b.p.waitForFunction(() => document.querySelectorAll('.coll').length === 1 && document.querySelector('.coll.m-coll.on')); await b.p.click('#collSeg [data-v="list"]'); await b.p.click('.coll .fbtn'); await b.p.click('.coll .fopt[data-x="played"]'); await b.p.waitForSelector('.coll-main .dv-empty [data-act="dcan"]');
@@ -277,7 +277,7 @@ await b.ctx.close();
 import { createRequire } from 'node:module'; import { gzipSync } from 'node:zlib';
 const req = createRequire(import.meta.url), CORE = req('../src/core.js'), BIN = gzipSync(Buffer.from(req('../src/edhbin.js').edhPack(CORE.edhModelFromTsv(FILE), CORE.ownKey)));
 const openDecks = async pg => {
-  await signInFake(pg); await toHome(pg); await pg.click('#btnColl'); await pg.waitForSelector('.coll.on'); await pg.click('.coll-tools [data-act="import"]'); await pg.waitForSelector('#ciText');
+  await signInFake(pg); await toHome(pg); await pg.click('#btnColl'); await pg.waitForSelector('.coll.on'); await collTool(pg, 'import'); await pg.waitForSelector('#ciText');
   await pg.fill('#ciText', '1 Edgar Markov\n2 Sol Ring\n1 Arcane Signet\n1 Llanowar Elves\n1 Craterhoof Behemoth\n3 Plains'); await pg.waitForTimeout(150); await pg.click('#ciGo');
   await pg.waitForFunction(() => document.querySelectorAll('.crow:not(.dk)').length === 6); await pg.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length >= 5, null, { timeout: 8000 });
   await pg.evaluate(() => navOpen(() => openCollection('decks'))); await pg.waitForSelector('.crow.dk', { timeout: 8000 });

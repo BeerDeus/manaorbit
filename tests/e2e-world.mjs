@@ -243,6 +243,14 @@ export async function openMe(p, sub) {
 }
 /** Ferme toutes les fiches ouvertes (rubrique, puis « Compte et réglages »). */
 export const closeSheets = p => p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }).then(() => p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 5000 }));
+/** « … » de « Ma collection » (collection.js › openCollMenu) : act = 'import' (Importer un fichier), 'export', 'prices' (Prix réels CardTrader), 'swg' (Venir de ManaBox) ;
+ *  scope : l'écran de la collection (plusieurs peuvent être ouverts pendant une fermeture). */
+export async function collTool(p, act, scope = '.coll.on') {
+  await p.click(`${scope} .coll-tools [data-act="menu"]`);
+  const opt = `.sheet-wrap.open.cm-sheet .cm-opt[data-cm="${act}"]`;
+  await p.waitForSelector(opt); await p.click(opt);
+  await p.waitForFunction(() => !document.querySelector('.cm-sheet'), null, { timeout: 5000 });      // retirée du DOM : « .sheet-body » est alors celle de l'action
+}
 /** ← du scan ; cartes pas encore ajoutées (scansess.js : « Quitter le scan ? ») : « Tout effacer et quitter », comme avant la sauvegarde du scan (scan suivant vierge). */
 export async function scanClose(p) {
   await p.click('.scan [data-act="close"]');

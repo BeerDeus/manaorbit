@@ -22,12 +22,13 @@
 .srch-saved::-webkit-scrollbar{display:none}
 .srch-pw{flex:none;display:inline-flex;align-items:stretch;border-radius:99px;border:1px solid var(--line);background:var(--surface);transition:background .2s,border-color .2s}
 .srch-pw.on{background:var(--accent);border-color:var(--accent)}
-.srch-pill{display:inline-flex;align-items:center;gap:6px;height:38px;max-width:240px;padding:0 14px 0 12px;border:0;background:none;border-radius:99px;font-size:13px;font-weight:650;color:var(--ink-2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.srch-pill{display:inline-flex;align-items:center;gap:6px;height:38px;max-width:240px;padding:0 2px 0 12px;border:0;background:none;border-radius:99px;font-size:13px;font-weight:650;color:var(--ink-2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .srch-pill span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .srch-pill .i{width:15px;height:15px;flex:none;color:var(--accent)}
 .srch-pw.on .srch-pill{color:var(--accent-ink);padding-right:4px}
 .srch-pw.on .srch-pill .i{color:inherit}
-.srch-pmore{display:grid;place-items:center;width:38px;height:38px;border:0;background:none;border-radius:99px;color:var(--accent-ink)}
+.srch-pmore{display:grid;place-items:center;width:36px;height:38px;border:0;background:none;border-radius:99px;color:var(--ink-3)}      /* « … » de chaque recherche enregistrée : renommer, supprimer */
+.srch-pw.on .srch-pmore{color:var(--accent-ink)}
 .srch-pmore .i{width:18px;height:18px}
 .srch-pill:focus-visible,.srch-pmore:focus-visible,.srch-chip:focus-visible,.srch-save:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .srch-act{display:flex;flex-wrap:wrap;gap:6px}

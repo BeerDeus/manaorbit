@@ -28,7 +28,7 @@ function swgOpen(o) {
     api.body.innerHTML = `<p class="swg-lead">${helpNb(T('Ta collection te suit : exporte-la en CSV depuis ManaBox, puis importe le fichier ici.'))}</p>
       <ol class="swg-steps">
         ${step(1, T('Dans ManaBox'), helpNb(T('Onglet <b>Collection</b> : menu en haut à droite › <b>Export</b>. Choisis <b>CSV</b> si l\'appli le demande, confirme avec <b>Export</b>, puis enregistre le fichier (Fichiers, Drive…) ou envoie-le-toi.')), helpNb(T('Un seul classeur ? Le même menu, depuis le classeur.')))}
-        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>Importer</b> (la flèche vers le bas, en haut de l\'écran) › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
+        ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>…</b> (en haut à droite) › <b>Importer un fichier</b> › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
         ${step(3, T('Vérifie et importe'), helpNb(T('L\'aperçu compte tes cartes et signale les noms inconnus. <b>Ajouter</b> ou <b>Remplacer ma collection</b>, puis <b>Importer</b> : images et prix arrivent tout seuls.')))}
       </ol>
       <h3 class="cs-h">${T('Ce qui est gardé')}</h3>
