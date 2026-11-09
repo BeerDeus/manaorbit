@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { footParse: footParseAll, footMatch, footSame, footNum } = require('../src/scanfoot.js');
-const footParse = x => { const f = footParseAll(x); if (!f) return f; const { langs, lsep, tots, ...o } = f; return o; };      // couples « CODE LANGUE » et puce à part (tests suivants)
+const footParse = x => { const f = footParseAll(x); if (!f) return f; const { langs, lsep, tots, tl, ...o } = f; return o; };      // couples « CODE LANGUE » et puce à part (tests suivants)
 
 const pr = (set, num, l = 'fr', fx = []) => ({ set, num, l, fx });
 // Forêt : plusieurs extensions, plusieurs numéros dans la même extension (illustrations différentes), une impression seulement en anglais
@@ -102,4 +102,12 @@ test('ML Kit (signalements) : code, langue et artiste collés, rareté collée a
     const m = footMatch(footParseAll(['préparée.', 'MO145', 'S0SFRsYNA DURA']), [pr('sos', '145'), pr('sos', '145', 'en'), pr('soc', '12')]);
     assert.equal(m && m.p.set + '/' + m.p.num + '/' + m.p.l, 'sos/145/fr');
   } finally { delete globalThis.SETIC; }
+});
+
+test('cartes d\'avant 2014 : langue du texte lu en bas (tl), sans le copyright', () => {
+  assert.equal(footParseAll(['L\'avenir appartient à ceux qui', 's\'y préparent la veille.', '73/249', '™ & © 1993-2011 Wizards of the Coast LLC']).tl, 'fr', 'texte d\'ambiance français (signalement : Contemplation, M12 73)');
+  assert.equal(footParseAll(['The future belongs to those who', 'prepare for it today.', '73/249', '™ & © 1993-2011 Wizards of the Coast LLC']).tl, 'en');
+  assert.equal(footParseAll(['Die Zukunft gehört denen, die sich', 'auf sie vorbereiten.', '73/249']).tl, 'de');
+  assert.equal(footParseAll(['73/249', '™ & © 1993-2011 Wizards of the Coast LLC']).tl, '', 'copyright seul : rien (anglais sur toutes les cartes)');
+  assert.equal(footParseAll(['0280 C', 'FDN • FR  Sam Burley']).tl, '', 'un mot ne suffit pas');
 });

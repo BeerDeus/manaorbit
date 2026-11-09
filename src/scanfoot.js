@@ -50,6 +50,26 @@ function footGlue(t, low) {
   }
   return null;
 }
+/** Mots outils de chaque langue (majuscules, accents gardés) : langue du texte lu en bas (texte d'ambiance, règles), pour les cartes sans « CODE • LANGUE » (avant 2014). */
+const FOOT_WORDS = {
+  fr: 'LE LA LES DES DU DE UN UNE ET EST QUI QUE AU AUX À POUR DANS SUR VOTRE VOUS CETTE CE SES SON SA PAR CEUX ELLE IL NE PAS PLUS',
+  en: 'THE OF AND TO YOUR YOU AN IS THAT THIS WITH FOR ITS ON IN FROM ARE BE WAS BUT NOT ALL',
+  de: 'DER DIE DAS UND IST EIN EINE DEN DEM ZU MIT VON SIE ES NICHT AUF FÜR SICH',
+  es: 'EL LOS LAS Y ES UN UNA DEL QUE CON POR PARA SU SUS NO SE LO',
+  it: 'IL LO GLI È UN UNA DEL DELLA CHE CON PER SU NON SI DI',
+  pt: 'O OS AS É UM UMA DO DA QUE COM POR PARA SEU SUA NÃO SE DE',
+};
+const FOOT_WSET = Object.fromEntries(Object.entries(FOOT_WORDS).map(([l, w]) => [l, new Set(w.split(' '))]));
+/** Langue du texte lu (lignes hors copyright et illustrateur) : celle qui a le plus de mots outils, 2 au moins et plus que toute autre ; sinon ''. */
+function footTextLang(lines) {
+  const n = {};
+  for (const ln of lines) {
+    if (/WIZARDS|©|™|ILLUS|&\s*\d{4}|\d{4}\s*-\s*\d{4}/.test(ln)) continue;      // « ™ & © 1993-2011 Wizards of the Coast » : de l'anglais sur toutes les cartes
+    for (const w of ln.replace(/[’']/g, ' ').split(/[^A-ZÀ-ÖØ-Þ]+/).filter(Boolean)) for (const l in FOOT_WSET) if (FOOT_WSET[l].has(w)) n[l] = (n[l] || 0) + 1;
+  }
+  const r = Object.entries(n).sort((a, b) => b[1] - a[1]);
+  return r.length && r[0][1] >= 2 && (!r[1] || r[0][1] > r[1][1]) ? r[0][0] : '';
+}
 /** Rareté collée au numéro (« MO145 », « C0034 ») → numéro (« 145 »), sinon ''. */
 const footRarNum = t => (/^[CURMSLTPB][0-9OQDIL|!ZSBGT]{4}$/.test(t) && (t.slice(1).match(/\d/g) || []).length >= 3 ? footNum(t.slice(1)) : '');
 /**
@@ -94,7 +114,7 @@ function footParse(lines) {
   if (best && !strong.includes(best.code)) strong.push(best.code);
   if (strong.length) codes.splice(0, codes.length, ...strong.filter(c => c === (best && best.code)).concat(strong.filter(c => c !== (best && best.code))));      // code suivi de la langue : le nom de l'artiste, le texte d'ambiance ne sont pas des codes
   if (!nums.length && !strong.length) return null;      // ni numéro, ni « CODE • FR » : pas une ligne du bas (un nom de carte lu, « Llanowar Elves »)
-  return { nums, codes, lang: best ? best.lang : '', lsep: !!(best && best.sep), langs, foil, tots };      // lsep : langue lue avec sa puce (« DSK • FR »), la plus sûre
+  return { nums, codes, lang: best ? best.lang : '', lsep: !!(best && best.sep), langs, foil, tots, tl: footTextLang(arr) };      // tl : langue du texte lu (cartes sans « CODE • LANGUE »)      // lsep : langue lue avec sa puce (« DSK • FR »), la plus sûre
 }
 /** Impression compatible avec le total lu en bas (« 123/249 » : 249 cartes imprimées dans l'extension, sets.js › SETIC, printed_size) ? Oui si rien n'est lu
  *  ou si la taille de l'extension est inconnue. Ne fait que départager des impressions au même numéro (rééditions : M12 et M13 ont chacune leur n° 123). */

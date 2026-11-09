@@ -60,10 +60,10 @@ for (const id of ids) {
   const got = await p.evaluate(() => {
     const x = [...SC.items.values()].pop(), f = SC.foot || {};
     if (!x) { const mm = SC.miss[SC.miss.length - 1]; return { miss: true, raw: (mm && mm.raw) || SC.raw || '', foot: f.raw || '', turn: SC.turned || 0 }; }
-    return { name: x.name, key: x.key, l: x.l || 'en', e: x.e || '', es: x.es, maybe: !!x.maybe, alts: x.alts || null, via: x.via || '', raw: x.raw || '', score: x.score, foot: f.raw || '', ft: x.ft ? { codes: x.ft.codes, nums: x.ft.nums, lang: x.ft.lang } : null, turn: SC.turned || 0 };
+    return { name: x.name, key: x.key, l: x.l || 'en', e: x.e || '', es: x.es, maybe: !!x.maybe, alts: x.alts || null, via: x.via || '', raw: x.raw || '', score: x.score, foot: f.raw || '', ft: x.ft ? { codes: x.ft.codes, nums: x.ft.nums, lang: x.ft.lang, tl: x.ft.tl } : null, turn: SC.turned || 0, art: SC.art ? SC.art.name + ' → ' + SC.art.res : '', amb: x.ambBy || '' };
   });
   const h = rd.hit, before = h ? `${h.name} (${h.card}) ${Math.round((h.score || 0) * 100)} %` : 'non reconnue';
-  const now = got.miss ? `non reconnue « ${got.raw} »` : `${got.name} (${got.l}) ${got.e || '—'} [${got.es}] ${Math.round(got.score * 100)} %${got.maybe ? ' · à vérifier' : ''}${got.alts ? ' · proposées : ' + got.alts.join(' / ') : ''}${got.via ? ' · via ' + got.via : ''}${got.turn ? ' · tournée ' + got.turn : ''}`;
+  const now = got.miss ? `non reconnue « ${got.raw} »` : `${got.name} (${got.l}) ${got.e || '—'} [${got.es}] ${Math.round(got.score * 100)} %${got.maybe ? ' · à vérifier' : ''}${got.alts ? ' · proposées : ' + got.alts.join(' / ') : ''}${got.via ? ' · via ' + got.via : ''}${got.turn ? ' · tournée ' + got.turn : ''}${got.amb ? ' · tranché par ' + got.amb : ''}${got.art ? ' · illustration : ' + got.art : ''}`;
   let mark = '·';
   const w = typeof want[id] === 'string' ? { name: want[id] } : want[id];
   if (w && w.name) {

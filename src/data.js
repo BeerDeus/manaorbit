@@ -297,7 +297,7 @@ async function scryBySetNum(set, num, lang, signal) {
 async function scryArtPrints(name, lang, signal, prio = true) {      // prio : devant les lectures de fond (écran qui attend) ; false : dans la file (scan)
   const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim();
   if (!n || n.includes('"')) return [];
-  const key = (BASIC_NAMES.has(ownKey(n)) ? 'pr5:' : 'pr4:') + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
+  const key = (BASIC_NAMES.has(ownKey(n)) ? 'pr7:' : 'pr6:') + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;      // pr6 / pr7 (9 nov. 2026) : listes d'avant mêlées aux cartes dont le nom imprimé est ce nom (scryPrintsIn), plus jamais relues
   const out = await scryPrintsIn(n, sl, signal, prio);
   if (sl !== 'en') {
     const en = await scryPrintsIn(n, 'en', signal, prio), by = new Map(en.map(p => [p.set + '/' + p.num, p])), have = new Set(out.map(p => p.set + '/' + p.num));
@@ -324,13 +324,13 @@ async function scryPrintsFind(name, lang, q, signal) {
 }
 async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0) {      // extra : critères en plus (scryPrintsFind : « (set:neo or cn:295) »)
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + n + '" lang:' + sl + ' game:paper' + extra) + '&unique=prints&order=released&dir=desc&include_variations=true';      // variantes comprises (terrains plein art d'une même extension…)
-  const out = [], seen = new Set();
+  const out = [], seen = new Set(), want = ownKey(String(n).split('//')[0]);
   const pages = maxPages || (BASIC_NAMES.has(ownKey(n)) ? 8 : 3);      // terrains de base : des centaines d'impressions (toutes, pour les retrouver par extension)
   for (let pg = 0; url && pg < pages; pg++) {
     let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal, 4, prio); } catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
     for (const c of j.data || []) {
       const urls = facesOf(c), im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {}, id = c.set + '/' + c.collector_number;
-      if (!urls.length || seen.has(id)) continue; seen.add(id);
+      if (!urls.length || seen.has(id) || ownKey(String(c.name || '').split('//')[0]) !== want) continue; seen.add(id);      // « !"Contemplation" lang:fr » trouve aussi Ponder (imprimé « Contemplation » en français) : seulement la carte de ce nom anglais
       const fe = c.frame_effects || [], fx = [c.full_art ? T('plein art') : '', c.border_color === 'borderless' ? T('sans bordure') : '', fe.includes('extendedart') ? T('étendue') : '', fe.includes('showcase') ? 'showcase' : '', c.promo ? 'promo' : ''].filter(Boolean);
       out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, st: styOf(c), l: sl === 'any' ? c.lang || 'en' : sl, ...eurOf(c), r: c.rarity || '' });
     }

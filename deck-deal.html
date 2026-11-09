@@ -8201,7 +8201,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '9559b192';
+const DD_BUILD = '266c40f5';
 const I18N_FILES = {"de":"i18n/de.f8334695.js","en":"i18n/en.224d311b.js","es":"i18n/es.484a73b1.js","it":"i18n/it.b5a2ea03.js","pt":"i18n/pt.df56fef0.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -12356,7 +12356,7 @@ async function scryBySetNum(set, num, lang, signal) {
 async function scryArtPrints(name, lang, signal, prio = true) {      // prio : devant les lectures de fond (écran qui attend) ; false : dans la file (scan)
   const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim();
   if (!n || n.includes('"')) return [];
-  const key = (BASIC_NAMES.has(ownKey(n)) ? 'pr5:' : 'pr4:') + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
+  const key = (BASIC_NAMES.has(ownKey(n)) ? 'pr7:' : 'pr6:') + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;      // pr6 / pr7 (9 nov. 2026) : listes d'avant mêlées aux cartes dont le nom imprimé est ce nom (scryPrintsIn), plus jamais relues
   const out = await scryPrintsIn(n, sl, signal, prio);
   if (sl !== 'en') {
     const en = await scryPrintsIn(n, 'en', signal, prio), by = new Map(en.map(p => [p.set + '/' + p.num, p])), have = new Set(out.map(p => p.set + '/' + p.num));
@@ -12383,13 +12383,13 @@ async function scryPrintsFind(name, lang, q, signal) {
 }
 async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0) {      // extra : critères en plus (scryPrintsFind : « (set:neo or cn:295) »)
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + n + '" lang:' + sl + ' game:paper' + extra) + '&unique=prints&order=released&dir=desc&include_variations=true';      // variantes comprises (terrains plein art d'une même extension…)
-  const out = [], seen = new Set();
+  const out = [], seen = new Set(), want = ownKey(String(n).split('//')[0]);
   const pages = maxPages || (BASIC_NAMES.has(ownKey(n)) ? 8 : 3);      // terrains de base : des centaines d'impressions (toutes, pour les retrouver par extension)
   for (let pg = 0; url && pg < pages; pg++) {
     let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal, 4, prio); } catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
     for (const c of j.data || []) {
       const urls = facesOf(c), im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {}, id = c.set + '/' + c.collector_number;
-      if (!urls.length || seen.has(id)) continue; seen.add(id);
+      if (!urls.length || seen.has(id) || ownKey(String(c.name || '').split('//')[0]) !== want) continue; seen.add(id);      // « !"Contemplation" lang:fr » trouve aussi Ponder (imprimé « Contemplation » en français) : seulement la carte de ce nom anglais
       const fe = c.frame_effects || [], fx = [c.full_art ? T('plein art') : '', c.border_color === 'borderless' ? T('sans bordure') : '', fe.includes('extendedart') ? T('étendue') : '', fe.includes('showcase') ? 'showcase' : '', c.promo ? 'promo' : ''].filter(Boolean);
       out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, st: styOf(c), l: sl === 'any' ? c.lang || 'en' : sl, ...eurOf(c), r: c.rarity || '' });
     }
@@ -26440,7 +26440,8 @@ function fvWarm() { if (!FVX.p) FVX.p = flavorRows().then(rows => { FVX.cat = ro
 async function scanMatch(lines, cat, lang) {
   if (TESS_ASIA[lang]) return asiaMatch(lines, TESS_ASIA[lang]);      // japonais, coréen, chinois : noms imprimés de cette langue seulement
   const en = bestMatch(lines, cat.idx); if (en) en.card = 'en';
-  let m = bestOf(bestOf(matchFr(lines, FRC.cat), en), FVX.cat ? fvMatch(lines, FVX.cat) : null);      // nom alternatif (« Thrum of the Vestige ») : seulement s'il colle mieux qu'un vrai nom
+  const fr = matchFr(lines, FRC.cat), frAll = scanShared(fr) && en && (fr.alts || []).some(n => ownKey(n) === en.key);      // nom lu exactement, imprimé pareil pour plusieurs cartes, dont la carte anglaise de ce nom (« Contemplation » : Contemplation en anglais, Ponder en français) : le nom partagé, pas l'anglais seul (illustration, ligne du bas ou choix)
+  let m = bestOf(bestOf(fr, frAll ? null : en), FVX.cat ? fvMatch(lines, FVX.cat) : null);      // nom alternatif (« Thrum of the Vestige ») : seulement s'il colle mieux qu'un vrai nom
   if (lang !== 'eng' && lang === TESS_OF[FRX.l] && (!m || m.score < 0.84) && (!FRC.cat || !m)) {      // moteur de la langue des noms (fra, deu…) : repli sur la recherche Scryfall des noms imprimés
     for (const l of lines.slice(0, FRC.cat ? 2 : 3)) {
       const fm = await frenchName(l.text, undefined, !!FRC.cat);
@@ -26744,6 +26745,8 @@ async function footAttach(m, src, box) {
   if (ft.lang && !SCS.lang && ft.lang !== (m.card || 'en') && LANGS[ft.lang]) {
     if (scanNameSure(m)) { SC.foot.keep = ft.lang; out.lsure = true; }      // nom imprimé propre à sa langue (« Anneau solaire ») : c'est lui qui dit la langue, la ligne du bas a pu lire un mot du texte
     else Object.assign(out, { card: ft.lang, img: '', via: m.via === 'foot' ? 'foot' : '' });      // nom identique dans les deux langues (« Edgar Markov »), ou lu en anglais : la langue imprimée en bas décide
+  } else if (!ft.lang && ft.tl && !SCS.lang && ft.tl !== (m.card || 'en') && LANGS[ft.tl] && !scanNameSure(m)) {
+    Object.assign(out, { card: ft.tl, img: '', via: m.via === 'foot' ? 'foot' : '' }); SC.foot.tl = ft.tl;      // carte d'avant 2014 (pas de « CODE • LANGUE ») au nom identique dans les deux langues (« Contemplation ») : la langue du texte lu en bas (« L'avenir appartient à ceux qui… »)
   }
   return out;
 }
@@ -27363,6 +27366,26 @@ function footGlue(t, low) {
   }
   return null;
 }
+/** Mots outils de chaque langue (majuscules, accents gardés) : langue du texte lu en bas (texte d'ambiance, règles), pour les cartes sans « CODE • LANGUE » (avant 2014). */
+const FOOT_WORDS = {
+  fr: 'LE LA LES DES DU DE UN UNE ET EST QUI QUE AU AUX À POUR DANS SUR VOTRE VOUS CETTE CE SES SON SA PAR CEUX ELLE IL NE PAS PLUS',
+  en: 'THE OF AND TO YOUR YOU AN IS THAT THIS WITH FOR ITS ON IN FROM ARE BE WAS BUT NOT ALL',
+  de: 'DER DIE DAS UND IST EIN EINE DEN DEM ZU MIT VON SIE ES NICHT AUF FÜR SICH',
+  es: 'EL LOS LAS Y ES UN UNA DEL QUE CON POR PARA SU SUS NO SE LO',
+  it: 'IL LO GLI È UN UNA DEL DELLA CHE CON PER SU NON SI DI',
+  pt: 'O OS AS É UM UMA DO DA QUE COM POR PARA SEU SUA NÃO SE DE',
+};
+const FOOT_WSET = Object.fromEntries(Object.entries(FOOT_WORDS).map(([l, w]) => [l, new Set(w.split(' '))]));
+/** Langue du texte lu (lignes hors copyright et illustrateur) : celle qui a le plus de mots outils, 2 au moins et plus que toute autre ; sinon ''. */
+function footTextLang(lines) {
+  const n = {};
+  for (const ln of lines) {
+    if (/WIZARDS|©|™|ILLUS|&\s*\d{4}|\d{4}\s*-\s*\d{4}/.test(ln)) continue;      // « ™ & © 1993-2011 Wizards of the Coast » : de l'anglais sur toutes les cartes
+    for (const w of ln.replace(/[’']/g, ' ').split(/[^A-ZÀ-ÖØ-Þ]+/).filter(Boolean)) for (const l in FOOT_WSET) if (FOOT_WSET[l].has(w)) n[l] = (n[l] || 0) + 1;
+  }
+  const r = Object.entries(n).sort((a, b) => b[1] - a[1]);
+  return r.length && r[0][1] >= 2 && (!r[1] || r[0][1] > r[1][1]) ? r[0][0] : '';
+}
 /** Rareté collée au numéro (« MO145 », « C0034 ») → numéro (« 145 »), sinon ''. */
 const footRarNum = t => (/^[CURMSLTPB][0-9OQDIL|!ZSBGT]{4}$/.test(t) && (t.slice(1).match(/\d/g) || []).length >= 3 ? footNum(t.slice(1)) : '');
 /**
@@ -27407,7 +27430,7 @@ function footParse(lines) {
   if (best && !strong.includes(best.code)) strong.push(best.code);
   if (strong.length) codes.splice(0, codes.length, ...strong.filter(c => c === (best && best.code)).concat(strong.filter(c => c !== (best && best.code))));      // code suivi de la langue : le nom de l'artiste, le texte d'ambiance ne sont pas des codes
   if (!nums.length && !strong.length) return null;      // ni numéro, ni « CODE • FR » : pas une ligne du bas (un nom de carte lu, « Llanowar Elves »)
-  return { nums, codes, lang: best ? best.lang : '', lsep: !!(best && best.sep), langs, foil, tots };      // lsep : langue lue avec sa puce (« DSK • FR »), la plus sûre
+  return { nums, codes, lang: best ? best.lang : '', lsep: !!(best && best.sep), langs, foil, tots, tl: footTextLang(arr) };      // tl : langue du texte lu (cartes sans « CODE • LANGUE »)      // lsep : langue lue avec sa puce (« DSK • FR »), la plus sûre
 }
 /** Impression compatible avec le total lu en bas (« 123/249 » : 249 cartes imprimées dans l'extension, sets.js › SETIC, printed_size) ? Oui si rien n'est lu
  *  ou si la taille de l'extension est inconnue. Ne fait que départager des impressions au même numéro (rééditions : M12 et M13 ont chacune leur n° 123). */
@@ -28581,7 +28604,7 @@ async function auFeed(f, g) {
       const t1 = performance.now();
       m = await readNameAuto(at, box, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
       if ((!m || m.score < 0.84) && SC.el) m = await readMore(at, box, 1400, '6', cat, m, null);      // autres écritures attendues (un moteur Tesseract au plus ; APK 1.0.6 : ML Kit chinois, japonais, coréen à tour de rôle)
-      if (m && m.score < 0.84) m = null;
+      if (m && m.score < 0.84 && !scanShared(m)) m = null;      // nom lu exactement mais imprimé pareil pour plusieurs cartes (« Contemplation » : Ponder en français) : gardé, l'illustration ou un choix tranche (auHit)
       if (AU.tm) AU.tm.read = performance.now() - t1;
     }
     m0 = m;
@@ -28609,10 +28632,11 @@ function auWillAdd(m) {
   return k !== AU.hold && !!AU.cand && AU.cand.k === k && Date.now() - AU.at >= SCS.delay;
 }
 /** Carte confirmée : « Encore X ? » si c'est la même qu'à l'instant, sinon ajoutée (ou son prix, en prix rapide). */
-function auHit(m) {
-  if (auResult(m)) return;
-  if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, false);
-  scsCue(); scanHint('✓ ' + m.name, 'ok');
+async function auHit(m) {
+  if (m.amb && m.sig && typeof scanAmbArt === 'function') m = await scanAmbArt(m);      // nom de plusieurs cartes : l'illustration tranche ; sinon « à vérifier » avec le choix illustré (scan.js › scanPickHtml)
+  if (!SC.el || auResult(m)) return;
+  if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, !!m.amb);
+  scsCue(); scanHint(m.amb ? T('À vérifier : {name}', { name: m.name }) : '✓ ' + m.name, m.amb ? 'busy' : 'ok');
 }
 
 /* ── Résultat d'une lecture automatique ─────────────────────────────────────────────────────────── */

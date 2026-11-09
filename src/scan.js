@@ -619,7 +619,8 @@ function fvWarm() { if (!FVX.p) FVX.p = flavorRows().then(rows => { FVX.cat = ro
 async function scanMatch(lines, cat, lang) {
   if (TESS_ASIA[lang]) return asiaMatch(lines, TESS_ASIA[lang]);      // japonais, coréen, chinois : noms imprimés de cette langue seulement
   const en = bestMatch(lines, cat.idx); if (en) en.card = 'en';
-  let m = bestOf(bestOf(matchFr(lines, FRC.cat), en), FVX.cat ? fvMatch(lines, FVX.cat) : null);      // nom alternatif (« Thrum of the Vestige ») : seulement s'il colle mieux qu'un vrai nom
+  const fr = matchFr(lines, FRC.cat), frAll = scanShared(fr) && en && (fr.alts || []).some(n => ownKey(n) === en.key);      // nom lu exactement, imprimé pareil pour plusieurs cartes, dont la carte anglaise de ce nom (« Contemplation » : Contemplation en anglais, Ponder en français) : le nom partagé, pas l'anglais seul (illustration, ligne du bas ou choix)
+  let m = bestOf(bestOf(fr, frAll ? null : en), FVX.cat ? fvMatch(lines, FVX.cat) : null);      // nom alternatif (« Thrum of the Vestige ») : seulement s'il colle mieux qu'un vrai nom
   if (lang !== 'eng' && lang === TESS_OF[FRX.l] && (!m || m.score < 0.84) && (!FRC.cat || !m)) {      // moteur de la langue des noms (fra, deu…) : repli sur la recherche Scryfall des noms imprimés
     for (const l of lines.slice(0, FRC.cat ? 2 : 3)) {
       const fm = await frenchName(l.text, undefined, !!FRC.cat);
@@ -923,6 +924,8 @@ async function footAttach(m, src, box) {
   if (ft.lang && !SCS.lang && ft.lang !== (m.card || 'en') && LANGS[ft.lang]) {
     if (scanNameSure(m)) { SC.foot.keep = ft.lang; out.lsure = true; }      // nom imprimé propre à sa langue (« Anneau solaire ») : c'est lui qui dit la langue, la ligne du bas a pu lire un mot du texte
     else Object.assign(out, { card: ft.lang, img: '', via: m.via === 'foot' ? 'foot' : '' });      // nom identique dans les deux langues (« Edgar Markov »), ou lu en anglais : la langue imprimée en bas décide
+  } else if (!ft.lang && ft.tl && !SCS.lang && ft.tl !== (m.card || 'en') && LANGS[ft.tl] && !scanNameSure(m)) {
+    Object.assign(out, { card: ft.tl, img: '', via: m.via === 'foot' ? 'foot' : '' }); SC.foot.tl = ft.tl;      // carte d'avant 2014 (pas de « CODE • LANGUE ») au nom identique dans les deux langues (« Contemplation ») : la langue du texte lu en bas (« L'avenir appartient à ceux qui… »)
   }
   return out;
 }

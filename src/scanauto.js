@@ -93,7 +93,7 @@ async function auFeed(f, g) {
       const t1 = performance.now();
       m = await readNameAuto(at, box, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
       if ((!m || m.score < 0.84) && SC.el) m = await readMore(at, box, 1400, '6', cat, m, null);      // autres écritures attendues (un moteur Tesseract au plus ; APK 1.0.6 : ML Kit chinois, japonais, coréen à tour de rôle)
-      if (m && m.score < 0.84) m = null;
+      if (m && m.score < 0.84 && !scanShared(m)) m = null;      // nom lu exactement mais imprimé pareil pour plusieurs cartes (« Contemplation » : Ponder en français) : gardé, l'illustration ou un choix tranche (auHit)
       if (AU.tm) AU.tm.read = performance.now() - t1;
     }
     m0 = m;
@@ -121,10 +121,11 @@ function auWillAdd(m) {
   return k !== AU.hold && !!AU.cand && AU.cand.k === k && Date.now() - AU.at >= SCS.delay;
 }
 /** Carte confirmée : « Encore X ? » si c'est la même qu'à l'instant, sinon ajoutée (ou son prix, en prix rapide). */
-function auHit(m) {
-  if (auResult(m)) return;
-  if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, false);
-  scsCue(); scanHint('✓ ' + m.name, 'ok');
+async function auHit(m) {
+  if (m.amb && m.sig && typeof scanAmbArt === 'function') m = await scanAmbArt(m);      // nom de plusieurs cartes : l'illustration tranche ; sinon « à vérifier » avec le choix illustré (scan.js › scanPickHtml)
+  if (!SC.el || auResult(m)) return;
+  if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, !!m.amb);
+  scsCue(); scanHint(m.amb ? T('À vérifier : {name}', { name: m.name }) : '✓ ' + m.name, m.amb ? 'busy' : 'ok');
 }
 
 /* ── Résultat d'une lecture automatique ─────────────────────────────────────────────────────────── */
