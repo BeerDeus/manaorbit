@@ -1432,7 +1432,7 @@ Assassin's Ink	Encre d'assassin	Meuchlerische Tinte	Tinta del asesino	Inchiostro
 Assassin's Strike	Frappe de l'assassin	Stich der Meuchlerin	Ataque del asesino	Colpo dell'Assassino	Golpe do Assassino	Нападение Убийцы
 Assassin's Trophy	Trophée de l'assassin	Trophäe der Meuchlerin	Trofeo de la asesina	Trofeo dell'Assassina	Troféu do Assassino	Трофей Убийцы
 Assassinate	Meurtre	Meucheln	Asesinar	Assassinare	Assassinar	Предательское Убийство|Предательское убийство
-Assault // Battery			Asalto // Violencia	Batteria // Aggressione	Bateria // Assalto	
+Assault // Battery	Assault // Battery // Battery	Assault // Battery // Battery	Asalto // Violencia|Assault // Battery // Battery	Assault // Battery // Battery|Batteria // Aggressione	Assault // Battery // Battery|Bateria // Assalto	Assault // Battery // Battery
 Assault Formation	Formation d'assaut	Angriffsformation	Formación de asalto	Formazione d'Assalto	Formação de Ataque	Атакующий Строй
 Assault Griffin	Griffon d'assaut	Angriffs-Greif	Grifo de asalto	Grifone d'Assalto	Grifo de Assalto	Штурмовой Грифон
 Assault Intercessor	Intercessor d'assaut	Sturm-Intercessor	Intercesor de Asalto	Intercessor d'Assalto	Intercessor de Assalto	
@@ -3629,7 +3629,7 @@ Call for Unity	Appel à l'unité	Aufruf zur Einigkeit	Llamada a la unidad	Richia
 Call of the Conclave	Appel du Conclave	Ruf des Konklave|Ruf des Konklaves	Llamada del Cónclave	Chiamata del Conclave	Chamado do Conclave	Зов Конклава
 Call of the Death-Dweller	Appel du Thanatophile	Ruf des Todbrüters	Llamada del Habitante de la Muerte	Richiamo del Dimoramorte	Chamado do Mortívago	Зов Обитателя Смерти
 Call of the Full Moon	Appel de la pleine lune	Ruf des Vollmonds	Llamada de la luna llena	Richiamo della Luna Piena	Chamado da Lua Cheia	Зов Полной Луны
-Call of the Herd	Appel du troupeau	Ruf der Herde	Llamado de la manada	Richiamo del Branco	Chamado do Rebanho	Зов Стада
+Call of the Herd	Appel du troupeau|XXAppel du troupeau	Ruf der Herde|XXRuf der Herde	Llamado de la manada|XXLlamado de la manada	Richiamo del Branco|XXRichiamo del Branco	Chamado do Rebanho|XXChamado do Rebanho	ХХЗов Стада
 Call of the Nightwing	Appel de l'ailenuit	Ruf der Nachtschwinge	Llamada del ala nocturna	Richiamo dell'Ala Notturna	Chamado do Noctóptero	Зов Ночного Крыла
 Call of the Ring	Appel de l'Anneau	Ruf des Rings	Llamada del Anillo	Richiamo dell'Anello	Chamado do Anel	
 Call of the Wild	Appel de la forêt	Ruf der Wildnis	Llamado de la naturaleza	Richiamo della Foresta	Chamado da Selva	
@@ -6666,7 +6666,7 @@ Disease Carriers	Propagateurs de Maladie	Seuchenbringer	Portadores de enfermedad
 Diseased Vermin	Rongeurs malades	Wanderratten	Alimañas apestadas	Ratti Infetti	Ratos Empestiados	
 Disembowel	Éviscération	Ausweiden	Destripar	Sbudellare	Estripar	Потрошение
 Disempower	Ademption	Entkräftung	Deponer	Incapacitare	Desenergizar	
-Disenchant	Désenchantement	Entzauberung	Desencantar	Disincantare	Desencantar	Разочароване|Разочарование
+Disenchant	Désenchantement	Entzauberung	Desencantar	Disincantare	Desencantar	Разочарование|Разочаровывать
 Disentomb	Défouissage	Aus dem Grab holen	Sacar de la tumba	Dissotterrare	Desencovar	Извлечение из Могилы
 Disfigure	Défiguration	Entstellen	Desfigurar	Sfigurare	Desfigurar	Обезобразить
 Disharmony				Disarmonia		
@@ -28727,7 +28727,7 @@ Valley Rally	Ralliement de Vallée	Thaltruppensammlung	Agrupamiento en Vallis	Ra
 Valley Rannet	Rannet des vallées	Tal-Rannet	Rannet del valle	Rannet della Valle	Rannet do Vale	Раннет из Долины
 Valley Rotcaller	Meneuse de putréfaction de Vallée	Thal-Moderruferin	Putrinvocadora de Vallis	Evocapiaghe della Valle		
 Valleymaker	Forgeur de vallée	Tälermacher	Creavalles	Creatore di Vallate	Criador de Vales	Создатель Долин
-Valor	La Valeur	Die Tapferkeit		Il Valore		Доблесть
+Valor	La Valeur|XXLa Valeur	Die Tapferkeit|XXDie Tapferkeit	XXValor	Il Valore|XXIl Valore	XXValor	ХХДоблесть
 Valor Made Real	Valeur faite réelle	Wirklicher Heldenmut	Valor concretado	Sostanza del Valore	Coragem Concretizada	Овеществленная доблесть
 Valor Singer	Chanteur de vaillance	Wagemut-Sänger	Cantante del valor	Cantante del Valore	Menestrel da Bravura	Певец Доблести
 Valor in Akros	Valeur d'Akros	Tapferkeit in Akros	Valor en Akros	Valore ad Akros	Bravura em Ácros	Доблесть Акроса

@@ -3661,7 +3661,6 @@
 Доблестное Предприятие	Valiant Endeavor	front/4/2/42406788-6984-4453-a525-4895ccd1fbd8.jpg
 Доблестный Скакун	Valorous Steed	front/8/9/8983d5d2-03b6-4fd0-950b-9029d2b6bf7c.jpg
 Доблестный Спаситель	Valiant Rescuer	front/3/3/33d1d585-7173-4bdb-9b46-9562fa2ae750.jpg
-Доблесть	Valor	front/2/e/2eaed141-6770-407e-b333-35f3655cbbb1.jpg
 Доблесть Акроса	Valor in Akros	front/d/4/d4be2967-0bff-4ea2-a34b-19b60c807a5d.jpg
 Доблесть Достойного	Valor of the Worthy	front/5/4/54aaa6c5-9c97-4efc-a532-1d441e995e24.jpg
 Доблесть Охотника	Hunter's Prowess	front/b/0/b01ad485-04ea-4bcb-8185-9ce9f9cb0fe5.jpg
@@ -4928,7 +4927,6 @@
 Зов Приключений	Adventurous Impulse	front/0/8/087d2134-3b64-4601-bc6d-bc3b46c9c1ac.jpg
 Зов Пустоты	Call to the Void	front/c/e/cea25111-01e4-4430-b196-9b02fc7702de.jpg
 Зов Рода	Call the Bloodline	front/c/c/cc01d2bc-b54b-4691-8173-738986e0f172.jpg
-Зов Стада	Call of the Herd	front/0/6/06c4207a-5d7e-4f0d-80a5-435079704d68.jpg
 Зов Червей	Wurmcalling	front/d/a/da966ee2-48c1-42d0-8236-0ccaec11e579.jpg
 Зов Эладамри	Eladamri's Call	front/7/b/7b18fbe5-9634-466b-b149-52d109f57b63.jpg
 Зов Эмерии // Эмерия, Руины Небесного Анклава	Emeria's Call // Emeria, Shattered Skyclave	front/8/2/82947fd8-f350-4726-9338-a575d5387f78.jpg
@@ -11642,8 +11640,8 @@
 Разоритель Анже	Anje's Ravager	front/2/c/2c6dc629-e001-47b9-a56a-d1e47d4d1208.jpg
 Разоритель Гнезд	Nest Robber	front/9/9/99b6ac6a-8639-45ac-abf4-8de4832a602a.jpg
 Разоритель Склепов	Vault Robber	front/6/2/622f6678-2da3-442d-963d-82912a91e028.jpg
-Разочароване	Disenchant	front/e/d/ed16f389-b4c3-4307-826a-4b1871b832e1.jpg	a
 Разочарование	Disenchant	front/2/0/204af385-122c-47da-bb04-2f1b42c2937c.jpg
+Разочаровывать	Disenchant	front/e/d/ed16f389-b4c3-4307-826a-4b1871b832e1.jpg	a
 Разрастание	Thrive	front/4/4/443c08fe-8409-48b8-a1d0-b2455fde547c.jpg
 Разрастающийся Тринакс	Sprouting Thrinax	front/2/9/295a2d01-dc02-4b05-ada9-639beb455ee4.jpg
 Разрез Пустоты	Void Rend	front/8/f/8fa0587a-46ac-4dcc-8b8c-8cbb27f6a6a6.jpg
@@ -15234,6 +15232,8 @@
 Худшие Страхи	Worst Fears	front/0/a/0a347518-2d6f-4d65-ae5c-7d06fdd47991.jpg
 Хулиган с улицы Жестянщиков	Tin Street Hooligan	front/9/5/9582c22b-bf47-495a-8558-96a2b4049854.jpg
 Хулиганство и Хаос	Mischief and Mayhem	front/b/f/bf876720-9c57-4774-aa4e-db343ce24c92.jpg
+ХХДоблесть	Valor	front/2/e/2eaed141-6770-407e-b333-35f3655cbbb1.jpg
+ХХЗов Стада	Call of the Herd	front/0/6/06c4207a-5d7e-4f0d-80a5-435079704d68.jpg
 Хэйко Ямадзаки, Генерал	Heiko Yamazaki, the General	front/b/5/b5289859-efb7-434d-8704-cf4946e33a66.jpg
 Цапля Надежды	Heron of Hope	front/0/0/0005a88c-3070-4f9e-bc05-723038676204.jpg
 Царица Шершней	Hornet Queen	front/d/d/dd168fa8-3187-4991-93ff-77c653f644ea.jpg
@@ -16168,7 +16168,7 @@
 Ящер-Молотильщик	Thresher Lizard	front/c/e/ce4c860b-e75c-433c-b8be-b894c2075ab3.jpg
 Ящероморфный Гибрид	Sauroform Hybrid	front/4/8/48c785a0-a2b1-4eb2-9890-6229397c7d78.jpg
 Ящик загадок Тефери	Teferi's Puzzle Box	front/0/4/0466e8c2-9a45-434d-af8f-18fbc0b29f1e.jpg
-Assault // Battery	Assault // Battery	front/8/f/8f14c719-2b1f-495c-ae7c-00a1ade7c2c4.jpg
+Assault // Battery // Battery	Assault // Battery	front/8/f/8f14c719-2b1f-495c-ae7c-00a1ade7c2c4.jpg
 Boom // Bust	Boom // Bust	front/a/9/a93a0ab4-0ff9-448f-bbda-15c7e248b4b6.jpg
 Bound // Determined	Bound // Determined	front/b/b/bbb2593c-b3aa-4199-8498-197e3d4de00d.jpg
 Commit // Memory // Commit // Memory	Commit // Memory	front/8/9/89b119ad-5840-44c4-9ac5-958eafb0ade4.jpg
