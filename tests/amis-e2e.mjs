@@ -202,6 +202,7 @@ ok('mode streamer (streamOn) : le point des demandes n\'apparaît pas');
 /* ── Appli Android (plugin PushNotifications simulé) : appareil enregistré, demande notifiée, toucher → feuille Amis ─ */
 const UC = 'uid-carol-e2e', TC = tag(UC), TOKC = 'eC3:APA91b' + 'x'.repeat(40) + Date.now().toString(36).padEnd(70, 'q');
 const shell = tok => {
+  try { localStorage.setItem('deckdeal:pnAsked', '1'); } catch (e) { /* ignore */ }      // demande d'Android du premier lancement (push.js › pushFirstAsk) : testée par push-native-e2e
   const L = {}, held = {}; let perm = 'prompt';
   const fire = (ev, data) => { if (L[ev] && L[ev].length) L[ev].forEach(f => f(data)); else (held[ev] = held[ev] || []).push(data); };
   window.__pn = { fire };

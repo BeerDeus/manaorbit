@@ -28,6 +28,7 @@ const onSrv = () => until(() => !!devs()[KEY]), offSrv = () => until(() => !devs
 
 // ── coque Android simulée : plugin PushNotifications ; permission et toucher « au lancement » gardés dans localStorage (survivent au rechargement)
 const shell = tok => {
+  try { localStorage.setItem('deckdeal:pnAsked', '1'); } catch (e) { /* ignore */ }      // demande d'Android du premier lancement (push.js › pushFirstAsk) : testée par push-native-e2e
   const g = k => { try { return JSON.parse(localStorage.getItem('__t_' + k)); } catch (e) { return null; } }, s = (k, v) => localStorage.setItem('__t_' + k, JSON.stringify(v));
   const L = {}, held = {}, calls = [];
   const fire = (ev, data) => { if (L[ev] && L[ev].length) L[ev].forEach(f => f(data)); else (held[ev] = held[ev] || []).push(data); };
