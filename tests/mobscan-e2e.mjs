@@ -102,7 +102,7 @@ assert.equal(await pc.$$eval('.lot-it', r => r.length), 1, 'même carte, même l
 await ph.evaluate(() => scanAdd({ key: 'arcane signet', name: 'Arcane Signet', card: 'en', score: 1, raw: 'Arcane Signet' }, 1, false));
 await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 2, null, { timeout: 8000 });
 assert.deepEqual(await collX(pc, 'arcane signet'), { 'en|2x2|101': 1 }, 'extension choisie sur le téléphone : posée d\'office sur la carte suivante, envoyée avec');
-await ph.click('.sc-item[data-k="arcane signet"] [data-a="del"]');
+await ph.click('.sc-item[data-k="arcane signet"] [data-a="del"]'); await ph.waitForSelector('.sheet [data-ok]'); await ph.click('.sheet [data-ok]');      // ✕ : confirmé
 await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 1 && !COLL.map['arcane signet'], null, { timeout: 8000 });
 // « Saisir » sur une ligne non reconnue du téléphone : la carte part vers le PC comme une carte lue (avant : dans la collection du téléphone, jamais au PC)
 await ph.evaluate(() => { SC.miss.push({ id: 902, label: 'Photo 4', thumb: '', shot: '', raw: 'Arc4ne S1gnet' }); scanPaintList(); });
@@ -111,7 +111,7 @@ await ph.fill('.sheet-wrap.open #caName', 'arcane'); await ph.click('.sheet-wrap
 await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 2 && COLL.map['arcane signet'], null, { timeout: 8000 });
 assert.deepEqual(await collX(pc, 'arcane signet'), { 'en|2x2|101': 1 }, 'saisie : au PC, avec l\'édition décidée sur le téléphone');
 assert.deepEqual(await ph.evaluate(() => [collQty('arcane signet'), SC.miss.length, [...SC.items.values()].some(x => x.key === 'arcane signet')]), [0, 0, true], 'rien dans la collection du téléphone ; la ligne non reconnue remplacée par la carte');
-await ph.click('.sc-item[data-k="arcane signet"] [data-a="del"]');
+await ph.click('.sc-item[data-k="arcane signet"] [data-a="del"]'); await ph.waitForSelector('.sheet [data-ok]'); await ph.click('.sheet [data-ok]');      // ✕ : confirmé
 await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 1 && !COLL.map['arcane signet'], null, { timeout: 8000 });
 await pc.screenshot({ path: 'shots/mobscan-2-pc.png' });
 ok('téléphone → PC : carte reçue dans le lot (langue lue), édition choisie sur le téléphone suivie, posée d\'office sur la suivante ; retirée du document ; « + » regroupé, ✕ retiré du lot et de la collection du PC ; « Saisir » : au PC aussi');

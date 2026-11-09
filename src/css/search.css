@@ -62,3 +62,6 @@
 .fgrp-fold.shut .fopt:not([aria-pressed="true"]){display:none}
 .fgrp-fold.shut .fopts:not(:has([aria-pressed="true"])){display:none}
 @media (prefers-reduced-motion:reduce){.fgl-fold .i{transition:none}}
+.srch-dupn{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2)}      /* « Au moins [2] exemplaires » sous « Doublons » (filters.js › data-fnum) */
+.srch-dupn input{width:72px;min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:650;text-align:center}
+.srch-dupn input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}

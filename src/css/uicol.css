@@ -32,3 +32,4 @@
 .cvw-c .px-warn,.cvw-g .px-warn{position:relative;z-index:2;pointer-events:auto}
 .cvw-c .px-warn::before,.cvw-g .px-warn::before{content:"";position:absolute;inset:-9px -7px}
 .cvw-g .cvw-gm i:has(.px-warn){position:relative;z-index:2}      /* son opacité en fait un contexte d'empilement : sans ça, ⚠️ restait sous le bouton */
+.cm-opt.cm-danger>.i,.cm-opt.cm-danger b{color:var(--bad)}      /* « Réinitialiser ma collection » (menu « … ») */

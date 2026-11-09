@@ -6635,6 +6635,9 @@ html.opn-on .lot .lot-lh,html.opn-on .lot .lot-list{display:none}               
 .fgrp-fold.shut .fopt:not([aria-pressed="true"]){display:none}
 .fgrp-fold.shut .fopts:not(:has([aria-pressed="true"])){display:none}
 @media (prefers-reduced-motion:reduce){.fgl-fold .i{transition:none}}
+.srch-dupn{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2)}      /* « Au moins [2] exemplaires » sous « Doublons » (filters.js › data-fnum) */
+.srch-dupn input{width:72px;min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:650;text-align:center}
+.srch-dupn input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 
 /* ── setview.css : page d'une extension (setview.js) : liens, recherche et filtres, rareté, grille des cartes (styles .dv-grid / .dvc du viewer de deck) ── */
 .setv-ic{width:36px;height:36px;flex:none;border-radius:11px;background:var(--surface-2);display:grid;place-items:center}
@@ -7380,6 +7383,7 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 .cvw-c .px-warn,.cvw-g .px-warn{position:relative;z-index:2;pointer-events:auto}
 .cvw-c .px-warn::before,.cvw-g .px-warn::before{content:"";position:absolute;inset:-9px -7px}
 .cvw-g .cvw-gm i:has(.px-warn){position:relative;z-index:2}      /* son opacité en fait un contexte d'empilement : sans ça, ⚠️ restait sous le bouton */
+.cm-opt.cm-danger>.i,.cm-opt.cm-danger b{color:var(--bad)}      /* « Réinitialiser ma collection » (menu « … ») */
 
 /* ── Viewer d'un deck : deux actions principales, une rangée légère, le reste dans « Plus » (viewer.js › dvActsHtml, dvMenu) ── */
 .dvw>.dv-head .dv-title{flex:1 1 auto}      /* titre sur toute la largeur : le partage reste au bord droit, même après un nom court */
@@ -8171,8 +8175,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '5f20d94f';
-const I18N_FILES = {"de":"i18n/de.71184715.js","en":"i18n/en.077b12df.js","es":"i18n/es.f6796e9c.js","it":"i18n/it.4659445c.js","pt":"i18n/pt.befec36f.js"};
+const DD_BUILD = 'b385d04e';
+const I18N_FILES = {"de":"i18n/de.0006088b.js","en":"i18n/en.13d78a4b.js","es":"i18n/es.4102bb45.js","it":"i18n/it.56e97808.js","pt":"i18n/pt.2576c105.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -10154,9 +10158,9 @@ function fltLineOk(x, f) {
   if (f.set && (f.set === '-' ? !!x.s : x.s !== f.set)) return false;
   return true;
 }
-/** Filtres avancés d'une carte préparée : doublons (2 exemplaires ou plus), decks, échange, ajout, puis au moins une ligne qui passe tous les filtres de ligne à la fois. now : secondes. */
+/** Filtres avancés d'une carte préparée : doublons (dupN exemplaires ou plus, 2 par défaut), decks, échange, ajout, puis au moins une ligne qui passe tous les filtres de ligne à la fois. now : secondes. */
 function fltAdvOk(i, f, now) {
-  if (f.dup && !(i.q >= 2)) return false;
+  if (f.dup && !(i.q >= Math.max(2, Number(f.dupN) || 2))) return false;
   if (f.dk && (f.dk === 'in') !== !!i.sk) return false;
   if (f.tr && !i.st) return false;
   if (f.add) { const days = Number(f.add) || 0; if (!(i.d > 0 && i.d >= now - days * 86400)) return false; }
@@ -18185,14 +18189,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { EV_LOGO 
 /* ── filters.js : recherche + filtres couleur / famille / coût (deck viewer et collection) ───────────────────── */
 const COLOR_DEF = [['W', T('Blanc')], ['U', T('Bleu')], ['B', T('Noir')], ['R', T('Rouge')], ['G', T('Vert')], ['C', T('Incolore')]];      // noms traduits (affichage seulement : la lettre sert de valeur)
 /* set : code d'extension, '-' : lignes sans édition. Filtres avancés de la collection (search.js, core.js › FLT_ADV) : lang (langues), foil ('f' | 'n'), rar (raretés),
-   px (tranche de prix à l'unité), place (emplacement, '-' : non rangées), dup (doublons), dk ('in' | 'out' : dans un deck ou non), tr (à l'échange), add ('7' | '30' : ajoutées depuis n jours). */
-const newFilter = () => ({ q: '', colors: new Set(), type: '', cmc: '', cmdr: '', set: '', lang: new Set(), foil: '', rar: new Set(), sty: new Set(), px: '', place: '', dup: false, dk: '', tr: false, add: '', fmt: '' });
+   px (tranche de prix à l'unité), place (emplacement, '-' : non rangées), dup (doublons ; dupN : exemplaires au moins, 2 par défaut), dk ('in' | 'out' : dans un deck ou non), tr (à l'échange), add ('7' | '30' : ajoutées depuis n jours). */
+const newFilter = () => ({ q: '', colors: new Set(), type: '', cmc: '', cmdr: '', set: '', lang: new Set(), foil: '', rar: new Set(), sty: new Set(), px: '', place: '', dup: false, dupN: 2, dk: '', tr: false, add: '', fmt: '' });
 const filterCount = f => (f.colors.size ? 1 : 0) + (f.type ? 1 : 0) + (f.cmc !== '' && f.cmc != null ? 1 : 0) + (f.cmdr ? 1 : 0) + (f.set ? 1 : 0) + fltAdvCount(f);
 /** Remet tous les filtres à zéro, sur place (la recherche texte reste : son champ a son propre ✕). keepPlace : l'emplacement ouvert reste (« Effacer les filtres » :
  *  on reste dans le classeur ouvert depuis Rangement, son bandeau a son propre ✕). */
 function fltClear(f, keepPlace) {
   f.colors.clear(); f.type = ''; f.cmc = ''; f.cmdr = ''; f.set = '';
   for (const k of FLT_ADV) { if (keepPlace && k === 'place') continue; if (f[k] instanceof Set) f[k].clear(); else if (k in f) f[k] = typeof f[k] === 'boolean' ? false : ''; }
+  if ('dupN' in f) f.dupN = 2;
 }
 
 /** Sens des pastilles de couleur, dit à l'écran (core.js › colorFit) : commandants d'À monter et du coach, 'in' (identité incluse dans la sélection) ou exactement (eq) ; cartes : au moins une. */
@@ -18256,6 +18261,8 @@ function mountFilters(root, f, onChange, opts = {}) {
       if (inp.value !== (f.q || '') && document.activeElement !== inp) { inp.value = f.q || ''; clr.hidden = !inp.value; }      // recherche enregistrée appliquée : son texte dans le champ
       moreFill();
       for (const b of mbox.querySelectorAll('[data-fk]')) { const v = f[b.dataset.fk]; att(b, 'aria-pressed', v instanceof Set ? v.has(b.dataset.fv) : typeof v === 'boolean' ? v : v === b.dataset.fv); }
+      for (const el of mbox.querySelectorAll('[data-fshow]')) hid(el, !fltOn(f[el.dataset.fshow]));      // réglage d'un filtre (« 2 exemplaires et + ») : montré quand le filtre est choisi
+      for (const el of mbox.querySelectorAll('input[data-fnum]')) if (document.activeElement !== el && el.value !== String(f[el.dataset.fnum])) el.value = f[el.dataset.fnum];
       const na = fltAdvCount(f), mb = more.querySelector('b'); hid(mb, !na); txt(mb, na);
       ext.paint(xbox, f, api);
     }
@@ -18264,6 +18271,13 @@ function mountFilters(root, f, onChange, opts = {}) {
   const cnAgain = () => { if (root.isConnected && f.q) onChange(); };      // index des noms de la langue de l'appli arrivé après la frappe : la liste se refait (cardnames.js)
   inp.addEventListener('input', () => { f.q = inp.value; clr.hidden = !inp.value; clearTimeout(t); t = setTimeout(onChange, 120); if (f.q && typeof cnWhen === 'function') cnWhen(cnAgain); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  if (ext) {      // nombre d'un filtre (data-fnum : « au moins N exemplaires ») : entier de data-min à 9999, appliqué pendant la frappe ; illisible : la dernière valeur revient en quittant le champ
+    let nt = 0;
+    const num = el => { const v = Number(el.value), lo = Number(el.dataset.min) || 0; return Number.isInteger(v) && v >= lo && v <= 9999 ? v : null; };
+    mbox.addEventListener('input', e => { const el = e.target.closest('input[data-fnum]'); if (!el) return; const v = num(el); if (v == null || v === f[el.dataset.fnum]) return; f[el.dataset.fnum] = v; clearTimeout(nt); nt = setTimeout(fire, 250); });
+    mbox.addEventListener('change', e => { const el = e.target.closest('input[data-fnum]'); if (!el) return; clearTimeout(nt); if (num(el) == null) el.value = f[el.dataset.fnum]; fire(); });
+    mbox.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[data-fnum]')) e.target.blur(); });
+  }
   clr.onclick = () => { inp.value = ''; f.q = ''; fire(); inp.focus(); };
   btn.onclick = () => {
     const open = panel.hidden; if (open) { setOpts(); if (ext && fltAdvCount(f) && mbox.hidden) moreSet(true); }      // un filtre avancé actif : ses groupes s'ouvrent avec le panneau
@@ -18279,6 +18293,7 @@ function mountFilters(root, f, onChange, opts = {}) {
     else if (b.dataset.fk && b.dataset.fk in f) {      // groupes avancés : Set → plusieurs valeurs (ou) ; booléen → bascule ; texte → une valeur, re-toucher l'enlève
       const k = b.dataset.fk, v = b.dataset.fv, cur = f[k];
       if (cur instanceof Set) { if (cur.has(v)) cur.delete(v); else cur.add(v); } else if (typeof cur === 'boolean') f[k] = !cur; else f[k] = cur === v ? '' : v;
+      if (k === 'dup' && !f.dup) f.dupN = 2;      // « Doublons » rechoisi : 2 exemplaires et +
     }
     else if (b === more) { moreSet(mbox.hidden); haptic('tap'); return; }
     else if (b.classList.contains('freset')) fltClear(f, true);
@@ -20894,13 +20909,23 @@ function collBatch(fn) {
 let edT = 0;
 function edSoon() { clearTimeout(edT); edT = setTimeout(() => { if (collEds(true).some(e => !COLL.ed[e])) edRefresh(); if (COLL.soloLoaded) collSoloSoon(400); }, 1200); }      // nouvelles cartes : impression unique ?
 function collAdd(items, mode) { COLL.map = mergeColl(COLL.map, items, mode); collChanged(); }
-/** Confirmation avant de retirer un exemplaire (« − » de la liste Cartes ou du scan) : petite fiche, jamais de confirm() natif. where : 'coll' | 'scan'. */
+/** « Ne plus demander » touché dans la confirmation du « − » : plus de fiche jusqu'au prochain lancement de l'appli (mémoire seulement, jamais enregistré). */
+let minusNoAsk = false;
+/** Confirmation avant de retirer (« − » de la liste Cartes ou du scan, ✕ du scan) : petite fiche, jamais de confirm() natif. where : 'coll' | 'scan' | 'scandel' (✕ : la carte entière).
+ *  « Ne plus demander » (minusNoAsk) : seulement pour un exemplaire de moins ; le dernier exemplaire (ligne qui tombe à 0) et le ✕ demandent toujours. */
 function confirmMinus(name, q, where, onOk, line) {
-  const last = q <= 1, scan = where === 'scan';
+  const del = where === 'scandel', last = del || q <= 1, scan = where === 'scan' || del;
+  if (minusNoAsk && !last) { onOk(); return; }
   openSheet(last ? (scan ? T('Retirer cette carte ?') : T('Retirer de la collection ?')) : T('Retirer un exemplaire ?'), '', api => {
-    api.body.innerHTML = `<p class="cf-msg"><b>${esc(name)}</b>${last ? (scan ? T('Dernier exemplaire : la carte sort de la liste du scan.') : line ? T('Dernier exemplaire {line} : cette ligne sort de ta collection (la carte reste dans les autres langues).', { line }) : T('Dernier exemplaire : la carte sort de ta collection.')) : T('Il en restera {a} sur {b}.', { a: nf0(q - 1), b: nf0(q) })}</p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${T('Retirer')}</button>`);
-    api.foot.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { api.close(); onOk(); } });
+    const msg = del && q > 1 ? TN(q, '{n} exemplaire sort de la liste du scan.', '{n} exemplaires sortent de la liste du scan.')
+      : last ? (scan ? T('Dernier exemplaire : la carte sort de la liste du scan.') : line ? T('Dernier exemplaire {line} : cette ligne sort de ta collection (la carte reste dans les autres langues).', { line }) : T('Dernier exemplaire : la carte sort de ta collection.')) : T('Il en restera {a} sur {b}.', { a: nf0(q - 1), b: nf0(q) });
+    api.body.innerHTML = `<p class="cf-msg"><b>${esc(name)}</b>${msg}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>${last ? '' : `<button class="btn ghost" type="button" data-noask title="${esc(T('Retire sans confirmation jusqu\'au prochain lancement de l\'appli.'))}">${T('Ne plus demander')}</button>`}<button class="btn danger" type="button" data-ok>${T('Retirer')}</button>`);
+    api.foot.addEventListener('click', e => {
+      const no = e.target.closest('[data-noask]'); if (!no && !e.target.closest('[data-ok]')) return;
+      if (no) { minusNoAsk = true; toast(T('Retrait sans confirmation jusqu\'au prochain lancement de l\'appli')); }
+      api.close(); onOk();
+    });
   });
 }
 /** +/− d'exemplaires d'une carte. o.lang : la ligne concernée (clé : langue, ou langue|édition) ; sans lui, la langue la plus fournie de la carte, sans édition (« non précisée » pour une carte neuve). À 0 la ligne disparaît, puis la carte. Retourne les exemplaires de la ligne (0 : retirée). */
@@ -21843,13 +21868,50 @@ function openCollMenu() {
     api.body.innerHTML = `<div class="cm-opts">${row('import', 'i-download', T('Importer un fichier'), T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».'))}
       ${n ? row('export', 'i-upload', T('Exporter ma collection'), T('Un fichier CSV ou texte : à garder, ou à ouvrir dans une autre appli.')) : ''}
       ${n && !mkUs() ? row('prices', 'i-coin', T('Prix réels CardTrader'), T('L\'offre la moins chère de chaque carte, à la place de l\'estimation Cardmarket.')) : ''}
-      ${row('swg', 'i-swap', T('Venir de ManaBox'), T('Le guide en 2 minutes : exporter, puis importer ici.'))}</div>`;
+      ${row('swg', 'i-swap', T('Venir de ManaBox'), T('Le guide en 2 minutes : exporter, puis importer ici.'))}
+      ${n ? row('reset', 'i-trash', T('Réinitialiser ma collection'), T('Retire toutes les cartes de ta collection, en deux confirmations.')).replace('class="cm-opt"', 'class="cm-opt cm-danger"') : ''}</div>`;
     api.body.addEventListener('click', e => {
       const b = e.target.closest('[data-cm]'); if (!b) return;
       const k = b.dataset.cm; api.close();
-      if (k === 'import') openCollImport(); else if (k === 'export') collExport(); else if (k === 'prices') openCollPrices(); else if (k === 'swg') swgOpen({ from: 'coll' });
+      if (k === 'import') openCollImport(); else if (k === 'export') collExport(); else if (k === 'prices') openCollPrices(); else if (k === 'swg') swgOpen({ from: 'coll' }); else if (k === 'reset') collResetAsk();
     });
   });
+}
+/** « Réinitialiser ma collection » (menu « … ») : deux confirmations, la seconde dit que c'est irrécupérable et n'active « Réinitialiser » qu'au bout de 5 s.
+ *  Retire les cartes et les proxys (COLL.map, COLL.prox) ; les rangements (COLL.places) restent, vides. Passe par collChanged : enregistré, envoyé au compte
+ *  (la fusion avec la base y retire chaque carte), repeint. */
+const COLL_RESET_WAIT = 5;
+function collResetAsk() {
+  const n = collCount(), c = collCopies(); if (!n) return;
+  haptic('tap');
+  openSheet(T('Réinitialiser ma collection ?'), '', api => {
+    api.body.innerHTML = `<p class="cf-msg"><span>${esc(T('Toutes les cartes de ta collection seront retirées : {cards}, {copies}.', { cards: TN(n, '{n} carte', '{n} cartes'), copies: TN(c, '{n} exemplaire', '{n} exemplaires') }))}</span><span>${esc(T('Tes decks ne sont pas touchés.'))}</span></p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${T('Oui, continuer')}</button>`);
+    api.foot.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { api.close(); collResetSure(n, c); } });
+  });
+}
+function collResetSure(n, c) {
+  openSheet(T('Action irréversible'), '', api => {
+    api.wrap.classList.add('cm-reset');
+    api.body.innerHTML = `<p class="cf-msg"><span>${esc(T(D.user ? 'Ta collection sera vidée sur cet appareil et dans ton compte ({cards}, {copies}).' : 'Ta collection sera vidée sur cet appareil ({cards}, {copies}).', { cards: TN(n, '{n} carte', '{n} cartes'), copies: TN(c, '{n} exemplaire', '{n} exemplaires') }))}</span><span><b>${esc(T('Impossible de la récupérer ensuite.'))}</b> ${esc(T('Exporte-la d\'abord pour en garder une copie.'))}</span></p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok disabled aria-disabled="true"></button>`);
+    const ok = $('[data-ok]', api.foot);
+    let left = COLL_RESET_WAIT;
+    const label = () => { ok.textContent = left > 0 ? T('Réinitialiser ({n} s)', { n: left }) : T('Réinitialiser'); };
+    label();
+    const t = setInterval(() => { left--; label(); if (left <= 0) { clearInterval(t); ok.disabled = false; ok.removeAttribute('aria-disabled'); } }, 1000);
+    const close = api.close; api.close = () => { clearInterval(t); close(); };
+    api.foot.addEventListener('click', e => {
+      const b = e.target.closest('[data-ok]'); if (!b || b.disabled || left > 0) return;
+      api.close(); collReset();
+    });
+  });
+}
+function collReset() {
+  COLL.map = {}; COLL.prox = {}; COLL.shown = COLL_PAGE;
+  if (typeof LOT !== 'undefined' && LOT.list && LOT.list.length) { LOT.list = []; LOT.edit = ''; lotSave(); }      // « Dernières ajoutées » : cartes qui ne sont plus dans la collection
+  collChanged();
+  haptic('ok'); toast(T('Collection réinitialisée'));
 }
 function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */
@@ -22899,7 +22961,7 @@ function srchDeckKeys() {
 }
 const srchTradeSig = () => [TR.keep, TR.kept.size, TR.u, srchDeckSig()].join('|');
 /** Clé des filtres avancés pour le cache de la liste (collListOf) ; '' sans filtre avancé. Ajout récent : la minute courante (la liste suit l'heure). */
-const srchKey = f => (fltAdvCount(f) ? [[...f.lang].sort().join(), f.foil, [...f.rar].sort().join(), [...f.sty].sort().join(), f.px, f.place, f.dup ? 1 : 0, f.dk, f.tr ? 1 : 0, f.add, f.dk ? srchDeckSig() : '', f.tr ? srchTradeSig() : '', f.add ? Math.floor(Date.now() / 60000) : '', f.fmt, f.fmt ? SRCH.lgV : ''].join('|') : '');      // lgV : formats lus depuis
+const srchKey = f => (fltAdvCount(f) ? [[...f.lang].sort().join(), f.foil, [...f.rar].sort().join(), [...f.sty].sort().join(), f.px, f.place, f.dup ? Math.max(2, f.dupN || 2) : 0, f.dk, f.tr ? 1 : 0, f.add, f.dk ? srchDeckSig() : '', f.tr ? srchTradeSig() : '', f.add ? Math.floor(Date.now() / 60000) : '', f.fmt, f.fmt ? SRCH.lgV : ''].join('|') : '');      // lgV : formats lus depuis
 /** Prépare les cartes de la liste v pour les filtres avancés de f (rien sans filtre avancé) : lignes une fois par version, decks et échange quand ils changent. */
 function srchPrep(v, f) {
   if (!f || !fltAdvCount(f)) return;
@@ -23012,7 +23074,8 @@ function srchGroupsHtml(f) {
     + srchGrp(T('Finition'), srchOpt('foil', 'f', `<span class="srch-foil" aria-hidden="true">✦</span>${esc(T('Foil'))}`) + srchOpt('foil', 'n', esc(T('Non foil'))))
     + srchGrp(T('Prix à l\'unité'), SRCH_PX.map(([v, l]) => srchOpt('px', v, esc(T(l)))).join(''))
     + (pl.length || (f.place && f.place !== '-') ? srchGrpFold('place', T('Emplacement'), pl.length, srchOpt('place', '-', esc(T('Non rangées'))) + pl.map(x => srchOpt('place', x.id, `<i class="srch-dot" style="--c:${plcColor(x.id)}" aria-hidden="true"></i>${esc(plcName(x.id))}`)).join('')) : '')
-    + srchGrp(T('Exemplaires'), srchOpt('dup', '1', esc(T('Doublons (2 et +)'))) + srchOpt('dk', 'in', esc(T('Dans un deck'))) + srchOpt('dk', 'out', esc(T('Dans aucun deck'))) + srchOpt('tr', '1', esc(T('À l\'échange'))))
+    + srchGrp(T('Exemplaires'), srchOpt('dup', '1', esc(T('Doublons (2 et +)'))) + srchOpt('dk', 'in', esc(T('Dans un deck'))) + srchOpt('dk', 'out', esc(T('Dans aucun deck'))) + srchOpt('tr', '1', esc(T('À l\'échange'))),
+      `<label class="srch-dupn" data-fshow="dup"${f.dup ? '' : ' hidden'}><span>${esc(T('Au moins'))}</span><input type="number" inputmode="numeric" min="2" max="9999" step="1" data-fnum="dupN" data-min="2" value="${Math.max(2, f.dupN || 2)}" aria-label="${esc(T('Nombre d\'exemplaires au moins'))}"><span>${esc(T('exemplaires'))}</span></label>`)
     + srchGrp(T('Ajout'), srchOpt('add', '7', esc(T('7 derniers jours'))) + srchOpt('add', '30', esc(T('30 derniers jours'))));
 }
 
@@ -23033,7 +23096,7 @@ function srchChips(f, name) {
   if (f.foil) add('foil', '', f.foil === 'f' ? T('Foil') : T('Non foil'));
   if (f.px) add('px', '', T((SRCH_PX.find(x => x[0] === f.px) || ['', f.px])[1]));
   if (name && f.place) add('place', '', f.place === '-' ? T('non rangées') : plcName(f.place));
-  if (f.dup) add('dup', '', T('Doublons'));
+  if (f.dup) add('dup', '', f.dupN > 2 ? T('{n} exemplaires et +', { n: num(f.dupN) }) : T('Doublons'));
   if (f.dk) add('dk', '', f.dk === 'in' ? T('Dans un deck') : T('Dans aucun deck'));
   if (f.tr) add('tr', '', T('À l\'échange'));
   if (f.add) add('add', '', f.add === '7' ? T('7 derniers jours') : T('30 derniers jours'));
@@ -23043,6 +23106,7 @@ function srchChips(f, name) {
 function srchDrop(f, k, v) {
   const cur = f[k];
   if (cur instanceof Set) { if (v) cur.delete(v); else cur.clear(); } else if (typeof cur === 'boolean') f[k] = false; else f[k] = '';
+  if (k === 'dup') f.dupN = 2;
 }
 /** Nom proposé : « Mythiques · FR · non rangées » (40 caractères au plus). */
 function srchAutoName(f) {
@@ -23066,7 +23130,7 @@ function srchSer(f) {
   if (f.sty.size) o.sy = arr(f.sty);
   if (f.px) o.px = f.px;
   if (f.place) o.p = f.place;
-  if (f.dup) o.du = 1;
+  if (f.dup) o.du = Math.max(2, f.dupN || 2) > 2 ? f.dupN : 1;      // 1 : 2 exemplaires et + (comme avant)
   if (f.dk) o.dk = f.dk;
   if (f.tr) o.tr = 1;
   if (f.add) o.ad = f.add;
@@ -23089,7 +23153,7 @@ function srchLoad(f, o) {
   for (const v of Array.isArray(o.sy) ? o.sy : []) if (STYLES.some(x => x[0] === v)) f.sty.add(v);
   if (FLT_PX[o.px]) f.px = o.px;
   if (o.p === '-' || (typeof o.p === 'string' && COLL.places[o.p])) f.place = o.p;
-  if (o.du) f.dup = true;
+  if (o.du) { f.dup = true; f.dupN = Number.isInteger(o.du) && o.du > 2 && o.du <= 9999 ? o.du : 2; }
   if (o.dk === 'in' || o.dk === 'out') f.dk = o.dk;
   if (o.tr) f.tr = true;
   if (o.ad === '7' || o.ad === '30') f.add = o.ad;
@@ -27146,7 +27210,10 @@ function openScan(o) {
     }
     else if (a.dataset.a === 'ok') { it.maybe = false; it.shot = ''; }
     else if (a.dataset.a === 'alt') { scanAltPick(it, a.dataset.n); return; }
-    else if (a.dataset.a === 'del') SC.items.delete(it.id);
+    else if (a.dataset.a === 'del') {                       // ✕ : la carte entière, confirmation à chaque fois
+      confirmMinus(it.name, it.q, 'scandel', () => { if (!SC.items.delete(it.id)) return; scanEdPass(); scanPaintList(); });
+      return;
+    }
     scanEdPass(); scanPaintList();
   });
   scNoteShow(false);      // aide fermée au départ : « ? » l'ouvre

@@ -509,13 +509,23 @@ function collBatch(fn) {
 let edT = 0;
 function edSoon() { clearTimeout(edT); edT = setTimeout(() => { if (collEds(true).some(e => !COLL.ed[e])) edRefresh(); if (COLL.soloLoaded) collSoloSoon(400); }, 1200); }      // nouvelles cartes : impression unique ?
 function collAdd(items, mode) { COLL.map = mergeColl(COLL.map, items, mode); collChanged(); }
-/** Confirmation avant de retirer un exemplaire (« − » de la liste Cartes ou du scan) : petite fiche, jamais de confirm() natif. where : 'coll' | 'scan'. */
+/** « Ne plus demander » touché dans la confirmation du « − » : plus de fiche jusqu'au prochain lancement de l'appli (mémoire seulement, jamais enregistré). */
+let minusNoAsk = false;
+/** Confirmation avant de retirer (« − » de la liste Cartes ou du scan, ✕ du scan) : petite fiche, jamais de confirm() natif. where : 'coll' | 'scan' | 'scandel' (✕ : la carte entière).
+ *  « Ne plus demander » (minusNoAsk) : seulement pour un exemplaire de moins ; le dernier exemplaire (ligne qui tombe à 0) et le ✕ demandent toujours. */
 function confirmMinus(name, q, where, onOk, line) {
-  const last = q <= 1, scan = where === 'scan';
+  const del = where === 'scandel', last = del || q <= 1, scan = where === 'scan' || del;
+  if (minusNoAsk && !last) { onOk(); return; }
   openSheet(last ? (scan ? T('Retirer cette carte ?') : T('Retirer de la collection ?')) : T('Retirer un exemplaire ?'), '', api => {
-    api.body.innerHTML = `<p class="cf-msg"><b>${esc(name)}</b>${last ? (scan ? T('Dernier exemplaire : la carte sort de la liste du scan.') : line ? T('Dernier exemplaire {line} : cette ligne sort de ta collection (la carte reste dans les autres langues).', { line }) : T('Dernier exemplaire : la carte sort de ta collection.')) : T('Il en restera {a} sur {b}.', { a: nf0(q - 1), b: nf0(q) })}</p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${T('Retirer')}</button>`);
-    api.foot.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { api.close(); onOk(); } });
+    const msg = del && q > 1 ? TN(q, '{n} exemplaire sort de la liste du scan.', '{n} exemplaires sortent de la liste du scan.')
+      : last ? (scan ? T('Dernier exemplaire : la carte sort de la liste du scan.') : line ? T('Dernier exemplaire {line} : cette ligne sort de ta collection (la carte reste dans les autres langues).', { line }) : T('Dernier exemplaire : la carte sort de ta collection.')) : T('Il en restera {a} sur {b}.', { a: nf0(q - 1), b: nf0(q) });
+    api.body.innerHTML = `<p class="cf-msg"><b>${esc(name)}</b>${msg}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>${last ? '' : `<button class="btn ghost" type="button" data-noask title="${esc(T('Retire sans confirmation jusqu\'au prochain lancement de l\'appli.'))}">${T('Ne plus demander')}</button>`}<button class="btn danger" type="button" data-ok>${T('Retirer')}</button>`);
+    api.foot.addEventListener('click', e => {
+      const no = e.target.closest('[data-noask]'); if (!no && !e.target.closest('[data-ok]')) return;
+      if (no) { minusNoAsk = true; toast(T('Retrait sans confirmation jusqu\'au prochain lancement de l\'appli')); }
+      api.close(); onOk();
+    });
   });
 }
 /** +/− d'exemplaires d'une carte. o.lang : la ligne concernée (clé : langue, ou langue|édition) ; sans lui, la langue la plus fournie de la carte, sans édition (« non précisée » pour une carte neuve). À 0 la ligne disparaît, puis la carte. Retourne les exemplaires de la ligne (0 : retirée). */
@@ -1458,13 +1468,50 @@ function openCollMenu() {
     api.body.innerHTML = `<div class="cm-opts">${row('import', 'i-download', T('Importer un fichier'), T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».'))}
       ${n ? row('export', 'i-upload', T('Exporter ma collection'), T('Un fichier CSV ou texte : à garder, ou à ouvrir dans une autre appli.')) : ''}
       ${n && !mkUs() ? row('prices', 'i-coin', T('Prix réels CardTrader'), T('L\'offre la moins chère de chaque carte, à la place de l\'estimation Cardmarket.')) : ''}
-      ${row('swg', 'i-swap', T('Venir de ManaBox'), T('Le guide en 2 minutes : exporter, puis importer ici.'))}</div>`;
+      ${row('swg', 'i-swap', T('Venir de ManaBox'), T('Le guide en 2 minutes : exporter, puis importer ici.'))}
+      ${n ? row('reset', 'i-trash', T('Réinitialiser ma collection'), T('Retire toutes les cartes de ta collection, en deux confirmations.')).replace('class="cm-opt"', 'class="cm-opt cm-danger"') : ''}</div>`;
     api.body.addEventListener('click', e => {
       const b = e.target.closest('[data-cm]'); if (!b) return;
       const k = b.dataset.cm; api.close();
-      if (k === 'import') openCollImport(); else if (k === 'export') collExport(); else if (k === 'prices') openCollPrices(); else if (k === 'swg') swgOpen({ from: 'coll' });
+      if (k === 'import') openCollImport(); else if (k === 'export') collExport(); else if (k === 'prices') openCollPrices(); else if (k === 'swg') swgOpen({ from: 'coll' }); else if (k === 'reset') collResetAsk();
     });
   });
+}
+/** « Réinitialiser ma collection » (menu « … ») : deux confirmations, la seconde dit que c'est irrécupérable et n'active « Réinitialiser » qu'au bout de 5 s.
+ *  Retire les cartes et les proxys (COLL.map, COLL.prox) ; les rangements (COLL.places) restent, vides. Passe par collChanged : enregistré, envoyé au compte
+ *  (la fusion avec la base y retire chaque carte), repeint. */
+const COLL_RESET_WAIT = 5;
+function collResetAsk() {
+  const n = collCount(), c = collCopies(); if (!n) return;
+  haptic('tap');
+  openSheet(T('Réinitialiser ma collection ?'), '', api => {
+    api.body.innerHTML = `<p class="cf-msg"><span>${esc(T('Toutes les cartes de ta collection seront retirées : {cards}, {copies}.', { cards: TN(n, '{n} carte', '{n} cartes'), copies: TN(c, '{n} exemplaire', '{n} exemplaires') }))}</span><span>${esc(T('Tes decks ne sont pas touchés.'))}</span></p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${T('Oui, continuer')}</button>`);
+    api.foot.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { api.close(); collResetSure(n, c); } });
+  });
+}
+function collResetSure(n, c) {
+  openSheet(T('Action irréversible'), '', api => {
+    api.wrap.classList.add('cm-reset');
+    api.body.innerHTML = `<p class="cf-msg"><span>${esc(T(D.user ? 'Ta collection sera vidée sur cet appareil et dans ton compte ({cards}, {copies}).' : 'Ta collection sera vidée sur cet appareil ({cards}, {copies}).', { cards: TN(n, '{n} carte', '{n} cartes'), copies: TN(c, '{n} exemplaire', '{n} exemplaires') }))}</span><span><b>${esc(T('Impossible de la récupérer ensuite.'))}</b> ${esc(T('Exporte-la d\'abord pour en garder une copie.'))}</span></p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok disabled aria-disabled="true"></button>`);
+    const ok = $('[data-ok]', api.foot);
+    let left = COLL_RESET_WAIT;
+    const label = () => { ok.textContent = left > 0 ? T('Réinitialiser ({n} s)', { n: left }) : T('Réinitialiser'); };
+    label();
+    const t = setInterval(() => { left--; label(); if (left <= 0) { clearInterval(t); ok.disabled = false; ok.removeAttribute('aria-disabled'); } }, 1000);
+    const close = api.close; api.close = () => { clearInterval(t); close(); };
+    api.foot.addEventListener('click', e => {
+      const b = e.target.closest('[data-ok]'); if (!b || b.disabled || left > 0) return;
+      api.close(); collReset();
+    });
+  });
+}
+function collReset() {
+  COLL.map = {}; COLL.prox = {}; COLL.shown = COLL_PAGE;
+  if (typeof LOT !== 'undefined' && LOT.list && LOT.list.length) { LOT.list = []; LOT.edit = ''; lotSave(); }      // « Dernières ajoutées » : cartes qui ne sont plus dans la collection
+  collChanged();
+  haptic('ok'); toast(T('Collection réinitialisée'));
 }
 function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */

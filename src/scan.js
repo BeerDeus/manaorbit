@@ -1428,7 +1428,10 @@ function openScan(o) {
     }
     else if (a.dataset.a === 'ok') { it.maybe = false; it.shot = ''; }
     else if (a.dataset.a === 'alt') { scanAltPick(it, a.dataset.n); return; }
-    else if (a.dataset.a === 'del') SC.items.delete(it.id);
+    else if (a.dataset.a === 'del') {                       // ✕ : la carte entière, confirmation à chaque fois
+      confirmMinus(it.name, it.q, 'scandel', () => { if (!SC.items.delete(it.id)) return; scanEdPass(); scanPaintList(); });
+      return;
+    }
     scanEdPass(); scanPaintList();
   });
   scNoteShow(false);      // aide fermée au départ : « ? » l'ouvre

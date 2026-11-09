@@ -1,14 +1,15 @@
 /* ── filters.js : recherche + filtres couleur / famille / coût (deck viewer et collection) ───────────────────── */
 const COLOR_DEF = [['W', T('Blanc')], ['U', T('Bleu')], ['B', T('Noir')], ['R', T('Rouge')], ['G', T('Vert')], ['C', T('Incolore')]];      // noms traduits (affichage seulement : la lettre sert de valeur)
 /* set : code d'extension, '-' : lignes sans édition. Filtres avancés de la collection (search.js, core.js › FLT_ADV) : lang (langues), foil ('f' | 'n'), rar (raretés),
-   px (tranche de prix à l'unité), place (emplacement, '-' : non rangées), dup (doublons), dk ('in' | 'out' : dans un deck ou non), tr (à l'échange), add ('7' | '30' : ajoutées depuis n jours). */
-const newFilter = () => ({ q: '', colors: new Set(), type: '', cmc: '', cmdr: '', set: '', lang: new Set(), foil: '', rar: new Set(), sty: new Set(), px: '', place: '', dup: false, dk: '', tr: false, add: '', fmt: '' });
+   px (tranche de prix à l'unité), place (emplacement, '-' : non rangées), dup (doublons ; dupN : exemplaires au moins, 2 par défaut), dk ('in' | 'out' : dans un deck ou non), tr (à l'échange), add ('7' | '30' : ajoutées depuis n jours). */
+const newFilter = () => ({ q: '', colors: new Set(), type: '', cmc: '', cmdr: '', set: '', lang: new Set(), foil: '', rar: new Set(), sty: new Set(), px: '', place: '', dup: false, dupN: 2, dk: '', tr: false, add: '', fmt: '' });
 const filterCount = f => (f.colors.size ? 1 : 0) + (f.type ? 1 : 0) + (f.cmc !== '' && f.cmc != null ? 1 : 0) + (f.cmdr ? 1 : 0) + (f.set ? 1 : 0) + fltAdvCount(f);
 /** Remet tous les filtres à zéro, sur place (la recherche texte reste : son champ a son propre ✕). keepPlace : l'emplacement ouvert reste (« Effacer les filtres » :
  *  on reste dans le classeur ouvert depuis Rangement, son bandeau a son propre ✕). */
 function fltClear(f, keepPlace) {
   f.colors.clear(); f.type = ''; f.cmc = ''; f.cmdr = ''; f.set = '';
   for (const k of FLT_ADV) { if (keepPlace && k === 'place') continue; if (f[k] instanceof Set) f[k].clear(); else if (k in f) f[k] = typeof f[k] === 'boolean' ? false : ''; }
+  if ('dupN' in f) f.dupN = 2;
 }
 
 /** Sens des pastilles de couleur, dit à l'écran (core.js › colorFit) : commandants d'À monter et du coach, 'in' (identité incluse dans la sélection) ou exactement (eq) ; cartes : au moins une. */
@@ -72,6 +73,8 @@ function mountFilters(root, f, onChange, opts = {}) {
       if (inp.value !== (f.q || '') && document.activeElement !== inp) { inp.value = f.q || ''; clr.hidden = !inp.value; }      // recherche enregistrée appliquée : son texte dans le champ
       moreFill();
       for (const b of mbox.querySelectorAll('[data-fk]')) { const v = f[b.dataset.fk]; att(b, 'aria-pressed', v instanceof Set ? v.has(b.dataset.fv) : typeof v === 'boolean' ? v : v === b.dataset.fv); }
+      for (const el of mbox.querySelectorAll('[data-fshow]')) hid(el, !fltOn(f[el.dataset.fshow]));      // réglage d'un filtre (« 2 exemplaires et + ») : montré quand le filtre est choisi
+      for (const el of mbox.querySelectorAll('input[data-fnum]')) if (document.activeElement !== el && el.value !== String(f[el.dataset.fnum])) el.value = f[el.dataset.fnum];
       const na = fltAdvCount(f), mb = more.querySelector('b'); hid(mb, !na); txt(mb, na);
       ext.paint(xbox, f, api);
     }
@@ -80,6 +83,13 @@ function mountFilters(root, f, onChange, opts = {}) {
   const cnAgain = () => { if (root.isConnected && f.q) onChange(); };      // index des noms de la langue de l'appli arrivé après la frappe : la liste se refait (cardnames.js)
   inp.addEventListener('input', () => { f.q = inp.value; clr.hidden = !inp.value; clearTimeout(t); t = setTimeout(onChange, 120); if (f.q && typeof cnWhen === 'function') cnWhen(cnAgain); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  if (ext) {      // nombre d'un filtre (data-fnum : « au moins N exemplaires ») : entier de data-min à 9999, appliqué pendant la frappe ; illisible : la dernière valeur revient en quittant le champ
+    let nt = 0;
+    const num = el => { const v = Number(el.value), lo = Number(el.dataset.min) || 0; return Number.isInteger(v) && v >= lo && v <= 9999 ? v : null; };
+    mbox.addEventListener('input', e => { const el = e.target.closest('input[data-fnum]'); if (!el) return; const v = num(el); if (v == null || v === f[el.dataset.fnum]) return; f[el.dataset.fnum] = v; clearTimeout(nt); nt = setTimeout(fire, 250); });
+    mbox.addEventListener('change', e => { const el = e.target.closest('input[data-fnum]'); if (!el) return; clearTimeout(nt); if (num(el) == null) el.value = f[el.dataset.fnum]; fire(); });
+    mbox.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[data-fnum]')) e.target.blur(); });
+  }
   clr.onclick = () => { inp.value = ''; f.q = ''; fire(); inp.focus(); };
   btn.onclick = () => {
     const open = panel.hidden; if (open) { setOpts(); if (ext && fltAdvCount(f) && mbox.hidden) moreSet(true); }      // un filtre avancé actif : ses groupes s'ouvrent avec le panneau
@@ -95,6 +105,7 @@ function mountFilters(root, f, onChange, opts = {}) {
     else if (b.dataset.fk && b.dataset.fk in f) {      // groupes avancés : Set → plusieurs valeurs (ou) ; booléen → bascule ; texte → une valeur, re-toucher l'enlève
       const k = b.dataset.fk, v = b.dataset.fv, cur = f[k];
       if (cur instanceof Set) { if (cur.has(v)) cur.delete(v); else cur.add(v); } else if (typeof cur === 'boolean') f[k] = !cur; else f[k] = cur === v ? '' : v;
+      if (k === 'dup' && !f.dup) f.dupN = 2;      // « Doublons » rechoisi : 2 exemplaires et +
     }
     else if (b === more) { moreSet(mbox.hidden); haptic('tap'); return; }
     else if (b.classList.contains('freset')) fltClear(f, true);

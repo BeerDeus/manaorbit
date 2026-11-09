@@ -85,6 +85,19 @@ ok('Finition (Foil / Non foil) et prix à l\'unité (édition et foil compris)')
 
 /* ── Doublons, decks, échange, ajout ─────────────────────────────────────────────────────────────────────────── */
 await opt('dup', '1'); await settle(); assert.deepEqual(await cardKeys(), ['llanowar elves', 'sol ring'], 'doublons : 2 exemplaires ou plus');
+// « Au moins N exemplaires » sous « Doublons » : 2 par défaut, la liste suit la frappe ; pastille « N exemplaires et + » ; « Doublons » décoché puis recoché : 2
+assert.equal(await p.$eval('.coll .srch-dupn', e => e.hidden), false, 'champ montré avec Doublons'); assert.equal(await p.$eval('.coll .srch-dupn input', i => i.value), '2');
+await p.evaluate(() => collBump('llanowar elves', 'Llanowar Elves', 2, { lang: 'de' })); await settle();      // 5 Llanowar Elves (rendus à la fin) : « 4 et + » écarte Sol Ring (3)
+const qOf = await p.evaluate(() => Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [k, x.q])));
+const atLeast = n => Object.keys(qOf).filter(k => qOf[k] >= n).sort();
+const N = 4;
+await p.fill('.coll .srch-dupn input', String(N)); await p.waitForTimeout(450); assert.deepEqual(await cardKeys(), atLeast(N), N + ' exemplaires et +'); assert.ok(atLeast(N).length && atLeast(N).length < atLeast(2).length, 'jeu de test : N et + en écarte');
+assert.deepEqual(await chips(), [N + ' exemplaires et +']);
+await p.fill('.coll .srch-dupn input', '1'); await p.$eval('.coll .srch-dupn input', i => i.blur()); await settle(); assert.equal(await p.$eval('.coll .srch-dupn input', i => i.value), String(N), 'moins de 2 : la valeur d\'avant revient');
+await p.fill('.coll .srch-dupn input', '99'); await p.waitForTimeout(450); assert.match(await txt(p, '.coll-main'), /Aucune carte ne correspond/);
+await opt('dup', '1'); await settle(); assert.equal(await p.$eval('.coll .srch-dupn', e => e.hidden), true, 'champ caché sans Doublons'); assert.equal((await cardKeys()).length, 5);
+await opt('dup', '1'); await settle(); assert.equal(await p.$eval('.coll .srch-dupn input', i => i.value), '2', 'recoché : 2'); assert.deepEqual(await cardKeys(), atLeast(2));
+await p.evaluate(() => collBump('llanowar elves', 'Llanowar Elves', -2, { lang: 'de' })); await settle();
 await opt('dup', '1'); await opt('dk', 'in'); await settle(); assert.deepEqual(await cardKeys(), ['craterhoof behemoth', 'llanowar elves'], 'dans une liste de Mes decks');
 await opt('dk', 'out'); await settle(); assert.deepEqual(await cardKeys(), ['edgar markov', 'sol ring', 'wrath of god']);
 await p.evaluate(() => { XS.eng = { ...XS.eng, vamp: { n: 'Vampires', at: Date.now(), q: { 'edgar markov': 1 } } }; collPaintBody(true); }); await settle();

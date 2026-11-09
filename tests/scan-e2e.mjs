@@ -103,7 +103,10 @@ await p.click('.sc-item[data-k="wrath of god"] [data-a="dec"]'); await p.waitFor
 await p.click('.sheet .sheet-foot .btn.ghost'); await p.waitForFunction(() => !document.querySelector('.sheet')); assert.equal((await items(p)).find(x => x.name === 'Wrath of God').q, 2, 'Annuler : quantité inchangée');
 await p.click('.sc-item[data-k="wrath of god"] [data-a="dec"]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.sheet')); assert.equal((await items(p)).find(x => x.name === 'Wrath of God').q, 1, 'Retirer : un exemplaire de moins');
 await p.click('.sc-item[data-k="wrath of god"] [data-a="inc"]');
-await p.click('.sc-item[data-k="llanowar elves"] [data-a="del"]');
+// ✕ : confirmation à chaque fois, sans « Ne plus demander » ; « − » : « Ne plus demander » proposé
+await p.click('.sc-item[data-k="llanowar elves"] [data-a="del"]'); await p.waitForSelector('.sheet [data-ok]'); assert.equal(await p.$('.sheet [data-noask]'), null, '✕ : pas de « Ne plus demander »');
+await p.click('.sheet .sheet-foot [data-close]'); await p.waitForFunction(() => !document.querySelector('.sheet')); assert.ok((await items(p)).some(x => x.name === 'Llanowar Elves'), 'Annuler : carte gardée');
+await p.click('.sc-item[data-k="llanowar elves"] [data-a="del"]'); await p.waitForSelector('.sheet [data-ok]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.sheet'));
 assert.equal((await items(p)).find(x => x.name === 'Wrath of God').q, 2); assert.ok(!(await items(p)).some(x => x.name === 'Llanowar Elves'));
 const want = (await items(p)).filter(x => !x.maybe), total = want.reduce((a, x) => a + x.q, 0);
 assert.match(await txt(p, '.scan .sc-count'), new RegExp(`^${total} cartes$`)); assert.equal(await txt(p, '.scan .dv-foot [data-act="done"]'), `Ajouter ${total} cartes`, 'le bouton dit combien');

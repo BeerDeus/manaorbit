@@ -1752,9 +1752,9 @@ function fltLineOk(x, f) {
   if (f.set && (f.set === '-' ? !!x.s : x.s !== f.set)) return false;
   return true;
 }
-/** Filtres avancés d'une carte préparée : doublons (2 exemplaires ou plus), decks, échange, ajout, puis au moins une ligne qui passe tous les filtres de ligne à la fois. now : secondes. */
+/** Filtres avancés d'une carte préparée : doublons (dupN exemplaires ou plus, 2 par défaut), decks, échange, ajout, puis au moins une ligne qui passe tous les filtres de ligne à la fois. now : secondes. */
 function fltAdvOk(i, f, now) {
-  if (f.dup && !(i.q >= 2)) return false;
+  if (f.dup && !(i.q >= Math.max(2, Number(f.dupN) || 2))) return false;
   if (f.dk && (f.dk === 'in') !== !!i.sk) return false;
   if (f.tr && !i.st) return false;
   if (f.add) { const days = Number(f.add) || 0; if (!(i.d > 0 && i.d >= now - days * 86400)) return false; }

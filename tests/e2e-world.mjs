@@ -243,7 +243,7 @@ export async function openMe(p, sub) {
 }
 /** Ferme toutes les fiches ouvertes (rubrique, puis « Compte et réglages »). */
 export const closeSheets = p => p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }).then(() => p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 5000 }));
-/** « … » de « Ma collection » (collection.js › openCollMenu) : act = 'import' (Importer un fichier), 'export', 'prices' (Prix réels CardTrader), 'swg' (Venir de ManaBox) ;
+/** « … » de « Ma collection » (collection.js › openCollMenu) : act = 'import' (Importer un fichier), 'export', 'prices' (Prix réels CardTrader), 'swg' (Venir de ManaBox), 'reset' (Réinitialiser ma collection) ;
  *  scope : l'écran de la collection (plusieurs peuvent être ouverts pendant une fermeture). */
 export async function collTool(p, act, scope = '.coll.on') {
   await p.click(`${scope} .coll-tools [data-act="menu"]`);

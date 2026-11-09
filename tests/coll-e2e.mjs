@@ -2,7 +2,7 @@
 // commandant ; évolution des prix ; filtres du viewer ; partage et reprise.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, done, txt, ok, CARDS, toInput, toHome, collTool } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, done, txt, ok, CARDS, toInput, toHome, collTool, closeSheets } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18900 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -101,6 +101,14 @@ await p.click('.crow[data-k="swords to plowshares"] [data-d="-1"]'); await p.wai
 await p.click('.sheet [data-ok]'); await p.waitForSelector('#toast.on .toast-act');
 assert.equal((await rows()).length, 2); assert.match(await txt(p, '#toast'), /Swords to Plowshares retirée/);
 await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3); ok('+ / −, retrait à zéro et Annuler');
+// « Ne plus demander » : retire, puis plus de confirmation jusqu'au prochain lancement (mémoire seulement)
+await p.click('.crow[data-k="llanowar elves"] [data-d="-1"]'); await p.waitForSelector('.sheet [data-noask]'); await p.click('.sheet [data-noask]'); await p.waitForFunction(() => !document.querySelector('.sheet'));
+assert.equal((await rows()).find(x => x.name === 'Llanowar Elves').q, 4, 'Ne plus demander : retiré aussi');
+await p.click('.crow[data-k="llanowar elves"] [data-d="-1"]'); await p.waitForTimeout(200); assert.equal(await p.$('.sheet'), null, 'plus de fiche'); assert.equal((await rows()).find(x => x.name === 'Llanowar Elves').q, 3);
+await p.click('.crow[data-k="swords to plowshares"] [data-d="-1"]'); await p.waitForSelector('.sheet [data-ok]'); assert.equal(await p.$('.sheet [data-noask]'), null, 'dernier exemplaire : demandé quand même, sans « Ne plus demander »');
+await p.click('.sheet .sheet-foot [data-close]'); await p.waitForFunction(() => !document.querySelector('.sheet'));
+await p.evaluate(() => { minusNoAsk = false; }); await p.click('.crow[data-k="llanowar elves"] [data-d="1"]'); await p.click('.crow[data-k="llanowar elves"] [data-d="1"]'); assert.equal((await rows()).find(x => x.name === 'Llanowar Elves').q, 5);
+ok('− : « Ne plus demander »');
 await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('.lot #caName'); await p.fill('#caName', 'arca');      // « Ajouter des cartes » (lot.js) : choisir, puis « Ajouter »
 await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt span', s => s.map(x => x.textContent)), ['Arcane Signet']);
 await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForSelector('.lot-name em.lot-done'); assert.match(await txt(p, '.lot-name'), /^Arcane Signet ✓ 1 dans ta collection$/);
@@ -137,7 +145,7 @@ await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.queryS
 assert.equal(await p.$('.coll-sync [data-act="export"]'), null, 'Exporter : plus dans le bandeau');
 assert.deepEqual(await p.$$eval('.coll-tools .icon-btn', l => l.map(b => [b.dataset.act, b.querySelector('use').getAttribute('href')])), [['add', '#i-plus'], ['menu', '#i-more']], '« + » dans l\'en-tête ; Importer, Exporter, Prix réels dans « … »');
 await p.click('.coll.on .coll-tools [data-act="menu"]'); await p.waitForSelector('.sheet-wrap.open.cm-sheet');
-assert.deepEqual(await p.$$eval('.cm-sheet .cm-opt', l => l.map(b => [b.dataset.cm, b.querySelector('b').textContent, !!b.querySelector('small').textContent])), [['import', 'Importer un fichier', true], ['export', 'Exporter ma collection', true], ['prices', 'Prix réels CardTrader', true], ['swg', 'Venir de ManaBox', true]], '« … » : chaque action avec son nom et ce qu\'elle fait (audit U5)');
+assert.deepEqual(await p.$$eval('.cm-sheet .cm-opt', l => l.map(b => [b.dataset.cm, b.querySelector('b').textContent, !!b.querySelector('small').textContent])), [['import', 'Importer un fichier', true], ['export', 'Exporter ma collection', true], ['prices', 'Prix réels CardTrader', true], ['swg', 'Venir de ManaBox', true], ['reset', 'Réinitialiser ma collection', true]], '« … » : chaque action avec son nom et ce qu\'elle fait (audit U5)');
 await p.click('.cm-sheet .cm-opt[data-cm="swg"]'); await p.waitForSelector('.sheet-wrap.open.swg-sheet'); assert.match(await txt(p, '.swg-sheet'), /Collection › … \(en haut à droite\) › Importer un fichier › Choisir un fichier/, 'guide ManaBox : le chemin du « … »');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
 await collTool(p, 'export'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="txt"]');
@@ -431,6 +439,24 @@ assert.deepEqual(bg.errs, []); await bg.ctx.close();
   assert.deepEqual(await qty(), { ...L1, 'sol ring': 4, 'command tower': 1, 'edgar markov': 1, 'arcane signet': 2, 'wrath of god': 2, 'llanowar elves': 5 }, 'ajoutés sans question');
   ok('import en « Ajouter » : fichier surtout nouveau (3 exemplaires sur 5 déjà là) ou 2 cartes déjà là → ajouté sans question');
   assert.deepEqual(im.errs, []); await im.ctx.close(); }
+
+/* ── 13) « Réinitialiser ma collection » (menu « … ») : deux confirmations, la seconde attend 5 s ───────────── */
+{ await closeSheets(p); if (!(await p.$('.coll.on'))) { await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); }
+  const n0 = await p.evaluate(() => collCount()); assert.ok(n0 > 0);
+  await collTool(p, 'reset'); await p.waitForSelector('.sheet-wrap.open .sheet [data-ok]');
+  assert.match(await txt(p, '.sheet-wrap.open h2'), /Réinitialiser ma collection \?/);
+  await p.click('.sheet-wrap.open .sheet-foot [data-close]'); await p.waitForFunction(() => !sheets.length); assert.equal(await p.evaluate(() => collCount()), n0, 'Annuler : rien de retiré');
+  await collTool(p, 'reset'); await p.waitForSelector('.sheet-wrap.open [data-ok]'); await p.click('.sheet-wrap.open [data-ok]');
+  await p.waitForSelector('.sheet-wrap.open.cm-reset [data-ok]'); const t0 = Date.now();
+  assert.match(await txt(p, '.cm-reset .cf-msg'), /Impossible de la récupérer/);
+  assert.equal(await p.$eval('.cm-reset [data-ok]', b => b.disabled), true); assert.match(await txt(p, '.cm-reset [data-ok]'), /Réinitialiser \(5 s\)/);
+  await p.$eval('.cm-reset [data-ok]', b => b.click()); assert.equal(await p.evaluate(() => collCount()), n0, 'grisé : rien');
+  await p.waitForFunction(() => { const b = document.querySelector('.cm-reset [data-ok]'); return b && !b.disabled; }, null, { timeout: 8000 });
+  assert.ok(Date.now() - t0 >= 4500, 'actif au bout de 5 s'); assert.equal(await txt(p, '.cm-reset [data-ok]'), 'Réinitialiser');
+  await p.click('.cm-reset [data-ok]'); await p.waitForFunction(() => !sheets.length);
+  assert.equal(await p.evaluate(() => collCount()), 0); assert.equal(await p.$$eval('.crow', r => r.length), 0); assert.match(await txt(p, '#toast'), /Collection réinitialisée/);
+  assert.equal(await p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t ? collDocFromText(JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t).map : {}).length), 0, 'enregistrée vide');
+  ok('« Réinitialiser ma collection » : deux confirmations, bouton actif au bout de 5 s, collection vidée'); }
 
 console.log('erreurs page :', errs.length ? errs : 'aucune'); assert.deepEqual(errs, []);
 await browser.close(); world.stop(); console.log('\nCOLL E2E OK'); process.exit(0);

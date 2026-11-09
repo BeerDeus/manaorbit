@@ -35,7 +35,7 @@ function srchDeckKeys() {
 }
 const srchTradeSig = () => [TR.keep, TR.kept.size, TR.u, srchDeckSig()].join('|');
 /** Clé des filtres avancés pour le cache de la liste (collListOf) ; '' sans filtre avancé. Ajout récent : la minute courante (la liste suit l'heure). */
-const srchKey = f => (fltAdvCount(f) ? [[...f.lang].sort().join(), f.foil, [...f.rar].sort().join(), [...f.sty].sort().join(), f.px, f.place, f.dup ? 1 : 0, f.dk, f.tr ? 1 : 0, f.add, f.dk ? srchDeckSig() : '', f.tr ? srchTradeSig() : '', f.add ? Math.floor(Date.now() / 60000) : '', f.fmt, f.fmt ? SRCH.lgV : ''].join('|') : '');      // lgV : formats lus depuis
+const srchKey = f => (fltAdvCount(f) ? [[...f.lang].sort().join(), f.foil, [...f.rar].sort().join(), [...f.sty].sort().join(), f.px, f.place, f.dup ? Math.max(2, f.dupN || 2) : 0, f.dk, f.tr ? 1 : 0, f.add, f.dk ? srchDeckSig() : '', f.tr ? srchTradeSig() : '', f.add ? Math.floor(Date.now() / 60000) : '', f.fmt, f.fmt ? SRCH.lgV : ''].join('|') : '');      // lgV : formats lus depuis
 /** Prépare les cartes de la liste v pour les filtres avancés de f (rien sans filtre avancé) : lignes une fois par version, decks et échange quand ils changent. */
 function srchPrep(v, f) {
   if (!f || !fltAdvCount(f)) return;
@@ -148,7 +148,8 @@ function srchGroupsHtml(f) {
     + srchGrp(T('Finition'), srchOpt('foil', 'f', `<span class="srch-foil" aria-hidden="true">✦</span>${esc(T('Foil'))}`) + srchOpt('foil', 'n', esc(T('Non foil'))))
     + srchGrp(T('Prix à l\'unité'), SRCH_PX.map(([v, l]) => srchOpt('px', v, esc(T(l)))).join(''))
     + (pl.length || (f.place && f.place !== '-') ? srchGrpFold('place', T('Emplacement'), pl.length, srchOpt('place', '-', esc(T('Non rangées'))) + pl.map(x => srchOpt('place', x.id, `<i class="srch-dot" style="--c:${plcColor(x.id)}" aria-hidden="true"></i>${esc(plcName(x.id))}`)).join('')) : '')
-    + srchGrp(T('Exemplaires'), srchOpt('dup', '1', esc(T('Doublons (2 et +)'))) + srchOpt('dk', 'in', esc(T('Dans un deck'))) + srchOpt('dk', 'out', esc(T('Dans aucun deck'))) + srchOpt('tr', '1', esc(T('À l\'échange'))))
+    + srchGrp(T('Exemplaires'), srchOpt('dup', '1', esc(T('Doublons (2 et +)'))) + srchOpt('dk', 'in', esc(T('Dans un deck'))) + srchOpt('dk', 'out', esc(T('Dans aucun deck'))) + srchOpt('tr', '1', esc(T('À l\'échange'))),
+      `<label class="srch-dupn" data-fshow="dup"${f.dup ? '' : ' hidden'}><span>${esc(T('Au moins'))}</span><input type="number" inputmode="numeric" min="2" max="9999" step="1" data-fnum="dupN" data-min="2" value="${Math.max(2, f.dupN || 2)}" aria-label="${esc(T('Nombre d\'exemplaires au moins'))}"><span>${esc(T('exemplaires'))}</span></label>`)
     + srchGrp(T('Ajout'), srchOpt('add', '7', esc(T('7 derniers jours'))) + srchOpt('add', '30', esc(T('30 derniers jours'))));
 }
 
@@ -169,7 +170,7 @@ function srchChips(f, name) {
   if (f.foil) add('foil', '', f.foil === 'f' ? T('Foil') : T('Non foil'));
   if (f.px) add('px', '', T((SRCH_PX.find(x => x[0] === f.px) || ['', f.px])[1]));
   if (name && f.place) add('place', '', f.place === '-' ? T('non rangées') : plcName(f.place));
-  if (f.dup) add('dup', '', T('Doublons'));
+  if (f.dup) add('dup', '', f.dupN > 2 ? T('{n} exemplaires et +', { n: num(f.dupN) }) : T('Doublons'));
   if (f.dk) add('dk', '', f.dk === 'in' ? T('Dans un deck') : T('Dans aucun deck'));
   if (f.tr) add('tr', '', T('À l\'échange'));
   if (f.add) add('add', '', f.add === '7' ? T('7 derniers jours') : T('30 derniers jours'));
@@ -179,6 +180,7 @@ function srchChips(f, name) {
 function srchDrop(f, k, v) {
   const cur = f[k];
   if (cur instanceof Set) { if (v) cur.delete(v); else cur.clear(); } else if (typeof cur === 'boolean') f[k] = false; else f[k] = '';
+  if (k === 'dup') f.dupN = 2;
 }
 /** Nom proposé : « Mythiques · FR · non rangées » (40 caractères au plus). */
 function srchAutoName(f) {
@@ -202,7 +204,7 @@ function srchSer(f) {
   if (f.sty.size) o.sy = arr(f.sty);
   if (f.px) o.px = f.px;
   if (f.place) o.p = f.place;
-  if (f.dup) o.du = 1;
+  if (f.dup) o.du = Math.max(2, f.dupN || 2) > 2 ? f.dupN : 1;      // 1 : 2 exemplaires et + (comme avant)
   if (f.dk) o.dk = f.dk;
   if (f.tr) o.tr = 1;
   if (f.add) o.ad = f.add;
@@ -225,7 +227,7 @@ function srchLoad(f, o) {
   for (const v of Array.isArray(o.sy) ? o.sy : []) if (STYLES.some(x => x[0] === v)) f.sty.add(v);
   if (FLT_PX[o.px]) f.px = o.px;
   if (o.p === '-' || (typeof o.p === 'string' && COLL.places[o.p])) f.place = o.p;
-  if (o.du) f.dup = true;
+  if (o.du) { f.dup = true; f.dupN = Number.isInteger(o.du) && o.du > 2 && o.du <= 9999 ? o.du : 2; }
   if (o.dk === 'in' || o.dk === 'out') f.dk = o.dk;
   if (o.tr) f.tr = true;
   if (o.ad === '7' || o.ad === '30') f.add = o.ad;

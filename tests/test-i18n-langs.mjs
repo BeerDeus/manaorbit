@@ -124,6 +124,7 @@ const PL_KEEP = {
   '{n} recherches enregistrées au plus : supprimes-en une d\'abord (« … » à côté de son nom)': 'constante (SRCH_MAX)',
   'Réservée par {n} decks montés': 'montré seulement au-delà de 1 deck',
   '{n} relevés · de {min} à {max}': 'courbe montrée à partir de 2 relevés',
+  '{n} exemplaires et +': 'filtre « Doublons » réglé au-delà de 2 (2 : « Doublons »)',
 };
 
 test('pluriels : pas de T(\'… {n} mots…s\') (« 1 cartes ») : TN(n, singulier, pluriel), sauf nombre jamais égal à 1 (PL_KEEP)', () => {
