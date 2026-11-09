@@ -214,6 +214,28 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.1.3 (versionCode 19) : « Activer les notifications » ouvre les réglages d'Android (9 novembre 2026)
+
+**Pourquoi** : notifications refusées pour de bon, Android ne montre plus sa demande ; Réglages › Notifications de l'appli n'avait qu'un texte (« autorise-les dans les réglages d'Android… »).
+
+**Ce qui change** :
+- Plugin local `ManaOrbit` : `openNotificationSettings()` ouvre la page **Notifications de Mana Orbit** dans les réglages d'Android (`Settings.ACTION_APP_NOTIFICATION_SETTINGS` ; avant Android 8 : la page de l'appli). Rien d'autre de natif, aucune autorisation en plus.
+- Côté site (déjà en ligne, aucune APK nécessaire) : bouton **« Activer les notifications »** dans Réglages › Notifications quand elles sont bloquées (la demande d'Android d'abord ; refusée pour de bon : cette page avec la 1.1.3, le chemin écrit avec une APK plus ancienne ; autorisées là-bas : activées au retour dans l'appli) ; **demande d'Android au premier lancement**, une seule fois, quand l'écran est libre (`src/push.js` › `pushFirstAsk`).
+- `versionCode 19`, `versionName "1.1.3"` ; `tests/test-android-xml.mjs` vérifie la méthode.
+
+**À faire (propriétaire)** : comme la 1.1.2 (`git pull`, `npm run setup`, Sync Gradle, `.aab` signé, test interne), en vérifiant en plus :
+- [ ] Réglages › Notifications, notifications coupées dans Android : « Activer les notifications » → la page Notifications de Mana Orbit ; les autoriser, revenir : « Notifications activées ».
+- [ ] bas des Réglages : « APK : 1.1.3 (19) ».
+Notes de version :
+```
+<fr-FR>
+Notifications : « Activer les notifications » ouvre directement les réglages d'Android quand elles ont été refusées.
+</fr-FR>
+<en-US>
+Notifications: “Turn on notifications” now opens Android settings directly when they were denied.
+</en-US>
+```
+
 ### APK 1.1.2 (versionCode 18) : optimisation R8 (1er novembre 2026)
 
 **Pourquoi** : avec la 1.1.1 en ligne, l'alerte de la Play Console a changé : l'obscurcissement est réglé (il n'est plus listé), mais « **Optimisation (0 %)** » reste sous le seuil de 25 % (échéance février 2027). C'est le `-dontoptimize` de la 1.1.1 : la Play Console lit les pourcentages dans le fichier `r8.json` de l'`.aab` (AGP 8.10 et plus), et sans optimisation il n'y a rien à compter.

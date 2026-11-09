@@ -55,7 +55,8 @@ async function pnListen(P) {
       if (typeof streamOn === 'function' && streamOn()) return;                 // mode streamer (opening.js) : rien à l'écran de l'appli
       const msg = [n && n.title, n && n.body].filter(Boolean).join(' · '), url = n && n.data && n.data.url;
       if (/[?&]troc=/.test(String(url || ''))) { if (typeof trocPushed === 'function') trocPushed({ title: n.title, body: n.body, url }); return; }      // invitation à un échange en direct : toast « Rejoindre »
-      if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }      // ami : liste relue, toast (sauf mode streamer)
+      if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }
+      if (/[?&]inbox\b/.test(String(url || '')) && typeof ibLoad === 'function') ibLoad(true);      // message de l'équipe reçu appli ouverte : boîte relue (point, feuille ouverte), puis le toast « Voir »      // ami : liste relue, toast (sauf mode streamer)
       if (/[?&]mystere\b/.test(String(url || ''))) { if (typeof dlyPushed === 'function') dlyPushed({ title: n.title, body: n.body }); return; }      // nouvelle Carte mystère : bouton relu, toast « Jouer »
       if (msg) toast(msg, /[?&](alerts|resume|avis|fete|inbox)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);      // avis : le fil sur Discord ; fête : sa feuille
     }),
@@ -169,10 +170,41 @@ async function paintPushBox(box) {
     noproxy: '<p class="hint">' + T('Les notifications demandent le serveur Mana Orbit (la recherche y continue quand tu quittes l\'app).') + '</p>',
     novapid: note(0, T('Le serveur n\'a pas de clés de notification. Ajoute VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY et VAPID_SUBJECT dans les variables d\'environnement (voir README).')),
     nofcm: note(0, T('Le serveur n\'a pas de compte de service Firebase pour les notifications de l\'appli. Ajoute FCM_SERVICE_ACCOUNT dans les variables d\'environnement (voir README).')),
-    denied: note(0, nat ? T('Notifications bloquées pour Mana Orbit : autorise-les dans les réglages d\'Android (Paramètres › Applications › Mana Orbit › Notifications), puis reviens ici.') : T('Notifications bloquées pour ce site : autorise-les dans les réglages du navigateur, puis reviens ici.')),
+    denied: nat ? note(0, T('Les notifications sont coupées pour Mana Orbit.')) + `<button class="btn main push-fix" type="button" id="pushFix">${T('Activer les notifications')}</button><p class="hint" id="pushFixMsg"${PN.fixMsg ? '' : ' hidden'}>${T('Notifications bloquées pour Mana Orbit : autorise-les dans les réglages d\'Android (Paramètres › Applications › Mana Orbit › Notifications), puis reviens ici.')}</p>` : note(0, T('Notifications bloquées pour ce site : autorise-les dans les réglages du navigateur, puis reviens ici.')),
     oldapp: '<p class="hint">' + T('Mets à jour l\'appli Mana Orbit pour recevoir les notifications.') + '</p>',
     ios: '<p class="hint">' + T('Sur iPhone et iPad, les notifications ne marchent que si Mana Orbit est installée sur l\'écran d\'accueil (iOS 16.4 ou plus) : bouton Partager, « Sur l\'écran d\'accueil », puis ouvre l\'app depuis son icône.') + '</p>',
     unsupported: '<p class="hint">' + T('Ce navigateur ne gère pas les notifications push.') + '</p>',
     nosw: '<p class="hint">' + T('Le service worker n\'est pas actif (ouvre l\'app en https, puis recharge).') + '</p>',
   }[st] || '';
+  const fix = $('#pushFix', box); if (fix) fix.onclick = () => pushFix(box, fix);
+}
+/** « Activer les notifications » (appli Android, notifications bloquées) : la demande d'Android d'abord ; refusée pour de bon (Android ne la montre plus) :
+ *  la page Notifications de Mana Orbit dans les réglages d'Android (APK 1.1.3 : ManaOrbit.openNotificationSettings), et au retour dans l'appli, activées si
+ *  elles ont été autorisées ; APK plus ancienne : le chemin à suivre. */
+async function pushFix(box, b) {
+  const P = pushNat(); if (!P) return;
+  haptic('tap'); b.disabled = true;
+  const done = async () => { const r = await pnRegister(P); if (r.token) { S.push = true; saveStore(); haptic('ok'); toast(T('Notifications activées')); } paintPushBox(box); };
+  if (await pnPerm(P, true) === 'granted') return done();
+  let opened = false;
+  try { const mo = natPlugin('ManaOrbit'); opened = !!(mo && ((await mo.openNotificationSettings()) || {}).opened); } catch (e) { opened = false; }      // APK d'avant 1.1.3 : méthode absente
+  b.disabled = false;
+  if (!opened) { PN.fixMsg = true; const m = $('#pushFixMsg', box); if (m) m.hidden = false; return; }      // gardé si la rubrique est repeinte
+  const back = async () => { if (document.hidden) return; document.removeEventListener('visibilitychange', back); if (await pnPerm(P, false) === 'granted') done(); else paintPushBox(box); };
+  document.addEventListener('visibilitychange', back);
+}
+/** Premier lancement de l'appli Android : la demande d'autorisation des notifications d'Android, une seule fois (comme le font les applis), quand l'écran est libre
+ *  (ni accueil des nouveaux, ni visite guidée, ni feuille, ni scan). Accordée : jeton FCM, et l'appareil s'enregistre pour les amis, les messages de l'équipe, la
+ *  Carte mystère et les événements (push.js › pnListen). Refusée : plus rien de demandé (« Activer les notifications » dans Réglages › Notifications). */
+const PN_ASKED = 'deckdeal:pnAsked';
+async function pushFirstAsk(n = 0) {
+  const P = pushNat(); if (!P || !CTX.proxy || !CTX.fcm) return;
+  try { if (localStorage.getItem(PN_ASKED)) return; } catch (e) { return; }
+  const busy = document.hidden || (typeof OB !== 'undefined' && OB.el) || (typeof TOUR !== 'undefined' && TOUR.on) || (typeof sheets !== 'undefined' && sheets.length) || (typeof SC !== 'undefined' && SC.el);
+  if (busy) { if (n < 60) setTimeout(() => pushFirstAsk(n + 1), 3000); return; }
+  try { localStorage.setItem(PN_ASKED, '1'); } catch (e) { return; }
+  const perm = await pnPerm(P, false);
+  if (perm === 'granted') { if (!pnTok()) pnRegister(P); return; }      // Android d'avant 13 : rien à demander, le jeton seulement
+  if (perm === 'denied') return;
+  const r = await pushEnable(); if (r.ok) { S.push = true; saveStore(); }
 }

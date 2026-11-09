@@ -33,7 +33,8 @@ const shell = tok => {
   const fire = (ev, data) => { if (L[ev] && L[ev].length) L[ev].forEach(f => f(data)); else (held[ev] = held[ev] || []).push(data); };
   window.__pn = { calls, fire, listeners: L };
   const launch = g('launch'); if (launch) { s('launch', null); fire('pushNotificationActionPerformed', { actionId: 'tap', notification: { id: 'm1', data: { url: launch, 'google.message_id': 'm1' } } }); }
-  window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'PushNotifications', Plugins: { PushNotifications: {
+  const mo = g('mo') ? { openNotificationSettings: async () => { calls.push('settings'); return { opened: true }; } } : null;      // APK 1.1.3 : réglages d'Android
+  window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'PushNotifications' || (n === 'ManaOrbit' && !!mo), Plugins: { ...(mo ? { ManaOrbit: mo } : {}), PushNotifications: {
     checkPermissions: async () => { calls.push('check'); return { receive: g('perm') || 'prompt' }; },
     requestPermissions: async () => { calls.push('request'); s('asked', (g('asked') || 0) + 1); if (g('perm') !== 'denied') s('perm', 'granted'); return { receive: g('perm') }; },
     register: async () => { calls.push('register'); setTimeout(() => fire('registration', { value: g('token') || tok }), 60); },
@@ -45,7 +46,7 @@ const shell = tok => {
   } catch (e) { /* ignore */ }
 };
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
-const { ctx, p, errs } = await newPage(browser, world, { init: `(${shell})(${JSON.stringify(TOK1)})`, goto: false });
+const { ctx, p, errs } = await newPage(browser, world, { init: `localStorage.setItem('deckdeal:pnAsked', '1');(${shell})(${JSON.stringify(TOK1)})`, goto: false });      // demande du premier lancement : section à part
 const reqs = []; p.on('request', r => { if (/\/api\/(alerts|jobs)(\?|$)/.test(r.url())) { let b = null; try { b = JSON.parse(r.postData() || 'null'); } catch (e) { /* ignore */ } reqs.push({ m: r.method(), u: r.url(), b }); } });
 await p.goto(world.url); await p.waitForTimeout(1000);
 const ls = k => p.evaluate(k => JSON.parse(localStorage.getItem('__t_' + k)), k);
@@ -111,14 +112,40 @@ ok('appli quittée pendant la recherche : notification envoyée par FCM au jeton
 world.delay = 0;
 
 /* ── États propres à l'appli : permission refusée, serveur sans compte de service ─────────────── */
-const D = await newPage(browser, world, { init: `localStorage.setItem('__t_perm', '"denied"');(${shell})(${JSON.stringify(TOK1)})`, goto: false });
+const D = await newPage(browser, world, { init: `localStorage.setItem('__t_perm', '"denied"');localStorage.setItem('__t_mo', 'true');(${shell})(${JSON.stringify(TOK1)})`, goto: false });
 await D.p.goto(world.url); await D.p.waitForTimeout(900);
 await openMe(D.p); assert.equal(await D.p.$('.me-sheet [data-me="app"]'), null, 'appli Android : pas de rubrique « Application » (rien à installer)'); await D.p.click('#btnNotif'); await D.p.waitForSelector('#pushBox .status', { timeout: 5000 });
-const bd = await txt(D.p, '#pushBox'); assert.match(bd, /réglages d'Android/); assert.doesNotMatch(bd, /navigateur|iPhone/);
+const bd = await txt(D.p, '#pushBox'); assert.match(bd, /Les notifications sont coupées pour Mana Orbit\. Activer les notifications/); assert.doesNotMatch(bd, /navigateur|iPhone/);
+// « Activer les notifications » : la demande d'Android (refusée pour de bon : rien), puis la page Notifications de Mana Orbit dans les réglages d'Android ; autorisées là-bas : activées au retour
+await D.p.click('#pushFix'); await until(() => D.p.evaluate(() => window.__pn.calls.includes('settings')));
+assert.deepEqual(await D.p.evaluate(() => window.__pn.calls.filter(c => c === 'request' || c === 'settings')), ['request', 'settings'], 'demande d\'Android, puis ses réglages');
+await D.p.evaluate(() => { localStorage.setItem('__t_perm', '"granted"'); Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+assert.ok(await until(() => D.p.evaluate(() => /Notifications activées/.test((document.querySelector('.toast.on') || {}).textContent || ''))), 'retour dans l\'appli : activées');
+await D.p.waitForSelector('#pushBox #setPush', { timeout: 5000 }); assert.equal(await D.p.$eval('#setPush', c => c.checked), true);
+await D.p.keyboard.press('Escape'); await D.p.waitForTimeout(350); await D.p.keyboard.press('Escape'); await D.p.waitForTimeout(350);
+await D.p.evaluate(() => { localStorage.setItem('__t_perm', '"denied"'); delete window.Capacitor.Plugins.ManaOrbit; window.Capacitor.isPluginAvailable = n => n === 'PushNotifications'; });      // APK d'avant 1.1.3 : pas de page des réglages, le chemin à suivre
+await openMe(D.p); await D.p.click('#btnNotif'); await D.p.waitForSelector('#pushFix', { timeout: 5000 }); await D.p.click('#pushFix');
+await D.p.waitForSelector('#pushFixMsg:not([hidden])', { timeout: 5000 }); assert.match(await txt(D.p, '#pushFixMsg'), /réglages d'Android/);
 await D.p.keyboard.press('Escape'); await D.p.waitForTimeout(350); await D.p.keyboard.press('Escape'); await D.p.waitForTimeout(350);
 await D.p.evaluate(() => { CTX.fcm = false; }); await openMe(D.p); assert.equal(await D.p.$('.me-sheet [data-me="app"]'), null, 'appli Android : pas de rubrique « Application » (rien à installer)'); await D.p.click('#btnNotif'); await D.p.waitForSelector('#pushBox .status', { timeout: 5000 });
 assert.match(await txt(D.p, '#pushBox'), /compte de service Firebase/); assert.match(await txt(D.p, '#alertBox'), /FCM_SERVICE_ACCOUNT/); assert.doesNotMatch(await txt(D.p, '#alertBox'), /VAPID/);
-ok('Réglages dans l\'appli : refus → réglages d\'Android ; serveur sans FCM → conseil FCM_SERVICE_ACCOUNT (jamais VAPID, iPhone ni navigateur)');
+ok('Réglages dans l\'appli : refus → « Activer les notifications » (demande d\'Android, puis sa page Notifications ; activées au retour ; APK d\'avant : le chemin) ; serveur sans FCM → conseil FCM_SERVICE_ACCOUNT (jamais VAPID, iPhone ni navigateur)');
+
+/* ── Premier lancement : la demande d'Android, une seule fois, quand l'écran est libre ───────────────────────────────────── */
+{
+  const N = await newPage(browser, world, { init: `localStorage.setItem('deckdeal:onboard', '1');(${shell})(${JSON.stringify(TOK2)})`, goto: false });
+  await N.p.goto(world.url);
+  assert.ok(await until(() => N.p.evaluate(() => window.__pn.calls.includes('request')), 12000), 'demande d\'Android au premier lancement');
+  assert.ok(await until(() => N.p.evaluate(() => pnTok() !== '')), 'accordée : jeton FCM'); assert.equal(await N.p.evaluate(() => localStorage.getItem('deckdeal:pnAsked')), '1');
+  await N.p.reload(); await N.p.waitForTimeout(6000);
+  assert.equal(await N.p.evaluate(() => JSON.parse(localStorage.getItem('__t_asked'))), 1, 'une seule fois');
+  await N.ctx.close();
+  const R = await newPage(browser, world, { init: `localStorage.setItem('deckdeal:onboard', '1');localStorage.setItem('__t_perm', '"denied"');(${shell})(${JSON.stringify(TOK2)})`, goto: false });
+  await R.p.goto(world.url); await R.p.waitForTimeout(6500);
+  assert.equal(await R.p.evaluate(() => window.__pn.calls.includes('request')), false, 'déjà refusée : rien de redemandé');
+  await R.ctx.close();
+  ok('premier lancement de l\'appli : la demande d\'autorisation d\'Android (une seule fois, écran libre) ; accordée : jeton FCM ; déjà refusée : rien');
+}
 
 assert.deepEqual(errs.filter(e => !/WebAssembly|worker|closed|Target/i.test(e)), []); assert.deepEqual(D.errs, []);
 await browser.close(); world.stop(); for (const s of [upAuth, upFcm, upScry]) s.close();

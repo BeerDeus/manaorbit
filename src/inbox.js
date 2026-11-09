@@ -1,10 +1,11 @@
 /* ── inbox.js : « Messages de l'équipe » — ce que l'équipe a à te dire, à toi (serveur : inbox-srv.mjs, /api/inbox) ───────────────────────────
    Un scan que tu as signalé est réglé, l'équipe a répondu à ton avis (texte de la réponse recopié depuis le fil Discord : lisible sans Discord), ou un message
    envoyé depuis le panneau. Chaque message arrive aussi en notification (toucher : ./?inbox=1, push.js › pushOpen, app.js › handleLaunch) ; sans notification,
-   la pastille du bouton du compte et la ligne « Messages de l'équipe » de « Compte et réglages » le montrent à la prochaine ouverture.
+   la feuille s'ouvre d'elle-même à la prochaine ouverture de l'appli (une fois par message : ibAuto), et le point du bouton du compte et la ligne
+   « Messages de l'équipe » de « Compte et réglages » le montrent.
    Lu au démarrage une fois connecté, puis au retour sur l'appli (toutes les 5 min au plus) ; la feuille ouverte marque tout comme lu. Serveur sans la boîte
    (/__ping inbox: false) ou déconnecté : rien n'est montré. */
-const IB = { uid: '', items: null, unread: 0, at: 0, p: null, sheet: null };
+const IB = { uid: '', items: null, unread: 0, at: 0, p: null, sheet: null, autoT: 0 };
 const ibOn = () => !!(typeof CTX !== 'undefined' && CTX.proxy && CTX.inbox && D.user);
 /** Appel de /api/inbox avec le jeton Firebase (renouvelé une fois s'il a expiré) → corps JSON ; erreur : { code, status }. */
 async function ibCall(path = '', method = 'GET', body) {
@@ -29,9 +30,23 @@ function ibLoad(force) {
   const p = IB.p = ibCall().then(j => {
     if (!D.user || D.user.uid !== uid) return;
     IB.uid = uid; IB.at = Date.now(); IB.items = Array.isArray(j.items) ? j.items.filter(x => x && typeof x.id === 'string') : []; IB.unread = Number(j.unread) || 0;
-    ibPaint();
+    ibPaint(); ibAuto();
   }).catch(() => { /* hors ligne, serveur d'avant : la pastille reste comme elle est */ }).finally(() => { if (IB.p === p) IB.p = null; });
   return p;
+}
+/** Message jamais montré (non lu, de moins de 14 jours) : la feuille s'ouvre d'elle-même à l'ouverture de l'appli ou au retour dedans, une fois par message
+ *  (ids gardés sur l'appareil), quand l'écran est libre (ni accueil des nouveaux, ni visite guidée, ni feuille, ni scan, ni mode streamer). */
+const IB_SHOWN = 'deckdeal:ibShown';
+function ibAuto(n = 0) {
+  if (!ibOn() || !IB.items || IB.sheet) return;
+  let seen; try { seen = new Set(JSON.parse(localStorage.getItem(IB_SHOWN) || '[]')); } catch (e) { return; }
+  const fresh = IB.items.filter(x => !x.r && !seen.has(x.id) && Date.now() - x.t < 14 * 864e5);
+  if (!fresh.length) return;
+  const busy = document.hidden || (typeof OB !== 'undefined' && OB.el) || (typeof TOUR !== 'undefined' && TOUR.on) || (typeof sheets !== 'undefined' && sheets.length) || (typeof SC !== 'undefined' && SC.el) || (typeof streamOn === 'function' && streamOn());
+  if (busy) { clearTimeout(IB.autoT); if (n < 40) IB.autoT = setTimeout(() => ibAuto(n + 1), 3000); return; }
+  for (const x of fresh) seen.add(x.id);
+  try { localStorage.setItem(IB_SHOWN, JSON.stringify([...seen].slice(-100))); } catch (e) { return; }
+  openInbox();
 }
 /** Compte changé (decks.js › onAuth) : boîte du nouveau compte, ou rien. */
 function ibUser(user) {

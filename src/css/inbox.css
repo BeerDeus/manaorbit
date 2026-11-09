@@ -13,3 +13,5 @@
 .tmb-x{margin:2px 0 0;font-size:14.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
 .tmb-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .tmb-empty{margin:8px 2px;color:var(--ink-2);line-height:1.45}
+/* Réglages › Notifications, notifications bloquées (push.js › paintPushBox) : « Activer les notifications » sous le constat */
+.push-fix{margin-top:10px;width:100%}

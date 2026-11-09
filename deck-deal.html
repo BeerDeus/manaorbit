@@ -5104,6 +5104,8 @@ html.streamer .fb-contact:not(:focus),html.streamer .fb-mem-n,html.streamer .fb-
 .tmb-x{margin:2px 0 0;font-size:14.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
 .tmb-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .tmb-empty{margin:8px 2px;color:var(--ink-2);line-height:1.45}
+/* Réglages › Notifications, notifications bloquées (push.js › paintPushBox) : « Activer les notifications » sous le constat */
+.push-fix{margin-top:10px;width:100%}
 
 /* ── lot.css : « Ajouter des cartes » (lot.js) : recherche, carte choisie (image, édition, quantité, langue), choix de l'édition, liste du lot ── */
 .lot-body{display:flex;flex-direction:column;gap:10px}
@@ -8201,8 +8203,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '266c40f5';
-const I18N_FILES = {"de":"i18n/de.f8334695.js","en":"i18n/en.224d311b.js","es":"i18n/es.484a73b1.js","it":"i18n/it.b5a2ea03.js","pt":"i18n/pt.df56fef0.js"};
+const DD_BUILD = '8660b4d5';
+const I18N_FILES = {"de":"i18n/de.28518fbc.js","en":"i18n/en.1924c4e3.js","es":"i18n/es.6ad4a79f.js","it":"i18n/it.0a80a98c.js","pt":"i18n/pt.09f6f65e.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -14572,7 +14574,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.inbox = j.inbox === true; CTX.errlog = j.errlog === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.ctPub = j.ctPub === true; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; CTX.names = j.names && typeof j.names === 'object' && !Array.isArray(j.names) ? j.names : null; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); if (typeof ibPing === 'function') ibPing(); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.inbox = j.inbox === true; CTX.errlog = j.errlog === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.ctPub = j.ctPub === true; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; CTX.names = j.names && typeof j.names === 'object' && !Array.isArray(j.names) ? j.names : null; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); if (typeof ibPing === 'function') ibPing(); if (typeof pushFirstAsk === 'function') setTimeout(pushFirstAsk, 4000); }      // appli Android : demande des notifications au premier lancement (push.js)
     if (j && j.ok && typeof j.ptk === 'string' && typeof partiePkKeep === 'function') partiePkKeep(j.ptk);      // compteur de vie : clé publique des cartes joueur (vérifiées sans réseau, partie.js)
   } catch (e) { /* pas de proxy */ }
   finally { if (typeof splashWait === 'function') splashWait(false); }
@@ -38248,10 +38250,11 @@ if (typeof document !== 'undefined') document.addEventListener('click', e => {
 /* ── inbox.js : « Messages de l'équipe » — ce que l'équipe a à te dire, à toi (serveur : inbox-srv.mjs, /api/inbox) ───────────────────────────
    Un scan que tu as signalé est réglé, l'équipe a répondu à ton avis (texte de la réponse recopié depuis le fil Discord : lisible sans Discord), ou un message
    envoyé depuis le panneau. Chaque message arrive aussi en notification (toucher : ./?inbox=1, push.js › pushOpen, app.js › handleLaunch) ; sans notification,
-   la pastille du bouton du compte et la ligne « Messages de l'équipe » de « Compte et réglages » le montrent à la prochaine ouverture.
+   la feuille s'ouvre d'elle-même à la prochaine ouverture de l'appli (une fois par message : ibAuto), et le point du bouton du compte et la ligne
+   « Messages de l'équipe » de « Compte et réglages » le montrent.
    Lu au démarrage une fois connecté, puis au retour sur l'appli (toutes les 5 min au plus) ; la feuille ouverte marque tout comme lu. Serveur sans la boîte
    (/__ping inbox: false) ou déconnecté : rien n'est montré. */
-const IB = { uid: '', items: null, unread: 0, at: 0, p: null, sheet: null };
+const IB = { uid: '', items: null, unread: 0, at: 0, p: null, sheet: null, autoT: 0 };
 const ibOn = () => !!(typeof CTX !== 'undefined' && CTX.proxy && CTX.inbox && D.user);
 /** Appel de /api/inbox avec le jeton Firebase (renouvelé une fois s'il a expiré) → corps JSON ; erreur : { code, status }. */
 async function ibCall(path = '', method = 'GET', body) {
@@ -38276,9 +38279,23 @@ function ibLoad(force) {
   const p = IB.p = ibCall().then(j => {
     if (!D.user || D.user.uid !== uid) return;
     IB.uid = uid; IB.at = Date.now(); IB.items = Array.isArray(j.items) ? j.items.filter(x => x && typeof x.id === 'string') : []; IB.unread = Number(j.unread) || 0;
-    ibPaint();
+    ibPaint(); ibAuto();
   }).catch(() => { /* hors ligne, serveur d'avant : la pastille reste comme elle est */ }).finally(() => { if (IB.p === p) IB.p = null; });
   return p;
+}
+/** Message jamais montré (non lu, de moins de 14 jours) : la feuille s'ouvre d'elle-même à l'ouverture de l'appli ou au retour dedans, une fois par message
+ *  (ids gardés sur l'appareil), quand l'écran est libre (ni accueil des nouveaux, ni visite guidée, ni feuille, ni scan, ni mode streamer). */
+const IB_SHOWN = 'deckdeal:ibShown';
+function ibAuto(n = 0) {
+  if (!ibOn() || !IB.items || IB.sheet) return;
+  let seen; try { seen = new Set(JSON.parse(localStorage.getItem(IB_SHOWN) || '[]')); } catch (e) { return; }
+  const fresh = IB.items.filter(x => !x.r && !seen.has(x.id) && Date.now() - x.t < 14 * 864e5);
+  if (!fresh.length) return;
+  const busy = document.hidden || (typeof OB !== 'undefined' && OB.el) || (typeof TOUR !== 'undefined' && TOUR.on) || (typeof sheets !== 'undefined' && sheets.length) || (typeof SC !== 'undefined' && SC.el) || (typeof streamOn === 'function' && streamOn());
+  if (busy) { clearTimeout(IB.autoT); if (n < 40) IB.autoT = setTimeout(() => ibAuto(n + 1), 3000); return; }
+  for (const x of fresh) seen.add(x.id);
+  try { localStorage.setItem(IB_SHOWN, JSON.stringify([...seen].slice(-100))); } catch (e) { return; }
+  openInbox();
 }
 /** Compte changé (decks.js › onAuth) : boîte du nouveau compte, ou rien. */
 function ibUser(user) {
@@ -39305,7 +39322,7 @@ function meBadgesRow() {
 function meSigNow() {
   const u = D.user;
   return [u ? u.uid : '', u ? meName(u) + '|' + (u.email || '') + '|' + acctVerified(u) : D.state + (D.hint && !D.authReady ? 'h' : ''), PROF.photo ? PROF.photo.length : 0, D.pending, D.listErr, allDecks().length, collCount(), Math.round(homeValue() / 100),
-    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang, MK.id + MK.pick,
+    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), typeof IB !== 'undefined' && IB.items ? IB.items.length + ':' + IB.unread : '',      // messages de l'équipe (inbox.js) : la ligne apparaît dans la fiche ouverte S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang, MK.id + MK.pick,
     typeof opnSv === 'function' ? JSON.stringify(opnSv()) : '', typeof dlSig === 'function' ? dlSig() : '', typeof EV !== 'undefined' ? EV.adm + '|' + EV.pv + '|' + evPvBadges() : '', typeof PRG !== 'undefined' ? PRG.u : 0].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
 }
 function mePaint() {
@@ -47315,7 +47332,8 @@ async function pnListen(P) {
       if (typeof streamOn === 'function' && streamOn()) return;                 // mode streamer (opening.js) : rien à l'écran de l'appli
       const msg = [n && n.title, n && n.body].filter(Boolean).join(' · '), url = n && n.data && n.data.url;
       if (/[?&]troc=/.test(String(url || ''))) { if (typeof trocPushed === 'function') trocPushed({ title: n.title, body: n.body, url }); return; }      // invitation à un échange en direct : toast « Rejoindre »
-      if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }      // ami : liste relue, toast (sauf mode streamer)
+      if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }
+      if (/[?&]inbox\b/.test(String(url || '')) && typeof ibLoad === 'function') ibLoad(true);      // message de l'équipe reçu appli ouverte : boîte relue (point, feuille ouverte), puis le toast « Voir »      // ami : liste relue, toast (sauf mode streamer)
       if (/[?&]mystere\b/.test(String(url || ''))) { if (typeof dlyPushed === 'function') dlyPushed({ title: n.title, body: n.body }); return; }      // nouvelle Carte mystère : bouton relu, toast « Jouer »
       if (msg) toast(msg, /[?&](alerts|resume|avis|fete|inbox)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);      // avis : le fil sur Discord ; fête : sa feuille
     }),
@@ -47429,12 +47447,43 @@ async function paintPushBox(box) {
     noproxy: '<p class="hint">' + T('Les notifications demandent le serveur Mana Orbit (la recherche y continue quand tu quittes l\'app).') + '</p>',
     novapid: note(0, T('Le serveur n\'a pas de clés de notification. Ajoute VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY et VAPID_SUBJECT dans les variables d\'environnement (voir README).')),
     nofcm: note(0, T('Le serveur n\'a pas de compte de service Firebase pour les notifications de l\'appli. Ajoute FCM_SERVICE_ACCOUNT dans les variables d\'environnement (voir README).')),
-    denied: note(0, nat ? T('Notifications bloquées pour Mana Orbit : autorise-les dans les réglages d\'Android (Paramètres › Applications › Mana Orbit › Notifications), puis reviens ici.') : T('Notifications bloquées pour ce site : autorise-les dans les réglages du navigateur, puis reviens ici.')),
+    denied: nat ? note(0, T('Les notifications sont coupées pour Mana Orbit.')) + `<button class="btn main push-fix" type="button" id="pushFix">${T('Activer les notifications')}</button><p class="hint" id="pushFixMsg"${PN.fixMsg ? '' : ' hidden'}>${T('Notifications bloquées pour Mana Orbit : autorise-les dans les réglages d\'Android (Paramètres › Applications › Mana Orbit › Notifications), puis reviens ici.')}</p>` : note(0, T('Notifications bloquées pour ce site : autorise-les dans les réglages du navigateur, puis reviens ici.')),
     oldapp: '<p class="hint">' + T('Mets à jour l\'appli Mana Orbit pour recevoir les notifications.') + '</p>',
     ios: '<p class="hint">' + T('Sur iPhone et iPad, les notifications ne marchent que si Mana Orbit est installée sur l\'écran d\'accueil (iOS 16.4 ou plus) : bouton Partager, « Sur l\'écran d\'accueil », puis ouvre l\'app depuis son icône.') + '</p>',
     unsupported: '<p class="hint">' + T('Ce navigateur ne gère pas les notifications push.') + '</p>',
     nosw: '<p class="hint">' + T('Le service worker n\'est pas actif (ouvre l\'app en https, puis recharge).') + '</p>',
   }[st] || '';
+  const fix = $('#pushFix', box); if (fix) fix.onclick = () => pushFix(box, fix);
+}
+/** « Activer les notifications » (appli Android, notifications bloquées) : la demande d'Android d'abord ; refusée pour de bon (Android ne la montre plus) :
+ *  la page Notifications de Mana Orbit dans les réglages d'Android (APK 1.1.3 : ManaOrbit.openNotificationSettings), et au retour dans l'appli, activées si
+ *  elles ont été autorisées ; APK plus ancienne : le chemin à suivre. */
+async function pushFix(box, b) {
+  const P = pushNat(); if (!P) return;
+  haptic('tap'); b.disabled = true;
+  const done = async () => { const r = await pnRegister(P); if (r.token) { S.push = true; saveStore(); haptic('ok'); toast(T('Notifications activées')); } paintPushBox(box); };
+  if (await pnPerm(P, true) === 'granted') return done();
+  let opened = false;
+  try { const mo = natPlugin('ManaOrbit'); opened = !!(mo && ((await mo.openNotificationSettings()) || {}).opened); } catch (e) { opened = false; }      // APK d'avant 1.1.3 : méthode absente
+  b.disabled = false;
+  if (!opened) { PN.fixMsg = true; const m = $('#pushFixMsg', box); if (m) m.hidden = false; return; }      // gardé si la rubrique est repeinte
+  const back = async () => { if (document.hidden) return; document.removeEventListener('visibilitychange', back); if (await pnPerm(P, false) === 'granted') done(); else paintPushBox(box); };
+  document.addEventListener('visibilitychange', back);
+}
+/** Premier lancement de l'appli Android : la demande d'autorisation des notifications d'Android, une seule fois (comme le font les applis), quand l'écran est libre
+ *  (ni accueil des nouveaux, ni visite guidée, ni feuille, ni scan). Accordée : jeton FCM, et l'appareil s'enregistre pour les amis, les messages de l'équipe, la
+ *  Carte mystère et les événements (push.js › pnListen). Refusée : plus rien de demandé (« Activer les notifications » dans Réglages › Notifications). */
+const PN_ASKED = 'deckdeal:pnAsked';
+async function pushFirstAsk(n = 0) {
+  const P = pushNat(); if (!P || !CTX.proxy || !CTX.fcm) return;
+  try { if (localStorage.getItem(PN_ASKED)) return; } catch (e) { return; }
+  const busy = document.hidden || (typeof OB !== 'undefined' && OB.el) || (typeof TOUR !== 'undefined' && TOUR.on) || (typeof sheets !== 'undefined' && sheets.length) || (typeof SC !== 'undefined' && SC.el);
+  if (busy) { if (n < 60) setTimeout(() => pushFirstAsk(n + 1), 3000); return; }
+  try { localStorage.setItem(PN_ASKED, '1'); } catch (e) { return; }
+  const perm = await pnPerm(P, false);
+  if (perm === 'granted') { if (!pnTok()) pnRegister(P); return; }      // Android d'avant 13 : rien à demander, le jeton seulement
+  if (perm === 'denied') return;
+  const r = await pushEnable(); if (r.ok) { S.push = true; saveStore(); }
 }
 
 

@@ -200,6 +200,16 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   console.log(`✓ APK 1.0.13 : icônes des fêtes (${sp.join(', ')}) sur des activity-alias, une seule activée, mipmaps présents, partage et App Links restés sur MainActivity, setIcon / iconState, versionCode ≥ 14`);
 }
 
+// APK 1.1.3 : notifications refusées pour de bon → « Activer les notifications » ouvre la page Notifications de Mana Orbit dans les réglages d'Android.
+{
+  const plug = readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), gradle = readFileSync('android-app/android/app/build.gradle', 'utf8');
+  assert.match(plug, /@PluginMethod\s+public void openNotificationSettings\(PluginCall call\)/, 'méthode openNotificationSettings'); assert.match(plug, / \* - openNotificationSettings\(/, 'décrite dans l\'en-tête du plugin');
+  assert.match(plug, /Settings\.ACTION_APP_NOTIFICATION_SETTINGS/); assert.match(plug, /Settings\.EXTRA_APP_PACKAGE, ctx\.getPackageName\(\)/); assert.match(plug, /FLAG_ACTIVITY_NEW_TASK/);
+  assert.match(readFileSync('src/push.js', 'utf8'), /mo\.openNotificationSettings\(\)/, 'site : demandée par « Activer les notifications »');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 19, 'code natif changé : versionCode 19 et plus (1.1.3)');
+  console.log('✓ APK 1.1.3 : openNotificationSettings (page Notifications de l\'appli dans les réglages d\'Android), demandée par le site, versionCode ≥ 19');
+}
+
 // APK 1.0.14 : interface fixe. Zoom du WebView coupé par MainActivity ; le site le coupe aussi (viewport, touch-action, gesturestart) pour les APK plus anciennes.
 {
   const gradle = readFileSync('android-app/android/app/build.gradle', 'utf8'), main = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8');

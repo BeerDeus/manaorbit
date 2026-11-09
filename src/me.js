@@ -34,7 +34,7 @@ function meBadgesRow() {
 function meSigNow() {
   const u = D.user;
   return [u ? u.uid : '', u ? meName(u) + '|' + (u.email || '') + '|' + acctVerified(u) : D.state + (D.hint && !D.authReady ? 'h' : ''), PROF.photo ? PROF.photo.length : 0, D.pending, D.listErr, allDecks().length, collCount(), Math.round(homeValue() / 100),
-    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang, MK.id + MK.pick,
+    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), typeof IB !== 'undefined' && IB.items ? IB.items.length + ':' + IB.unread : '',      // messages de l'équipe (inbox.js) : la ligne apparaît dans la fiche ouverte S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang, MK.id + MK.pick,
     typeof opnSv === 'function' ? JSON.stringify(opnSv()) : '', typeof dlSig === 'function' ? dlSig() : '', typeof EV !== 'undefined' ? EV.adm + '|' + EV.pv + '|' + evPvBadges() : '', typeof PRG !== 'undefined' ? PRG.u : 0].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
 }
 function mePaint() {

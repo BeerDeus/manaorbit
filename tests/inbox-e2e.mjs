@@ -36,10 +36,12 @@ await p.evaluate(() => ibLoad(true));
 await openMe(p); assert.equal(await p.$('#meInbox'), null, 'aucun message : pas de ligne'); await closeSheets(p);
 assert.equal(await p.$eval('#btnAccount', e => e.dataset.dot), '0');
 let r = await send({ to: TA, text: 'Bonjour Alice,\nla carte « Lieur de foi bénalian » est maintenant reconnue.\nMerci !' }); assert.equal(r.s, 200, JSON.stringify(r.o));
+await openMe(p);      // une feuille déjà ouverte : la boîte ne s'ouvre pas par-dessus (ibAuto attend)
 await p.evaluate(() => ibLoad(true));
 assert.equal(await p.$eval('#btnAccount', e => e.dataset.dot), '1', 'point sur le bouton du compte');
 assert.match(await p.$eval('#btnAccount', e => e.getAttribute('aria-label')), /1 message de l'équipe/);
-await openMe(p); await p.waitForSelector('#meInbox');
+assert.equal(await p.$('.tmb-sheet'), null, 'pas ouverte par-dessus une autre feuille');
+await p.waitForSelector('#meInbox');
 assert.match(await p.$eval('#meInbox', e => e.textContent.replace(/\s+/g, ' ')), /Messages de l'équipe.*1 nouveau/);
 await shot(p, 'inbox-1-compte');
 await p.click('#meInbox'); await p.waitForSelector('.tmb-sheet .tmb-it');
@@ -50,7 +52,16 @@ assert.ok(await until(async () => (await box()).unread === 0), 'feuille ouverte 
 assert.equal(await p.$eval('#btnAccount', e => e.dataset.dot), '0', 'plus de point');
 await shot(p, 'inbox-2-feuille');
 await closeSheets(p); await closeSheets(p);
-ok('message du panneau : point sur le bouton du compte (et son libellé), ligne « Messages de l\'équipe · 1 nouveau », feuille (retours à la ligne gardés, en évidence), marqué lu');
+// nouveau message, appli rouverte : la feuille s'ouvre d'elle-même, une seule fois
+r = await send({ to: TA, text: 'Deuxième message' }); assert.equal(r.s, 200);
+await p.reload(); await p.waitForTimeout(600); await p.evaluate(t => { window.__idTok = t; }, F.jwt(UA, 3 * 3600)); await signInFake(p, { uid: UA, email: UA + '@test.dev', displayName: 'Alice' });
+await p.waitForSelector('.tmb-sheet .tmb-it.new', { timeout: 12000 });
+assert.equal(await p.$eval('.tmb-sheet .tmb-it.new .tmb-x', e => e.textContent), 'Deuxième message', 'ouverte d\'elle-même au lancement, le nouveau message en évidence');
+assert.ok(await until(async () => (await box()).unread === 0)); await closeSheets(p);
+await p.reload(); await p.waitForTimeout(600); await p.evaluate(t => { window.__idTok = t; }, F.jwt(UA, 3 * 3600)); await signInFake(p, { uid: UA, email: UA + '@test.dev', displayName: 'Alice' });
+await p.waitForFunction(() => IB.items !== null, null, { timeout: 8000 }); await p.waitForTimeout(1500);
+assert.equal(await p.$('.tmb-sheet'), null, 'déjà montré : pas rouverte');
+ok('message du panneau : point sur le bouton du compte (et son libellé), ligne « Messages de l\'équipe · 1 nouveau », feuille (retours à la ligne gardés, en évidence), marqué lu ; nouveau message : la feuille s\'ouvre d\'elle-même au lancement (une fois, jamais par-dessus une autre feuille)');
 
 /* ── 2) Scan réglé et réponse à un avis (enregistrés directement dans la boîte) : textes de l'appli, lien du fil, Supprimer ── */
 {
@@ -62,16 +73,17 @@ ok('message du panneau : point sur le bouton du compte (et son libellé), ligne 
   const t = await p.$$eval('.tmb-sheet .tmb-it', es => es.map(e => [e.querySelector('.tmb-h b').textContent, (e.querySelector('.tmb-l') || {}).textContent || '', !!e.querySelector('[data-ib="see"]')]));
   assert.deepEqual(t[0], ['Ton scan signalé est réglé', '« Émérite de l\'abondance » est maintenant reconnue. Merci pour ton signalement !', false], 'scan réglé : phrase de l\'appli avec la carte');
   await shot(p, 'inbox-3-scan');
+  const n0 = (await box()).items.length;
   await p.click('.tmb-sheet .tmb-it [data-ib="del"]');
-  assert.ok(await until(async () => (await box()).items.length === 1), 'supprimé au serveur'); assert.ok(await until(async () => (await p.$$eval('.tmb-sheet .tmb-it', es => es.length)) === 1), 'et dans la feuille');
+  assert.ok(await until(async () => (await box()).items.length === n0 - 1), 'supprimé au serveur'); assert.ok(await until(async () => (await p.$$eval('.tmb-sheet .tmb-it', es => es.length)) === n0 - 1), 'et dans la feuille');
   await closeSheets(p);
   ok('scan réglé : « Ton scan signalé est réglé », la carte dans la phrase de l\'appli ; notification touchée (./?inbox=1) : la feuille ; Supprimer');
 }
 {
-  const AV = { id: 'zz00000-aaaaaa', t: Date.now(), k: 'avis', s: 'Les prix ne se chargent plus', ev: { replies: 1, tags: ['Corrigé'], close: true }, x: 'Corrigé dans la 1.1.3, merci !', u: './?avis=1569428139807867807&g=910000000000000001', r: 1 };
+  const n1 = (await box()).items.length, AV = { id: 'zz00000-aaaaaa', t: Date.now(), k: 'avis', s: 'Les prix ne se chargent plus', ev: { replies: 1, tags: ['Corrigé'], close: true }, x: 'Corrigé dans la 1.1.3, merci !', u: './?avis=1569428139807867807&g=910000000000000001', r: 1 };
   await p.route(world.url + 'api/inbox', async route => { if (route.request().method() !== 'GET') return route.continue(); const res = await route.fetch(), j = await res.json(); j.items.unshift(AV); route.fulfill({ response: res, json: j }); });      // réponse à un avis (relève du bot) : ajoutée à la boîte lue
   await p.evaluate(() => openInbox()); await p.waitForSelector('.tmb-sheet [data-ib="see"]');
-  assert.equal(await p.$$eval('.tmb-sheet .tmb-it', es => es.length), 2);
+  assert.equal(await p.$$eval('.tmb-sheet .tmb-it', es => es.length), n1 + 1);
   const a = await p.$eval('.tmb-sheet .tmb-it', e => [e.querySelector('.tmb-h b').textContent, e.querySelector('.tmb-l').textContent, e.querySelector('.tmb-x').textContent]);
   assert.deepEqual(a, ['Du nouveau sur ton avis', '« Les prix ne se chargent plus » · 1 réponse de l\'équipe · marqué Corrigé · fil fermé', 'Corrigé dans la 1.1.3, merci !']);
   await shot(p, 'inbox-4-avis');

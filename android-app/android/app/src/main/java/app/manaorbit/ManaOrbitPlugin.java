@@ -96,6 +96,8 @@ import org.json.JSONObject;
  * - iconState() → { want, current, packs } : icône voulue, icône montrée, fêtes connues de cette APK.
  * - requestReview() → { ok: true } : demande de note Google Play dans l'appli (In-App Review), voir requestReview. APK 1.0.6 et plus ; plus ancienne : le site
  *   montre sa propre demande, qui ouvre la fiche Play Store.
+ * - openNotificationSettings() → { opened } : page Notifications de Mana Orbit dans les réglages d'Android (notifications refusées pour de bon : Android ne
+ *   montre plus sa demande). APK 1.1.3 et plus ; plus ancienne : le site écrit le chemin à suivre (src/push.js › pushFix).
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
  *   touché ; { view: 'trade' } le widget « QR code d'échange » ; { view: 'scan' | 'quick' | 'trade' | 'paste' } un raccourci de l'icône (ShortcutActivity) ; { view: 'share', text, title } du texte partagé
  *   par une autre appli (menu « Partager » : decklist, lien EDHREC, Archidekt, Moxfield…).
@@ -450,6 +452,31 @@ public class ManaOrbitPlugin extends Plugin {
     }
 
     /** Luminosité de la fenêtre : pleine (QR code à scanner par un autre téléphone, même au soleil) ou celle du téléphone. Aucune autorisation demandée. */
+    /**
+     * Réglages › Notifications de Mana Orbit dans Android (src/push.js › pushSettings) : quand les notifications ont été refusées pour de bon, Android ne montre plus
+     * la demande ; on ouvre directement la page où les autoriser. Android 8 et plus : la page des notifications de l'appli ; avant : la page de l'appli.
+     */
+    @PluginMethod
+    public void openNotificationSettings(PluginCall call) {
+        Context ctx = getContext();
+        Intent i;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            i = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+            i.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.getPackageName());
+        } else {
+            i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ctx.getPackageName()));
+        }
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        JSObject ret = new JSObject();
+        try {
+            ctx.startActivity(i);
+            ret.put("opened", true);
+        } catch (Exception e) {
+            ret.put("opened", false);
+        }
+        call.resolve(ret);
+    }
+
     @PluginMethod
     public void brightness(PluginCall call) {
         boolean full = Boolean.TRUE.equals(call.getBoolean("full", false));
