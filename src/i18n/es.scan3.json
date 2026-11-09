@@ -6,5 +6,7 @@
 "nom de plusieurs cartes : celle-ci d'après la ligne du bas": "nombre de varias cartas: esta, según la línea inferior",
 "nom de plusieurs cartes : celle-ci d'après l'illustration": "nombre de varias cartas: esta, según la ilustración",
 "nom de plusieurs cartes : {list}": "nombre de varias cartas: {list}",
-"Plutôt {name}": "Más bien {name}"
+"Plutôt {name}": "Más bien {name}",
+"Quelle carte est sur ta photo ?": "¿Qué carta aparece en tu foto?",
+"C'est {name}": "Es {name}"
 }

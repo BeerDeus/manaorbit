@@ -160,7 +160,7 @@ function scanAdd(m, d, maybe, shot) {
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); }       // image de la carte dans sa langue, vue pendant la lecture : gardée pour la collection
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
   if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (m.ft && !cur.ft) cur.ft = m.ft; if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
-  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, sym: (artq && m.sym) || null, artq, lot: !!m.lot, ambBy: m.ambBy || '', alts: m.amb || m.ambBy ? m.alts || null : null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
+  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', pshot: !maybe && m.ft ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, sym: (artq && m.sym) || null, artq, lot: !!m.lot, ambBy: m.ambBy || '', alts: m.amb || m.ambBy ? m.alts || null : null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); else if (typeof scanContra === 'function') scanContra(it, SC.pr.get(scanPk(it.key, l))); }      // via : langue trouvée par la recherche des autres langues ; pshot : photo gardée le temps de vérifier la ligne du bas (scaned.js › scanContra)
   if (d > 0 && SC.lastIt) SC.lastIt.fly = Date.now();      // carte ajoutée : son symbole d'édition descendra dans la liste dès que l'édition est connue (scanFlyCheck)
   if (ed.e) scanEdPass();      // une édition posée : les cartes « à choisir » sont revues
   scanPaintList();
@@ -175,10 +175,27 @@ function scanTyped(id, c) {
   if (c.l && c.l !== 'en') langImgFor(c.k, c.n, c.l);      // image de la carte dans sa langue, l'anglaise en attendant
   if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, false);
 }
-/** Nom imprimé de plusieurs cartes : un bouton par autre carte possible (« Plutôt Way of the Pyromancer »). */
+/** Nom imprimé de plusieurs cartes, carte déjà tranchée (illustration, ligne du bas) : un bouton par autre carte possible (« Plutôt Way of the Pyromancer ») ;
+ *  carte à vérifier : scanPickHtml. */
+const scanAltList = e => (Array.isArray(e.alts) ? [...new Map(e.alts.map(n => [ownKey(n), n])).values()] : []);
 function scanAltsHtml(e) {
-  const o = Array.isArray(e.alts) ? e.alts.filter(n => ownKey(n) !== e.key) : [];
-  return o.length ? `<span class="sc-alts">${o.map(n => `<button type="button" class="tag sc-alt" data-a="alt" data-n="${esc(n)}">${T('Plutôt {name}', { name: esc(n) })}</button>`).join('')}</span>` : '';
+  const o = scanAltList(e).filter(n => ownKey(n) !== e.key);
+  return !o.length || e.maybe ? '' : `<span class="sc-alts">${o.map(n => `<button type="button" class="tag sc-alt" data-a="alt" data-n="${esc(n)}">${T('Plutôt {name}', { name: esc(n) })}</button>`).join('')}</span>`;
+}
+/** Carte à vérifier au nom partagé (ou contredite par sa ligne du bas) : « Quelle carte est sur ta photo ? » sous la ligne, sur toute sa largeur, l'illustration
+ *  de chaque carte possible dans la langue de la carte ; un appui choisit (data-a="pick" : celle lue est confirmée, une autre la remplace : scanAltPick). */
+function scanPickHtml(e) {
+  const all = scanAltList(e);
+  if (!e.maybe || !all.some(n => ownKey(n) !== e.key)) return '';
+  const l = e.l || 'en', list = all.some(n => ownKey(n) === e.key) ? all : [e.name, ...all];
+  const shown = n => (l !== 'en' && typeof frName === 'function' && frName(ownKey(n), l)) || n;
+  const img = n => {      // illustration dans la langue de la carte : miniature du catalogue des noms, image déjà vue, sinon celle de Scryfall (traduite par cardImgA si possible)
+    const k = ownKey(n), cat = l !== 'en' && l === FRX.l && FRX.ix && FRX.ix.img ? FRX.ix.img.get(k) : '', seen = l !== 'en' ? COLL.li[liKey(l, k)] : '';
+    if (cat) return `src="${esc(/^https?:/.test(cat) ? cat : FR_IMG + cat)}"`;
+    if (seen) return `src="${esc(seen)}"`;
+    return typeof cardImgA === 'function' ? cardImgA(k, n, scImg(n), l) : `src="${esc(scImg(n))}"`;
+  };
+  return `<div class="sc-pick" role="group" aria-label="${esc(T('Quelle carte est sur ta photo ?'))}"><small class="sc-pick-q">${T('Quelle carte est sur ta photo ?')}</small><div class="sc-pick-row">${list.slice(0, 4).map(n => `<button type="button" class="sc-pick-c" data-a="pick" data-n="${esc(n)}" aria-label="${esc(T('C\'est {name}', { name: shown(n) }))}"><img alt="" loading="lazy" decoding="async" ${img(n)}><span>${esc(shown(n))}${shown(n) !== n ? `<i>${esc(n)}</i>` : ''}</span></button>`).join('')}</div></div>`;
 }
 /** « Plutôt … » : la ligne devient l'autre carte (confirmée), son édition est relue. */
 function scanAltPick(it, name) {
@@ -279,7 +296,7 @@ function scanPaintList() {
   const ae = document.activeElement, keep = ae && ae !== list && list.contains(ae) ? { row: ae.closest('.sc-item'), a: ae.dataset.a, cls: ae.classList[0] } : null;      // focus clavier dans la liste : rendu à son équivalent après le repeint (éditions qui arrivent…)
   const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}${!e.maybe && e.fq > 0 ? `<span class="tag foil sc-foil" title="${esc(TN(Math.min(e.fq, e.q), '{n} exemplaire foil', '{n} exemplaires foil'))}">✦ ${e.fq >= e.q ? T('Foil') : nf0(e.fq)}</span>` : ''}</span>${scanDp(e) ? `<button type="button" class="sc-dp" data-a="dp" style="--c:${plcColor(scanDp(e))}" aria-label="${esc(T('{name} : rangée dans « {place} », changer', { name: e.name, place: plcName(scanDp(e)) }))}"><i></i>${esc(plcName(scanDp(e)))}</button>` : ''}${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}${scanAltsHtml(e)}</span>
       ${e.maybe ? `<button type="button" class="sc-ok" data-a="ok" aria-label="${T('Confirmer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-check"/></svg></button>` : `${scanEdBtn(e)}<span class="sc-qp"><span class="qstep"><button type="button" data-a="dec" aria-label="${T('Retirer un exemplaire')}">−</button><b>${e.q}</b><button type="button" data-a="inc" aria-label="${T('Ajouter un exemplaire')}">+</button></span>${scanRowPx(e)}</span>`}
-      <button type="button" class="sc-x" data-a="del" aria-label="${T('Retirer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+      <button type="button" class="sc-x" data-a="del" aria-label="${T('Retirer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-close"/></svg></button>${scanPickHtml(e)}</div>`;
   const maybe = arr.filter(x => x.maybe), todo = arr.filter(scanEdIsTodo), apart = arr.filter(x => !x.maybe && !scanEdIsTodo(x) && scanDp(x)), rest = arr.filter(x => !x.maybe && !scanEdIsTodo(x) && !scanDp(x));      // à vérifier, éditions à choisir, mises à part (alerte de prix), puis le reste (dernière lue en haut)
   const dps = [...new Set(apart.map(scanDp))], many = (maybe.length ? 1 : 0) + (todo.length ? 1 : 0) + dps.length + (rest.length ? 1 : 0) > 1;
   const sec = (h, cls, rows) => (rows.length ? (many || cls === ' apart' ? `<p class="sc-h${cls}">${esc(h)}</p>` : '') + rows.map(row).join('') : '');      // mises à part : toujours leur titre (où elles iront)
@@ -808,7 +825,7 @@ const thirdBox = src => ({ x: 0, y: 0, w: src.naturalWidth || src.width, h: Math
 /** Une capture → meilleure lecture. Aperçu de l'app : la capture EST la bande « nom + mana » (lue entière, les symboles de mana sont ignorés), puis en texte épars si rien de sûr.
  *  Photo d'une carte entière (« Photos ») : bande du titre en haut, puis le tiers haut si rien de sûr ; le reste de l'image n'est jamais lu. */
 async function readCard(src, cat, strip, card) {
-  const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, st = { n: 0 }; SC.raw = '';      // st : requêtes « autres langues » de cette carte (2 au plus)
+  const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, st = { n: 0 }; SC.raw = ''; SC.turned = 0;      // st : requêtes « autres langues » de cette carte (2 au plus)
   if (card) {      // cadrage « carte entière » : la capture EST la carte (cadre de l'écran) : le nom en haut, puis la ligne du bas
     let m = null;      // bande serrée en une ligne (Tesseract se perd dans les grandes zones sombres du bord et de l'illustration), puis la zone large, puis le tiers haut en texte épars
     const nm = nameAt(src, cardNameBox(W, H)), wide = natOcr() && nm.at !== src;      // ML Kit : la zone du nom élargie autour du cadre (capPad), lue d'un coup
@@ -821,6 +838,10 @@ async function readCard(src, cat, strip, card) {
     m = await readMore(src, band, 1400, '7', cat, m, st);      // autres écritures attendues (langue des cartes, cartes chinoises déjà lues…)
     m = await footIdentify(m, src, cardFootBox(W, H));      // nom illisible ou douteux : l'extension et le numéro du bas retrouvent la carte
     if (natOcr()) m = await readMore(src, band, 1400, '7', cat, m, st, true);      // appli Android, toujours rien : ML Kit latin ne lit pas les autres écritures, leurs moteurs essaient
+    if ((!m || m.score < 0.72 || (m.via === 'foot' && m.score < 0.9)) && SC.el) {      // rien, ou retrouvée par la ligne du bas sans nom lisible : carte couchée (bataille, carte partagée, photo de côté), relue tournée d'un quart de tour
+      const t = await readTurned(src, cat, st, m);
+      if (t) { const r = artAttach(await footAttach(t.m, t.src, cardFootBox(t.src.width, t.src.height)), t.src); if (t.src !== src) t.src.width = t.src.height = 0; return r; }
+    }
     return artAttach(await footAttach(m, src, cardFootBox(W, H)), src);
   }
   if (strip) {
@@ -840,6 +861,30 @@ async function readCard(src, cat, strip, card) {
   m = await footIdentify(m, src, cardFootBox(W, H));
   if (natOcr()) m = await readMore(src, title, 1100, '6', cat, m, st, true);
   return footAttach(m, src, cardFootBox(W, H));      // photo de la carte entière : sa ligne du bas aussi
+}
+
+/** Capture tournée d'un quart de tour (dir 1 : sens horaire, -1 : antihoraire), en canvas. */
+function turnCanvas(src, dir) {
+  const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, c = document.createElement('canvas'); c.width = H; c.height = W;
+  const x = c.getContext('2d'); if (dir > 0) { x.translate(H, 0); x.rotate(Math.PI / 2); } else { x.translate(0, W); x.rotate(-Math.PI / 2); }
+  x.drawImage(src, 0, 0); return c;
+}
+/** Carte entière illisible à l'endroit : batailles et cartes partagées sont imprimées en largeur, la photo a pu être prise de côté. Relue tournée d'un quart de tour
+ *  dans un sens puis dans l'autre : le nom en haut, puis la ligne du bas (extension + numéro). → { m, src (capture tournée) } ou null. Seulement après un échec : rien de plus à l'endroit. */
+async function readTurned(src, cat, st, cur) {
+  for (const dir of [1, -1]) {
+    if (!SC.el) break;
+    const c = turnCanvas(src, dir), W = c.width, H = c.height;
+    let m = await readNameAuto(c, cardNameBox(W, H), 1400, '6', cat, !natOcr(), st);
+    if (cur) {      // carte déjà retrouvée par la ligne du bas (lue à l'endroit) : le nom lu de côté la confirme seulement
+      if (m && m.key === cur.key && m.score >= 0.72) { SC.turned = dir; c.width = c.height = 0; return { m: { ...cur, score: Math.max(cur.score, 0.93), raw: m.raw }, src }; }
+      c.width = c.height = 0; continue;
+    }
+    if (!m || m.score < 0.72) m = await footIdentify(m, c, cardFootBox(W, H));
+    if (m && m.score >= 0.72) { SC.turned = dir; return { m, src: c }; }
+    c.width = c.height = 0;
+  }
+  return null;
 }
 
 /* — Cadrage « carte entière » : la petite ligne en bas à gauche (numéro, extension, langue) donne l'édition exacte (scanfoot.js, scaned.js) — */
@@ -926,6 +971,7 @@ async function footIdentify(m, src, box) {
     return { ...m, name: hit.name, key: hit.key, score: Math.max(m.score, 0.92), img: same ? hit.img : hit.key === m.key ? m.img : '', amb: false, ambBy: 'foot', alts: m.alts || [m.name, hit.name].filter((x, i, a) => a.indexOf(x) === i) };
   }
   if (hit.key === m.key) return { ...m, score: Math.max(m.score, 0.92), ...(weakOther && ft.lang && hit.card !== m.card ? { card: hit.card, img: hit.img, via: 'foot' } : {}) };      // la ligne du bas confirme le nom lu de justesse (et sa langue, si elle y est lue)
+  if (ft.lang && m.score < 0.84) return hit;      // « CODE • LANGUE » et numéro lus, carte trouvée chez Scryfall à cet endroit : plus sûr qu'un nom deviné « à vérifier » dans du bruit (« a NY » → Lay Bare sur une bataille)
   return sim > nameSimilar(raw, m.card && m.card !== 'en' ? frName(m.key, m.card) || m.name : m.name) ? hit : m;
 }
 /** Langue du lot, pour départager seulement : les cartes à la langue sûre (nom propre à sa langue, langue lue en bas) votent, les 8 dernières comptent (un lot
@@ -1070,7 +1116,7 @@ async function scanWork() {
       try {
         if (!job.src && job.file) { const img = await loadImage(job.file); job.src = img; job.thumb = thumbOf(img, thirdBox(img)); }
         m = await readCard(job.src, await collCatalog(), job.strip, job.card);
-        if (!m || m.score < 0.84) job.shot = shotOf(job.src, job.strip ? null : job.card ? cardNameBox(job.src.width, job.src.height) : titleBox(job.src));      // lecture douteuse : on garde une photo lisible de la zone pour comparer
+        if (!m || m.score < 0.84 || (m.ft && m.ft.lang)) job.shot = shotOf(job.src, job.strip ? null : job.card ? cardNameBox(job.src.width, job.src.height) : titleBox(job.src));      // lecture douteuse : on garde une photo lisible de la zone pour comparer
       } catch (e) { fail = e && e.code === 'cdn' ? T('Le module de lecture (OCR) n\'a pas pu être téléchargé. Vérifie ta connexion.') : e && e.code === 'rate' ? T('Scryfall demande une pause…') : ''; }
       if (typeof srKeep === 'function' && job.s === SC.session) srKeep(job, m, t0);      // « Signaler un problème de scan » (scanreport.js) : version réduite et lecture gardées en mémoire
       scanFree(job.src); job.src = null; job.file = null;
@@ -1428,6 +1474,7 @@ function openScan(o) {
     }
     else if (a.dataset.a === 'ok') { it.maybe = false; it.shot = ''; }
     else if (a.dataset.a === 'alt') { scanAltPick(it, a.dataset.n); return; }
+    else if (a.dataset.a === 'pick') { if (ownKey(a.dataset.n || '') === it.key) Object.assign(it, { maybe: false, shot: '', ambBy: 'man' }); else { scanAltPick(it, a.dataset.n); return; } }      // « Quelle carte est sur ta photo ? » : celle lue (confirmée) ou une autre
     else if (a.dataset.a === 'del') {                       // ✕ : la carte entière, confirmation à chaque fois
       confirmMinus(it.name, it.q, 'scandel', () => { if (!SC.items.delete(it.id)) return; scanEdPass(); scanPaintList(); });
       return;

@@ -47,6 +47,7 @@ function srRead(job, m, t0, W, H) {
     raw: String((m && m.raw) || '').slice(0, 80), first: String(SC.raw || '').slice(0, 80),
     hit: m ? { name: m.name, key: m.key, card: m.card || 'en', score: Math.round((m.score || 0) * 1000) / 1000, via: m.via || '', ocr: m.lang || '', amb: !!m.amb, ft: m.ft ? srFt(m.ft) : null } : null,
     foot: f ? { raw: String(f.raw || '').slice(0, 80), ft: f.ft ? srFt(f.ft) : null, ...(own ? { name: own.name || '', card: own.card || '', keep: own.keep || '', via: own.via || '' } : {}) } : null,
+    ...(SC.turned ? { turn: SC.turned } : {}),      // carte relue tournée d'un quart de tour (scan.js › readTurned : 1 horaire, -1 antihoraire)
     ocr: natOcr() ? 'mlkit' : 'tesseract', langs: ocrLangs(), names: namesLang() || 'en', cat: !!FRC.cat, oth: OTHX.at > 0,
     diag: { fps: Math.round(SC.fps) || 0, res: st.width ? st.width + 'x' + st.height : '', fr: Math.round(st.frameRate) || 0, fixed: !!SC.fixed, restarts: SC.restarts, slow: camSlow(), lt: SC.ltObs ? SC.lt.filter(t => now - t < 10000).length : null, cam: tr && tr.label ? String(tr.label).slice(0, 60) : '' },
   };

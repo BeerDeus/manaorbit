@@ -3594,6 +3594,41 @@ async function srAdmin(req, res, sub, url) {
   return json(res, 200, { ok: true, ...(await srSummary()) }, ADM_HD);
 }
 
+/* ── Scans signalés, lecture par un agent (Claude) : la même chose que le panneau /admin, en lecture seule, avec une clé au lieu du compte de l'éditeur ──────────
+   Pour enquêter sur un signalement depuis une session de code (« il y a de nouveaux signalements ») : photos et données de lecture, rejouées par tools/scan-replay.mjs.
+   SCAN_REPORTS_AGENT_KEY : clé de 32 caractères au moins (sinon : coupé, 404 partout), envoyée en « Authorization: Bearer <clé> » (comparée en temps constant ;
+   fausse : comptée comme un essai invalide, blocage de l'IP comme les autres clés). Rien ne s'efface ni ne s'écrit par ici. Budget : 600 requêtes par 10 min et par réseau.
+   GET /api/agent/scans[?since=<id>&limit=<1..100>] : signalements plus récents que since (du plus ancien au plus récent ; sans since : les limit derniers)
+     → { total, last (id le plus récent), rows: [fiche complète, comme le panneau] } ;
+   GET /api/agent/scans/<id> : une fiche · GET /api/agent/scans/<id>.jpg : sa photo. Jamais en cache. Outil : tools/scan-reports.mjs (pull). */
+const SR_AGENT = String(process.env.SCAN_REPORTS_AGENT_KEY || '').trim(), SR_AGENT_ON = SR_ON && SR_AGENT.length >= 32;
+const srHash = s => createHash('sha256').update(String(s)).digest();
+async function srAgent(req, res, path, url) {
+  const hd = { ...ADM_HD, 'Cache-Control': 'no-store' };
+  if (!SR_AGENT_ON) return json(res, 404, { error: 'not_found' });
+  if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' }, hd);
+  if (isLocked(req)) return json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { ...hd, 'Retry-After': '300' });
+  const w = rateWait(req, 'scanagent', 600, 600e3); if (w) return tooMany(res, w);
+  const m = /^Bearer\s+(\S+)\s*$/i.exec(String(req.headers.authorization || ''));
+  if (!m || !timingSafeEqual(srHash(m[1]), srHash(SR_AGENT))) return badKey(req, res, 'bad_key', 401);
+  let list; try { await srRun(srPurge); list = SR.list || []; } catch (e) { return json(res, 503, { error: 'unavailable', message: 'Dossier des signalements illisible.' }, hd); }
+  const rest = path.replace(/^agent\/scans\/?/, '');
+  const read = async id => { try { const r = JSON.parse(await readFile(join(SR_DIR, id + '.json'), 'utf8')); return r && r.id === id ? r : null; } catch (e) { return null; } };
+  if (!rest) {
+    const since = String(url.searchParams.get('since') || ''), lim = Math.min(100, Math.max(1, Math.floor(Number(url.searchParams.get('limit'))) || 20));
+    if (since && !SR_ID.test(since)) return json(res, 400, { error: 'bad_since', message: 'since : identifiant de signalement attendu.' }, hd);
+    const after = since ? list.filter(x => x.t > srTime(since) || (x.t === srTime(since) && x.id > since)) : list.slice(-lim), pick = after.slice(0, lim);
+    const rows = (await Promise.all(pick.map(x => read(x.id)))).filter(Boolean);
+    return json(res, 200, { total: list.length, last: list.length ? list[list.length - 1].id : '', more: after.length > pick.length, rows }, hd);
+  }
+  const r = /^([0-9a-z]{8,10}-[0-9a-f]{8})(\.jpg)?$/.exec(rest);
+  if (!r || !list.some(x => x.id === r[1])) return json(res, 404, { error: 'not_found' }, hd);
+  if (!r[2]) { const rec = await read(r[1]); return rec ? json(res, 200, rec, hd) : json(res, 404, { error: 'not_found' }, hd); }
+  let buf; try { buf = await readFile(join(SR_DIR, r[1] + '.jpg')); } catch (e) { return json(res, 404, { error: 'not_found' }, hd); }
+  res.writeHead(200, { ...SEC, ...hd, 'Content-Type': 'image/jpeg', 'Content-Length': buf.length });
+  return res.end(buf);
+}
+
 /* ── Erreurs JavaScript des appareils (src/errlog.js) : remontées anonymement, lues dans /admin › Serveur › « Erreurs JS » ─────────────────────────
    POST /api/errlog { r: [rapport, …] } (1 à 10 rapports, corps de 8 Ko au plus), envoyé par l'appli après une erreur non rattrapée (sendBeacon à la mise en
    arrière-plan, sinon fetch keepalive). Rapport : m message (300 caractères), at « fichier:ligne:colonne » (nom de fichier seul), st pile (1 200 caractères),
@@ -3905,6 +3940,7 @@ async function api(req, res, url) {
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
   if (path === 'errlog') return errlogApi(req, res);      // erreurs JavaScript des appareils (src/errlog.js) : rapport anonyme, borné, sans compte
+  if (path === 'agent/scans' || path.startsWith('agent/scans/')) return srAgent(req, res, path, url);      // scans signalés en lecture seule pour un agent (SCAN_REPORTS_AGENT_KEY) : photos et lectures, rejouées par tools/scan-replay.mjs
   if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
   if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
   if (path === 'feedback/members') return DSC ? DSC.members(req, res, url) : json(res, 404, { error: 'not_found' });      // champ « Pseudo Discord » de l'avis : membres du serveur (intention Server Members), borné

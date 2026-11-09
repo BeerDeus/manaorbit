@@ -1,7 +1,7 @@
 // « Signaler un problème de scan », côté serveur (proxy.mjs › /api/scan-report, /api/admin/scans…) : envoi valide (photo JPEG + lecture nettoyée, sans compte,
 // ou avec un compte : empreinte seulement), refus (type, commentaire, données, image, taille, JSON), limites par réseau et par compte, place (nombre, Mo),
 // durée (jours), restes d'un envoi interrompu, panneau d'administration (liste, photo, suppression, résumé) réservé au compte de l'éditeur,
-// interrupteur SCAN_REPORTS=0 (404, /__ping scanrep: false). Dictionnaires : chaque texte de src/scanreport.js traduit dans les 5 langues. Ports 19610 à 19613.
+// interrupteur SCAN_REPORTS=0 (404, /__ping scanrep: false). Dictionnaires : chaque texte de src/scanreport.js traduit dans les 5 langues. Lecture par un agent (SCAN_REPORTS_AGENT_KEY). Ports 19610 à 19613, 19616, 19617.
 import './setup-env.mjs';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
@@ -174,6 +174,35 @@ P1.kill();
   r = await adm(B, ''); assert.equal(r.s, 200); assert.equal(r.o.scans, null, 'panneau : section cachée'); assert.equal(r.o.srv.flags.scans, false);
   P.kill();
   ok('SCAN_REPORTS=0 : envoi et panneau 404, /__ping scanrep: false, résumé null, rien sur le disque');
+}
+
+/* ── 6 bis) Lecture par un agent (SCAN_REPORTS_AGENT_KEY) : liste depuis un id, fiche, photo ; clé fausse, absente, trop courte ; lecture seule ─────────── */
+{
+  const dir = join(mkdtempSync(join(tmpdir(), 'scanrep-')), 'r'), KEY = 'k'.repeat(16) + '0123456789abcdef0123';
+  const P = await start({ SCAN_REPORTS_DIR: dir, SCAN_REPORTS_AGENT_KEY: KEY, SCAN_REPORTS_PER_H: '50' }, 19616), B = 'http://127.0.0.1:19616';
+  const ag = (path = '', { key = KEY, method = 'GET', from = ip() } = {}) => j(B + '/api/agent/scans' + path, { method, headers: { 'X-Forwarded-For': from, ...(key ? { Authorization: 'Bearer ' + key } : {}) } });
+  const ids = []; for (let i = 0; i < 3; i++) { const r = await send(B, { note: 'n' + i }); assert.equal(r.s, 200); ids.push(r.o.id); await sleep(5); }
+  let r = await ag(); assert.equal(r.s, 200, JSON.stringify(r.o)); assert.equal(r.o.total, 3); assert.equal(r.o.last, ids[2]);
+  assert.deepEqual(r.o.rows.map(x => x.id), ids, 'du plus ancien au plus récent'); assert.equal(r.o.rows[0].meta.read.raw, 'Anneau solaire', 'fiche complète');
+  assert.equal(r.h.get('cache-control'), 'no-store');
+  r = await ag('?since=' + ids[0]); assert.deepEqual(r.o.rows.map(x => x.id), ids.slice(1), 'seulement les nouveaux'); assert.equal(r.o.more, false);
+  r = await ag('?since=' + ids[0] + '&limit=1'); assert.deepEqual(r.o.rows.map(x => x.id), [ids[1]]); assert.equal(r.o.more, true, 'il en reste');
+  r = await ag('?since=' + ids[2]); assert.deepEqual(r.o.rows, [], 'rien de nouveau');
+  r = await ag('?limit=2'); assert.deepEqual(r.o.rows.map(x => x.id), ids.slice(1), 'sans since : les derniers');
+  r = await ag('?since=../x'); assert.equal(r.s, 400);
+  r = await ag('/' + ids[1]); assert.equal(r.s, 200); assert.equal(r.o.note, 'n1');
+  r = await ag('/' + ids[1] + '.jpg'); assert.equal(r.s, 200); assert.equal(r.h.get('content-type'), 'image/jpeg'); assert.deepEqual(r.b, JPG, 'photo telle quelle');
+  r = await ag('/' + idOf(Date.now(), 'deadbeef') + '.jpg'); assert.equal(r.s, 404);
+  r = await ag('/' + ids[1], { method: 'DELETE' }); assert.equal(r.s, 405, 'lecture seule'); assert.equal(files(dir).length, 6);
+  r = await ag('', { key: '' }); assert.equal(r.s, 401, 'sans clé');
+  r = await ag('', { key: KEY.slice(0, -1) + 'x' }); assert.equal(r.s, 401, 'clé fausse');
+  r = await j(B + '/api/agent/scans', { headers: { 'X-Forwarded-For': ip(), 'x-firebase-token': ADM() } }); assert.equal(r.s, 401, 'le compte de l\'éditeur ne suffit pas : la clé seulement');
+  P.kill();
+  const P3 = await start({ SCAN_REPORTS_DIR: dir, SCAN_REPORTS_AGENT_KEY: 'trop-courte' }, 19617);
+  r = await j('http://127.0.0.1:19617/api/agent/scans', { headers: { Authorization: 'Bearer trop-courte' } }); assert.equal(r.s, 404, 'clé de moins de 32 caractères : coupé');
+  r = await j('http://127.0.0.1:19617/api/agent/scans'); assert.equal(r.s, 404);
+  P3.kill();
+  ok('agent (SCAN_REPORTS_AGENT_KEY) : nouveaux signalements depuis un id, fiche, photo, lecture seule ; sans clé, clé fausse : 401 ; clé courte ou absente : 404');
 }
 
 /* ── 7) Textes de l'appli : traduits dans les 5 langues (src/i18n/<langue>.scanreport.json) ─────────────────────────────────── */

@@ -432,7 +432,8 @@ const nmKey = l => (!l || l === 'fr' ? FR_KEY : 'sc:nm:' + l), nmPart = l => (!l
 /** Une carte Scryfall imprimée en français (sl : autre langue Scryfall) → « nom imprimé \t nom anglais \t image » (image : chemin après /small/, sans paramètre), ou '' sans nom imprimé. */
 function frRow(c, sl = 'fr') {
   if (!c || (c.lang && c.lang !== sl)) return '';
-  const f = c.card_faces || [], p = c.printed_name || (f.length > 1 && f.every(x => x.printed_name) ? f.map(x => x.printed_name).join(' // ') : '');      // carte double sans nom traduit chez Scryfall : ignorée (l'anglais n'est pas une traduction)
+  const f = c.card_faces || [], f0 = (f[0] && f[0].printed_name) || '', cut = /^(split|aftermath)$/.test(c.layout || '') && f0.split('/').length === f.length;      // « Offre/Demande » : les deux moitiés d'une carte partagée dans le nom de la 1re face
+  const p = c.printed_name || (f.length > 1 && f.every(x => x.printed_name) ? f.map(x => x.printed_name).join(' // ') : cut ? f0.split('/').map(s => s.trim()).join(' // ') : f0);      // seule la face avant traduite chez Scryfall (aventure, carte préparée…) : son nom, celui lu au scan ; aucune face traduite : ignorée (l'anglais n'est pas une traduction)
   if (!p || !c.name) return '';
   const u = imgOf(c) || '', m = /\/small\/([^?]+)/.exec(u);
   return p + '\t' + c.name + '\t' + (m ? m[1] : '');

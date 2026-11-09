@@ -109,11 +109,28 @@ function scanEdPass() {
     if (!moved) break;
   }
 }
+/** Ligne du bas qui contredit la carte (scanfoot.js › footContra : extension lue où la carte n'existe pas) : la ligne passe « à vérifier », avec la photo du nom.
+ *  Vue une fois par ligne (it.cf) : confirmée à la main, elle ne l'est plus jamais. */
+function scanContra(it, pr) {
+  if (it.cf || !it.ft || !Array.isArray(pr) || typeof footContra !== 'function') return;
+  it.cf = true;
+  if (!it.maybe && it.es !== 'man' && it.ambBy !== 'man' && footContra(it.ft, pr)) { it.maybe = true; it.shot = it.pshot || ''; it.contra = true; scanContraAlt(it); }
+  it.pshot = '';
+}
+/** Ligne du bas contradictoire avec un numéro lu : la carte de cette extension à ce numéro (Scryfall) est proposée à côté de celle lue (« Quelle carte est sur ta photo ? »). */
+async function scanContraAlt(it) {
+  const f = it.ft, set = f && f.nums.length && typeof footSetOf === 'function' ? footSetOf(f.codes[0]) : '', sess = SC.session;
+  if (!set || typeof scryBySetNum !== 'function' || collOffline()) return;
+  let r = null; try { r = await scryBySetNum(set, f.nums[0], it.l || 'en'); } catch (e) { r = null; }
+  if (!r || !r.name || SC.session !== sess || !SC.items.has(it.id) || !it.maybe || ownKey(r.name) === it.key) return;
+  it.alts = [it.name, r.name]; scanPaintList();
+}
 /** Impressions lues pour une carte (clé + langue) : ses lignes en attente reçoivent leur édition ; celles qui en ont une prennent l'image de cette langue. */
 function scanEdLoaded(pk) {
   const pr = SC.pr.get(pk);
   for (const it of [...SC.items.values()]) {
     if (scanPk(it.key, it.l) !== pk || !SC.items.has(it.id)) continue;
+    scanContra(it, pr);
     if (it.e) { const p = Array.isArray(pr) && pr.find(y => edKey(y.set, y.num) === it.e); if (p) it.pk = p; continue; }
     if (it.es === 'load' || it.es === 'err' || it.es === 'pend') scanEdApply(it, scanEdDecide(it, pr));
   }
