@@ -439,6 +439,15 @@ function frRow(c, sl = 'fr') {
   return p + '\t' + c.name + '\t' + (m ? m[1] : '');
 }
 const frRowKey = r => r.split('\t').slice(0, 2).join('\t');
+/** Version des catalogues des noms gardés sur l'appareil : un catalogue d'une version plus ancienne est repris du site à la prochaine ouverture du scan, sans attendre 14 jours.
+ *  2 (9 novembre 2026) : faces avant des cartes doubles à moitié traduites, moitiés des cartes partagées, corrections de data/names-fixes.tsv. À monter quand le contenu doit arriver tout de suite. */
+const NAMES_V = 2;
+/** Empreinte d'un fichier servi par le site (ETag « "<sha1 sur 20>[-gzip|-br]" », faible ou non, proxy.mjs › sendFile) → '' si illisible. */
+const etagOf = r => { const m = /^"?([0-9a-f]{20})(?:-[a-z]+)?"?$/.exec(String((r && r.headers && r.headers.get('etag')) || '').replace(/^W\//, '')); return m ? m[1] : ''; };
+/** Empreinte du fichier du site annoncée par /__ping (app.js › CTX.names ; l : langue, 'all' : names-all.tsv), '' si inconnue. */
+const nmTagNow = l => (typeof CTX !== 'undefined' && CTX && CTX.names && typeof CTX.names[l] === 'string' ? CTX.names[l] : '');
+/** Catalogue gardé ({ at, v, tag }) à reprendre : absent, plus de 14 jours, d'une version d'avant (NAMES_V), ou fichier du site changé depuis (workflow du lundi et du vendredi). */
+const nmStale = (rec, l) => !rec || !(Date.now() - rec.at < FR_FRESH) || (rec.v || 0) < NAMES_V || (!!rec.tag && !!nmTagNow(l) && rec.tag !== nmTagNow(l));
 /** Suit les pages d'une recherche (next_page) : onPage(lignes de la page, total annoncé, page suivante) après chaque page. Retourne toutes les lignes. */
 async function scryFrPages(url, signal, onPage, sl = 'fr') {
   const rows = [];
@@ -462,19 +471,19 @@ async function scryFrStatic(signal, l = 'fr') {
   let t; try { t = await r.text(); } catch (e) { if (e.name === 'AbortError') throw e; return null; }
   const rows = t.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l && l[0] !== '#' && l.split('\t').length >= 2);
   if (rows.length < 500) return null;
-  const rec = { rows, at: Date.now() }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null); return rec;
+  const rec = { rows, at: Date.now(), v: NAMES_V, tag: etagOf(r) || nmTagNow(l) }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null); return rec;      // tag : empreinte du fichier, comparée à celle de /__ping
 }
 /** Télécharge (ou reprend, ou met à jour) le catalogue : retourne { rows, at }. onProgress(fait, total). Une mise à jour qui échoue garde l'ancien catalogue. */
 async function scryFrCatalog(signal, onProgress, l = 'fr') {
   const sl = SCRY_LANG[l] || 'fr', hit = await scryFrCached(l);
-  if (hit && Date.now() - hit.at < FR_FRESH) return hit;
+  if (!nmStale(hit, l)) return hit;
   const pre = await scryFrStatic(signal, l); if (pre) return pre;                     // fichier du site d'abord (rapide), Scryfall seulement s'il manque
   if (hit) {
     const since = new Date(hit.at - 30 * DAY).toISOString().slice(0, 10);          // nouveautés : impressions françaises sorties depuis le dernier passage (30 jours de marge)
     try {
       const add = await scryFrPages(frSearchUrl('lang:' + sl + ' date>=' + since), signal, null, sl);
       const by = new Map(hit.rows.map(r => [frRowKey(r), r])); for (const r of add) by.set(frRowKey(r), r);
-      const rec = { rows: [...by.values()], at: Date.now() }; await Cache.set(nmKey(l), rec); return rec;
+      const rec = { rows: [...by.values()], at: Date.now(), v: NAMES_V, tag: '' }; await Cache.set(nmKey(l), rec); return rec;
     } catch (e) { if (e.name === 'AbortError') throw e; return hit; }
   }
   const part = await Cache.get(nmPart(l), 30 * DAY);                               // reprise d'un téléchargement interrompu
@@ -489,14 +498,16 @@ async function scryFrCatalog(signal, onProgress, l = 'fr') {
   }
   const seen = new Set(); rows = rows.filter(r => { const k = frRowKey(r); if (seen.has(k)) return false; seen.add(k); return true; });
   if (rows.length < 500) throw netErr('http', l === 'fr' ? T('Catalogue français incomplet') : T('Catalogue des noms incomplet ({lang})', { lang: LANGS[l] || l }));
-  const rec = { rows, at: Date.now() }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null);
+  const rec = { rows, at: Date.now(), v: NAMES_V, tag: '' }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null);
   return rec;
 }
 /* ── Noms imprimés de toutes les langues (scan d'une carte d'une autre langue que celle de l'appli, sans le serveur) : names-all.tsv (gen-names-all.mjs),
    « anglais \t fr \t de \t es \t it \t pt », ≈ 3,5 Mo de texte, ≈ 1,4 Mo compressé. Gardé sur l'appareil (jamais en mémoire : relu quand le scan en a besoin) ; date à part. */
 const NA_KEY = 'sc:nm:all', NA_AT = 'sc:nm:all:at', NA_FILE = 'names-all.tsv';
 /** Date du fichier gardé sur l'appareil (ms), 0 s'il n'y en a pas. */
-async function namesAllAt() { const c = await Cache.get(NA_AT, 3650 * DAY); return c && c.at > 0 ? c.at : 0; }
+async function namesAllAt() { const c = await namesAllMeta(); return c ? c.at : 0; }
+/** Date, version et empreinte du fichier gardé ({ at, v, tag }), null s'il n'y en a pas. */
+async function namesAllMeta() { const c = await Cache.get(NA_AT, 3650 * DAY); return c && c.at > 0 ? c : null; }
 /** Texte gardé sur l'appareil, ou null. */
 /* ── Noms alternatifs (names-flavor.tsv, gen-flavor-names.mjs ; ≈ 40 Ko) : gardés sur l'appareil 14 jours, relus à l'ouverture du scan ── */
 const FV_KEY = 'sc:fv', FV_FILE = 'names-flavor.tsv';
@@ -521,7 +532,7 @@ async function namesAllFetch(signal) {
   let t; try { t = await r.text(); } catch (e) { if (e.name === 'AbortError') throw e; return 0; }
   if (!/^#[^\n]*\t/.test(t) || t.split('\n', 502).length < 502) return 0;      // 1re ligne : langues des colonnes ; au moins 500 noms (sinon : page d'erreur, fichier tronqué)
   if (!(await Cache.set(NA_KEY, t, true))) return 0;
-  const at = Date.now(); await Cache.set(NA_AT, { at }); return at;
+  const at = Date.now(); await Cache.set(NA_AT, { at, v: NAMES_V, tag: etagOf(r) || nmTagNow('all') }); return at;
 }
 /** Images (petites) de cartes dans une autre langue que l'anglais : Map(clé de collection → url, '' si Scryfall n'a pas la carte dans cette langue). Une recherche pour 12 noms. */
 async function scryLangImages(names, lang, signal, onProgress, prio = false) {

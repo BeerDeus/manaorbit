@@ -4037,6 +4037,18 @@ async function sendFile(req, res, f, headers, compress) {
   hd['Content-Length'] = data.length; res.writeHead(200, hd);
   res.end(req.method === 'HEAD' ? undefined : data);
 }
+/** Empreintes des catalogues des noms servis (même calcul que leur ETag : sha1Of) : { fr, de…, all } pour /__ping. L'appli reprend un catalogue gardé dès que
+ *  l'empreinte change (data.js › nmStale), sans attendre ses 14 jours. Relues seulement quand la date du fichier change ; fichier absent : pas de clé. */
+const NM_TAGS = new Map();
+async function namesTags() {
+  const out = {};
+  for (const [k, f] of [...NAME_LANGS.map(l => [l, l === 'fr' ? 'fr-names.tsv' : 'names-' + l + '.tsv']), ['all', 'names-all.tsv']]) {
+    const p = join(PWA, f);
+    try { const mt = (await stat(p)).mtimeMs, c = NM_TAGS.get(p); if (c && c.mt === mt) { out[k] = c.tag; continue; } const tag = createHash('sha1').update(await readFile(p)).digest('hex').slice(0, 20); NM_TAGS.set(p, { mt, tag }); out[k] = tag; }
+    catch (e) { /* pas encore généré */ }
+  }
+  return out;
+}
 /** Prépare la page et les gros fichiers dès le démarrage : le premier visiteur n'attend pas la compression. */
 function warmFiles() {
   if (PAGE) fileEntry(PAGE, true).catch(() => {});
@@ -4136,7 +4148,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, ctPub: CT_PUB, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, errlog: EL_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, ctPub: CT_PUB, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, errlog: EL_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild(), names: await namesTags() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte

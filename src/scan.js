@@ -550,13 +550,13 @@ function scanFly(x) {
 }
 
 /* ── Catalogue des noms français (data.js › scryFrCatalog) : chargé depuis l'appareil dès l'ouverture du scan, téléchargé une fois s'il manque ─── */
-const FRC = { cat: null, at: 0, p: null, state: 'idle', done: 0, total: 0, err: '' };      // state : idle · run · ready · ask (réseau mobile : on demande) · err
+const FRC = { cat: null, at: 0, meta: null, p: null, state: 'idle', done: 0, total: 0, err: '' };      // meta : { at, v, tag } du catalogue chargé (data.js › nmStale)      // state : idle · run · ready · ask (réseau mobile : on demande) · err
 const frcMetered = () => { try { const c = navigator.connection; return !!c && (c.saveData === true || c.type === 'cellular'); } catch (e) { return false; } };
 async function frcWarm() {
   const l = namesLang(); if (!l) { FRC.state = 'idle'; frcPaint(); return; }      // cartes anglaises : aucun catalogue de noms imprimés
   namesSwitch(l);
-  if (!FRC.cat) { const c = await scryFrCached(l).catch(() => null); if (c && !FRC.cat && FRX.l === l) { FRC.cat = frCatalog(c.rows, l); FRC.at = c.at; } }
-  if (FRC.cat && Date.now() - FRC.at < FR_FRESH) { FRC.state = 'ready'; frcPaint(); frcNames(); return; }
+  if (!FRC.cat) { const c = await scryFrCached(l).catch(() => null); if (c && !FRC.cat && FRX.l === l) { FRC.cat = frCatalog(c.rows, l); FRC.at = c.at; FRC.meta = { at: c.at, v: c.v, tag: c.tag }; } }
+  if (FRC.cat && !nmStale(FRC.meta, l)) { FRC.state = 'ready'; frcPaint(); frcNames(); return; }      // sinon (vieux, version d'avant, fichier du site changé) : repris en arrière-plan, l'ancien sert en attendant
   frcStart(false);
 }
 /** Charge (ou reprend, ou met à jour) le catalogue en arrière-plan : fichier du site (fr-names.tsv) d'abord, sinon pages Scryfall ; le scan sert déjà pendant ce temps (recherche réseau mot par mot). force : malgré le réseau mobile. */
@@ -569,11 +569,11 @@ function frcStart(force) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) { FRC.state = FRC.cat ? 'ready' : 'err'; FRC.err = T('Hors ligne'); frcPaint(); return null; }
   FRC.state = 'run'; FRC.err = ''; FRC.done = 0; FRC.total = 0; frcPaint();
   const p = FRC.p = (async () => {
-    if (!FRC.cat) { const st = await scryFrStatic(undefined, l).catch(() => null); if (FRX.l !== l) return; if (st) { FRC.cat = frCatalog(st.rows, l); FRC.at = st.at; FRC.state = 'ready'; return; } }      // fichier du site : petit, pas de question même en 4G
+    if (!FRC.cat) { const st = await scryFrStatic(undefined, l).catch(() => null); if (FRX.l !== l) return; if (st) { FRC.cat = frCatalog(st.rows, l); FRC.at = st.at; FRC.meta = st; FRC.state = 'ready'; return; } }      // fichier du site : petit, pas de question même en 4G
     if (!force && !FRC.cat && frcMetered()) { FRC.state = 'ask'; return; }
     const rec = await scryFrCatalog(null, (d, t) => { FRC.done = d; FRC.total = t; frcPaint(); }, l);
     if (FRX.l !== l) return;                                                           // langue changée pendant le téléchargement
-    FRC.cat = frCatalog(rec.rows, l); FRC.at = rec.at; FRC.state = 'ready';
+    FRC.cat = frCatalog(rec.rows, l); FRC.at = rec.at; FRC.meta = rec; FRC.state = 'ready';
   })().catch(e => { if (FRX.l !== l) return; FRC.state = FRC.cat ? 'ready' : 'err'; FRC.err = e && e.code === 'rate' ? T('Scryfall demande une pause') : T('Téléchargement interrompu'); })
     .finally(() => { if (FRC.p === p) FRC.p = null; frcPaint(); frcNames(); });
   return p;
@@ -653,8 +653,8 @@ const othTick = gen => new Promise(r => setTimeout(() => r(OTHX.gen === gen && !
 function othWarm() {
   if (OTHX.dl) return OTHX.dl;
   const p = OTHX.dl = (async () => {
-    if (OTHX.at < 0) OTHX.at = await namesAllAt();
-    if (OTHX.at && Date.now() - OTHX.at < FR_FRESH) return;
+    const meta = await namesAllMeta(); if (OTHX.at < 0) OTHX.at = meta ? meta.at : 0;
+    if (meta && !nmStale(meta, 'all')) return;
     if ((typeof navigator !== 'undefined' && navigator.onLine === false) || frcMetered()) return;
     const at = await namesAllFetch(); if (!at) return;      // absent du site, hors ligne : l'ancien fichier (s'il y en a un) sert encore
     OTHX.at = at; OTHX.gen++; OTHX.cats = {}; OTHX.p = null;      // nouveau fichier : index reconstruits à la prochaine carte
@@ -700,7 +700,7 @@ function asiaCat(l) {
   if (!ASIA_LANGS.includes(l)) return Promise.resolve(null);
   if (!ASIA.cats[l]) ASIA.cats[l] = (async () => {
     let rec = await scryFrCached(l);
-    if ((!rec || Date.now() - rec.at > FR_FRESH) && !collOffline()) rec = (await scryFrStatic(undefined, l).catch(() => null)) || rec;
+    if (nmStale(rec, l) && !collOffline()) rec = (await scryFrStatic(undefined, l).catch(() => null)) || rec;
     return rec ? frCatalog(rec.rows, l) : null;
   })().catch(() => null);
   return ASIA.cats[l];

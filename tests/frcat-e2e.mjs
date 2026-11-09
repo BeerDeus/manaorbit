@@ -29,8 +29,17 @@ const banner = p => p.evaluate(() => { const e = document.querySelector('.sc-cat
   assert.deepEqual(await p.evaluate(() => { const m = matchFr([{ text: 'Anneau solaire' }], FRC.cat); return [m.name, m.card, m.img]; }), ['Sol Ring', 'fr', 'https://cards.scryfall.io/small/front/fr/sol-ring.jpg']);
   await scanClose(p); await p.waitForTimeout(400); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); await settled(p);
   assert.equal(b.sHits, 1, 'catalogue frais : pas retéléchargé à la réouverture'); assert.equal(await p.evaluate(() => FRC.state), 'ready');
+  // catalogue d'une version d'avant (NAMES_V), ou fichier du site changé (empreinte de /__ping) : repris du site sans attendre 14 jours ; même empreinte : gardé
+  const reopen = async () => { await scanClose(p); await p.waitForTimeout(300); await p.reload(); await p.waitForTimeout(500); await b.open(); await settled(p); };
+  await p.evaluate(async () => { const c = await scryFrCached(); await Cache.set(FR_KEY, { rows: c.rows, at: Date.now() }); });      // gardé avant le 9 novembre 2026 : ni v ni tag
+  await reopen(); assert.equal(b.sHits, 2, 'version d\'avant : repris du site'); assert.deepEqual(await p.evaluate(async () => { const c = await scryFrCached(); return [c.v, FRC.meta.v]; }), [2, 2]);
+  await p.evaluate(async () => { const c = await scryFrCached(); await Cache.set(FR_KEY, { ...c, tag: 'aaaaaaaaaaaaaaaaaaaa' }); });
+  await p.addInitScript(() => { const f = window.fetch; window.fetch = async (u, o) => { const r = await f(u, o); if (/__ping/.test(String(u))) { const j = await r.clone().json(); j.names = { fr: 'bbbbbbbbbbbbbbbbbbbb' }; return new Response(JSON.stringify(j), { status: r.status, headers: r.headers }); } return r; }; });
+  await reopen(); assert.equal(b.sHits, 3, 'fichier du site changé (empreinte de /__ping) : repris');
+  assert.equal(await p.evaluate(async () => (await scryFrCached()).tag), 'bbbbbbbbbbbbbbbbbbbb', 'sans ETag lisible : l\'empreinte de /__ping est gardée');
+  await reopen(); assert.equal(b.sHits, 3, 'même empreinte : gardé');
   assert.deepEqual(b.errs.filter(e => !/WebAssembly|worker|ERR_|Tesseract/i.test(e)), []); await b.ctx.close();
-  ok('catalogue : fichier du site = 1 requête (0 page Scryfall), pas de question en réseau mobile, gardé sur l\'appareil');
+  ok('catalogue : fichier du site = 1 requête (0 page Scryfall), pas de question en réseau mobile, gardé sur l\'appareil ; version d\'avant ou empreinte du site changée : repris aussitôt');
 }
 
 /* B) pas de fichier + réseau mobile : on demande, puis pages Scryfall */

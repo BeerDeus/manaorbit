@@ -53,6 +53,14 @@ r = await j(B + '/api/marketplace/products?blueprint_id=1&language=fr'); assert.
 r = await j(B + '/api/cart/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"product_id":5,"quantity":1}' });
 assert.equal(r.s, 200); assert.equal(seen.at(-1).body, '{"product_id":5,"quantity":1}'); assert.equal(seen.at(-1).m, 'POST'); console.log('✓ cart/add POST relayé');
 r = await j(B + '/'); for (const h of ['x-content-type-options', 'x-frame-options', 'referrer-policy']) assert.ok(r.h.get(h), h + ' présent sur la page');
+{      // __ping.names : empreinte de chaque catalogue des noms servi (= son ETag) ; l'appli reprend son catalogue gardé dès qu'elle change (data.js › nmStale)
+  const { writeFileSync, unlinkSync } = await import('node:fs'), { join } = await import('node:path'), f = join(process.env.PWA_DIR, 'fr-names.tsv');
+  assert.equal((await j(B + '/__ping')).o.names.fr, undefined, 'catalogue absent : pas d\'empreinte');
+  writeFileSync(f, 'Anneau solaire\tSol Ring\t\n'); let p = await j(B + '/__ping'), g = await fetch(B + '/fr-names.tsv'); await g.arrayBuffer();
+  assert.match(p.o.names.fr, /^[0-9a-f]{20}$/); assert.equal(g.headers.get('etag').replace(/^W\//, '').replace(/"/g, '').split('-')[0], p.o.names.fr, 'même empreinte que l\'ETag du fichier');
+  const t1 = p.o.names.fr; await new Promise(res => setTimeout(res, 20)); writeFileSync(f, 'Anneau solaire\tSol Ring\t\nFoudre\tLightning Bolt\t\n');
+  p = await j(B + '/__ping'); assert.notEqual(p.o.names.fr, t1, 'fichier changé : nouvelle empreinte'); unlinkSync(f);
+}
 r = await j(B + '/__ping'); assert.equal(r.h.get('x-content-type-options'), 'nosniff');
 r = await j(B + '/api/expansions'); assert.equal(r.h.get('x-frame-options'), 'DENY'); console.log('✓ en-têtes de sécurité (page, json, relais)');
 

@@ -8185,7 +8185,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '8ad987a5';
+const DD_BUILD = '5e6b79f4';
 const I18N_FILES = {"de":"i18n/de.65cbc718.js","en":"i18n/en.e3405a8a.js","es":"i18n/es.d1b51e5d.js","it":"i18n/it.76de650e.js","pt":"i18n/pt.2528a8d3.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -12482,6 +12482,15 @@ function frRow(c, sl = 'fr') {
   return p + '\t' + c.name + '\t' + (m ? m[1] : '');
 }
 const frRowKey = r => r.split('\t').slice(0, 2).join('\t');
+/** Version des catalogues des noms gardés sur l'appareil : un catalogue d'une version plus ancienne est repris du site à la prochaine ouverture du scan, sans attendre 14 jours.
+ *  2 (9 novembre 2026) : faces avant des cartes doubles à moitié traduites, moitiés des cartes partagées, corrections de data/names-fixes.tsv. À monter quand le contenu doit arriver tout de suite. */
+const NAMES_V = 2;
+/** Empreinte d'un fichier servi par le site (ETag « "<sha1 sur 20>[-gzip|-br]" », faible ou non, proxy.mjs › sendFile) → '' si illisible. */
+const etagOf = r => { const m = /^"?([0-9a-f]{20})(?:-[a-z]+)?"?$/.exec(String((r && r.headers && r.headers.get('etag')) || '').replace(/^W\//, '')); return m ? m[1] : ''; };
+/** Empreinte du fichier du site annoncée par /__ping (app.js › CTX.names ; l : langue, 'all' : names-all.tsv), '' si inconnue. */
+const nmTagNow = l => (typeof CTX !== 'undefined' && CTX && CTX.names && typeof CTX.names[l] === 'string' ? CTX.names[l] : '');
+/** Catalogue gardé ({ at, v, tag }) à reprendre : absent, plus de 14 jours, d'une version d'avant (NAMES_V), ou fichier du site changé depuis (workflow du lundi et du vendredi). */
+const nmStale = (rec, l) => !rec || !(Date.now() - rec.at < FR_FRESH) || (rec.v || 0) < NAMES_V || (!!rec.tag && !!nmTagNow(l) && rec.tag !== nmTagNow(l));
 /** Suit les pages d'une recherche (next_page) : onPage(lignes de la page, total annoncé, page suivante) après chaque page. Retourne toutes les lignes. */
 async function scryFrPages(url, signal, onPage, sl = 'fr') {
   const rows = [];
@@ -12505,19 +12514,19 @@ async function scryFrStatic(signal, l = 'fr') {
   let t; try { t = await r.text(); } catch (e) { if (e.name === 'AbortError') throw e; return null; }
   const rows = t.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l && l[0] !== '#' && l.split('\t').length >= 2);
   if (rows.length < 500) return null;
-  const rec = { rows, at: Date.now() }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null); return rec;
+  const rec = { rows, at: Date.now(), v: NAMES_V, tag: etagOf(r) || nmTagNow(l) }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null); return rec;      // tag : empreinte du fichier, comparée à celle de /__ping
 }
 /** Télécharge (ou reprend, ou met à jour) le catalogue : retourne { rows, at }. onProgress(fait, total). Une mise à jour qui échoue garde l'ancien catalogue. */
 async function scryFrCatalog(signal, onProgress, l = 'fr') {
   const sl = SCRY_LANG[l] || 'fr', hit = await scryFrCached(l);
-  if (hit && Date.now() - hit.at < FR_FRESH) return hit;
+  if (!nmStale(hit, l)) return hit;
   const pre = await scryFrStatic(signal, l); if (pre) return pre;                     // fichier du site d'abord (rapide), Scryfall seulement s'il manque
   if (hit) {
     const since = new Date(hit.at - 30 * DAY).toISOString().slice(0, 10);          // nouveautés : impressions françaises sorties depuis le dernier passage (30 jours de marge)
     try {
       const add = await scryFrPages(frSearchUrl('lang:' + sl + ' date>=' + since), signal, null, sl);
       const by = new Map(hit.rows.map(r => [frRowKey(r), r])); for (const r of add) by.set(frRowKey(r), r);
-      const rec = { rows: [...by.values()], at: Date.now() }; await Cache.set(nmKey(l), rec); return rec;
+      const rec = { rows: [...by.values()], at: Date.now(), v: NAMES_V, tag: '' }; await Cache.set(nmKey(l), rec); return rec;
     } catch (e) { if (e.name === 'AbortError') throw e; return hit; }
   }
   const part = await Cache.get(nmPart(l), 30 * DAY);                               // reprise d'un téléchargement interrompu
@@ -12532,14 +12541,16 @@ async function scryFrCatalog(signal, onProgress, l = 'fr') {
   }
   const seen = new Set(); rows = rows.filter(r => { const k = frRowKey(r); if (seen.has(k)) return false; seen.add(k); return true; });
   if (rows.length < 500) throw netErr('http', l === 'fr' ? T('Catalogue français incomplet') : T('Catalogue des noms incomplet ({lang})', { lang: LANGS[l] || l }));
-  const rec = { rows, at: Date.now() }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null);
+  const rec = { rows, at: Date.now(), v: NAMES_V, tag: '' }; await Cache.set(nmKey(l), rec); await Cache.set(nmPart(l), null);
   return rec;
 }
 /* ── Noms imprimés de toutes les langues (scan d'une carte d'une autre langue que celle de l'appli, sans le serveur) : names-all.tsv (gen-names-all.mjs),
    « anglais \t fr \t de \t es \t it \t pt », ≈ 3,5 Mo de texte, ≈ 1,4 Mo compressé. Gardé sur l'appareil (jamais en mémoire : relu quand le scan en a besoin) ; date à part. */
 const NA_KEY = 'sc:nm:all', NA_AT = 'sc:nm:all:at', NA_FILE = 'names-all.tsv';
 /** Date du fichier gardé sur l'appareil (ms), 0 s'il n'y en a pas. */
-async function namesAllAt() { const c = await Cache.get(NA_AT, 3650 * DAY); return c && c.at > 0 ? c.at : 0; }
+async function namesAllAt() { const c = await namesAllMeta(); return c ? c.at : 0; }
+/** Date, version et empreinte du fichier gardé ({ at, v, tag }), null s'il n'y en a pas. */
+async function namesAllMeta() { const c = await Cache.get(NA_AT, 3650 * DAY); return c && c.at > 0 ? c : null; }
 /** Texte gardé sur l'appareil, ou null. */
 /* ── Noms alternatifs (names-flavor.tsv, gen-flavor-names.mjs ; ≈ 40 Ko) : gardés sur l'appareil 14 jours, relus à l'ouverture du scan ── */
 const FV_KEY = 'sc:fv', FV_FILE = 'names-flavor.tsv';
@@ -12564,7 +12575,7 @@ async function namesAllFetch(signal) {
   let t; try { t = await r.text(); } catch (e) { if (e.name === 'AbortError') throw e; return 0; }
   if (!/^#[^\n]*\t/.test(t) || t.split('\n', 502).length < 502) return 0;      // 1re ligne : langues des colonnes ; au moins 500 noms (sinon : page d'erreur, fichier tronqué)
   if (!(await Cache.set(NA_KEY, t, true))) return 0;
-  const at = Date.now(); await Cache.set(NA_AT, { at }); return at;
+  const at = Date.now(); await Cache.set(NA_AT, { at, v: NAMES_V, tag: etagOf(r) || nmTagNow('all') }); return at;
 }
 /** Images (petites) de cartes dans une autre langue que l'anglais : Map(clé de collection → url, '' si Scryfall n'a pas la carte dans cette langue). Une recherche pour 12 noms. */
 async function scryLangImages(names, lang, signal, onProgress, prio = false) {
@@ -14545,7 +14556,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.errlog = j.errlog === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.ctPub = j.ctPub === true; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.errlog = j.errlog === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.ctPub = j.ctPub === true; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; CTX.names = j.names && typeof j.names === 'object' && !Array.isArray(j.names) ? j.names : null; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
     if (j && j.ok && typeof j.ptk === 'string' && typeof partiePkKeep === 'function') partiePkKeep(j.ptk);      // compteur de vie : clé publique des cartes joueur (vérifiées sans réseau, partie.js)
   } catch (e) { /* pas de proxy */ }
   finally { if (typeof splashWait === 'function') splashWait(false); }
@@ -26343,13 +26354,13 @@ function scanFly(x) {
 }
 
 /* ── Catalogue des noms français (data.js › scryFrCatalog) : chargé depuis l'appareil dès l'ouverture du scan, téléchargé une fois s'il manque ─── */
-const FRC = { cat: null, at: 0, p: null, state: 'idle', done: 0, total: 0, err: '' };      // state : idle · run · ready · ask (réseau mobile : on demande) · err
+const FRC = { cat: null, at: 0, meta: null, p: null, state: 'idle', done: 0, total: 0, err: '' };      // meta : { at, v, tag } du catalogue chargé (data.js › nmStale)      // state : idle · run · ready · ask (réseau mobile : on demande) · err
 const frcMetered = () => { try { const c = navigator.connection; return !!c && (c.saveData === true || c.type === 'cellular'); } catch (e) { return false; } };
 async function frcWarm() {
   const l = namesLang(); if (!l) { FRC.state = 'idle'; frcPaint(); return; }      // cartes anglaises : aucun catalogue de noms imprimés
   namesSwitch(l);
-  if (!FRC.cat) { const c = await scryFrCached(l).catch(() => null); if (c && !FRC.cat && FRX.l === l) { FRC.cat = frCatalog(c.rows, l); FRC.at = c.at; } }
-  if (FRC.cat && Date.now() - FRC.at < FR_FRESH) { FRC.state = 'ready'; frcPaint(); frcNames(); return; }
+  if (!FRC.cat) { const c = await scryFrCached(l).catch(() => null); if (c && !FRC.cat && FRX.l === l) { FRC.cat = frCatalog(c.rows, l); FRC.at = c.at; FRC.meta = { at: c.at, v: c.v, tag: c.tag }; } }
+  if (FRC.cat && !nmStale(FRC.meta, l)) { FRC.state = 'ready'; frcPaint(); frcNames(); return; }      // sinon (vieux, version d'avant, fichier du site changé) : repris en arrière-plan, l'ancien sert en attendant
   frcStart(false);
 }
 /** Charge (ou reprend, ou met à jour) le catalogue en arrière-plan : fichier du site (fr-names.tsv) d'abord, sinon pages Scryfall ; le scan sert déjà pendant ce temps (recherche réseau mot par mot). force : malgré le réseau mobile. */
@@ -26362,11 +26373,11 @@ function frcStart(force) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) { FRC.state = FRC.cat ? 'ready' : 'err'; FRC.err = T('Hors ligne'); frcPaint(); return null; }
   FRC.state = 'run'; FRC.err = ''; FRC.done = 0; FRC.total = 0; frcPaint();
   const p = FRC.p = (async () => {
-    if (!FRC.cat) { const st = await scryFrStatic(undefined, l).catch(() => null); if (FRX.l !== l) return; if (st) { FRC.cat = frCatalog(st.rows, l); FRC.at = st.at; FRC.state = 'ready'; return; } }      // fichier du site : petit, pas de question même en 4G
+    if (!FRC.cat) { const st = await scryFrStatic(undefined, l).catch(() => null); if (FRX.l !== l) return; if (st) { FRC.cat = frCatalog(st.rows, l); FRC.at = st.at; FRC.meta = st; FRC.state = 'ready'; return; } }      // fichier du site : petit, pas de question même en 4G
     if (!force && !FRC.cat && frcMetered()) { FRC.state = 'ask'; return; }
     const rec = await scryFrCatalog(null, (d, t) => { FRC.done = d; FRC.total = t; frcPaint(); }, l);
     if (FRX.l !== l) return;                                                           // langue changée pendant le téléchargement
-    FRC.cat = frCatalog(rec.rows, l); FRC.at = rec.at; FRC.state = 'ready';
+    FRC.cat = frCatalog(rec.rows, l); FRC.at = rec.at; FRC.meta = rec; FRC.state = 'ready';
   })().catch(e => { if (FRX.l !== l) return; FRC.state = FRC.cat ? 'ready' : 'err'; FRC.err = e && e.code === 'rate' ? T('Scryfall demande une pause') : T('Téléchargement interrompu'); })
     .finally(() => { if (FRC.p === p) FRC.p = null; frcPaint(); frcNames(); });
   return p;
@@ -26446,8 +26457,8 @@ const othTick = gen => new Promise(r => setTimeout(() => r(OTHX.gen === gen && !
 function othWarm() {
   if (OTHX.dl) return OTHX.dl;
   const p = OTHX.dl = (async () => {
-    if (OTHX.at < 0) OTHX.at = await namesAllAt();
-    if (OTHX.at && Date.now() - OTHX.at < FR_FRESH) return;
+    const meta = await namesAllMeta(); if (OTHX.at < 0) OTHX.at = meta ? meta.at : 0;
+    if (meta && !nmStale(meta, 'all')) return;
     if ((typeof navigator !== 'undefined' && navigator.onLine === false) || frcMetered()) return;
     const at = await namesAllFetch(); if (!at) return;      // absent du site, hors ligne : l'ancien fichier (s'il y en a un) sert encore
     OTHX.at = at; OTHX.gen++; OTHX.cats = {}; OTHX.p = null;      // nouveau fichier : index reconstruits à la prochaine carte
@@ -26493,7 +26504,7 @@ function asiaCat(l) {
   if (!ASIA_LANGS.includes(l)) return Promise.resolve(null);
   if (!ASIA.cats[l]) ASIA.cats[l] = (async () => {
     let rec = await scryFrCached(l);
-    if ((!rec || Date.now() - rec.at > FR_FRESH) && !collOffline()) rec = (await scryFrStatic(undefined, l).catch(() => null)) || rec;
+    if (nmStale(rec, l) && !collOffline()) rec = (await scryFrStatic(undefined, l).catch(() => null)) || rec;
     return rec ? frCatalog(rec.rows, l) : null;
   })().catch(() => null);
   return ASIA.cats[l];
