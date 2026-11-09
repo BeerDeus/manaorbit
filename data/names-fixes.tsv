@@ -1,0 +1,8 @@
+# Noms imprimés manquants ou faux chez Scryfall, ajoutés aux catalogues par gen-fr-names.mjs (traduction actuelle de la carte dans cette langue).
+# langue	nom imprimé	nom anglais
+# DMU 7 fr : Scryfall recopie le nom anglais
+fr	Lieur de foi bénalian	Benalish Faithbonder
+# AFR 236 fr : aucun nom imprimé chez Scryfall
+fr	Trelasarra, danseuse de la lune	Trelasarra, Moon Dancer
+# DIS 157 fr : moitiés en anglais chez Scryfall (PSAL : « Offre/Demande » sur la 1re face seulement)
+fr	Offre // Demande	Supply // Demand

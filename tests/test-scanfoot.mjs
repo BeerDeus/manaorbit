@@ -85,3 +85,21 @@ test('total imprimé (« 123/249 ») : départage deux impressions au même num�
   assert.equal(footTotOk(footParseAll(['123/249 R']), { set: 'xxx', num: '1' }), true, 'extension inconnue : gardée');
   delete globalThis.SETIC;
 });
+
+test('ML Kit (signalements) : code, langue et artiste collés, rareté collée au numéro', () => {
+  const f = r => { const x = footParseAll(r.split(' / ')); return x && { nums: x.nums, codes: x.codes, lang: x.lang }; };
+  assert.deepEqual(f('éternelles. / 007/281 C / DMUFR >FRANCISCo MIARA'), { nums: ['7'], codes: ['DMU'], lang: 'fr' }, 'DMU • FR collés (le nom de l\'artiste n\'est pas un code)');
+  assert.deepEqual(f('préparée. / MO145 / S0SFRsYNA DURA'), { nums: ['145'], codes: ['S0S'], lang: 'fr' }, 'M 0145 collés ; S0S • FR collés à l\'artiste');
+  assert.deepEqual(f('c o034 / HOBFRKIERAN YANNER'), { nums: ['34'], codes: ['HOB'], lang: 'fr' });
+  assert.deepEqual(f('M 0239 Eiement de Ihistoire / MOMFRCHRIS RALLIS'), { nums: ['239'], codes: ['MOM'], lang: 'fr' }, '« de » du texte d\'ambiance écarté');
+  assert.equal(f('AFRFRAR a'), null, 'sans numéro ni liste des extensions : rien de sûr');
+  assert.equal(footParseAll(['Llanowar Elves']), null, '« ELVES » n\'est pas ELV • ES');
+  globalThis.SETIC = { m: { afr: ['', 'AFR'], fra: ['', 'FRA'], sos: ['', 'SOS'] } };
+  try {
+    assert.deepEqual(f('AFRFRAR a'), { nums: [], codes: ['AFR'], lang: 'fr' }, 'extension connue : la langue lue même sans numéro');
+    assert.deepEqual(f('pour lancer des sorts / depuis votre main. / FRA FRANASTASJA OVCHINNIKOYA'), { nums: [], codes: ['FRA'], lang: 'fr' }, 'langue collée au nom de l\'artiste');
+    assert.equal(footParseAll(['Llanowar Elves']), null);
+    const m = footMatch(footParseAll(['préparée.', 'MO145', 'S0SFRsYNA DURA']), [pr('sos', '145'), pr('sos', '145', 'en'), pr('soc', '12')]);
+    assert.equal(m && m.p.set + '/' + m.p.num + '/' + m.p.l, 'sos/145/fr');
+  } finally { delete globalThis.SETIC; }
+});

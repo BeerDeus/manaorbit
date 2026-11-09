@@ -34,6 +34,24 @@ function footKnown(code) {
 }
 const FOOT_SEP = /^[★*✶☆•·]$/;
 const footCode = t => /^[A-Z0-9]{2,5}$/.test(t) && /[A-Z]/.test(t);
+/** Langues imprimées de 2 lettres (« FR », « EN »…), pour les mots collés. */
+const FOOT_L2 = Object.keys(FOOT_LANG).filter(k => k.length === 2);
+/** Code d'extension plausible pour une lecture collée : connu de l'appli, ou (liste pas là) tout code dans les deux dernières lignes. */
+const footGlueOk = (code, low) => { const k = footKnown(code); return k === true || (k === null && low); };
+/**
+ * ML Kit perd la puce et colle le code, la langue et l'artiste : « DMUFR », « S0SFRSYNA », « HOBFRKIERAN » → { code, lang } ; null sinon.
+ * Code de 3 lettres d'abord (le plus courant), puis 4 et 2 ; jamais un mot d'ambiance hors des deux dernières lignes sans la liste des extensions.
+ */
+function footGlue(t, low) {
+  if (t.length < 4 || FOOT_LANG[t]) return null;
+  for (const n of [3, 4, 2]) {
+    const code = t.slice(0, n), l = t.slice(n, n + 2);
+    if (FOOT_L2.includes(l) && footCode(code) && !footNum(code) && footGlueOk(code, low)) return { code, lang: FOOT_LANG[l] };
+  }
+  return null;
+}
+/** Rareté collée au numéro (« MO145 », « C0034 ») → numéro (« 145 »), sinon ''. */
+const footRarNum = t => (/^[CURMSLTPB][0-9OQDIL|!ZSBGT]{4}$/.test(t) && (t.slice(1).match(/\d/g) || []).length >= 3 ? footNum(t.slice(1)) : '');
 /**
  * Lignes lues dans le coin bas gauche → { nums: ['123', …], codes: ['MKM', …], lang ('fr' | ''), langs [{ code, lang, sep, li }], foil (true : ★ lue) }, ou null si rien d'utile.
  * La zone lue déborde souvent sur la fin du texte d'ambiance : « … qui vient DE la forêt », « … and IT burned » ne sont pas des langues. Une langue n'est retenue que
@@ -53,8 +71,15 @@ function footParse(lines) {
     }
     const norm = ln.replace(/[/\\]\s*[0-9OQDIL|!ZSBGT]{2,4}/g, ' ').replace(/([A-Z0-9])\s*[.·•]\s*(?=[A-Z]{2,3}\b)/g, '$1 • ');      // « DSK.FR », « DSK · FR » : la puce
     const toks = norm.split(/[^A-Z0-9|!★*✶☆•·]+/).flatMap(t => t.split(/(?=[★*✶☆•·])|(?<=[★*✶☆•·])/)).filter(Boolean);
+    const low = li >= arr.length - 2;
     for (let i = 0; i < toks.length; i++) {
       const t = toks[i], prev = toks[i - 1] || '', prev2 = toks[i - 2] || '';
+      const rn = footRarNum(t); if (rn) { if (!nums.includes(rn)) nums.push(rn); continue; }      // « MO145 » : rareté M collée au numéro 0145
+      const g = footGlue(t, low);
+      if (g) { langs.push({ code: g.code, lang: g.lang, sep: false, li, glue: true }); if (!codes.includes(g.code)) codes.push(g.code); continue; }      // « DMUFR » : DMU • FR
+      if (t.length > 3 && !FOOT_LANG[t] && FOOT_L2.includes(t.slice(0, 2)) && footCode(prev) && !footNum(prev) && footGlueOk(prev, low) && !langs.some(x => x.li === li && x.code === prev)) {
+        langs.push({ code: prev, lang: FOOT_LANG[t.slice(0, 2)], sep: false, li, glue: true }); continue;      // « FRA FRANASTASJA » : FRA • FR, collée au nom de l'artiste
+      }
       if (FOOT_SEP.test(t)) { if (/^[★*✶☆]$/.test(t) && footCode(prev) && FOOT_LANG[toks[i + 1]]) foil = true; continue; }      // « MKM ★ FR » : foil
       if (FOOT_LANG[t] && t.length <= 3) {
         if (FOOT_SEP.test(prev) && footCode(prev2)) { langs.push({ code: prev2, lang: FOOT_LANG[t], sep: true, li }); if (!strong.includes(prev2)) strong.push(prev2); if (t.length === 2) continue; }
@@ -64,7 +89,7 @@ function footParse(lines) {
       if (footCode(t) && !codes.includes(t)) codes.push(t);
     }
   });
-  const last = arr.length - 1, ok = c => c.sep || (c.li >= last - 1 && footKnown(c.code) !== false);
+  const last = arr.length - 1, ok = c => (c.sep || (c.li >= last - 1 && footKnown(c.code) !== false)) && (!c.glue || nums.length > 0 || footKnown(c.code) === true);      // lecture collée sans numéro : seulement une extension connue (« ELVES » n'est pas ELV • ES)
   const best = langs.filter(ok).sort((a, b) => b.li - a.li || (b.sep ? 1 : 0) - (a.sep ? 1 : 0))[0] || null;      // la plus basse ; à égalité, celle qui a sa puce
   if (best && !strong.includes(best.code)) strong.push(best.code);
   if (strong.length) codes.splice(0, codes.length, ...strong.filter(c => c === (best && best.code)).concat(strong.filter(c => c !== (best && best.code))));      // code suivi de la langue : le nom de l'artiste, le texte d'ambiance ne sont pas des codes
@@ -116,4 +141,12 @@ function footMatch(lines, prints) {
   return null;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { footParse, footMatch, footSame, footNum, footKnown, footTotOk, footByNum, FOOT_LANG };
+/** La ligne du bas contredit la carte reconnue : « CODE • LANGUE » lu, extension connue de l'appli, et aucune impression de la carte dedans (prints : [{ set }]).
+ *  Nom reconnu de travers parce que la vraie carte manquait au catalogue (« Émérite de l'abondance » SOS lue « Cour de l'Abondance ») : à vérifier, jamais ajoutée en silence. */
+function footContra(f, prints) {
+  if (!f || !f.lang || !f.codes || !f.codes.length || !Array.isArray(prints) || !prints.length) return false;
+  const c = f.codes[0]; if (footKnown(c) !== true) return false;
+  return !prints.some(p => footSame(c, String(p.set || '').toUpperCase()));
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { footParse, footMatch, footContra, footSame, footNum, footKnown, footTotOk, footByNum, FOOT_LANG };

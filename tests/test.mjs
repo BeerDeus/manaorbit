@@ -1008,6 +1008,18 @@ test('gen-fr-names.mjs : la ligne générée est identique à frRow() de l\'app 
   ];
   for (const c of cards) assert.equal(frRow(c), appRow(c), JSON.stringify(c));
   for (const c of [...cards, { lang: 'de', name: 'Lightning Bolt', printed_name: 'Blitzschlag', image_uris: { small: 'https://cards.scryfall.io/small/front/e/f/ef.jpg?2' } }]) assert.equal(namesRow(c, 'de'), appRow(c, 'de'), 'allemand : ' + JSON.stringify(c));      // même ligne pour les autres langues (names-de.tsv)
+  // seule la face avant traduite chez Scryfall (aventure HOB 32 fr, carte préparée SOS 145 fr) : son nom, celui lu au scan ; carte partagée « Offre/Demande » (PSAL J16 fr) : les deux moitiés
+  const part = [{ lang: 'fr', layout: 'adventure', name: 'Bilbo, Luckwearer // Burglar\'s Plot', card_faces: [{ name: 'Bilbo, Luckwearer', printed_name: 'Bilbo, Porteurdechance', image_uris: { small: 'https://cards.scryfall.io/small/front/8/2/82.jpg?1' } }, { name: 'Burglar\'s Plot' }] },
+    { lang: 'fr', layout: 'split', name: 'Supply // Demand', card_faces: [{ name: 'Supply', printed_name: 'Offre/Demande' }, { name: 'Demand' }], image_uris: { small: 'https://cards.scryfall.io/small/front/b/4/b4.jpg' } }];
+  for (const c of part) assert.equal(frRow(c), appRow(c), JSON.stringify(c));
+  assert.equal(frRow(part[0]), 'Bilbo, Porteurdechance\tBilbo, Luckwearer // Burglar\'s Plot\tfront/8/2/82.jpg'); assert.equal(frRow(part[1]), 'Offre // Demande\tSupply // Demand\tfront/b/4/b4.jpg');
+  const { namesHalves, namesFixes } = await import('../gen-fr-names.mjs');
+  assert.deepEqual(namesHalves(frRow(part[1]), part[1]), ['Demande\tSupply // Demand\tfront/b/4/b4.jpg'], 'moitié d\'une carte partagée : reconnue au scan');
+  assert.deepEqual(namesHalves(frRow(part[0]), part[0]), [], 'aventure : pas de moitiés');
+  assert.deepEqual(namesHalves('Assault // Battery // Battery\tAssault // Battery\t', { layout: 'split' }), [], 'moitié restée en anglais, répétée : rien');
+  assert.deepEqual(namesFixes('# commentaire\nfr\tLieur de foi bénalian\tBenalish Faithbonder\nde\tX\tY\nfr\tincomplet\n', 'fr'), [['Lieur de foi bénalian', 'Benalish Faithbonder']]);
+  const fixes = namesFixes(readFileSync(new URL('../data/names-fixes.tsv', import.meta.url), 'utf8'), 'fr');
+  assert.ok(fixes.some(([p, en]) => p === 'Offre // Demande' && en === 'Supply // Demand'), 'data/names-fixes.tsv lisible');
   assert.equal(frRow(cards[0]), 'Anneau solaire\tSol Ring\tfront/a/b/ab.jpg'); assert.equal(frRow(cards[1]), 'Explorateur de secrets // Aberration insectoïde\tDelver of Secrets // Insectile Aberration\tfront/c/d/cd.jpg'); assert.equal(frRow(cards[2]), '', 'carte double sans nom traduit : ignorée (jamais le nom anglais à la place)'); assert.equal(frRow(cards[4]), ''); assert.equal(frRow(null), '');
 });
 

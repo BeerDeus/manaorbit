@@ -6,5 +6,7 @@
 "nom de plusieurs cartes : celle-ci d'après la ligne du bas": "name shared by several cards: this one, from the bottom line",
 "nom de plusieurs cartes : celle-ci d'après l'illustration": "name shared by several cards: this one, from the artwork",
 "nom de plusieurs cartes : {list}": "name shared by several cards: {list}",
-"Plutôt {name}": "Rather {name}"
+"Plutôt {name}": "Rather {name}",
+"Quelle carte est sur ta photo ?": "Which card is in your photo?",
+"C'est {name}": "It's {name}"
 }

@@ -6,5 +6,7 @@
 "nom de plusieurs cartes : celle-ci d'après la ligne du bas": "Name mehrerer Karten: diese laut unterer Zeile",
 "nom de plusieurs cartes : celle-ci d'après l'illustration": "Name mehrerer Karten: diese laut Illustration",
 "nom de plusieurs cartes : {list}": "Name mehrerer Karten: {list}",
-"Plutôt {name}": "Eher {name}"
+"Plutôt {name}": "Eher {name}",
+"Quelle carte est sur ta photo ?": "Welche Karte ist auf deinem Foto?",
+"C'est {name}": "Es ist {name}"
 }

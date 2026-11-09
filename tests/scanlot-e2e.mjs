@@ -67,10 +67,18 @@ ok('nom de plusieurs cartes, ligne du bas lue : l\'extension et le numéro disen
 
 await p.evaluate(m => { scanAdd(m, 1, true, ''); }, { ...amb, sig: null });
 const row = '.sc-item.maybe[data-k="path of the pyromancer"]';
-await p.waitForSelector(row + ' .sc-alt'); assert.match(await p.$eval(row, e => e.textContent), /nom de plusieurs cartes : Path of the Pyromancer · Way of the Pyromancer[\s\S]*Plutôt Way of the Pyromancer/);
-await p.click(row + ' .sc-alt'); await p.waitForSelector('.sc-item[data-k="way of the pyromancer"]');
+await p.waitForSelector(row + ' .sc-pick'); assert.match(await p.$eval(row, e => e.textContent), /nom de plusieurs cartes : Path of the Pyromancer · Way of the Pyromancer[\s\S]*Quelle carte est sur ta photo \?/);
+assert.deepEqual(await p.$$eval(row + ' .sc-pick-c', bs => bs.map(b => [b.dataset.n, !!b.querySelector('img[src]')])), [['Path of the Pyromancer', true], ['Way of the Pyromancer', true]], 'les deux cartes, chacune avec son illustration');
+assert.equal(await p.$(row + ' .sc-alt'), null, 'à vérifier : le choix illustré, pas « Plutôt … »');
+const pb = await p.$$eval(row + ' .sc-pick-c', bs => bs.map(b => b.getBoundingClientRect()).map(r => [Math.round(r.top), Math.round(r.left)]));
+assert.equal(pb[0][0], pb[1][0], 'côte à côte'); assert.ok(pb[1][1] > pb[0][1]);
+await p.click(row + ' .sc-pick-c[data-n="Way of the Pyromancer"]'); await p.waitForSelector('.sc-item[data-k="way of the pyromancer"]');
 assert.deepEqual(await p.evaluate(() => { const x = [...SC.items.values()].find(x => x.key === 'way of the pyromancer'); return [x.name, x.maybe, x.l, SC.items.size, scanReadNote(x)]; }), ['Way of the Pyromancer', false, 'fr', 1, '']);
 assert.equal(await p.$('.sc-item[data-k="way of the pyromancer"] .sc-alt') !== null, true, 'l\'autre carte reste proposée');
-ok('à vérifier : « Plutôt Way of the Pyromancer » change la carte d\'un appui (confirmée, édition relue)');
+await p.evaluate(m => { scanAdd(m, 1, true, ''); }, { ...amb, sig: null });
+await p.waitForSelector(row + ' .sc-pick'); await p.click(row + ' .sc-pick-c[data-n="Path of the Pyromancer"]');
+await p.waitForFunction(() => [...SC.items.values()].some(x => x.key === 'path of the pyromancer' && !x.maybe));
+assert.equal(await p.$(row), null, 'la carte lue choisie : confirmée');
+ok('à vérifier : « Quelle carte est sur ta photo ? », les deux illustrations côte à côte ; un appui choisit (l\'autre carte : confirmée, édition relue ; celle lue : confirmée)');
 assert.deepEqual(errs, []);
 await browser.close(); world.stop(); console.log('\nSCAN LOT E2E OK'); process.exit(0);
