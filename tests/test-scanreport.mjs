@@ -127,7 +127,7 @@ assert.match(P1.log(), /Scans signalés : 6 au plus, 200 Mo, gardés 90 jours\./
   r = await adm(B1, '/scans'); assert.equal(r.s, 200); assert.equal(r.h.get('cache-control'), 'no-store'); assert.match(r.h.get('x-robots-tag'), /noindex/);
   assert.equal(r.o.total, 6); assert.equal(r.o.n, 6); assert.equal(r.o.rows.length, 6); assert.equal(r.o.page, 1); assert.equal(r.o.days, 90); assert.equal(r.o.max, 6); assert.ok(r.o.mb > 0);
   const ts = r.o.rows.map(x => x.t); assert.deepEqual(ts, ts.slice().sort((a, b) => b - a), 'plus récents d\'abord');
-  assert.deepEqual(Object.keys(r.o.rows[0]).sort(), ['acct', 'id', 'img', 'meta', 'note', 't', 'v', 'what']);
+  assert.deepEqual(Object.keys(r.o.rows[0]).sort(), ['acct', 'id', 'img', 'meta', 'note', 't', 'to', 'v', 'what'], 'to : auteur à prévenir (« Prévenir : réglé ») ; jamais l\'empreinte entière (who)');
   const acc = r.o.rows.find(x => x.what === 'ed'); assert.equal(acc.acct, createHash('sha256').update('uid-busy-07').digest('hex').slice(0, 16));
   // photo
   const id = r.o.rows[0].id;

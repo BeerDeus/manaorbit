@@ -128,9 +128,9 @@ function amPaint() {
 }
 function amDot() {
   const b = typeof document !== 'undefined' && document.getElementById('btnAccount'); if (!b) return;
-  const n = amOn() && AM.l ? AM.l.inc.length : 0, on = !!n && !amQuiet(), base = (b.getAttribute('aria-label') || '').replace(/ — .*$/, '');
+  const n = amOn() && AM.l ? AM.l.inc.length : 0, m = typeof ibUnread === 'function' ? ibUnread() : 0, on = !!(n || m) && !amQuiet(), base = (b.getAttribute('aria-label') || '').replace(/ — .*$/, '');
   b.dataset.dot = on ? '1' : '0';
-  b.setAttribute('aria-label', on ? base + ' — ' + TN(n, '{n} demande d\'ami', '{n} demandes d\'ami') : base);      // le point dit aussi ce qu'il veut dire
+  b.setAttribute('aria-label', on ? base + ' — ' + [n ? TN(n, '{n} demande d\'ami', '{n} demandes d\'ami') : '', m ? TN(m, '{n} message de l\'équipe', '{n} messages de l\'équipe') : ''].filter(Boolean).join(', ') : base);      // le point dit aussi ce qu'il veut dire (demandes d'ami, messages de l'équipe : inbox.js)
 }
 /** Ligne « Amis » de « Compte et réglages › Mon compte » (vide si le serveur n'a pas les amis). */
 function amMeRow() {

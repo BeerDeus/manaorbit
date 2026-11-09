@@ -171,7 +171,7 @@ export function discordMake(o = {}) {
 
   /* ── « Aide et avis » : POST /api/feedback ── */
   const FX = forumMake({ call, load, forums: () => forums(), now, log, on: ON, notify: typeof o.notify === 'function' ? o.notify : null, dir: o.dir, file: o.feedbackFile, staff: o.staffRoles,
-    pollMs: o.feedbackPollMs, similar: o.similar, dupMs: o.dupMs });      // ping de l'équipe, doublons, titres proches, auteur prévenu (discord-forum.mjs)
+    pollMs: o.feedbackPollMs, similar: o.similar, dupMs: o.dupMs, inbox: typeof o.inbox === 'function' ? o.inbox : null });      // ping de l'équipe, doublons, titres proches, auteur prévenu (discord-forum.mjs)
   /** Budget d'un compte (feedbackPerH par heure, comme proxy.mjs › srLim) : 0 si permis, sinon secondes à attendre. */
   function lim(k) {
     if (!(FB_H > 0)) return 0;
@@ -547,7 +547,7 @@ export function discordMake(o = {}) {
       let t = null, closed = null;
       if (b.close === true) { try { t = await call('PATCH', path, { archived: true }); closed = true; } catch (e) { closed = false; log.warn('Discord : réponse envoyée, fil pas fermé (' + e.message + ')'); } }
       if (!t) t = await call('GET', path).catch(() => null);
-      done(x, closed ? 'réponse, fermé' : 'réponse'); FX.admin(String(x.t.id), t && t.id ? t : null, x.f.c, mid).catch(() => {});      // avis suivi : auteur prévenu (réponse, fermé)
+      done(x, closed ? 'réponse, fermé' : 'réponse'); FX.admin(String(x.t.id), t && t.id ? t : null, x.f.c, mid, content).catch(() => {});      // avis suivi : auteur prévenu (réponse recopiée dans sa boîte « Messages de l'équipe », fermé)
       return json(res, 200, { ok: true, msg, thread: out(t), ...(closed === false ? { closed: false, message: 'Réponse envoyée, mais le fil n\'a pas été fermé (Discord a refusé) : ferme-le depuis la liste.' } : {}) }, HD);
     } catch (e) { if (gone(e)) return noThread(res); return admErr(res, e); }
   }

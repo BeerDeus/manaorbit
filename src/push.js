@@ -30,6 +30,7 @@ function pushOpen(url) {
   if (/[?&]mystere\b/.test(u) && typeof dlyLaunch === 'function') { dlyLaunch(); return; }      // « La Carte mystère du jour est là » : le jeu
   if (/[?&]fete\b/.test(u) && typeof evPushOpen === 'function') { evPushOpen(); return; }      // annonce d'un événement : l'accueil et la feuille de la fête
   if (/[?&]parties\b/.test(u) && typeof puHist === 'function') { setTimeout(puHist, 500); return; }      // « Partie enregistrée » (partie-ui.js) : Mes parties
+  if (typeof ibPushOpen === 'function' && ibPushOpen(u)) return;      // « Messages de l'équipe » (inbox.js) : scan réglé, réponse à un avis, message du panneau
   if (/[?&]avis=/.test(u) && typeof fbAvisOpen === 'function' && fbAvisOpen(u)) return;      // « Du nouveau sur ton avis » (help.js) : le fil sur Discord
   if (amPushOpen(u)) return;
   if (/[?&]alerts\b/.test(u)) setTimeout(alertsOpen, 500);
@@ -56,7 +57,7 @@ async function pnListen(P) {
       if (/[?&]troc=/.test(String(url || ''))) { if (typeof trocPushed === 'function') trocPushed({ title: n.title, body: n.body, url }); return; }      // invitation à un échange en direct : toast « Rejoindre »
       if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }      // ami : liste relue, toast (sauf mode streamer)
       if (/[?&]mystere\b/.test(String(url || ''))) { if (typeof dlyPushed === 'function') dlyPushed({ title: n.title, body: n.body }); return; }      // nouvelle Carte mystère : bouton relu, toast « Jouer »
-      if (msg) toast(msg, /[?&](alerts|resume|avis|fete)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);      // avis : le fil sur Discord ; fête : sa feuille
+      if (msg) toast(msg, /[?&](alerts|resume|avis|fete|inbox)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);      // avis : le fil sur Discord ; fête : sa feuille
     }),
     on('pushNotificationActionPerformed', a => pushOpen(a && a.notification && a.notification.data && a.notification.data.url)),
   ]);

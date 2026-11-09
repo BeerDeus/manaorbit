@@ -824,7 +824,7 @@ function onUser(user) {
   }
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
   collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); msUser(user); if (prev !== D.uid) profUser(user); if (typeof prgUser === 'function') prgUser(user);      // niveau et badges dans le compte (règles Firestore)
-  amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
+  amUser(user); if (typeof trocUser === 'function') trocUser(user); if (typeof ibUser === 'function') ibUser(user);      // messages de l'équipe (inbox.js)      // échange en direct : reprend après la connexion, ou quitte (autre compte)
   if (typeof partieUser === 'function') partieUser(user);      // parties (compteur de vie) en attente d'envoi pour ce compte
   if (typeof puUser === 'function') puUser(user);      // « Rejoindre la partie » ouvert par un lien avant que le compte soit connu : passe au choix de la place
   if (typeof dlyUser === 'function') dlyUser(user);

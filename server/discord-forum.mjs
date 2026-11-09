@@ -156,7 +156,7 @@ export function forumMake(h) {
   /** Fil créé (feedback) : suivi si un compte peut être prévenu, puis titres proches cherchés (sans retarder la réponse). */
   function created({ id, tag, f, tags }) {
     if (!ID_RE.test(id)) return;
-    const track = !!(h.notify && TAG_RE.test(String(tag || '')));
+    const track = !!((h.notify || h.inbox) && TAG_RE.test(String(tag || '')));
     (async () => {
       if (track) {
         const m = await store();
@@ -181,30 +181,47 @@ export function forumMake(h) {
     x.tags = cur; x.c = arc;
     return { tags, close, replies: 0 };
   }
-  /** Prévient l'auteur (une notification regroupée) ; rien de neuf : rien. */
+  /** Prévient l'auteur (une notification regroupée) ; rien de neuf : rien. Avec la boîte « Messages de l'équipe » (h.inbox : inbox-srv.mjs › put) : le message y est gardé,
+   *  avec le texte des réponses de l'équipe (ev.texts : lisible sans Discord), et la notification ouvre la boîte ; sinon : notification seule, qui ouvre le fil. */
   function tell(x, ev, gid) {
-    if (!h.notify || !(ev.replies || ev.tags.length || ev.close)) return;
+    if (!(h.notify || h.inbox) || !(ev.replies || ev.tags.length || ev.close)) return;
     const url = `./?avis=${x.id}&g=${gid}`;
+    if (h.inbox) {
+      Promise.resolve().then(() => h.inbox(x.a, { k: 'avis', s: x.t, ev: { replies: ev.replies, tags: ev.tags, close: ev.close }, x: (ev.texts || []).join('\n\n'), u: url })).then(r => r && r.sent)
+        .then(n => log.log(`Discord : avis, auteur prévenu dans l'appli (${[ev.replies ? 'réponse' + ((ev.texts || []).length ? ' recopiée' : '') : '', ev.tags.length ? 'étiquette' : '', ev.close ? 'fermé' : ''].filter(Boolean).join(', ')}${n ? '' : ', aucun appareil'}).`), e => log.warn('Discord : auteur non prévenu (' + (e && e.message || e) + ')'));
+      return;
+    }
     Promise.resolve().then(() => h.notify(x.a, l => ({ ...fbfNote(l, x.t, ev), url, tag: 'mo-avis-' + x.id, ttl: 7 * 86400 })))
       .then(n => log.log(`Discord : avis, auteur prévenu (${[ev.replies ? 'réponse' : '', ev.tags.length ? 'étiquette' : '', ev.close ? 'fermé' : ''].filter(Boolean).join(', ')}${n ? '' : ', aucun appareil'}).`), e => log.warn('Discord : auteur non prévenu (' + (e && e.message || e) + ')'));
   }
-  /** Réponses arrivées depuis le dernier message vu, d'un autre que l'auteur (ni bot, ni le membre qui a signalé, ni message système). */
+  /** Membre de l'équipe (rôles DISCORD_STAFF_ROLES) ? Rôles lus une fois par heure et par membre ; illisibles : non (sa réponse compte, son texte n'est pas recopié). */
+  const STF = new Map();
+  async function isStaff(d, uid) {
+    if (!d || !ID_RE.test(String(uid || ''))) return false;
+    const c = STF.get(uid); if (c && now() - c.at < 3600e3) return c.ok;
+    let ok = false; try { const mb = await call('GET', `/guilds/${d.gid}/members/${uid}`), ids = new Set(staff(d)); ok = Array.isArray(mb && mb.roles) && mb.roles.some(r => ids.has(String(r))); } catch (e) { ok = false; }
+    if (STF.size > 500) STF.clear(); STF.set(uid, { ok, at: now() }); return ok;
+  }
+  /** Réponses arrivées depuis le dernier message vu, d'un autre que l'auteur (ni bot, ni le membre qui a signalé, ni message système) → { n, texts } ;
+   *  texts : celles de l'équipe, à recopier dans l'appli de l'auteur (vides sans l'intention « Message Content » du bot : non recopiées). */
   async function replies(x) {
-    const ms = await call('GET', `/channels/${x.id}/messages?after=${x.last}&limit=50`), list = Array.isArray(ms) ? ms.filter(m => m && m.id) : [];
-    let n = 0;
+    const ms = await call('GET', `/channels/${x.id}/messages?after=${x.last}&limit=50`), list = Array.isArray(ms) ? ms.filter(m => m && m.id).sort((a, b) => (big(a.id) < big(b.id) ? -1 : 1)) : [];
+    let n = 0; const texts = [], d = h.inbox ? await h.load().catch(() => null) : null;
     for (const m of list) {
       if (big(m.id) > big(x.last)) x.last = String(m.id);
-      const a = m.author || {}; if (!a.bot && String(a.id || '') !== x.m && (m.type == null || m.type === 0 || m.type === 19)) n++;
+      const a = m.author || {}; if (a.bot || String(a.id || '') === x.m || !(m.type == null || m.type === 0 || m.type === 19)) continue;
+      n++;
+      const t = String(m.content || '').trim(); if (t && d && texts.length < 5 && await isStaff(d, String(a.id))) texts.push(t);
     }
-    return n;
+    return { n, texts };
   }
-  /** Action du panneau /admin sur un fil (discord-srv.mjs › threadWrite) : t = le fil après l'action (ou null), fc = son forum, mid = réponse du bot. */
-  async function admin(id, t, fc, mid) {
-    if (!h.notify) return;
+  /** Action du panneau /admin sur un fil (discord-srv.mjs › threadWrite) : t = le fil après l'action (ou null), fc = son forum, mid = réponse du bot, text = son texte (recopié dans l'appli). */
+  async function admin(id, t, fc, mid, text) {
+    if (!h.notify && !h.inbox) return;
     const m = await store(), x = m.get(String(id)); if (!x) return;
     S.act = null; x.u = now();      // état connu plus récent que toute lecture déjà faite ou en cours : une relève ne le défait pas
     const ev = t ? diff(x, t, fc, true) : { tags: [], close: false, replies: 0 };
-    if (mid) { ev.replies = 1; if (big(mid) > big(x.last)) x.last = String(mid); x.n = Math.max(x.n + 1, Number(t && t.message_count) || 0); }
+    if (mid) { ev.replies = 1; if (text) ev.texts = [String(text)]; if (big(mid) > big(x.last)) x.last = String(mid); x.n = Math.max(x.n + 1, Number(t && t.message_count) || 0); }
     await save();
     const d = await h.load().catch(() => null); if (d) tell(x, ev, d.gid);
   }
@@ -221,7 +238,7 @@ export function forumMake(h) {
   /** Relève : fils actifs (1 lecture, partagée), fermés récents des forums (si un fil suivi ouvert n'est plus actif), puis 5 fils lus un par un au plus,
    *  et les nouveaux messages de 10 fils au plus (le reste à la relève suivante). */
   async function poll() {
-    if (S.run || !h.on || !h.notify) return;
+    if (S.run || !h.on || !(h.notify || h.inbox)) return;
     S.run = true;
     try {
       const m = await store(); let ch = purge(m);
@@ -245,7 +262,7 @@ export function forumMake(h) {
         const was = JSON.stringify(x), ev = diff(x, t, f.c, false), n = Number(t.message_count) || 0;
         if (n > x.n && reads < 10) {
           reads++;
-          try { ev.replies = await replies(x); }
+          try { const r = await replies(x); ev.replies = r.n; ev.texts = r.texts; }
           catch (e) { if (e.kind !== 'refused') throw e; if (!S.warned) { S.warned = true; log.warn('Discord : réponses des avis illisibles (' + e.message + ') : permission « Lire l\'historique des messages » du bot dans les forums ?'); } }
           x.n = n;
         } else if (n < x.n) x.n = n;      // messages supprimés : compte suivi
@@ -256,9 +273,9 @@ export function forumMake(h) {
     } catch (e) { log.warn('Discord : relève des avis impossible (' + (e && e.message || e) + ')'); }
     finally { S.run = false; }
   }
-  function arm() { if (!S.timer && h.on && h.notify && POLL > 0) { S.timer = setInterval(() => { poll(); }, Math.max(100, POLL)); if (S.timer.unref) S.timer.unref(); } }
+  function arm() { if (!S.timer && h.on && (h.notify || h.inbox) && POLL > 0) { S.timer = setInterval(() => { poll(); }, Math.max(100, POLL)); if (S.timer.unref) S.timer.unref(); } }
   /** Démarrage : relève armée s'il y a déjà des fils suivis. */
-  function start() { if (h.on && h.notify && POLL > 0) store().then(m => { if (m.size) arm(); }, () => {}); }
+  function start() { if (h.on && (h.notify || h.inbox) && POLL > 0) store().then(m => { if (m.size) arm(); }, () => {}); }
   function stop() { clearInterval(S.timer); S.timer = null; }
 
   return { staff, keys, once, seen, actives, created, admin, drop, forget, poll, start, stop, _s: S };

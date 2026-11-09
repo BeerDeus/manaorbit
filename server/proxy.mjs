@@ -1756,6 +1756,7 @@ async function amWipe(req, res, me) {
   await Promise.all([amDropParts(me.tag), ...drop.filter(t => t !== me.tag).map(amDropParts)]);
   if (AMI.due.has(me.tag)) amDue(me.tag, 0);
   if (DSC && DSC.fbForget) await DSC.fbForget(me.tag).catch(() => 0);      // ses fils d'avis suivis (bot Discord) : oubliés
+  if (IBX) await IBX.forget(me.tag).catch(() => 0);      // sa boîte « Messages de l'équipe » : effacée
   return json(res, 200, { ok: true });
 }
 async function friendsApi(req, res, path, url) {
@@ -2952,7 +2953,7 @@ async function admServer() {
   const partie = { wait: 0, live: 0, done: 0, all: PT.s.size }; for (const r of PT.s.values()) if (r.st in partie) partie[r.st]++;
   let run = 0; for (const j of jobs.values()) if (j.status === 'running') run++;
   return { build: await pageBuild(), up: Math.round(process.uptime()), node: process.version, rss: Math.round(process.memoryUsage().rss / 1048576),
-    flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, names: NM_ON, ads: !!ADMOB_BANNER, scans: SR_ON }, off: OFF,
+    flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, names: NM_ON, ads: !!ADMOB_BANNER, scans: SR_ON, inbox: IB_ON }, off: OFF,
     prices: { on: !!PX_SRC, at: PX_ST.at, cards: PX_ST.cards, check: PX_ST.check, err: PX_ST.err }, edh: { on: !!EDH_SRC, at: EDH_ST.at, decks: EDH_ST.decks, cmds: EDH_ST.cmds, from: EDH_ST.from, check: EDH_ST.check, err: EDH_ST.err },
     troc, partie, jobs: { run, all: jobs.size }, alerts: { devices: AL.subs.size, last: Number(AL.last.at) || 0, hits: Number(AL.last.hits) || 0 },
     pub: { n: PUB.n, hid: PUB.hid, at: PUB.at, err: PUB.err ? 'erreur' : '' }, amis: { cache: AMI.cache.size, due: AMI.due.size },
@@ -3184,6 +3185,7 @@ async function adminApi(req, res, path, url) {
   const u = await admAuth(req, res); if (!u) return;
   const sub = path.replace(/^admin\/?/, '');
   if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
+  if (sub === 'inbox') return ibAdmin(req, res);      // « Messages de l'équipe » : résumé, message libre à un compte
   if (sub === 'errors' || sub.startsWith('errors/')) return elAdmin(req, res, sub, url);      // erreurs JS des appareils (src/errlog.js) : signatures, tout effacer, une signature
   if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
   if (sub === 'events' || sub.startsWith('events/')) return EVS ? EVS.admin(req, res, sub, url, u) : json(res, 404, { error: 'not_found' }, ADM_HD);      // événements : statistiques et interrupteur à chaud
@@ -3530,11 +3532,11 @@ async function scanReportApi(req, res) {
   if (!SR_ON) return json(res, 404, { error: 'not_found' });
   if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
   const w = rateWait(req, 'scanrep', SR_RATE, 3600e3); if (w) return tooMany(res, w);
-  let acct = '';
+  let acct = '', who = '';
   const tok = String(req.headers['x-firebase-token'] || '');
-  if (tok) {      // connecté : empreinte du compte (jamais l'UID) et budget du compte
+  if (tok) {      // connecté : empreinte du compte (jamais l'UID) et budget du compte ; who : l'empreinte entière (« Prévenir : réglé » du panneau), jamais montrée
     if (isLocked(req)) return json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' });
-    try { acct = amTag((await verifyIdToken(tok, true)).uid).slice(0, 16); }
+    try { who = amTag((await verifyIdToken(tok, true)).uid); acct = who.slice(0, 16); }
     catch (e) {
       const code = e && e.authCode;
       if (code === 'expired') return json(res, 401, { error: 'token_expired', message: 'Session expirée : le navigateur va la renouveler.' });
@@ -3556,7 +3558,7 @@ async function scanReportApi(req, res) {
   if (img.length > SR_IMG) return json(res, 413, { error: 'too_large', message: 'Photo trop lourde (350 Ko au plus).' });
   const dim = jpegSize(img); if (!dim || dim.w > 4096 || dim.h > 4096) return json(res, 400, { error: 'bad_image', message: 'Photo JPEG attendue.' });
   const now = Date.now(), id = now.toString(36) + '-' + randomBytes(4).toString('hex');
-  const rec = { v: 1, id, t: now, what: b.what, note, acct, img: { w: dim.w, h: dim.h, bytes: img.length }, meta: srClean(b.meta) };
+  const rec = { v: 1, id, t: now, what: b.what, note, acct, ...(who ? { who } : {}), img: { w: dim.w, h: dim.h, bytes: img.length }, meta: srClean(b.meta) };
   try { await srRun(() => srSave(rec, img)); }
   catch (e) { console.warn('Scans signalés : enregistrement impossible (' + (e && e.code || 'erreur') + ')'); return json(res, 503, { error: 'unavailable', message: 'Signalement impossible pour le moment : réessaie plus tard.' }, { 'Retry-After': '60' }); }
   return json(res, 200, { ok: true, id });
@@ -3567,7 +3569,42 @@ async function srSummary() {
   try { await srRun(srPurge); const l = SR.list || [], w = Date.now() - 7 * 86400e3; return { n: l.length, n7: l.filter(x => x.t > w).length, mb: Math.round(l.reduce((a, x) => a + x.size, 0) / 104857.6) / 10, max: SR_MAX, days: Math.round(SR_TTL / 86400e3) }; }
   catch (e) { return { n: 0, n7: 0, mb: 0, max: SR_MAX, days: Math.round(SR_TTL / 86400e3), err: true }; }
 }
-/** /api/admin/scans… (compte de l'éditeur déjà vérifié) : liste par pages (plus récents d'abord), photo, suppression. */
+/** Empreinte entière (64 hex) d'un compte connu par ses 16 premiers caractères (signalements d'avant le 9 novembre 2026, colonne « compte » du panneau) :
+ *  boîtes de messages et fils d'avis suivis d'abord, puis les comptes Firebase Authentication (accounts:batchGet, aucune lecture Firestore). '' : introuvable. */
+const ACCT_FULL = new Map();
+async function acctFull(p) {
+  p = String(p || '').toLowerCase(); if (/^[0-9a-f]{64}$/.test(p)) return p; if (!/^[0-9a-f]{16}$/.test(p)) return '';
+  if (ACCT_FULL.has(p)) return ACCT_FULL.get(p);
+  let full = '';
+  if (IBX) for (const t of (await IBX._store()).keys()) if (t.startsWith(p)) { full = t; break; }
+  if (!full && fcmSa) { try { for (const a of await admAccounts()) { const t = amTag(a.uid); ACCT_FULL.set(t.slice(0, 16), t); } full = ACCT_FULL.get(p) || ''; } catch (e) { console.warn('Messages de l\'équipe : comptes illisibles (' + (e.http || e.message) + ')'); return ''; } }
+  if (full) ACCT_FULL.set(p, full);
+  return full;
+}
+/** Message de l'équipe envoyé depuis le panneau → { ok, sent (appareils prévenus, attendus 10 s au plus) } ou { error }. */
+async function ibSend(tag, it) {
+  if (!IB_ON) return { error: 'inbox_off' };
+  const r = await IBX.put(tag, it); if (!r) return { error: 'empty' };
+  const sent = await Promise.race([r.sent, new Promise(ok => setTimeout(() => ok(-1), 10000))]);
+  return { ok: true, id: r.id, sent };
+}
+/** /api/admin/inbox (compte de l'éditeur déjà vérifié) : GET → résumé (comptes, messages, non lus) ; POST { id (ligne de la liste des comptes) ou to (empreinte, ou ses
+ *  16 premiers caractères), text } → message libre. */
+async function ibAdmin(req, res) {
+  if (!IB_ON) return json(res, 404, { error: 'not_found', message: 'Messages de l\'équipe coupés (INBOX=0).' }, ADM_HD);
+  if (req.method === 'GET') return json(res, 200, { ...(await IBX.stats()), push: AM_ON }, ADM_HD);
+  if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+  let b; try { b = JSON.parse((await readBody(req, 16 * 1024)).toString('utf8') || '{}'); } catch (e) { return json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD); }
+  const text = typeof b.text === 'string' ? b.text.trim() : '';
+  if (!text || text.length > 1500) return json(res, 400, { error: 'bad_text', message: 'Message : 1 à 1 500 caractères.' }, ADM_HD);
+  const row = typeof b.id === 'string' && ADM.snap ? ADM.snap.who.get(b.id) : null;      // ligne de la liste des comptes (identifiant opaque → UID, serveur seulement)
+  const tag = row ? amTag(row.uid) : await acctFull(b.to); if (!tag) return json(res, 404, { error: 'no_account', message: typeof b.id === 'string' ? 'Compte introuvable : recharge la page.' : 'Compte introuvable (empreinte de 16 ou 64 caractères attendue).' }, ADM_HD);
+  const r = await ibSend(tag, { k: 'msg', x: text });
+  if (r.error) return json(res, 400, { error: r.error }, ADM_HD);
+  console.log('Messages de l\'équipe : message libre envoyé (' + (r.sent > 0 ? r.sent + ' appareil(s)' : 'aucun appareil : lu à la prochaine ouverture') + ').');
+  return json(res, 200, r, ADM_HD);
+}
+/** /api/admin/scans… (compte de l'éditeur déjà vérifié) : liste par pages (plus récents d'abord), photo, suppression, « Prévenir : réglé » (POST <id>/notify). */
 async function srAdmin(req, res, sub, url) {
   if (!SR_ON) return json(res, 404, { error: 'not_found' }, ADM_HD);
   const rest = sub.replace(/^scans\/?/, '');
@@ -3576,8 +3613,25 @@ async function srAdmin(req, res, sub, url) {
     const sum = await srSummary(); if (sum.err) return json(res, 503, { error: 'unavailable', message: 'Dossier des signalements illisible.' }, ADM_HD);
     const all = (SR.list || []).slice().reverse(), pages = Math.max(1, Math.ceil(all.length / SR_PER)), page = Math.min(pages, Math.max(1, Math.floor(Number(url.searchParams.get('page'))) || 1));
     const rows = (await Promise.all(all.slice((page - 1) * SR_PER, page * SR_PER).map(async x => { try { return JSON.parse(await readFile(join(SR_DIR, x.id + '.json'), 'utf8')); } catch (e) { return null; } })))
-      .filter(r => r && typeof r.id === 'string' && SR_ID.test(r.id));
+      .filter(r => r && typeof r.id === 'string' && SR_ID.test(r.id)).map(({ who, ...r }) => ({ ...r, to: IB_ON && (who || r.acct) ? 1 : 0 }));      // to : l'auteur peut être prévenu (compte connu) ; l'empreinte entière n'est jamais montrée
     return json(res, 200, { ...sum, total: all.length, page, pages, per: SR_PER, rows }, ADM_HD);
+  }
+  const nt = /^([0-9a-z]{8,10}-[0-9a-f]{8})\/notify$/.exec(rest);
+  if (nt) {      // « Prévenir : réglé » : message dans la boîte de l'auteur (carte signalée, mot de l'équipe facultatif), signalement marqué « prévenu »
+    if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+    if (!IB_ON) return json(res, 404, { error: 'not_found', message: 'Messages de l\'équipe coupés (INBOX=0).' }, ADM_HD);
+    let b; try { b = JSON.parse((await readBody(req, 8 * 1024)).toString('utf8') || '{}'); } catch (e) { return json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD); }
+    const text = typeof b.text === 'string' ? b.text.trim() : '', card = typeof b.card === 'string' ? b.card.trim() : '';
+    if (text.length > 1500 || card.length > 120) return json(res, 400, { error: 'too_long', message: 'Message : 1 500 caractères au plus ; carte : 120.' }, ADM_HD);
+    const f = join(SR_DIR, nt[1] + '.json');
+    let rec; try { rec = JSON.parse(await readFile(f, 'utf8')); } catch (e) { return json(res, 404, { error: 'not_found' }, ADM_HD); }
+    const tag = await acctFull(rec.who || rec.acct); if (!tag) return json(res, 409, { error: 'no_account', message: rec.acct ? 'Compte introuvable (supprimé ?).' : 'Signalement envoyé sans compte : personne à prévenir.' }, ADM_HD);
+    const r = await ibSend(tag, { k: 'scan', s: card || String(rec.meta && rec.meta.read && rec.meta.read.first || '').slice(0, 120), x: text });
+    if (r.error) return json(res, 400, { error: r.error }, ADM_HD);
+    rec.done = { t: Date.now(), sent: Math.max(0, r.sent) };
+    await srRun(async () => { await writeFile(f + '.tmp', JSON.stringify(rec)); await rename(f + '.tmp', f); }).catch(() => {});
+    console.log('Scans signalés : auteur prévenu (' + (r.sent > 0 ? r.sent + ' appareil(s)' : 'aucun appareil : lu à la prochaine ouverture') + ').');
+    return json(res, 200, { ...r, done: rec.done }, ADM_HD);
   }
   const m = /^([0-9a-z]{8,10}-[0-9a-f]{8})(\.jpg)?$/.exec(rest);
   if (!m) return json(res, 404, { error: 'not_found' }, ADM_HD);
@@ -3613,7 +3667,7 @@ async function srAgent(req, res, path, url) {
   if (!m || !timingSafeEqual(srHash(m[1]), srHash(SR_AGENT))) return badKey(req, res, 'bad_key', 401);
   let list; try { await srRun(srPurge); list = SR.list || []; } catch (e) { return json(res, 503, { error: 'unavailable', message: 'Dossier des signalements illisible.' }, hd); }
   const rest = path.replace(/^agent\/scans\/?/, '');
-  const read = async id => { try { const r = JSON.parse(await readFile(join(SR_DIR, id + '.json'), 'utf8')); return r && r.id === id ? r : null; } catch (e) { return null; } };
+  const read = async id => { try { const r = JSON.parse(await readFile(join(SR_DIR, id + '.json'), 'utf8')); if (!r || r.id !== id) return null; delete r.who; return r; } catch (e) { return null; } };      // empreinte entière du compte : jamais servie
   if (!rest) {
     const since = String(url.searchParams.get('since') || ''), lim = Math.min(100, Math.max(1, Math.floor(Number(url.searchParams.get('limit'))) || 20));
     if (since && !SR_ID.test(since)) return json(res, 400, { error: 'bad_since', message: 'since : identifiant de signalement attendu.' }, hd);
@@ -3784,6 +3838,15 @@ async function elAdmin(req, res, sub, url) {
    DISCORD_FEEDBACK_POLL_MS (10 min ; 0 : seulement les actions de /admin) ; DISCORD_FEEDBACK_SIMILAR : seuil des titres proches (0,6 ; 0 : coupé) ; fils suivis : ADMIN_DIR/discord-feedback.json (oubliés avec le compte : DELETE /api/friends/me). */
 const DSC_REDIR = (() => { const v = String(process.env.DISCORD_REDIRECT_URI || '').trim(); if (!v) return ''; try { const u = new URL(v); if (/^https?:$/.test(u.protocol)) return u.href; } catch (e) { /* invalide */ } console.warn('⚠ DISCORD_REDIRECT_URI ignorée : adresse http(s) attendue.'); return ''; })();
 const dscOrigin = req => (DSC_REDIR ? new URL(DSC_REDIR).origin : LOCAL ? 'http://' + String(req.headers.host || 'localhost') : 'https://manaorbit.app');      // LOCAL : hôte déjà limité à localhost (LOCAL_HOSTS)
+/* ── « Messages de l'équipe » (inbox-srv.mjs, appli : src/inbox.js) : la boîte de réception d'un compte (scan signalé réglé, réponse à un avis, message du panneau),
+   avec une notification sur ses appareils (notifyUser). Fichier ADMIN_DIR/inbox.json ; GET /api/inbox, POST /api/inbox/read, DELETE /api/inbox/<id> (jeton Firebase).
+   INBOX=0 : coupé. Panneau : Scans signalés › « Prévenir : réglé », Fils › Répondre (recopié dans l'appli), « Message à un compte ». */
+let IBX = null;
+try {
+  const { inboxMake } = await import('./inbox-srv.mjs');
+  IBX = inboxMake({ dir: ADM_DIR, notify: AM_ON ? notifyUser : null, json, readBody, rateWait, tooMany, isLocked, badKey, verify: tok => verifyIdToken(tok, true), amTag, on: process.env.INBOX !== '0' });
+} catch (e) { console.warn('Messages de l\'équipe : module illisible (' + (e && e.message || e) + '), coupés'); IBX = null; }
+const IB_ON = !!(IBX && IBX.on);
 let DSC = null;
 try {
   const { discordMake } = await import('./discord-srv.mjs');
@@ -3795,7 +3858,7 @@ try {
       peek: PT_ON ? code => { const r = PT.s.get(ptCodeOf(code)); return r && r.st !== 'end' ? ptPublic(r) : null; } : null, tableLink: PT_CORE ? code => PT_CORE.partieTableLink(code) : null },
     roles: process.env.DISCORD_ROLES !== '0', daily: tag => (DLY && DLY.badgesOf ? DLY.badgesOf(tag) : null),      // rôles des comptes liés (discord-roles.mjs) : badges vérifiés de la Carte mystère, compteur du scan (Firestore, compte de service)
     progress: fcmSa ? async uid => { const d = await fsDoc('GET', `users/${encodeURIComponent(uid)}/meta/progress`); return d ? fsFields(d) : null; } : null,
-    net: req => clientOf(req), notify: AM_ON ? notifyUser : null, staffRoles: process.env.DISCORD_STAFF_ROLES, feedbackPollMs: Number(process.env.DISCORD_FEEDBACK_POLL_MS ?? 600e3), similar: Number(process.env.DISCORD_FEEDBACK_SIMILAR ?? 0.6) });      // fils des avis (discord-forum.mjs) : doublons par réseau, auteur prévenu, ping de l'équipe
+    net: req => clientOf(req), notify: AM_ON ? notifyUser : null, inbox: IB_ON ? IBX.put : null, staffRoles: process.env.DISCORD_STAFF_ROLES, feedbackPollMs: Number(process.env.DISCORD_FEEDBACK_POLL_MS ?? 600e3), similar: Number(process.env.DISCORD_FEEDBACK_SIMILAR ?? 0.6) });      // fils des avis (discord-forum.mjs) : doublons par réseau, auteur prévenu, ping de l'équipe
 } catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
 const DSC_ON = !!(DSC && DSC.on);
 /* Sorties d'extensions annoncées dans #spoilers (discord-sets.mjs, README › « Bot Discord ») : à J-7 et le jour J, vers DISCORD_SETS_HOUR (10 h) heure de Paris, les
@@ -3941,7 +4004,8 @@ async function api(req, res, url) {
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
   if (path === 'errlog') return errlogApi(req, res);      // erreurs JavaScript des appareils (src/errlog.js) : rapport anonyme, borné, sans compte
   if (path === 'agent/scans' || path.startsWith('agent/scans/')) return srAgent(req, res, path, url);      // scans signalés en lecture seule pour un agent (SCAN_REPORTS_AGENT_KEY) : photos et lectures, rejouées par tools/scan-replay.mjs
-  if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
+  if (path === 'scan-report') return scanReportApi(req, res);
+  if (path === 'inbox' || path.startsWith('inbox/')) return IBX ? IBX.api(req, res, path) : json(res, 404, { error: 'not_found' });      // « Messages de l'équipe » du compte (jeton Firebase)      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
   if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
   if (path === 'feedback/members') return DSC ? DSC.members(req, res, url) : json(res, 404, { error: 'not_found' });      // champ « Pseudo Discord » de l'avis : membres du serveur (intention Server Members), borné
   if (path === 'discord/interactions') return DSC ? DSC.interactions(req, res) : json(res, 404, { error: 'not_found' });      // commandes slash /moi, /partie (Interactions Endpoint URL : signature Ed25519, DISCORD_PUBLIC_KEY)
@@ -4148,7 +4212,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, ctPub: CT_PUB, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, errlog: EL_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild(), names: await namesTags() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, ctPub: CT_PUB, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, inbox: IB_ON, errlog: EL_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild(), names: await namesTags() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte

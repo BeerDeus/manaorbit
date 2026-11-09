@@ -22,7 +22,7 @@ const map = [
 ];
 const DIR = process.env.SCAN_REPORTS_DIR;      // dossier temporaire (setup-env.mjs)
 const F = await startFakes();
-const world = await startWorld({ port: 19615, env: { FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, SCAN_REPORTS_DIR: DIR } });
+const world = await startWorld({ port: 19615, env: { FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, SCAN_REPORTS_DIR: DIR, ADMIN_DIR: DIR + '-admin' } });      // ADMIN_DIR : boîte « Messages de l'équipe » (« Prévenir : réglé »)
 process.on('exit', () => { try { world.stop(); } catch {} F.stop(); });
 Object.assign(world.psets, { 'Command Tower': ['cmm', 'blb'] });      // BLB 201 : « Tour de commandement », « BLB • FR » en bas
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -160,6 +160,14 @@ await ctx.close();
   assert.match(first, /Non reconnue/); assert.match(first, /Tesseract/); assert.match(first, /compte [0-9a-f]{8}/);
   const second = await ap.$eval('#scans .scr:nth-child(2)', a => a.innerText);
   assert.match(second, /Mauvaise langue/); assert.match(second, /Command Tower/); assert.match(second, /FR/); assert.match(second, /BLB/); assert.match(second, /Carte française, lue en allemand/); assert.match(second, /version [0-9a-f]{8}/); assert.match(second, /sans compte/);
+  // « Prévenir : réglé » sur le signalement d'un compte : carte et mot de l'équipe, puis « ✓ Prévenu » (message dans la boîte de l'auteur)
+  await ap.click('#scans .scr:nth-child(1) .scnb'); await ap.waitForSelector('#scans .scr:nth-child(1) .scnf:not([hidden]) input');
+  await ap.fill('#scans .scr:nth-child(1) .scnf input', 'Lieur de foi bénalian'); await ap.fill('#scans .scr:nth-child(1) .scnf textarea', 'Réglé, merci !');
+  await ap.click('#scans .scr:nth-child(1) .scnf .btn.main');
+  await ap.waitForSelector('#scans .scr:nth-child(1) .scdone:not([hidden])', { timeout: 8000 });
+  assert.match(await ap.textContent('#scans .scr:nth-child(1) .scdone'), /✓ Prévenu/); assert.equal(await ap.textContent('#scans .scr:nth-child(1) .scnb'), 'Prévenir à nouveau');
+  const acct = reports().find(r => r.acct && r.who), ibx = JSON.parse(readFileSync(DIR + '-admin/inbox.json', 'utf8')).list.find(x => x.a === acct.who);
+  assert.deepEqual((({ k, s, x }) => ({ k, s, x }))(ibx.items[0]), { k: 'scan', s: 'Lieur de foi bénalian', x: 'Réglé, merci !' }, 'message dans la boîte de l\'auteur');
   await ap.$eval('#scans', e => e.scrollIntoView());
   await ap.waitForFunction(() => [...document.querySelectorAll('#scans .scph img')].every(i => /^data:image\/jpeg/.test(i.src)), null, { timeout: 8000 });
   await ap.click('#scans .scr:nth-child(2) .scph'); assert.equal(await ap.$eval('#scans .scr:nth-child(2) .scph', b => b.classList.contains('big')), true, 'photo en grand');

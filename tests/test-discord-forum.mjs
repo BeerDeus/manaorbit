@@ -25,7 +25,7 @@ const C = { general: '930000000000000005', bugs: '930000000000000008', idees: '9
 const tagsOf = (base, list) => list.map(([name, moderated], i) => ({ id: String(base + i), name, moderated: !!moderated, emoji_name: null }));
 const BUG_TAGS = tagsOf(800, [['Scan'], ['Prix'], ['Autre'], ['Android'], ['Site'], ['Confirmé', 1], ['Prochaine version', 1], ['Corrigé', 1], ['Pas un bug', 1], ['Doublon', 1]]);
 const TG = n => BUG_TAGS.find(t => t.name === n).id;
-const U = { paul: { id: '940000000000000002', username: 'paul.m', global_name: 'Paul' }, jeanne: { id: '940000000000000001', username: 'jeanne_42', global_name: 'Jeanne' }, bot: { id: BOT, username: 'Mana Orbit', bot: true }, other: { id: '940000000000000009', username: 'tickets', bot: true } };
+const U = { paul: { id: '940000000000000002', username: 'paul.m', global_name: 'Paul' }, jeanne: { id: '940000000000000001', username: 'jeanne_42', global_name: 'Jeanne' }, bot: { id: BOT, username: 'Mana Orbit', bot: true }, other: { id: '940000000000000009', username: 'tickets', bot: true }, modo: { id: '940000000000000005', username: 'modo.mo', global_name: 'Léa (modo)' } };
 const D = {
   roles: [
     { id: G, name: '@everyone', position: 0, permissions: String(1n << 10n | 1n << 11n), managed: false },
@@ -68,6 +68,7 @@ const srv = http.createServer((q, r) => {
     if (m === 'GET' && p === `/guilds/${G}/channels`) return send(200, D.channels);
     if (m === 'GET' && p === `/guilds/${G}/roles`) return send(200, D.roles);
     if (m === 'GET' && p === `/guilds/${G}/members/${BOT}`) return send(200, { user: U.bot, roles: [R.bot] });
+    if (m === 'GET' && p === `/guilds/${G}/members/${U.modo.id}`) return send(200, { user: U.modo, roles: [R.modo] });      // la modo de l'équipe (sa réponse est recopiée dans l'appli de l'auteur)
     if ((x = /^\/guilds\/\d+\/members\/(\d+)$/.exec(p)) && m === 'GET') { const mm = [U.paul, U.jeanne].find(y => y.id === x[1]); return mm ? send(200, { user: mm, roles: [] }) : send(404, { message: 'Unknown Member', code: 10007 }); }
     if (m === 'GET' && p === `/guilds/${G}/threads/active`) { if (D.slowAct) await sleep(D.slowAct); return send(200, { threads: [...D.th.values()].filter(t => !t.thread_metadata.archived), members: [] }); }
     const body = raw.length ? JSON.parse(raw.toString()) : null;
@@ -262,32 +263,40 @@ let TJ = '', TJ2 = '', TP = '';
   assert.ok(await until(() => nJ().length === 1), 'notification de l\'étiquette');
   let n = nJ()[0];
   assert.deepEqual(n.notification, { title: 'Du nouveau sur ton avis', body: '« Les prix ne se chargent plus » : marqué Confirmé.' });
-  assert.equal(n.data.url, `./?avis=${TJ}&g=${G}`); assert.equal(n.android.notification.tag, 'mo-avis-' + TJ);
+  assert.equal(n.data.url, './?inbox=1', 'toucher : « Messages de l\'équipe » de l\'appli'); assert.equal(n.android.notification.tag, 'mo-inbox');
+  const box = async uid => (await call('GET', '/api/inbox', { tok: F.jwt(uid) })).o;
+  let bx = await box(UID.jeanne); assert.deepEqual((({ k, s, ev, u }) => ({ k, s, ev, u }))(bx.items[0]), { k: 'avis', s: 'Les prix ne se chargent plus', ev: { replies: 0, tags: ['Confirmé'], close: false }, u: `./?avis=${TJ}&g=${G}` }, 'dans la boîte : ce qui a changé et le lien du fil');
   await admin('thread', { id: TJ, tags: [TG('Prix'), TG('Android'), TG('Confirmé'), TG('Site')] });
   await sleep(1000); assert.equal(nJ().length, 1, 'étiquette ordinaire, relèves suivantes : rien de plus');
   // réponse du bot + fermeture : une notification regroupée ; rouvert : rien
   r = await admin('reply', { id: TJ, content: 'Merci, on regarde ça.', close: true }); assert.equal(r.s, 200, r.t);
-  assert.ok(await until(() => nJ().length === 2)); assert.equal(nJ()[1].notification.body, '« Les prix ne se chargent plus » : une réponse, fil fermé.');
+  assert.ok(await until(() => nJ().length === 2)); assert.equal(nJ()[1].notification.body, '« Les prix ne se chargent plus » : Merci, on regarde ça.', 'réponse du panneau : son texte');
+  bx = await box(UID.jeanne); assert.equal(bx.items[0].x, 'Merci, on regarde ça.', 'texte de la réponse recopié dans la boîte'); assert.deepEqual(bx.items[0].ev, { replies: 1, tags: [], close: true });
   await admin('thread', { id: TJ, archived: false }); await sleep(1000); assert.equal(nJ().length, 2, 'rouvert, relèves : rien de plus');
-  ok('panneau /admin : étiquette de l\'équipe (Confirmé) → « Du nouveau sur ton avis » tout de suite (./?avis=<fil>&g=<serveur>, tag par fil) ; étiquette ordinaire, réouverture : rien ; réponse + fermeture : une seule notification ; jamais deux fois');
+  ok('panneau /admin : étiquette de l\'équipe (Confirmé) → « Du nouveau sur ton avis » tout de suite (toucher : ./?inbox=1, la boîte « Messages de l\'équipe » avec le lien du fil) ; étiquette ordinaire, réouverture : rien ; réponse + fermeture : une seule notification ; jamais deux fois');
 
   // sur Discord : deux réponses d'un membre entre deux relèves → une notification « 2 réponses » ; bot, système : rien
   say(TJ, U.paul, 'Pareil chez moi'); say(TJ, U.paul, 'Et sur le site aussi');
   assert.ok(await until(() => nJ().length === 3)); assert.equal(nJ()[2].notification.body, '« Les prix ne se chargent plus » : 2 réponses.');
+  bx = await box(UID.jeanne); assert.equal(bx.items[0].x, undefined, 'réponses d\'un membre qui n\'est pas de l\'équipe : comptées, pas recopiées');
   say(TJ, U.other, 'Ticket ouvert'); say(TJ, U.paul, '', 18);
   await sleep(1000); assert.equal(nJ().length, 3, 'message d\'un bot, message système : rien');
+  // réponse d'un membre de l'équipe (rôle Modo) sur Discord : son texte recopié dans l'appli de l'auteur (lisible sans Discord)
+  say(TJ, U.modo, 'Trouvé : corrigé dans la prochaine version.');
+  assert.ok(await until(() => nJ().length === 4)); assert.equal(nJ()[3].notification.body, '« Les prix ne se chargent plus » : Trouvé : corrigé dans la prochaine version.');
+  bx = await box(UID.jeanne); assert.equal(bx.items[0].x, 'Trouvé : corrigé dans la prochaine version.'); assert.equal(bx.unread, 4);
   // étiquette de l'équipe et fermeture faites sur Discord : regroupées
   const t = D.th.get(TJ); t.applied_tags = [...t.applied_tags, TG('Corrigé')]; t.thread_metadata.archived = true; t.thread_metadata.archive_timestamp = iso(Date.now());
-  assert.ok(await until(() => nJ().length === 4)); assert.equal(nJ()[3].notification.body, '« Les prix ne se chargent plus » : marqué Corrigé, fil fermé.');
-  await sleep(1000); assert.equal(nJ().length, 4, 'une seule fois');
-  ok('relève : réponses d\'un membre sur Discord regroupées (« 2 réponses »), bots et messages système ignorés ; étiquette Corrigé + fermeture faites sur Discord : une notification regroupée, une seule fois');
+  assert.ok(await until(() => nJ().length === 5)); assert.equal(nJ()[4].notification.body, '« Les prix ne se chargent plus » : marqué Corrigé, fil fermé.');
+  await sleep(1000); assert.equal(nJ().length, 5, 'une seule fois');
+  ok('relève : réponses d\'un membre sur Discord regroupées (« 2 réponses »), bots et messages système ignorés ; réponse de l\'équipe (Modo) recopiée dans la boîte ; étiquette Corrigé + fermeture faites sur Discord : une notification regroupée, une seule fois');
 
   // le membre qui a signalé répond lui-même : rien ; fermeture automatique (inactivité) : rien
   r = await call('POST', '/api/feedback', { tok: F.jwt(UID.jeanne), body: FB({ title: 'Le classement ne s\'affiche pas', member: U.jeanne.id }) }); TJ2 = r.o.id;
   await until(() => tracked().some(y => y.id === TJ2));
-  say(TJ2, U.jeanne, 'Toujours là'); await sleep(1000); assert.equal(nJ().length, 4, 'réponse de l\'auteur lui-même (membre vérifié) : rien');
+  say(TJ2, U.jeanne, 'Toujours là'); await sleep(1000); assert.equal(nJ().length, 5, 'réponse de l\'auteur lui-même (membre vérifié) : rien');
   const t2 = D.th.get(TJ2); t2.thread_metadata.archived = true; t2.thread_metadata.archive_timestamp = iso(snowMs(t2.last_message_id) + 4320 * 60e3);
-  await sleep(1000); assert.equal(nJ().length, 4, 'fermé par Discord faute d\'activité : rien');
+  await sleep(1000); assert.equal(nJ().length, 5, 'fermé par Discord faute d\'activité : rien');
   assert.equal(tracked().find(y => y.id === TJ2).c, true, 'état connu : fermé');
   ok('réponse du membre qui a signalé, fermeture automatique de Discord (inactivité) : aucune notification');
 
@@ -295,8 +304,8 @@ let TJ = '', TJ2 = '', TP = '';
   r = await call('POST', '/api/feedback', { tok: F.jwt(UID.paul), body: FB({ title: 'Prices not loading', meta: { plat: 'web', lang: 'en' } }) }); TP = r.o.id;
   await until(() => tracked().some(y => y.id === TP));
   await admin('reply', { id: TP, content: 'Thanks!' });
-  assert.ok(await until(() => nP().length === 1)); assert.deepEqual(nP()[0].notification, { title: 'Update on your feedback', body: '“Prices not loading”: a reply.' });
-  ok('anglais : « Update on your feedback », « “Prices not loading”: a reply. »');
+  assert.ok(await until(() => nP().length === 1)); assert.deepEqual(nP()[0].notification, { title: 'Update on your feedback', body: '“Prices not loading”: Thanks!' });
+  ok('anglais : « Update on your feedback », « “Prices not loading”: Thanks! »');
 }
 
 /* ── 5) Redémarrage, fil supprimé, compte supprimé ────────────────────────────────────────────────────────────────────── */
@@ -318,12 +327,12 @@ let TJ = '', TJ2 = '', TP = '';
 
 /* ── 6) Sans notifications (amis coupés) ni ping : DISCORD_STAFF_ROLES=0 ─────────────────────────────────────────────────── */
 {
-  await stop(P); P = await start({ FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: DAPI, DISCORD_STAFF_ROLES: '0', DISCORD_FEEDBACK_POLL_MS: '300' }, 19862); BASE = P.url;
+  await stop(P); P = await start({ FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: DAPI, DISCORD_STAFF_ROLES: '0', DISCORD_FEEDBACK_POLL_MS: '300', INBOX: '0' }, 19862); BASE = P.url;      // ni notifications (amis coupés) ni boîte « Messages de l'équipe »
   const n0 = tracked().length;
   const r = await call('POST', '/api/feedback', { tok: F.jwt('uid-zoe-fb03'), body: FB({ title: 'Sans notifications' }) });
   assert.equal(r.s, 200); const t = threads().at(-1).body.message;
   assert.deepEqual(t.allowed_mentions, { parse: [] }, 'DISCORD_STAFF_ROLES=0 : aucun ping'); assert.doesNotMatch(t.content, /<@&/);
-  await sleep(400); assert.equal(tracked().length, n0, 'amis coupés (pas de notifications) : rien de suivi');
+  await sleep(400); assert.equal(tracked().length, n0, 'ni notifications ni boîte : rien de suivi');
   await stop(P);
   ok('DISCORD_STAFF_ROLES=0 : aucun ping ; sans notifications des amis : aucun fil suivi');
 }

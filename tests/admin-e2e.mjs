@@ -136,7 +136,13 @@ const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'evenements', 'discord', 'fil
   // recherche, tri, pages
   await p.fill('#q', 'jeanne'); await p.waitForFunction(() => document.querySelectorAll('#ulist tr[data-id]').length === 1, null, { timeout: 5000 });
   const row = await p.$eval('#ulist tr[data-id]', tr => ({ who: tr.querySelector('.who').textContent, ...Object.fromEntries([...tr.querySelectorAll('td[data-l]')].map(td => [td.dataset.l, td.textContent.replace(/\s+/g, ' ').trim()])) }));
-  assert.equal(row.who, 'JJeanne D.je•••@gmail.comGoogleFRDésactiverDecks publics (2)');
+  assert.equal(row.who, 'JJeanne D.je•••@gmail.comGoogleFRDésactiverDecks publics (2)Message');
+  // « Message » : un message de l'équipe à ce compte (boîte « Messages de l'appli » ; ligne opaque → UID côté serveur seulement)
+  await p.click('#ulist tr[data-id] [data-act="msg"]'); await p.waitForSelector('#dlg[open] textarea');
+  assert.match(await txt(p, '#dlgT'), /^Message à /);
+  await p.fill('#dlg textarea', 'Bonjour Jeanne, ton scan est réglé.'); await p.click('#dlg [data-v="ok"]');
+  await p.waitForFunction(() => /Message (envoyé|gardé)/.test((document.querySelector('.toast.on') || {}).textContent || ''), null, { timeout: 8000 });
+  assert.ok(api.some(a => a === 'POST /api/admin/inbox'), 'POST /api/admin/inbox');
   assert.deepEqual([row.Cartes, row.Decks, row.Publics, row['Échange'], row.Amis, row.Valeur, row.Connexion], ['26 ex.', '3', '2', 'Lien actif2 decks partagés · 3 cherchées', '11 reçue', '123 €', 'il y a 1 h']);
   assert.equal(await txt(p, '#pager'), '', 'une seule page : pas de pagination');
   await p.fill('#q', 'personne'); await p.waitForSelector('#ulist .empty'); assert.match(await txt(p, '#ulist'), /Aucun compte pour « personne »/);
@@ -1022,7 +1028,7 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
 
   // répondre (confirmé, aucun ping), répondre et fermer, erreur du serveur ; supprimer (confirmé)
   await p.fill('#thReply', 'Merci, corrigé dans la 1.0.12 !');
-  await p.click('#thSend'); await p.waitForSelector('#dlg[open]'); assert.match(await txt(p, '#dlg'), /^Répondre dans le fil \? Le scan plante \(japonais\) Réponse publique du bot « Mana Orbit », sans ping\. Merci, corrigé/);
+  await p.click('#thSend'); await p.waitForSelector('#dlg[open]'); assert.match(await txt(p, '#dlg'), /^Répondre dans le fil \? Le scan plante \(japonais\) Réponse publique du bot « Mana Orbit », sans ping\. Recopiée aussi dans l.appli de l.auteur \(« Messages de l.équipe »\), s.il était connecté\. Merci, corrigé/);
   await p.click('#dlg [data-v=""]'); assert.notEqual(TH.posts.at(-1).path, '/api/admin/discord/reply', 'Annuler : rien');
   TH.fail = [502, { error: 'discord', message: 'Discord a refusé la réponse : Missing Access.' }];
   await p.click('#thSend'); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Discord a refusé la réponse : Missing Access\.$/); TH.fail = null;

@@ -57,6 +57,7 @@ function mePaint() {
     typeof prgCount === 'function' ? meBadgesRow() : '',      // badges : paliers obtenus / en tout (progress.js), ouvre « Niveau et badges »
     meRow('pub', T('Decks publiés'), mine >= 0 ? esc(`${nf0(mine)} / ${PUB_MAX}`) : ''),
     meRow('trade', T('Lien d\'échange'), TR.share ? T('Actif') : T('Aucun')),
+    typeof ibMeRow === 'function' ? ibMeRow() : '',      // messages de l'équipe (inbox.js) : seulement s'il y en a
     amMeRow(),      // amis (friends.js) : vide si le serveur ne les a pas
     typeof dlMeRow === 'function' ? dlMeRow() : '',      // compte Discord lié (dsclink.js) : vide si le serveur ne sait pas lier
     typeof stpMeRow === 'function' ? stpMeRow() : '',      // Chasse aux staples (staples.js) : compte de l'éditeur seulement
@@ -107,6 +108,7 @@ function meSub(k) {
   else if (k === 'niveau' && typeof prgSheet === 'function') prgSheet();      // niveau et badges (progress.js)
   else if (k === 'pub') pdListSheet();
   else if (k === 'amis') amSheet();
+  else if (k === 'inbox' && typeof openInbox === 'function') openInbox();      // « Messages de l'équipe » (inbox.js)
   else if (k === 'discord' && typeof dlSheet === 'function') dlSheet();
   else if (k === 'scan') scsSheet();
   else if (k === 'widget') setWidgetSheet();

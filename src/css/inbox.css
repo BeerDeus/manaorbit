@@ -1,0 +1,15 @@
+/* ── inbox.css : « Messages de l'équipe » (inbox.js, classes tmb- : .ib- est la bannière d'installation) : la feuille, un message par carte, les nouveaux en évidence ── */
+.tmb-sheet .sheet-body{gap:0}
+.tmb-list{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.tmb-it{display:flex;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.tmb-it.new{border-color:var(--accent);background:var(--accent-soft)}
+.tmb-ic{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);color:var(--accent)}
+.tmb-ic .i{width:18px;height:18px}
+.tmb-b{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.tmb-h{margin:0;display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tmb-h b{font-size:15px;line-height:1.3}
+.tmb-h small{color:var(--ink-2);font-size:12px;white-space:nowrap}
+.tmb-l{margin:0;color:var(--ink-2);font-size:13.5px;line-height:1.4;overflow-wrap:anywhere}
+.tmb-x{margin:2px 0 0;font-size:14.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.tmb-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.tmb-empty{margin:8px 2px;color:var(--ink-2);line-height:1.45}

@@ -389,7 +389,20 @@
     off.addEventListener('click', () => toggle(r, off));
     const pub = r.pub ? h('button', { class: 'btn ghost tiny', type: 'button', 'data-act': 'pub' }, 'Decks publics (' + nf(r.pub) + ')') : null;
     if (pub) pub.addEventListener('click', () => decksOf(r, pub));
-    return h('span', { class: 'uacts' }, off, pub);
+    const msg = data && data.srv && data.srv.flags && data.srv.flags.inbox ? h('button', { class: 'btn ghost tiny', type: 'button', 'data-act': 'msg' }, 'Message') : null;
+    if (msg) msg.addEventListener('click', () => message(r, msg));
+    return h('span', { class: 'uacts' }, off, pub, msg);
+  }
+  /** Message de l'équipe à ce compte (POST /api/admin/inbox { id, text }) : gardé dans sa boîte « Messages de l'équipe » de l'appli, et notification sur ses appareils. */
+  async function message(r, b) {
+    const ta = h('textarea', { rows: 5, maxlength: 1500, placeholder: 'Ton message (texte simple, 1 500 caractères au plus)…', spellcheck: 'true' });
+    const v = await dlg('Message à ' + (r.name || 'Sans nom'), [h('p', { class: 'dlgw' }, [r.name || 'Sans nom', r.mail].filter(Boolean).join(' · ')),
+      h('p', { class: 'hint' }, 'Arrive dans « Messages de l\'équipe » de son appli, avec une notification si elles sont activées sur un de ses appareils ; sinon, il le verra à sa prochaine ouverture de l\'appli.'), ta],
+      [['Annuler', ''], ['Envoyer', 'ok', 'main']]);
+    const text = ta.value.trim(); if (v !== 'ok' || !text) return;
+    b.disabled = true; let x; try { x = await call('/inbox', 'POST', { id: r.id, text }); } catch (e) { x = null; } b.disabled = false;
+    if (!x || x.status !== 200 || !x.body || !x.body.ok) return oops(x, 'Message non envoyé : le serveur ne répond pas.');
+    toast(x.body.sent > 0 ? 'Message envoyé (' + plural(x.body.sent, 'appareil') + ' prévenu' + (x.body.sent > 1 ? 's' : '') + ').' : 'Message gardé dans sa boîte : il le verra à sa prochaine ouverture de l\'appli.');
   }
   async function toggle(r, b) {
     const on = !r.disabled, who = r.name || 'ce compte';
@@ -502,6 +515,27 @@
     ph.addEventListener('click', () => { const on = !ph.classList.contains('big'); ph.classList.toggle('big', on); ph.setAttribute('aria-expanded', String(on)); });
     if (scIo) scIo.observe(img); else scImg(img);
     const del = h('button', { class: 'btn ghost small sdel', type: 'button' }, 'Supprimer');
+    // « Prévenir : réglé » : message dans la boîte de l'auteur (« Messages de l'équipe » de l'appli) et notification ; carte et mot de l'équipe modifiables
+    const done = h('span', { class: 'tag good scdone' }), nb = r.to ? h('button', { class: 'btn small scnb', type: 'button' }, r.done ? 'Prévenir à nouveau' : 'Prévenir : réglé') : null;
+    const doneTxt = d => { done.textContent = '✓ Prévenu ' + ago(d.t) + (d.sent > 0 ? ' · ' + plural(d.sent, 'appareil') : ' · lu à la prochaine ouverture'); done.hidden = false; };
+    done.hidden = true; if (r.done && r.done.t) doneTxt(r.done);
+    const nf0 = h('div', { class: 'scnf' }); nf0.hidden = true;
+    if (nb) nb.addEventListener('click', () => {
+      if (!nf0.hidden) { nf0.hidden = true; return; }
+      const ci = h('input', { type: 'text', maxlength: 120, 'aria-label': 'Carte signalée' }); ci.value = rd.first || ln.shown || ln.name || '';
+      const ta = h('textarea', { rows: 3, maxlength: 1500, placeholder: 'Mot de l\'équipe (facultatif). Vide : « <carte> est maintenant reconnue. Merci pour ton signalement ! », dans la langue de l\'appareil.' });
+      const go = h('button', { class: 'btn main small', type: 'button' }, 'Envoyer'), no = h('button', { class: 'btn ghost small', type: 'button' }, 'Annuler');
+      no.addEventListener('click', () => { nf0.hidden = true; });
+      go.addEventListener('click', async () => {
+        go.disabled = true;
+        let x; try { x = await call('/scans/' + encodeURIComponent(r.id) + '/notify', 'POST', { card: ci.value.trim(), text: ta.value.trim() }); } catch (e) { x = null; }
+        go.disabled = false;
+        if (!x || x.status !== 200 || !x.body || !x.body.ok) return toast((x && x.body && x.body.message) || 'Message non envoyé.');
+        r.done = x.body.done; doneTxt(x.body.done); nb.textContent = 'Prévenir à nouveau'; nf0.hidden = true;
+        toast(x.body.sent > 0 ? 'Auteur prévenu (' + plural(x.body.sent, 'appareil') + ').' : 'Message gardé dans sa boîte : il le verra à la prochaine ouverture de l\'appli.');
+      });
+      nf0.replaceChildren(h('label', null, 'Carte', ci), h('label', null, 'Message', ta), h('div', { class: 'flags' }, go, no)); nf0.hidden = false; ci.focus();
+    });
     const art = h('article', { class: 'scr', 'data-id': r.id }, ph, h('div', { class: 'scb' },
       h('div', { class: 'sct' }, h('span', { class: 'tag warn' }, SCAN_WHAT[r.what] || String(r.what || '?')), h('small', null, r.t ? D_TIME.format(r.t) + ' (' + ago(r.t) + ')' : '—')),
       h('p', { class: 'scc' }, h('b', null, card), [lang, ed, hit && Number.isFinite(hit.score) ? Math.round(hit.score * 100) + ' %' : '', ln.maybe ? 'à vérifier' : ''].filter(Boolean).map(x => ' · ' + x).join('')),
@@ -509,7 +543,7 @@
       h('p', { class: 'scm' }, [eng + (Array.isArray(rd.langs) && rd.langs.length ? ' (' + rd.langs.join('+') + ')' : ''), SCAN_FRAME[rd.frame] || '', SCAN_SRC[rd.src] || '', app, m.build ? 'version ' + m.build : '', m.ui ? 'interface ' + String(m.ui).toUpperCase() : '', r.acct ? 'compte ' + r.acct.slice(0, 8) : 'sans compte'].filter(Boolean).join(' · ')),
       r.note ? h('p', { class: 'scn' }, '« ' + r.note + ' »') : null,
       h('details', { class: 'scd' }, h('summary', null, 'Données de lecture'), h('pre', null, JSON.stringify({ what: r.what, note: r.note, acct: r.acct, img: r.img, meta: m }, null, 2))),
-      h('div', { class: 'flags' }, del)));
+      h('div', { class: 'flags' }, nb, done, del), nf0));
     let armT = 0;
     del.addEventListener('click', async () => {
       if (!del.classList.contains('arm')) { del.classList.add('arm'); del.textContent = 'Confirmer la suppression'; clearTimeout(armT); armT = setTimeout(() => { del.classList.remove('arm'); del.textContent = 'Supprimer'; }, 4000); return; }
@@ -972,7 +1006,7 @@
     ta.addEventListener('input', () => { th.draft = ta.value; rsync(); }); rsync();
     const reply = closeIt => async () => {
       const content = ta.value.trim(); if (!content) return;
-      const v = await dlg(closeIt ? 'Répondre et fermer le fil ?' : 'Répondre dans le fil ?', [h('p', { class: 'dlgw' }, t.name || '(sans titre)'), h('p', null, 'Réponse publique du bot « Mana Orbit », sans ping.' + (closeIt ? ' Le fil est fermé ensuite.' : '')), h('p', { class: 'dcq' }, content.length > 400 ? content.slice(0, 400) + '…' : content)], [['Annuler', ''], [closeIt ? 'Répondre et fermer' : 'Répondre', 'ok', 'main']]);
+      const v = await dlg(closeIt ? 'Répondre et fermer le fil ?' : 'Répondre dans le fil ?', [h('p', { class: 'dlgw' }, t.name || '(sans titre)'), h('p', null, 'Réponse publique du bot « Mana Orbit », sans ping.' + (closeIt ? ' Le fil est fermé ensuite.' : '') + (data && data.srv && data.srv.flags && data.srv.flags.inbox ? ' Recopiée aussi dans l\'appli de l\'auteur (« Messages de l\'équipe »), s\'il était connecté.' : '')), h('p', { class: 'dcq' }, content.length > 400 ? content.slice(0, 400) + '…' : content)], [['Annuler', ''], [closeIt ? 'Répondre et fermer' : 'Répondre', 'ok', 'main']]);
       if (v !== 'ok') return;
       r1.disabled = r2.disabled = true; ta.readOnly = true;
       const x = await thPost('/discord/reply', { id: t.id, content, ...(closeIt ? { close: true } : {}) }, null, '');
@@ -1775,7 +1809,7 @@
     const on = (k, label) => h('span', { class: 'tag ' + (v.flags[k] ? 'ok' : 'off') }, label);
     const px = v.prices, edh = v.edh, t = v.troc;      // version, mémoire, démarrages, dossier des données, en direct : carte « santé » au-dessus (hcDraw)
     $('#srv').replaceChildren(h('h2', null, 'Services'),
-      h('div', { class: 'flags' }, on('token', 'Token CardTrader'), on('jobs', 'Recherches'), on('alerts', 'Alertes'), on('push', 'Web Push'), on('fcm', 'FCM'), on('pub', 'Decks publics'), on('amis', 'Amis'), on('troc', 'Échange en direct'), on('names', 'Noms'), on('scans', 'Scans signalés'), on('ads', 'Pub AdMob'),
+      h('div', { class: 'flags' }, on('token', 'Token CardTrader'), on('jobs', 'Recherches'), on('alerts', 'Alertes'), on('push', 'Web Push'), on('fcm', 'FCM'), on('pub', 'Decks publics'), on('amis', 'Amis'), on('troc', 'Échange en direct'), on('names', 'Noms'), on('scans', 'Scans signalés'), on('inbox', 'Messages de l\'équipe'), on('ads', 'Pub AdMob'),
         ...(v.off || []).map(x => h('span', { class: 'tag bad' }, x + ' coupé'))),
       h('dl', { class: 'kv' },
         kv('Prix',px.at ? 'relevé du ' + D_TIME.format(Date.parse(px.at)) + ' (' + ago(Date.parse(px.at)) + ') · ' + nf(px.cards) + ' cartes' : px.on ? 'pas encore relevés' : 'coupés', px.err ? 'bad' : null),
