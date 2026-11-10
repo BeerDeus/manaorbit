@@ -1240,13 +1240,27 @@ button,.btn,select,summary{touch-action:manipulation}
 @keyframes fan2{50%{transform:rotate(19deg) translateX(22px)}}
 @keyframes fan3{50%{transform:translateY(-6px)}}
 
-/* ── Panier à valider (« J'ai acheté »), decks montés ── */
-.buybar{border-color:transparent;background:var(--good-soft)}
-.buybar .ib-ico{background:var(--surface);color:var(--good)}
-.buybar .ib-ico .i{width:20px;height:20px}
-.buybar .ib-txt b{color:var(--ink)}
-.buybar[hidden]{display:none}
-@media (max-width:420px){.buybar{display:grid;grid-template-columns:40px minmax(0,1fr) 34px;row-gap:10px}.buybar .btn{grid-column:2/-1;grid-row:2;justify-self:start}.buybar .ib-x{grid-column:3;grid-row:1;align-self:start}}      /* bouton sous le texte : à côté, il ne lui laissait que ~120 px (quatre lignes) */
+/* ── Historique des paniers CardTrader (extras.js), decks montés ── */
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel-h .link-btn{display:inline-flex;align-items:center;gap:4px;font-size:13px}
+.panel-h .link-btn .i{width:16px;height:16px}
+.carts{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.cart-h{display:flex;align-items:center;gap:4px;padding-right:6px;border-top:1px solid var(--line)}
+.cart-h:first-child{border-top:0}
+.cart-o{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:12px 8px 12px 14px;border:0;background:none;color:var(--ink);text-align:left;font:inherit}
+.cart-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cart-t b{font-size:14.5px;font-weight:620;overflow-wrap:anywhere}
+.cart-t small{font-size:12px;color:var(--ink-3)}
+.cart-o .tag{flex:none;white-space:nowrap}
+.cart-h.done .cart-t b{color:var(--ink-2)}
+.cart-row .b-n small{flex-wrap:wrap}
+.cart-row .cart-ed{border:0;font:inherit;font-size:11.5px;cursor:pointer}
+.cart-row .cart-p{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-3);padding:0}
+.cart-row .cart-p.on{color:var(--ink)}
+.cart-row .cart-p i{width:8px;height:8px;border-radius:2px;background:var(--c,#4a4f66)}
+.cart-row .cart-q{font-size:15px;min-width:28px;text-align:right}
+.cart-row .ib-x{margin-right:-8px}
+.cart-sheet .plc-cur{margin-bottom:12px}
 .buy-list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
 .buy-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);transition:opacity .2s}
 .buy-row:first-child{border-top:0}
@@ -6880,6 +6894,16 @@ html.sp-on #app *,html.sp-on #app *::before,html.sp-on #app *::after{animation-p
 .cart-dups{margin:10px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
 .cart-dups li{display:flex;justify-content:space-between;gap:10px;font-size:14px}
 .cart-dups li small{flex:none;color:var(--ink-3);font-size:12.5px}
+/* Historique des recherches (en tête des réglages) */
+.stp-hist{margin-bottom:6px}
+.stp-hl{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);overflow:hidden}
+.stp-h{display:flex;align-items:center;gap:2px;padding-right:4px;border-top:1px solid var(--line)}
+.stp-h:first-child{border-top:0}
+.stp-ho{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:10px 6px 10px 12px;border:0;background:none;color:var(--ink);text-align:left;font:inherit}
+.stp-ho b{font-size:13.5px;font-weight:620;line-height:1.35;overflow-wrap:anywhere}
+.stp-ho b .deck-pips{vertical-align:-1px}
+.stp-ho small{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.stp-hx{flex:none}
 
 /* ── start.css : premiers pas. Accueil vide (« Pour commencer », phrase de la carte Échange), premier lancement étape 3 (« Sauvegarde ta collection »),
    bouton « Continuer avec Google » aux couleurs de la charte de Google, œil du mot de passe (feuille Compte). Ordinateur : zz-desktop.css. ── */
@@ -7973,7 +7997,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
         </aside>
       </div></div>
 
-      <aside class="installbar buybar" id="buyBar" aria-label="Panier à valider" hidden></aside>
 
       <div class="hm-dk hm-dk-head"><p class="hm-dk-date" id="hmDkDate"></p><h1 class="hm-dk-hi" id="hmDkHi">Bonjour</h1></div>
 
@@ -8079,7 +8102,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
       </div>
 
       <div class="panel">
-        <h2>Critères</h2>
+        <div class="panel-h"><h2>Critères</h2><button class="link-btn carts-btn" id="btnCartsIn" type="button" hidden><svg class="i"><use href="#i-cart"/></svg>Paniers CardTrader</button></div>
         <div class="grid2">
           <div class="ctl span2" id="srcField" hidden>
             <span class="label" id="lblSrc">Prix</span>
@@ -8141,6 +8164,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
           <button class="link-btn" id="btnViewer" type="button" disabled><svg class="i"><use href="#i-grid"/></svg>Viewer</button>
           <button class="link-btn" id="btnSave2" type="button"><svg class="i"><use href="#i-bookmark"/></svg><span id="btnSave2Txt">Enregistrer</span></button>
           <button class="link-btn" id="btnCopy" type="button"><svg class="i"><use href="#i-copy"/></svg>Copier</button>
+          <button class="link-btn carts-btn" id="btnCarts" type="button" hidden><svg class="i"><use href="#i-cart"/></svg>Paniers</button>
         </div>
       </div>
 
@@ -8203,8 +8227,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '8660b4d5';
-const I18N_FILES = {"de":"i18n/de.28518fbc.js","en":"i18n/en.1924c4e3.js","es":"i18n/es.6ad4a79f.js","it":"i18n/it.0a80a98c.js","pt":"i18n/pt.09f6f65e.js"};
+const DD_BUILD = '8408d5c8';
+const I18N_FILES = {"de":"i18n/de.e7366e4c.js","en":"i18n/en.b10f7e81.js","es":"i18n/es.95539be2.js","it":"i18n/it.0062af21.js","pt":"i18n/pt.79c7c5f7.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -10270,22 +10294,10 @@ function pxMovers(items, ref, thr = 25) {
   return out;
 }
 
-/* ── Achats (« J'ai acheté »), cartes engagées dans des decks, fusion des données annexes du compte ──────────────── */
+/* ── Historique des paniers CardTrader, cartes engagées dans des decks, fusion des données annexes du compte ──────────────── */
 const BUY_MAX = 800;
-/** Panier en attente de validation : { at, items:[{k, n, q, l?}] } (k : clé de collection). added : cartes qui viennent d'être mises au panier CardTrader ({ n, q, l? }) ; replace : le panier avait été vidé avant, on repart de zéro. null si rien. */
-function buyMerge(cart, added, replace, now) {
-  const by = new Map();
-  if (cart && !replace) for (const it of cart.items || []) if (it && it.k && it.q > 0) by.set(it.k, { ...it });
-  for (const a of added || []) {
-    const name = String((a && a.n) || '').trim(), k = ownKey(name), q = Math.floor(Number(a && a.q));
-    if (!name || !k || !(q > 0)) continue;
-    const cur = by.get(k), l = a.l ? cardLang(a.l) : '';
-    by.set(k, { k, n: (cur && cur.n) || name, q: Math.min(999, (cur ? cur.q : 0) + q), ...(l ? { l } : cur && cur.l ? { l: cur.l } : {}) });
-  }
-  const items = [...by.values()].sort((x, y) => EN_CMP(x.n, y.n)).slice(0, BUY_MAX);
-  return items.length ? { at: Number.isFinite(now) ? now : Date.now(), items } : null;
-}
-/** Lecture tolérante du panier en attente (stockage local) ; null si illisible, vide ou vieux de plus de 30 jours. */
+/** Ancien panier en attente de « J'ai acheté » (deckdeal:buy:v1, avant l'historique) : { at, items:[{k, n, q, l?}] } ; null si illisible, vide ou vieux de plus de 30 jours.
+ *  Lu une fois pour devenir le premier panier de l'historique (extras.js › xsRead). */
 function buyClean(raw, now) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.items) || !Number.isFinite(raw.at)) return null;
   if ((Number.isFinite(now) ? now : Date.now()) - raw.at > 30 * 86400000) return null;
@@ -10293,6 +10305,72 @@ function buyClean(raw, now) {
     .map(i => ({ k: ownKey(i.n), n: i.n.slice(0, 150), q: Math.min(999, Math.floor(i.q)), ...(cardLang(i.l) ? { l: cardLang(i.l) } : {}) }));
   return items.length ? { at: raw.at, items } : null;
 }
+/** Historique des paniers : 20 paniers au plus, 6 mois ; un panier supprimé laisse une trace ({ id, at, u, x: 1 }, 40 au plus) pour que les autres appareils l'apprennent. */
+const CART_MAX = 20, CART_KEEP = 183 * 86400000, CART_ITEMS = 500, CART_TOMBS = 40;
+/** État CardTrader → état Cardmarket des détails d'un exemplaire (COND_CM). */
+const COND_CT_CM = { 'Mint': 'mt', 'Near Mint': 'nm', 'Slightly Played': 'ex', 'Moderately Played': 'gd', 'Played': 'lp', 'Heavily Played': 'pl', 'Poor': 'po' };
+/** Ligne d'un panier : { k, n (nom anglais), q (à ajouter à la collection), q0 (mis au panier : q ≤ q0), l? (langue), e? ('set|num'), f? (foil), c? (état Cardmarket),
+ *  p? (rangement de la ligne), pr? (prix unitaire, centimes), cu? (devise) } ; null si illisible. */
+function cartItem(i) {
+  if (!i || typeof i !== 'object') return null;
+  const n = String(i.n == null ? '' : i.n).trim().slice(0, 150), k = ownKey(n); if (!n || !k) return null;
+  const q0 = Math.min(999, Math.floor(Number(i.q0 != null ? i.q0 : i.q))), q = Math.min(q0, Math.max(0, Math.floor(Number(i.q))));
+  if (!(q0 > 0) || !Number.isFinite(q)) return null;
+  const l = cardLang(i.l), e = i.e ? edKey(edSet(i.e), edNum(i.e)) : '', c = COND_CM.includes(i.c) ? i.c : '', p = PLACE_ID_RE.test(String(i.p || '')) ? i.p : '', pr = Math.floor(Number(i.pr));
+  return { k, n, q, q0, ...(l ? { l } : {}), ...(e ? { e } : {}), ...(i.f ? { f: 1 } : {}), ...(c ? { c } : {}), ...(p ? { p } : {}), ...(pr > 0 ? { pr, cu: /^[A-Z]{3}$/.test(String(i.cu || '')) ? i.cu : 'EUR' } : {}) };
+}
+/** Même impression, même état : une seule ligne. */
+const cartLineId = it => [it.k, it.l || '', it.e || '', it.f ? 1 : 0, it.c || ''].join('|');
+/** Cartes mises au panier (data.js › cartFill › added : { n, q, l?, set?, num?, f?, cond? (CardTrader), pr?, cu? }) → lignes du panier, les mêmes impressions regroupées, par nom. */
+function cartLines(added) {
+  const by = new Map();
+  for (const a of added || []) {
+    if (!a) continue;
+    const it = cartItem({ n: a.n, q: a.q, l: a.l, e: edKey(a.set, a.num), f: a.f, c: COND_CT_CM[a.cond] || a.c || '', pr: a.pr, cu: a.cu });
+    if (!it) continue;
+    const id = cartLineId(it), cur = by.get(id);
+    if (cur) { cur.q0 = Math.min(999, cur.q0 + it.q0); cur.q = cur.q0; } else by.set(id, it);
+  }
+  return [...by.values()].sort((x, y) => EN_CMP(x.n, y.n) || cartLineId(x).localeCompare(cartLineId(y))).slice(0, CART_ITEMS);
+}
+/** Nouveau panier de l'historique (src : nom de la liste) ; null si rien n'a été mis au panier. */
+function cartNew(added, src, now, id) {
+  const items = cartLines(added); if (!items.length) return null;
+  const t = Number.isFinite(now) ? now : Date.now();
+  return { id: id || t.toString(36) + Math.floor(Math.random() * 1e8).toString(36), at: t, u: t, ...(src ? { s: String(src).trim().slice(0, 80) } : {}), items };
+}
+/** Panier lu (stockage, compte) : { id, at, u (dernière modification), s? (liste d'origine), d? (ajouté à la collection le…), P? (rangement du panier), items } ;
+ *  trace d'un panier supprimé : { id, at, u, x: 1 } ; null si illisible, vide ou plus vieux que 6 mois. */
+function cartClean(raw, now) {
+  if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !/^[a-z0-9]{4,24}$/.test(raw.id) || !Number.isFinite(raw.at)) return null;
+  const t = Number.isFinite(now) ? now : Date.now(), u = Number.isFinite(raw.u) ? raw.u : raw.at;
+  if (t - raw.at > CART_KEEP) return null;
+  if (raw.x) return { id: raw.id, at: raw.at, u, x: 1 };
+  const items = (Array.isArray(raw.items) ? raw.items : []).map(cartItem).filter(Boolean).slice(0, CART_ITEMS);
+  if (!items.length) return null;
+  const P = PLACE_ID_RE.test(String(raw.P || '')) ? raw.P : '';
+  return { id: raw.id, at: raw.at, u, ...(typeof raw.s === 'string' && raw.s.trim() ? { s: raw.s.trim().slice(0, 80) } : {}), ...(Number.isFinite(raw.d) && raw.d > 0 ? { d: raw.d } : {}), ...(P ? { P } : {}), items };
+}
+/** Historique lu ou fusionné (deux appareils : chaque panier pris dans sa version la plus récente, u) : les plus récents d'abord, 20 paniers et 40 traces au plus. */
+function cartsClean(list, now) {
+  const by = new Map();
+  for (const r of Array.isArray(list) ? list : []) { const c = cartClean(r, now); if (c && !(by.has(c.id) && by.get(c.id).u >= c.u)) by.set(c.id, c); }
+  const all = [...by.values()].sort((a, b) => b.at - a.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const live = all.filter(c => !c.x).slice(0, CART_MAX), tombs = all.filter(c => c.x).slice(0, CART_TOMBS), keep = new Set([...live, ...tombs]);
+  return all.filter(c => keep.has(c));
+}
+const cartsMerge = (a, b, now) => cartsClean([...(a || []), ...(b || [])], now);
+const cartsSame = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || []);
+/** Exemplaires d'un panier : { lines, cards (cartes différentes), q (à ajouter), q0 (mis au panier), tot (prix des exemplaires à ajouter, centimes), cu }. */
+function cartSum(c) {
+  const its = (c && c.items) || [], ks = new Set(its.filter(i => i.q > 0).map(i => i.k));
+  return { lines: its.length, cards: ks.size, q: its.reduce((a, i) => a + i.q, 0), q0: its.reduce((a, i) => a + i.q0, 0), tot: its.reduce((a, i) => a + (i.pr || 0) * i.q, 0), cu: (its.find(i => i.cu) || {}).cu || 'EUR' };
+}
+/** Lignes de collection d'un panier à ajouter (collection.js › collAdd) : langue, édition, foil, état et rangement (celui de la ligne, sinon celui du panier). */
+const cartToColl = c => (c.items || []).filter(i => i.q > 0).map(i => {
+  const p = i.p || c.P || '', a = { ...(p ? { p } : {}), ...(i.c ? { c: i.c } : {}) };
+  return { k: i.k, n: i.n, q: i.q, l: lineKey(i.l || '', i.e || '', !!i.f, a) };
+});
 
 const ENG_DECKS_MAX = 80, ENG_CARDS_MAX = 400, ENG_KEEP = 60 * 86400000;
 /** Cartes engagées : { [idDeck]: { n: nom du deck, at: ms, q: { cléCarte: exemplaires } } }. q vide = deck démonté (la trace est gardée 60 jours pour que les autres appareils l'apprennent). */
@@ -11297,7 +11375,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, dateShort, dayIso, newDeckId, HISTORY_MAX, lsSet, LS_CACHES, LS_WARNED,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyClean, COND_CT_CM, cartItem, cartLines, cartNew, cartClean, cartsClean, cartsMerge, cartsSame, cartSum, cartToColl, CART_MAX, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
@@ -11988,7 +12066,7 @@ function makeCloud(m) {
       const pubs = await m.fs.getDocsFromServer(m.fs.query(m.fs.collection(db, 'pubdecks'), m.fs.where('o', '==', tag))).catch(e => { failed++; console.warn('Decks publics illisibles :', e && e.code); return { docs: [] }; });
       for (const d of pubs.docs) { try { await m.fs.deleteDoc(d.ref); } catch (e) { failed++; console.warn('Deck public non retiré :', d.id, e && e.code); } }
       // sommaire d'abord : les autres appareils repassent aussitôt aux écoutes d'avant et voient les documents disparaître (compte supprimé ailleurs, decks.js)
-      const refs = [ref('meta', SUM_ID), ...decks.docs.map(d => d.ref), ...['collection', 'engaged', 'history', 'trade', 'profile', 'scan', 'prefs', 'masterset', 'progress', 'prices', 'events'].map(id => ref('meta', id)), ...parts, ref('binder', 'lands')];
+      const refs = [ref('meta', SUM_ID), ...decks.docs.map(d => d.ref), ...['collection', 'engaged', 'history', 'trade', 'profile', 'scan', 'prefs', 'masterset', 'progress', 'prices', 'events', 'carts', 'staples'].map(id => ref('meta', id)), ...parts, ref('binder', 'lands')];
       for (let i = 0; i < refs.length; i += 400) { const b = m.fs.writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
       return { decks: decks.docs.length, shares: shares.length, pub: pubs.docs.length, failed };
     },
@@ -13121,6 +13199,7 @@ async function cartClear(items, signal, onItem) {
 async function cartFill(parts, mode, address, signal, onItem, demo) {
   const failed = [], replaced = [], gone = [], added = []; let ok = 0, streak = 0, noAlt = false;
   const fatal = e => e.name === 'AbortError' || e.code === 'auth' || e.code === 'network' || e.code === 'notoken';
+  const got = (part, o, q) => ({ k: part.key, n: part.name, q, l: o.lang || '', set: o.sset || o.set || '', num: o.num || '', f: o.foil ? 1 : 0, cond: o.cond || '', pr: o.price || 0, cu: o.cur || 'EUR' });      // historique des paniers (core.js › cartLines) : l'impression exacte
   const add = async (offer, n) => {
     if (demo) { await sleep(70, signal); if (hash32(String(offer.id)) % 23 === 0) throw netErr('gone', T('Plus disponible')); return; }
     const body = { product_id: offer.productId, quantity: n, via_cardtrader_zero: mode === 'zero' };
@@ -13129,7 +13208,7 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
   };
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i], { offer, n, name } = part;
-    try { await add(offer, n); ok++; added.push({ k: part.key, n: name, q: n, l: offer.lang || '' }); }
+    try { await add(offer, n); ok++; added.push(got(part, offer, n)); }
     catch (e) {
       if (fatal(e)) throw e;
       let handled = false;
@@ -13139,7 +13218,7 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
           const cand = part.alt(tried, need); if (!cand.length) break;
           for (const c of cand) {
             tried.add(c.offer.productId);
-            try { await add(c.offer, c.n); used.push(c); need -= c.n; added.push({ k: part.key, n: name, q: c.n, l: c.offer.lang || '' }); }
+            try { await add(c.offer, c.n); used.push(c); need -= c.n; added.push(got(part, c.offer, c.n)); }
             catch (e2) { if (fatal(e2)) throw e2; lastMsg = e2.message; altFailed++; break; }   // on recalcule avec ce qui reste
           }
         }
@@ -14274,7 +14353,7 @@ function openCartSheet() {
         begin(T('Ajout des articles…')); task.label(T('Remplissage du panier'));
         const res = await cartFill(list, S.opts.mode, null, ctrl.signal, (i, n) => prog(T('Ajout des articles'), i, n, T('Ajout')), S.demo);
         if (res.gone.length) { res.gone.forEach(id => S.gone.add(id)); scheduleRecompute(true); } // offres indisponibles : retirées de la recherche
-        if (!S.demo) buyRemember(res.added, !!clearItems);      // « J'ai acheté » : les cartes réellement au panier attendent ta validation
+        if (!S.demo) buyRemember(res.added, deckLabel());      // historique des paniers (extras.js) : les offres réellement au panier, à ajouter à la collection une fois achetées
         const rep = res.replaced.length;
         const sim = S.demo ? ' ' + T('(simulation)') : '';
         let html = status(TN(res.ok, '{n} offre ajoutée', '{n} offres ajoutées') + (rep ? ' ' + TN(rep, 'dont {n} remplacée', 'dont {n} remplacées') : '') + sim + '.', 1);
@@ -14287,7 +14366,9 @@ function openCartSheet() {
             if (rows.length) html += `<dl class="kv">${rows.map(x => `<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl><p class="hint">${T('CardTrader confirme le total final à la caisse.')}</p>`;
           } catch (e) { html += `<p class="hint">${T('Le panier est rempli, mais ses totaux n\'ont pas pu être lus.')}</p>`; }
         }
+        if (!S.demo && res.added.length) html += `<p class="hint">${T('Ces cartes sont gardées dans « Paniers CardTrader » : une fois la commande passée, ajoute-les à ta collection avec leur édition.')} <button class="link-btn" type="button" id="cfCarts">${T('Voir les paniers')}</button></p>`;
         api.body.innerHTML = html;
+        const vc = $('#cfCarts', api.body); if (vc) vc.onclick = () => { haptic('tap'); api.close(); openCartsSheet(); };
         api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>${S.demo ? '' : `<a class="btn" style="text-decoration:none" href="${ctCartUrl()}" target="_blank" rel="noopener">${T('Ouvrir sur CardTrader')}</a>`}`);
         const det = TN(res.ok, '{n} offre ajoutée', '{n} offres ajoutées') + (rep ? ', ' + TN(rep, '{n} remplacée', '{n} remplacées') : '') + sim;
         if (res.failed.length) bye(T('Panier partiellement rempli'), 'warn', det + ', ' + TN(res.failed.length, '{n} non ajoutée', '{n} non ajoutées'));
@@ -19202,6 +19283,7 @@ function metaFlush() {
   if (TR.doc.pushT) jobs.push(trPush());
   if (typeof SCS !== 'undefined' && SCS.doc.pushT) jobs.push(scsPush());
   if (typeof MS !== 'undefined' && MS.doc.pushT) jobs.push(msPush());
+  if (typeof STP !== 'undefined' && STP.hdoc && STP.hdoc.pushT) jobs.push(stpHPush());      // historique de la Chasse aux staples (staples.js)
   return jobs;
 }
 
@@ -24841,66 +24923,151 @@ function valInit() {
 }
 
 
-/* ── extras.js : panier acheté (« J'ai acheté »), decks montés (cartes engagées), synchro de ces données et de l'historique de valeur ──────
-   · Après « Remplir le panier », les cartes réellement mises au panier sont gardées sur l'appareil : une bannière propose de les ajouter à la
-     collection une fois l'achat fait sur CardTrader (quantités ajustables si une partie seulement a été prise).
+/* ── extras.js : historique des paniers CardTrader, decks montés (cartes engagées), synchro de ces données et de l'historique de valeur ──────
+   · Après « Remplir le panier », les offres réellement mises au panier forment un panier de l'historique (impression exacte : édition, numéro, langue, foil,
+     état, prix ; core.js › cartNew), gardé sur l'appareil et dans le compte (users/{uid}/meta/carts : { c, updatedAt }, 20 paniers, 6 mois).
+     « Paniers CardTrader » (Mon compte, Prix d'une liste) : chaque panier se modifie (− / +, ✕, édition, rangement du panier ou de la ligne) puis
+     « Ajouter à la collection » ; il reste ensuite dans l'historique, marqué ajouté. ✕ sur un panier : supprimé (annulable).
    · Un deck « monté » réserve les exemplaires de la collection qu'il contient : les autres decks ne les comptent plus comme possédés.
    · Engagés et historique de valeur passent par le compte (users/{uid}/meta/engaged et /history) ; sans les règles Firestore à jour,
      tout reste sur l'appareil et un message le dit une fois. */
-const BUY_KEY = 'deckdeal:buy:v1', ENG_KEY = 'deckdeal:eng:v1';
-const XS = { buy: null, eng: {}, engU: '', warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
+const BUY_KEY = 'deckdeal:buy:v1', CARTS_KEY = 'deckdeal:carts:v1', ENG_KEY = 'deckdeal:eng:v1';      // BUY_KEY : ancien panier unique (« J'ai acheté »), repris dans l'historique
+const XS = { carts: [], cartsU: '', eng: {}, engU: '', warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, carts: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
 
 function xsRead() {
-  try { XS.buy = buyClean(JSON.parse(localStorage.getItem(BUY_KEY) || 'null')); } catch (e) { XS.buy = null; }
+  try { const r = JSON.parse(localStorage.getItem(CARTS_KEY) || 'null'); XS.carts = cartsClean(r && r.c); XS.cartsU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.carts = []; }
+  try {      // ancien panier en attente (« J'ai acheté ») : premier panier de l'historique
+    const raw = localStorage.getItem(BUY_KEY), b = raw && buyClean(JSON.parse(raw));
+    if (b) { const c = cartNew(b.items, '', b.at); if (c) { XS.carts = cartsMerge(XS.carts, [c]); cartsWrite(); } }
+    if (raw) localStorage.removeItem(BUY_KEY);
+  } catch (e) { /* illisible : oublié */ }
   try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); XS.engU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.eng = {}; }
 }
-function buyWrite() { try { if (XS.buy) localStorage.setItem(BUY_KEY, JSON.stringify(XS.buy)); else localStorage.removeItem(BUY_KEY); } catch (e) { /* stockage indisponible : le panier à valider ne survivra pas au rechargement */ } }
+function cartsWrite() { lsSet(CARTS_KEY, JSON.stringify({ c: XS.carts, ...(XS.cartsU ? { u: XS.cartsU } : {}) }), { msg: T('Stockage plein : l\'historique des paniers n\'a pas pu être enregistré') }); }
 function engWrite() { lsSet(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) }), { msg: T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées') }); }      // plein : caches vidés d'abord (core.js › lsSet)
 
-/* ── « J'ai acheté » ──────────────────────────────────────────────────────────────────────────── */
-/** Après un remplissage de panier : garde les cartes réellement ajoutées (replace : panier vidé avant). */
-function buyRemember(added, replace) {
-  if (!added || !added.length) return;
-  XS.buy = buyMerge(XS.buy, added, replace); buyWrite(); buyPaint();
+/* ── Historique des paniers CardTrader ─────────────────────────────────────────────────────────── */
+const cartsLive = () => XS.carts.filter(c => !c.x);
+const cartOf = id => XS.carts.find(c => c.id === id && !c.x) || null;
+/** Après un remplissage de panier : les offres réellement ajoutées deviennent un panier de l'historique (src : nom de la liste). */
+function buyRemember(added, src) {
+  const c = cartNew(added, src); if (!c) return;
+  XS.carts = cartsMerge(XS.carts, [c]); cartsSaved();
 }
-function buyPaint() {
-  const el = $('#buyBar'); if (!el) return;
-  const b = XS.buy;
-  if (!b) { el.hidden = true; el.innerHTML = ''; return; }
-  const cards = b.items.length, copies = b.items.reduce((a, i) => a + i.q, 0);
-  el.hidden = false;
-  el.innerHTML = `<span class="ib-ico" aria-hidden="true"><svg class="i"><use href="#i-cart"/></svg></span>
-    <span class="ib-txt"><b>${TN(cards, 'Panier rempli · {n} carte', 'Panier rempli · {n} cartes')}</b><span>${TN(copies, '{n} exemplaire · {when}. Achetées sur CardTrader ?', '{n} exemplaires · {when}. Achetées sur CardTrader ?', { when: esc(relTime(b.at)) })}</span></span>
-    <button class="btn small" type="button" data-act="buy">${T('J\'ai acheté')}</button>
-    <button class="ib-x" type="button" data-act="buyx" aria-label="${T('Ignorer ce panier')}"><svg class="i"><use href="#i-close"/></svg></button>`;
+function cartsSaved() { cartsWrite(); xsPushSoon('carts'); cartsPaint(); }
+/** Panier modifié (fn le change en place sur une copie) : enregistré, envoyé au compte. */
+function cartEdit(id, fn) {
+  const i = XS.carts.findIndex(c => c.id === id && !c.x); if (i < 0) return null;
+  const c = { ...XS.carts[i], items: XS.carts[i].items.map(x => ({ ...x })) }; fn(c); c.u = Math.max(Date.now(), XS.carts[i].u + 1);
+  if (!c.items.length) { cartDrop(id); return null; }      // plus aucune ligne : le panier part
+  XS.carts = XS.carts.map((x, j) => (j === i ? c : x)); cartsSaved(); return c;
 }
-function buyDrop(msg) { XS.buy = null; buyWrite(); buyPaint(); if (msg) toast(msg); }
-function openBuySheet() {
-  const b = XS.buy; if (!b) return;
-  const rows = b.items.map(i => ({ ...i, a: i.q, have: collQty(i.k) }));
-  openSheet(T('J\'ai acheté'), T('Panier du {date}', { date: new Date(b.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) }), api => {
-    const total = () => rows.reduce((a, r) => a + r.a, 0);
+/** Supprime un panier (trace gardée pour les autres appareils) ; annulable par le toast. */
+function cartDrop(id, undo) {
+  const prev = cartOf(id); if (!prev) return;
+  XS.carts = cartsClean(XS.carts.map(c => (c.id === id ? { id, at: c.at, u: Math.max(Date.now(), c.u + 1), x: 1 } : c))); cartsSaved();
+  if (undo) toast(T('Panier supprimé'), { label: tUndo(), fn: () => { XS.carts = cartsClean(XS.carts.map(c => (c.id === id ? { ...prev, u: Date.now() } : c))); cartsSaved(); } });
+}
+/** Repeint ce qui montre l'historique (bouton de Prix d'une liste, feuilles ouvertes). */
+function cartsPaint() {
+  const off = !cartsLive().length || (typeof mkUs === 'function' && mkUs());      // marché TCGplayer : pas de CardTrader
+  for (const b of $$('.carts-btn')) b.hidden = off;
+  for (const f of CARTS.paint) f();
+}
+const CARTS = { paint: new Set() };
+/** Ligne « Paniers CardTrader » de Mon compte : paniers pas encore ajoutés à la collection. */
+function cartsMeRow() {
+  if (typeof mkUs === 'function' && mkUs()) return '';
+  const n = cartsLive().filter(c => !c.d).length;
+  return meRow('carts', T('Paniers CardTrader'), n ? TN(n, '{n} à ajouter', '{n} à ajouter') : '');
+}
+const cartDate = t => dateShort(t);
+/** Rangement affiché ('' : non rangé, ou places.js absent). */
+const cartPlcName = p => (typeof plcName === 'function' ? plcName(p && COLL.places[p] ? p : '') : T('Non rangé'));
+const cartPlcColor = p => (typeof plcColor === 'function' ? plcColor(p && COLL.places[p] ? p : '') : '#4a4f66');
+
+/** « Paniers CardTrader » : les paniers de l'historique, du plus récent au plus ancien. */
+function openCartsSheet() {
+  openSheet(T('Paniers CardTrader'), T('Les cartes mises au panier depuis Mana Orbit'), api => {
+    api.wrap.classList.add('carts-sheet');
     const paint = () => {
-      api.body.innerHTML = `<p class="hint">${T('Ajuste les quantités si tu n\'as pas tout pris. Les cartes ajoutées seront déduites des prochaines recherches.')}</p>
-        <div class="buy-list">${rows.map((r, i) => `<div class="buy-row${r.a ? '' : ' off'}" data-i="${i}"><span class="b-n"><b>${esc(r.n)}</b><small>${r.l ? flag(r.l) : ''}${r.have ? T('{n} déjà dans ta collection', { n: nf0(r.have) }) : T('nouvelle dans ta collection')}</small></span>
-          <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Moins de {name}', { name: esc(r.n) })}">−</button><b>${r.a}</b><button type="button" data-d="1" aria-label="${T('Plus de {name}', { name: esc(r.n) })}"${r.a >= r.q ? ' disabled' : ''}>+</button></span></div>`).join('')}</div>`;
-      const n = total();
-      api.setFoot(`<button class="btn ghost" type="button" id="buyNone">${T('Rien acheté')}</button><button class="btn" type="button" id="buyGo"${n ? '' : ' disabled'}>${TN(n, 'Ajouter {n} exemplaire', 'Ajouter {n} exemplaires')}</button>`);
-      $('#buyNone', api.foot).onclick = () => { api.close(); buyDrop(T('Panier ignoré')); };
-      $('#buyGo', api.foot).onclick = () => {
-        const add = rows.filter(r => r.a > 0).map(r => ({ k: r.k, n: r.n, q: r.a, ...(r.l ? { l: r.l } : {}) })); if (!add.length) return;
-        const before = COLL.map, prevBuy = XS.buy, n = add.reduce((a, x) => a + x.q, 0);
-        collAdd(add, 'add'); collEnrich(); XS.buy = null; buyWrite(); buyPaint(); api.close(); haptic('ok');
-        toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); XS.buy = prevBuy; buyWrite(); buyPaint(); } });
-      };
+      if (!sheets.includes(api)) { CARTS.paint.delete(paint); return; }
+      const l = cartsLive();
+      api.body.innerHTML = !l.length ? `<p class="hint listempty">${T('Aucun panier pour l\'instant : remplis ton panier CardTrader depuis Prix d\'une liste, les cartes ajoutées apparaîtront ici.')}</p>`
+        : `<p class="hint">${T('Une fois la commande passée sur CardTrader, ouvre le panier pour ajouter ses cartes à ta collection (édition, langue, foil, état et rangement).')}</p><div class="carts">${l.map(c => {
+          const m = cartSum(c);
+          return `<div class="cart-h${c.d ? ' done' : ''}" data-id="${esc(c.id)}"><button type="button" class="cart-o" data-act="open"><span class="cart-t"><b>${esc(c.s || T('Panier du {date}', { date: cartDate(c.at) }))}</b>
+            <small>${esc([c.s ? cartDate(c.at) : '', TN(m.cards, '{n} carte', '{n} cartes'), TN(m.q, '{n} exemplaire', '{n} exemplaires'), m.tot ? fmt(m.tot, m.cu) : ''].filter(Boolean).join(' · '))}</small></span>
+            <span class="tag ${c.d ? 'good' : 'accent'}">${c.d ? T('Ajouté le {date}', { date: cartDate(c.d) }) : T('À ajouter')}</span></button>
+            <button type="button" class="ib-x" data-act="del" aria-label="${esc(T('Supprimer ce panier'))}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+        }).join('')}</div>`;
     };
-    paint();
-    api.body.onclick = e => {
-      const btn = e.target.closest('.qstep button'), row = e.target.closest('.buy-row'); if (!btn || !row || btn.disabled) return;
-      const r = rows[Number(row.dataset.i)]; r.a = Math.max(0, Math.min(r.q, r.a + Number(btn.dataset.d))); haptic('tap');
-      const sc = api.body.scrollTop; paint(); api.body.scrollTop = sc;
-    };
+    CARTS.paint.add(paint); paint();
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'), row = e.target.closest('.cart-h'); if (!b || !row) return;
+      haptic('tap');
+      if (b.dataset.act === 'del') cartDrop(row.dataset.id, true); else openCartOne(row.dataset.id);
+    });
   });
+}
+/** Un panier : lignes (− / +, ✕, édition, rangement), puis « Ajouter à la collection ». Un panier déjà ajouté se consulte seulement. */
+function openCartOne(id) {
+  const c0 = cartOf(id); if (!c0) return;
+  openSheet(c0.s || T('Panier du {date}', { date: cartDate(c0.at) }), T('Rempli le {date}', { date: cartDate(c0.at) }), api => {
+    api.wrap.classList.add('cart-sheet');
+    const edit = fn => { const sc = api.body.scrollTop; cartEdit(id, fn); paint(); api.body.scrollTop = sc; };
+    const paint = () => {
+      if (!sheets.includes(api)) { CARTS.paint.delete(paint); return; }
+      const c = cartOf(id); if (!c) { api.close(); return; }
+      const m = cartSum(c), ro = !!c.d, places = typeof plcPick === 'function';
+      const row = (it, i) => {
+        const nm = typeof cardName === 'function' ? cardName(it.k, it.n) : it.n, have = collQty(it.k), own = it.p && it.p !== c.P;
+        const meta = [it.l ? flag(it.l) : '', it.f ? '<span class="tag accent">Foil ✦</span>' : '', it.c ? `<span class="tag">${esc(it.c.toUpperCase())}</span>` : '', it.pr ? `<span>${esc(fmt(it.pr, it.cu))}</span>` : ''].filter(Boolean).join('');
+        return `<div class="buy-row cart-row${it.q ? '' : ' off'}" data-i="${i}"><span class="b-n"><b>${esc(nm)}</b>
+          <small>${ro ? `<span class="tag">${esc(it.e ? edLabel(it.e) : T('Sans édition'))}</span>` : `<button type="button" class="tag cart-ed" data-act="ed" aria-label="${esc(T('Édition de {name}', { name: nm }))}">${esc(it.e ? edLabel(it.e) : T('Sans édition'))}</button>`}${meta}</small>
+          ${ro ? '' : `<small>${places ? `<button type="button" class="link-btn cart-p${own ? ' on' : ''}" data-act="lp"><i style="--c:${cartPlcColor(it.p || c.P)}"></i>${esc(own ? cartPlcName(it.p) : T('Rangement du panier'))}</button>` : ''}<span>${have ? T('{n} déjà dans ta collection', { n: nf0(have) }) : T('nouvelle dans ta collection')}</span></small>`}</span>
+          ${ro ? `<b class="cart-q">${nf0(it.q)}</b>` : `<span class="qstep"><button type="button" data-d="-1" aria-label="${esc(T('Moins de {name}', { name: nm }))}"${it.q ? '' : ' disabled'}>−</button><b>${it.q}</b><button type="button" data-d="1" aria-label="${esc(T('Plus de {name}', { name: nm }))}"${it.q >= it.q0 ? ' disabled' : ''}>+</button></span>
+          <button type="button" class="ib-x" data-act="x" aria-label="${esc(T('Retirer {name} de ce panier', { name: nm }))}"><svg class="i"><use href="#i-close"/></svg></button>`}</div>`;
+      };
+      api.body.innerHTML = (ro ? `<div class="status" data-ok="1"><span class="dot"></span><span>${T('Ajouté à ta collection le {date}.', { date: cartDate(c.d) })}</span></div>`
+        : `<p class="hint">${T('Une carte retirée du panier sur CardTrader ou pas reçue : baisse sa quantité ou retire la ligne (✕). Touche l\'édition pour la corriger.')}</p>
+          ${places ? `<button type="button" class="plc-cur" data-act="cp"><i style="--c:${cartPlcColor(c.P)}"></i><span><small>${T('Ranger dans')}</small><b>${esc(cartPlcName(c.P))}</b></span><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>` : ''}`)
+        + `<div class="buy-list">${c.items.map(row).join('')}</div>
+        <p class="hint">${esc([TN(m.cards, '{n} carte', '{n} cartes'), TN(m.q, '{n} exemplaire', '{n} exemplaires'), m.tot ? fmt(m.tot, m.cu) : ''].filter(Boolean).join(' · '))}</p>`;
+      api.setFoot(ro ? `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`
+        : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" id="cartAdd"${m.q ? '' : ' disabled'}>${TN(m.q, 'Ajouter {n} exemplaire', 'Ajouter {n} exemplaires')}</button>`);
+      const go = $('#cartAdd', api.foot); if (go) go.onclick = () => cartToCollection(id, api);
+    };
+    CARTS.paint.add(paint); paint();
+    api.body.addEventListener('click', e => {
+      const c = cartOf(id); if (!c || c.d) return;
+      if (e.target.closest('[data-act="cp"]')) { plcPick({ title: T('Ranger dans'), sub: T('Tout le panier (sauf les lignes rangées ailleurs)'), cur: c.P || '', onPick: p => edit(x => { if (p) x.P = p; else delete x.P; }) }); return; }
+      const rowEl = e.target.closest('.cart-row'); if (!rowEl) return;
+      const i = Number(rowEl.dataset.i), it = c.items[i]; if (!it) return;
+      const st = e.target.closest('.qstep button');
+      if (st && !st.disabled) { haptic('tap'); edit(x => { const y = x.items[i]; y.q = Math.max(0, Math.min(y.q0, y.q + Number(st.dataset.d))); }); return; }
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      haptic('tap');
+      if (b.dataset.act === 'x') edit(x => { x.items.splice(i, 1); });
+      else if (b.dataset.act === 'lp') plcPick({ title: T('Ranger dans'), sub: it.n, cur: it.p || c.P || '', onPick: p => edit(x => { const y = x.items[i]; if (p && p !== x.P) y.p = p; else delete y.p; }) });
+      else if (b.dataset.act === 'ed') {
+        const nm = typeof cardName === 'function' ? cardName(it.k, it.n) : it.n;
+        edSheet({ name: nm, sub: TN(it.q0, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + langCode(it.l) : ''), cur: it.e || '', foil: !!it.f,
+          load: () => scryArtPrints(it.n, it.l || 'en'), find: q => scryPrintsFind(it.n, it.l || 'en', q),
+          onPick: p => edit(x => { const y = x.items[i]; if (!y || y.k !== it.k) return; const e2 = p ? edKey(p.set, p.num) : ''; if (e2) y.e = e2; else delete y.e; }) });
+      }
+    });
+  });
+}
+/** « Ajouter à la collection » : chaque ligne avec sa langue, son édition, sa finition, son état et son rangement ; le panier reste, marqué ajouté (annulable). */
+function cartToCollection(id, api) {
+  const c = cartOf(id); if (!c || c.d) return;
+  const add = cartToColl(c); if (!add.length) return;
+  const before = COLL.map, n = add.reduce((a, x) => a + x.q, 0);
+  collAdd(add, 'add'); collEnrich();
+  cartEdit(id, x => { x.d = Date.now(); });
+  if (api) api.close(); haptic('ok');
+  toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); cartEdit(id, x => { delete x.d; }); } });
 }
 
 /* ── Decks montés : cartes de la collection réservées ─────────────────────────────────────────── */
@@ -25025,6 +25192,10 @@ function xsUser(user) {
     if (XS.engU && Object.keys(XS.eng).length) { XS.eng = {}; engApplied(); }
     XS.engU = user.uid; engWrite();
   }
+  if (user && XS.cartsU !== user.uid) {      // paniers d'un autre compte : restent dans ce compte-là ; ceux d'avant toute connexion partent dans ce compte
+    if (XS.cartsU && XS.carts.length) { XS.carts = []; cartsPaint(); }
+    XS.cartsU = user.uid; cartsWrite();
+  }
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   for (const id in XS.docs) {
     const d = XS.docs[id]; d.state = 'sync'; d.uid = user.uid;
@@ -25040,6 +25211,10 @@ function xsRemote(id, uid, data, pending, fromCache) {
     if (!engSame(merged, XS.eng)) { XS.eng = merged; engWrite(); engApplied(); }
     if (!engSame(merged, remote)) xsPushSoon('engaged');
     engSweepSoon();      // réservations du compte lues : celles des decks qui n'existent plus sont rendues
+  } else if (id === 'carts') {      // historique des paniers : chaque panier dans sa version la plus récente (core.js › cartsMerge)
+    const remote = cartsClean(data && data.c), merged = cartsMerge(XS.carts, remote);
+    if (!cartsSame(merged, XS.carts)) { XS.carts = merged; cartsWrite(); cartsPaint(); }
+    if (!cartsSame(merged, remote)) xsPushSoon('carts');
   } else if (id === 'prices') {
     if (mkUs()) return;                                                     // prix du jour partagés : Cardmarket seulement (le document n'a pas de devise)
     if (data && prcApply(data)) return;                                     // prix plus récents lus par un autre appareil : pris tels quels
@@ -25066,7 +25241,7 @@ async function xsPush(id) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   if (id === 'history' && !XS.hOther) return;      // relevés de l'autre marché pas encore lus : xsRemote renverra s'il le faut
   if (id === 'prices' && mkUs()) return;
-  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : histDoc();      // reset : règles Firestore du 21 octobre
+  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'carts' ? { c: XS.carts, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : histDoc();      // reset : règles Firestore du 21 octobre
   if (!doc) return;
   try { await D.cloud.saveMeta(d.uid, id, doc); d.state = 'ok'; acctSaw(id, d.uid); } catch (err) { xsFail(id, err); }
 }
@@ -25079,9 +25254,8 @@ function histDoc() {
   return { pts: [...other, ...mine].sort((a, b) => a.t - b.t), ...(reset ? { reset } : {}), updatedAt: Date.now() };
 }
 function xsInit() {
-  xsRead(); buyPaint();
-  const bar = $('#buyBar');
-  if (bar) bar.addEventListener('click', e => { const b = e.target.closest('button[data-act]'); if (!b) return; haptic('tap'); if (b.dataset.act === 'buy') openBuySheet(); else buyDrop(); });
+  xsRead(); cartsPaint();
+  for (const b of $$('.carts-btn')) b.onclick = () => { haptic('tap'); openCartsSheet(); };
 }
 
 
@@ -32616,7 +32790,9 @@ function ctWishSheet(o) {
    · vérification CardTrader (facultative, longue : offres réelles carte par carte, data.js › runLive comme collection.js › pxRun) : une carte dont l'offre la moins chère
      (critères de la recherche : état, mode, langue, repli anglais) n'est pas sous prix maximum + marge est remplacée par la suivante du classement (même couleur).
      Prix lus gardés 2 jours sur l'appareil (deckdeal:stp:ct) ; la vérification continue si la fiche est fermée (pastille flottante).
-   Sortie : « Copier » (« 1 Nom » par ligne) ou « Envoyer dans Prix d'une liste » (app.js › putDeckText). ✕ sur une ligne : écartée de cette liste seulement. */
+   Sortie : « Copier » (« 1 Nom » par ligne) ou « Envoyer dans Prix d'une liste » (app.js › putDeckText). ✕ sur une ligne : écartée de cette liste seulement.
+   Historique : les 10 dernières recherches (réglages et liste) en tête des réglages, sur l'appareil et dans le compte ; ✕ en retire une ; rouverte, ses cartes
+   sont recontrôlées sur la collection seulement (pas de nouvelle vérification CardTrader : Prix d'une liste relit tous les prix). */
 const STP_KEY = 'deckdeal:stp', STP_CT_KEY = 'deckdeal:stp:ct', STP_CT_TTL = 2 * 864e5;
 const STP_N = [50, 100, 150, 200, 300], STP_ND = [200, 500, 1000, 2000], STP_ND_MAX = 2000,      // decks analysés sans commandant : choix proposés, et plafond absolu (jamais plus, quel que soit le réglage enregistré)
   STP_MAXS = [10, 15, 25, 50], STP_CMD_MAX = 10;
@@ -32635,7 +32811,7 @@ function stpGrp(R) {
   if (m === 'role') return { m, key: x => x.r1 || 'none', order: [...STP_ROLES.map(r => r[0]), 'none'] };
   return R.bal ? { m: '', key: x => x.g, order: R.order || STP_GROUPS } : null;
 }
-const STP = { o: null, api: null, q: '', res: null, run: null, pop: null, ct: null, task: null, prog: null, stop: false, deep: null };
+const STP = { o: null, api: null, q: '', res: null, run: null, pop: null, ct: null, task: null, prog: null, stop: false, deep: null, h: null, hu: 0, hw: '', hdoc: { uid: '', unsub: null, pushT: 0 } };      // h : historique (stpHLoad)
 const STP_DEEP_MS = 40000, STP_GEN_MS = 12000;      // analyse approfondie : temps donné au coach pour construire les decks d'un commandant choisi (4 versions, 3 tirages) / d'un commandant de l'échantillon (1 version)
 
 /* ── Calcul (sans DOM : tests/test-staples.mjs) ───────────────────────────────────────────────────── */
@@ -32721,11 +32897,7 @@ const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', 
 function stpLoad() {
   if (STP.o) return STP.o;
   let o = {}; try { o = JSON.parse(localStorage.getItem(STP_KEY) || '{}') || {}; } catch (e) { o = {}; }
-  const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
-  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, cart: o.cart !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
-    cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
-    tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
-  return STP.o;
+  return (STP.o = stpNorm(o));
 }
 function stpSave() { try { localStorage.setItem(STP_KEY, JSON.stringify(STP.o)); } catch (e) { /* stockage refusé : pour cette session */ } }
 
@@ -32990,7 +33162,7 @@ async function stpGo() {
   } catch (e) {
     STP.busy = ''; STP.err = (e && e.message) || T('Échec de la génération.');
     if (STP.atask) { STP.atask.finish(T('Chasse aux staples'), 'bad', STP.err); STP.atask = null; } STP.prog = null;
-  } finally { STP.busy = ''; stpPaint(); haptic(STP.res ? 'ok' : 'bad'); }
+  } finally { STP.busy = ''; if (STP.res && !STP.err) stpHPut(STP.res); stpPaint(); haptic(STP.res ? 'ok' : 'bad'); }      // historique : la liste obtenue (vérifiée si demandé)
 }
 /** Complète la liste jusqu'au nombre demandé (après des ✕), en respectant les quotas, puis vérifie les nouvelles cartes. */
 async function stpFill() {
@@ -33002,11 +33174,13 @@ async function stpFill() {
   }
   stpPaint();
   if (R.o.ct && R.list.some(x => x.ct === undefined)) { await stpVerify(R); stpPaint(); }
+  stpHPut(R);
 }
 function stpDrop(k) {
   const R = STP.res; if (!R) return;
   const i = R.list.findIndex(x => x.k === k); if (i < 0) return;
   R.list.splice(i, 1); haptic('tap'); stpPaint();
+  if (!STP.run) stpHPut(R);      // l'historique suit la liste (pendant une vérification : enregistrée à la fin)
 }
 function stpSend() {
   const R = STP.res; if (!R || !R.list.length) return;
@@ -33015,6 +33189,128 @@ function stpSend() {
   while (sheets.length) sheets[sheets.length - 1].close();
   if (typeof navCloseSections === 'function') navCloseSections();
   putDeckText(text, T('Chasse aux staples'));
+}
+
+/* ── Historique des recherches (10 au plus : réglages et liste obtenue ; sur l'appareil, deckdeal:stp:h, et dans le compte, users/{uid}/meta/staples) ──
+   Une recherche rouverte n'est pas revérifiée sur CardTrader (« Prix d'une liste » relit tous les prix) : seules les cartes que tu as maintenant en
+   exemplaires libres sont retirées, ou leur quantité baissée. L'entrée suit la liste (✕, Compléter, vérification) et remonte en tête. */
+const STP_H_KEY = 'deckdeal:stp:h', STP_H_MAX = 10, STP_H_SIZE = 800000;      // STP_H_SIZE : taille du document du compte (Firestore : 1 Mo au plus)
+/** Réglages lus (stockage, historique) et bornés. */
+function stpNorm(o) {
+  o = o && typeof o === 'object' ? o : {};
+  const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
+  return { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, cart: o.cart !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
+    cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
+    tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
+}
+/** Entrée de l'historique pour la liste R (id : celle qu'elle remplace) : réglages, commandants, bilan, et chaque carte en abrégé
+ *  { k, n, q (exemplaires à acheter), e (Cardmarket, centimes), c? (CardTrader : centimes, -1 aucune offre ; absent : pas vérifiée), ci?, g, t?, r?, s, w? (raison affichée) }. */
+function stpHEntry(R, id, now, why) {
+  const A = R.A && R.A.n ? { n: R.A.n | 0, nc: R.A.nc | 0, nr: R.A.nr | 0, cmds: R.A.cmds | 0, m: R.A.notes ? (R.A.notes.length ? Math.round(R.A.notes.reduce((a, x) => a + x, 0) / R.A.notes.length) : 0) : R.A.m | 0 } : null;
+  return { id, at: R.at || now, u: now, o: stpNorm(R.o), ...(R.cmd ? { cmd: String(R.cmd).slice(0, 300) } : {}), bal: !!R.bal, pool: R.pool | 0, rep: R.rep | 0, cartN: R.cartN | 0,
+    ...(R.order && R.order.length ? { order: R.order.slice(), gn: Object.fromEntries(R.order.filter(s => R.gn && R.gn[s]).map(s => [s, { short: String(R.gn[s].short || ''), name: String(R.gn[s].name || ''), ci: String(R.gn[s].ci || '') }])) } : {}),
+    ...(A ? { A } : {}), ...(R.stopped ? { stopped: 1 } : {}),
+    l: R.list.map(x => { const w = why ? String(why(x, R) || '').slice(0, 90) : x.w || ''; return { k: x.k, n: x.name, q: x.need, e: x.eur, ...(x.ct !== undefined ? { c: x.ct == null ? -1 : x.ct } : {}), ...(x.ci ? { ci: x.ci } : {}), g: x.g, ...(x.ty ? { t: x.ty } : {}), ...(x.r1 ? { r: x.r1 } : {}), s: Math.round((x.s || 0) * 1000) / 1000, ...(w ? { w } : {}) }; }) };
+}
+/** Entrée lue (stockage, compte) ; null si illisible. */
+function stpHClean(h) {
+  if (!h || typeof h !== 'object' || typeof h.id !== 'string' || !/^[a-z0-9]{4,24}$/.test(h.id) || !Number.isFinite(h.at) || !Array.isArray(h.l)) return null;
+  const str = v => (typeof v === 'string' ? v : ''), l = h.l.filter(c => c && typeof c.n === 'string' && c.n && typeof c.k === 'string' && c.k && c.q > 0 && Number.isFinite(c.e))
+    .map(c => ({ k: c.k, n: c.n.slice(0, 150), q: Math.min(4, Math.floor(c.q)), e: c.e, ...(Number.isFinite(c.c) ? { c: c.c } : {}), ...(str(c.ci) ? { ci: str(c.ci).replace(/[^WUBRG]/g, '') } : {}), g: str(c.g) || 'C', ...(c.t > 0 ? { t: c.t | 0 } : {}), ...(str(c.r) ? { r: str(c.r) } : {}), s: Number(c.s) || 0, ...(str(c.w) ? { w: str(c.w).slice(0, 90) } : {}) }));
+  const gn = h.gn && typeof h.gn === 'object' ? Object.fromEntries(Object.entries(h.gn).filter(([, v]) => v && typeof v === 'object').map(([s, v]) => [s, { short: str(v.short), name: str(v.name), ci: str(v.ci) }])) : null;
+  return { id: h.id, at: h.at, u: Number.isFinite(h.u) ? h.u : h.at, o: stpNorm(h.o), ...(str(h.cmd) ? { cmd: str(h.cmd) } : {}), bal: !!h.bal, pool: h.pool | 0, rep: h.rep | 0, cartN: h.cartN | 0,
+    ...(Array.isArray(h.order) && gn ? { order: h.order.filter(s => typeof s === 'string' && gn[s]), gn } : {}), ...(h.A && typeof h.A === 'object' ? { A: { n: h.A.n | 0, nc: h.A.nc | 0, nr: h.A.nr | 0, cmds: h.A.cmds | 0, m: h.A.m | 0 } } : {}), ...(h.stopped ? { stopped: 1 } : {}), l };
+}
+/** Historique lu : les plus récemment utilisées d'abord, 10 au plus. */
+const stpHAll = list => (Array.isArray(list) ? list : []).map(stpHClean).filter(Boolean).sort((a, b) => b.u - a.u).filter((h, i, a) => a.findIndex(x => x.id === h.id) === i).slice(0, STP_H_MAX);
+/** Entrée ajoutée ou remplacée (en tête). */
+const stpHPutIn = (list, h) => [h, ...list.filter(x => x.id !== h.id)].slice(0, STP_H_MAX);
+/** Document du compte : les plus anciennes retirées tant qu'il dépasse STP_H_SIZE. */
+function stpHDoc(list) { let l = list.slice(); while (l.length > 1 && JSON.stringify(l).length > STP_H_SIZE) l = l.slice(0, -1); return l; }
+/** Liste rouverte : chaque carte recontrôlée sur la collection (freeOf(k) : exemplaires libres maintenant) ; prix d'alors, sans nouvelle vérification.
+ *  → R (comme stpGo, sans réserve de remplacement) ; R.gone : cartes retirées (assez d'exemplaires maintenant), R.less : quantités baissées. */
+function stpHRestore(h, freeOf) {
+  const list = []; let gone = 0, less = 0;
+  for (const c of h.l) {
+    const q = Math.min(c.q, h.o.q - Math.max(0, freeOf(c.k) || 0));
+    if (q <= 0) { gone++; continue; }
+    if (q < c.q) less++;
+    list.push({ k: c.k, name: c.n, need: q, eur: c.e, ...(c.c !== undefined ? { ct: c.c < 0 ? null : c.c } : {}), ci: c.ci || '', g: c.g, ty: c.t || 0, r1: c.r || '', s: c.s || 0, w: c.w || '', roles: [], also: [] });
+  }
+  return { o: { ...h.o }, list, rest: [], out: [], rep: h.rep, bal: h.bal, quotas: null, order: h.order || null, gn: h.gn || {}, cmd: h.cmd || '', pool: h.pool, A: h.A || null, stopped: !!h.stopped, cartN: h.cartN, note: '', warn: '', at: h.at, hid: h.id, gone, less };
+}
+
+function stpHLoad() {
+  if (STP.h) return STP.h;
+  let r = null; try { r = JSON.parse(localStorage.getItem(STP_H_KEY) || 'null'); } catch (e) { r = null; }
+  STP.h = stpHAll(r && r.h); STP.hu = Number(r && r.u) || 0; STP.hw = (r && typeof r.w === 'string' && r.w) || '';
+  return STP.h;
+}
+function stpHWrite() { try { localStorage.setItem(STP_H_KEY, JSON.stringify({ h: STP.h, u: STP.hu, ...(STP.hw ? { w: STP.hw } : {}) })); } catch (e) { /* stockage plein : gardé pour la session (et le compte) */ } }
+function stpHSet(list) { STP.h = list; STP.hu = Math.max(Date.now(), (STP.hu || 0) + 1); stpHWrite(); stpHPushSoon(); }
+/** La liste en cours entre dans l'historique (ou y remplace son entrée). */
+function stpHPut(R) {
+  if (!R || !R.list.length) return;
+  stpHLoad(); R.hid = R.hid || Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  stpHSet(stpHPutIn(STP.h, stpHEntry(R, R.hid, Date.now(), stpWhy)));
+}
+/** Rouvre une recherche : réglages repris (« Modifier les réglages » relance la même), cartes que tu as maintenant retirées, prix d'alors. */
+function stpHOpen(id) {
+  const h = stpHLoad().find(x => x.id === id); if (!h || STP.run || STP.busy) return;
+  const R = stpHRestore(h, k => ownFree(k, null));
+  R.warn = [T('Recherche du {date} : prix d\'alors, non revérifiés (Prix d\'une liste relit tous les prix).', { date: stpHDate(h.at) }),
+    R.gone ? TN(R.gone, '{n} carte retirée : tu l\'as maintenant dans ta collection.', '{n} cartes retirées : tu les as maintenant dans ta collection.') : '',
+    R.less ? TN(R.less, '{n} quantité baissée (exemplaires déjà là).', '{n} quantités baissées (exemplaires déjà là).') : ''].filter(Boolean).join(' ');
+  STP.o = { ...h.o, grp: STP.o ? STP.o.grp : h.o.grp }; stpSave(); STP.res = R; STP.edit = false; STP.err = ''; STP.metaSig = '';
+  if (!R.list.length) { STP.res = null; stpHSet(STP.h.filter(x => x.id !== id)); toast(T('Toutes les cartes de cette recherche sont maintenant dans ta collection')); stpPaint(); return; }
+  if (R.gone || R.less) stpHPut(R); else stpHSet(stpHPutIn(STP.h, { ...h, u: Date.now() }));      // remonte en tête
+  haptic('tap'); stpPaint(); if (STP.api) STP.api.body.scrollTop = 0;
+}
+function stpHDrop(id) {
+  const prev = stpHLoad().slice(), h = prev.find(x => x.id === id); if (!h) return;
+  stpHSet(prev.filter(x => x.id !== id)); if (STP.res && STP.res.hid === id) STP.res.hid = '';
+  haptic('tap'); stpPaint();
+  toast(T('Recherche retirée de l\'historique'), { label: tUndo(), fn: () => { stpHSet(stpHAll([...STP.h, h])); stpPaint(); } });
+}
+const stpHDate = t => dateShort(t) + ' ' + new Date(t).toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' });
+/** Réglages d'une recherche, en clair (HTML) : « 150 cartes · < 0,15 € · CardTrader + 0,05 € · Krenko · Rampe · analyse : 1 000 decks ». */
+function stpHParams(h) {
+  const o = h.o, esc2 = typeof esc === 'function' ? esc : x => x;
+  const out = [esc2(TN(o.n, '{n} carte', '{n} cartes')), o.q > 1 ? esc2(T('{n} ex. par carte', { n: o.q })) : '', '&lt; ' + esc2(stpEuro(o.max)), o.ct ? 'CardTrader + ' + esc2(stpEuro(o.tol)) : esc2(T('sans CardTrader')),
+    h.cmd ? esc2(h.cmd) : (o.cols ? stpPipsHtml(o.cols) : esc2(T('toutes couleurs'))) + (o.cless ? '' : ' ' + esc2(T('sans incolores'))),
+    o.roles.length ? esc2(o.roles.map(r => T((STP_ROLES.find(x => x[0] === r) || [r, r])[1])).join(', ')) : '',
+    o.tags.length && typeof dmxLabel === 'function' ? esc2(o.tags.map(dmxLabel).join(', ')) : '',
+    o.deep ? esc2(h.cmd ? T('analyse approfondie') : T('analyse : {n} decks', { n: nf0(o.nd) })) : ''];
+  return out.filter(Boolean).join(' · ');
+}
+function stpHistHtml() {
+  const l = stpHLoad(); if (!l.length) return '';
+  return `<div class="stp-hist">${`<h3 class="dkf-h">${T('Dernières recherches')} <small>${T('({n} au plus)', { n: STP_H_MAX })}</small></h3>`}<div class="stp-hl">${l.map(h => {
+    const n = h.l.length, cm = h.l.reduce((a, c) => a + c.e * c.q, 0), cv = h.l.filter(c => c.c >= 0), ct = cv.reduce((a, c) => a + c.c * c.q, 0);
+    return `<div class="stp-h"><button type="button" class="stp-ho" data-stp="h" data-v="${esc(h.id)}"><b>${stpHParams(h)}</b><small>${esc([stpHDate(h.at), TN(n, '{n} carte', '{n} cartes'), '≈ ' + stpEuro(cm), cv.length ? 'CT ≈ ' + stpEuro(ct) : ''].filter(Boolean).join(' · '))}</small></button>
+      <button type="button" class="icon-btn stp-hx" data-stp="hx" data-v="${esc(h.id)}" aria-label="${esc(T('Retirer cette recherche de l\'historique'))}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+  }).join('')}</div></div>`;
+}
+/* Synchro avec le compte (compte de l'éditeur : abonnement à l'ouverture de la fiche) ; le plus récent l'emporte. */
+function stpHSync() {
+  const d = STP.hdoc, uid = (typeof D !== 'undefined' && D.uid) || '';
+  if (d.uid === uid) return;
+  if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.uid = '';
+  if (!uid || !D.cloud || !D.cloud.watchMeta) return;
+  stpHLoad(); if (STP.hw && STP.hw !== uid) { STP.h = []; STP.hu = 0; }      // historique d'un autre compte : reste dans ce compte-là
+  STP.hw = uid; stpHWrite(); d.uid = uid;
+  d.unsub = D.cloud.watchMeta(uid, 'staples', (data, pending, fromCache) => {
+    if (pending || fromCache || D.uid !== uid) return;
+    const ru = Number(data && data.updatedAt) || 0;
+    if (data && ru > STP.hu) { STP.h = stpHAll(data.h); STP.hu = ru; stpHWrite(); if (!STP.busy && !STP.run && (!STP.res || STP.edit)) stpPaint(); }
+    else if (STP.hu > ru) stpHPushSoon();
+  }, () => { /* règles pas encore publiées : historique gardé sur l'appareil */ });
+}
+function stpHPushSoon() { const d = STP.hdoc; if (!d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(stpHPush, 1500); }
+async function stpHPush() {
+  const d = STP.hdoc; clearTimeout(d.pushT); d.pushT = 0;      // non nul : envoi en attente (decks.js › syncFlush)
+  if (!d.uid || d.uid !== D.uid || (typeof acctHeld === 'function' && acctHeld(d.uid)) || !cloudOn() || !D.cloud.saveMeta) return;
+  try { await D.cloud.saveMeta(d.uid, 'staples', { h: stpHDoc(STP.h), updatedAt: STP.hu || Date.now() }); } catch (e) { /* hors ligne, règles : renvoyé au prochain changement */ }
 }
 
 /* ── Affichage ────────────────────────────────────────────────────────────────────────────────────── */
@@ -33030,7 +33326,7 @@ function stpFormHtml() {
   const mine = stpMyCmds();
   const cmdChip = x => chip('cmd', x.slug, o.cmds.includes(x.slug), esc(stpCmdNm(x)) + ` <small>${stpPipsHtml(x.ci)}</small>`);
   const allMine = mine.length > 1 && mine.slice(0, STP_CMD_MAX).every(x => o.cmds.includes(x.slug)), ciAll = [...new Set(cs.flatMap(x => [...dwCiOf(x.keys, x.ci)]))].sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
-  return `<div class="dkf stp">
+  return `${stpHistHtml()}<div class="dkf stp">
     ${h(T('Nombre de cartes'))}<div class="fopts" role="group">${STP_N.map(n => chip('n', n, o.n === n, nf0(n))).join('')}
       <label class="stp-in">${T('Autre')} <input type="number" id="stpN" inputmode="numeric" min="10" max="500" step="10" value="${o.n}"></label></div>
     ${h(T('Exemplaires par carte'))}<div class="fopts" role="group">${[1, 2, 3, 4].map(q => chip('q', q, o.q === q, String(q))).join('')}</div>
@@ -33079,6 +33375,7 @@ function stpRunHtml() {
       <p class="hint">${T('Les offres sont lues carte par carte : ça peut prendre plusieurs minutes. Tu peux fermer cette fiche, la vérification continue.')}</p>` : '<span class="stp-bar indet"><i></i></span>'}</div>`;
 }
 function stpWhy(x, R) {
+  if (x.w) return x.w;      // liste rouverte de l'historique : la raison telle qu'affichée à l'époque
   const out = [];
   const gc = R.gn && R.gn[x.g], who = gc ? gc.short : R.cmd;      // plusieurs commandants : celui de la carte
   if (x.x) { if (x.x.incl >= 1) out.push(gc ? T('{p} des decks de {name}', { p: pct(Math.round(x.x.incl)), name: who }) : T('{p} des decks du commandant', { p: pct(Math.round(x.x.incl)) })); else if (x.x.ai >= 2) out.push(T('conseillée pour {name}', { name: who })); else if (x.x.m >= 0.4) out.push(T('sert le plan')); }
@@ -33097,7 +33394,7 @@ function stpRowHtml(x, i, R) {
 }
 /** Bilan de l'analyse : decks analysés (coach, joueurs), note moyenne, commandants. */
 function stpABil(R) {
-  const A = R.A, m = A.notes.length ? Math.round(A.notes.reduce((a, x) => a + x, 0) / A.notes.length) : 0;
+  const A = R.A, m = A.notes ? (A.notes.length ? Math.round(A.notes.reduce((a, x) => a + x, 0) / A.notes.length) : 0) : A.m || 0;      // m : liste rouverte de l'historique
   return [TN(A.n, '{n} deck analysé', '{n} decks analysés') + ` (${T('coach {a} · joueurs {b}', { a: nf0(A.nc), b: nf0(A.nr) })})`, m ? T('note moyenne {m} / 100', { m }) : '',
     !R.cmd && A.cmds ? TN(A.cmds, '{n} commandant', '{n} commandants') : '', R.stopped ? T('analyse arrêtée avant la fin') : ''].filter(Boolean).join(' · ');
 }
@@ -33170,11 +33467,13 @@ function stpClick(e) {
   else if (a === 'col') o.cols = 'WUBRG'.split('').filter(c => (c === v ? !o.cols.includes(c) : o.cols.includes(c))).join('');
   else if (a === 'role') o.roles = tog(o.roles, v); else if (a === 'tag') o.tags = tog(o.tags, v);
   else if (a === 'go') { STP.edit = false; STP.err = ''; stpGo(); return; }
+  else if (a === 'h') { stpHOpen(v); return; }      // historique : rouvrir
+  else if (a === 'hx') { stpHDrop(v); return; }
   else if (a === 'edit') { STP.edit = true; haptic('tap'); stpPaint(); return; }
   else if (a === 'x') { stpDrop(v); return; }
   else if (a === 'fill') { haptic('tap'); stpFill(); return; }
   else if (a === 'verify') {
-    haptic('tap'); const R = STP.res, go = () => { R.note = ''; stpVerify(R).then(stpPaint); stpPaint(); };
+    haptic('tap'); const R = STP.res, go = () => { R.note = ''; stpVerify(R).then(() => { stpPaint(); stpHPut(R); }); stpPaint(); };
     if (!(typeof mkUs === 'function' && mkUs()) && !ctReady()) ctGetSheet(go); else go();      // CardTrader pas configuré : l'encart du token, puis la vérification
     return;
   }
@@ -33200,7 +33499,7 @@ function stpInput(e) {
 /** Fiche « Chasse aux staples » (compte de l'éditeur seulement) : réglages, puis la liste ; une vérification en cours se retrouve en rouvrant la fiche. */
 function stpOpen() {
   if (!stpOn()) return;
-  stpLoad();
+  stpLoad(); stpHLoad(); stpHSync();      // historique du compte (compte de l'éditeur seulement)
   if (STP.api && sheets.indexOf(STP.api) >= 0) return;
   openSheet(T('Chasse aux staples'), T('Admin · ton compte seulement'), api => {
     STP.api = api; api.wrap.classList.add('dkf-sheet', 'stp-sheet');
@@ -33220,7 +33519,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.stp = th => {
   const row = th.closest('.stp-row'); if (!row || !STP.api) return null;
   return zoomFrom(STP.api.body.querySelectorAll('.stp-row'), row, r => zoomNamed(r.dataset.k, stpNm(r.dataset.n), r.dataset.n, typeof wantLang === 'function' ? wantLang() : ''));      // en grand : l'impression dans la langue voulue, cherchée par le viewer
 };
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STP, stpTypeOf, stpNoteW, stpFreq, stpSample, stpPopScore, stpMask, stpGroup, stpPopIndex, stpQuotas, stpPick, stpNext, stpSorted, stpText, stpCtOk, stpGroupsOf });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STP, stpTypeOf, stpNoteW, stpFreq, stpSample, stpPopScore, stpMask, stpGroup, stpPopIndex, stpQuotas, stpPick, stpNext, stpSorted, stpText, stpCtOk, stpGroupsOf, stpNorm, stpHEntry, stpHClean, stpHAll, stpHPutIn, stpHDoc, stpHRestore, STP_H_MAX });
 
 
 /* ── share.js : liste d'échange (doublons, cartes recherchées) et liens publics en lecture seule (liste d'échange, deck) ──────────
@@ -34572,7 +34871,7 @@ async function homeTradeAct(qr) {
 /* ── Ordinateur : tableau de bord ────────────────────────────────────────────────────────────────────────────────────────────────────────
    Salutation sur toute la largeur, puis trois colonnes créées ici (le téléphone garde son DOM tel quel) : orbe et chiffres, courbe de valeur (collection vide :
    « Pour commencer » à sa place) · raccourcis, échange, partie, Discord, « Mana Orbit sur ton téléphone » · installation, prochaines extensions (8 au lieu de 4, la liste défile seule), aide. Défaites si la fenêtre redevient étroite (ordre d'origine rendu). */
-const HM_COLS = [['hm-c1', ['.hm-hero', '#hmStart', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmEvent', '#hmPartie', '#hmDiscord', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
+const HM_COLS = [['hm-c1', ['.hm-hero', '#hmStart', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmEvent', '#hmPartie', '#hmDiscord', '#hmStores']], ['hm-c3', ['#installWrap', '#hmSets', '#btnHelp']]];
 const homeDeskOn = () => !!(typeof NAV_DESK !== 'undefined' && NAV_DESK && NAV_DESK.matches);
 function homeDesk() {
   const home = $('#viewHome'); if (!home) return;
@@ -39348,6 +39647,7 @@ function mePaint() {
     typeof ibMeRow === 'function' ? ibMeRow() : '',      // messages de l'équipe (inbox.js) : seulement s'il y en a
     amMeRow(),      // amis (friends.js) : vide si le serveur ne les a pas
     typeof dlMeRow === 'function' ? dlMeRow() : '',      // compte Discord lié (dsclink.js) : vide si le serveur ne sait pas lier
+    typeof cartsMeRow === 'function' ? cartsMeRow() : '',      // historique des paniers CardTrader (extras.js) : pas en marché TCGplayer
     typeof stpMeRow === 'function' ? stpMeRow() : '',      // Chasse aux staples (staples.js) : compte de l'éditeur seulement
   ]) : '';
   const prefs = meGroup(T('Préférences'), [
@@ -39413,6 +39713,7 @@ function meSub(k) {
   else if (k === 'decks') leave(() => navGo('decks'));
   else if (k === 'valeur') leave(() => navOpen(() => openCollection('stats')));
   else if (k === 'opn' && typeof opnSheet === 'function') opnSheet();
+  else if (k === 'carts' && typeof openCartsSheet === 'function') openCartsSheet();
   else if (k === 'staples' && typeof stpOpen === 'function') stpOpen();      // compte de l'éditeur seulement (staples.js › stpOn)
   else if (k === 'out') meSignOut();
 }

@@ -1045,7 +1045,7 @@ function openCartSheet() {
         begin(T('Ajout des articles…')); task.label(T('Remplissage du panier'));
         const res = await cartFill(list, S.opts.mode, null, ctrl.signal, (i, n) => prog(T('Ajout des articles'), i, n, T('Ajout')), S.demo);
         if (res.gone.length) { res.gone.forEach(id => S.gone.add(id)); scheduleRecompute(true); } // offres indisponibles : retirées de la recherche
-        if (!S.demo) buyRemember(res.added, !!clearItems);      // « J'ai acheté » : les cartes réellement au panier attendent ta validation
+        if (!S.demo) buyRemember(res.added, deckLabel());      // historique des paniers (extras.js) : les offres réellement au panier, à ajouter à la collection une fois achetées
         const rep = res.replaced.length;
         const sim = S.demo ? ' ' + T('(simulation)') : '';
         let html = status(TN(res.ok, '{n} offre ajoutée', '{n} offres ajoutées') + (rep ? ' ' + TN(rep, 'dont {n} remplacée', 'dont {n} remplacées') : '') + sim + '.', 1);
@@ -1058,7 +1058,9 @@ function openCartSheet() {
             if (rows.length) html += `<dl class="kv">${rows.map(x => `<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl><p class="hint">${T('CardTrader confirme le total final à la caisse.')}</p>`;
           } catch (e) { html += `<p class="hint">${T('Le panier est rempli, mais ses totaux n\'ont pas pu être lus.')}</p>`; }
         }
+        if (!S.demo && res.added.length) html += `<p class="hint">${T('Ces cartes sont gardées dans « Paniers CardTrader » : une fois la commande passée, ajoute-les à ta collection avec leur édition.')} <button class="link-btn" type="button" id="cfCarts">${T('Voir les paniers')}</button></p>`;
         api.body.innerHTML = html;
+        const vc = $('#cfCarts', api.body); if (vc) vc.onclick = () => { haptic('tap'); api.close(); openCartsSheet(); };
         api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>${S.demo ? '' : `<a class="btn" style="text-decoration:none" href="${ctCartUrl()}" target="_blank" rel="noopener">${T('Ouvrir sur CardTrader')}</a>`}`);
         const det = TN(res.ok, '{n} offre ajoutée', '{n} offres ajoutées') + (rep ? ', ' + TN(rep, '{n} remplacée', '{n} remplacées') : '') + sim;
         if (res.failed.length) bye(T('Panier partiellement rempli'), 'warn', det + ', ' + TN(res.failed.length, '{n} non ajoutée', '{n} non ajoutées'));

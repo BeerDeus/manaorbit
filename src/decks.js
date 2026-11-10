@@ -795,6 +795,7 @@ function metaFlush() {
   if (TR.doc.pushT) jobs.push(trPush());
   if (typeof SCS !== 'undefined' && SCS.doc.pushT) jobs.push(scsPush());
   if (typeof MS !== 'undefined' && MS.doc.pushT) jobs.push(msPush());
+  if (typeof STP !== 'undefined' && STP.hdoc && STP.hdoc.pushT) jobs.push(stpHPush());      // historique de la Chasse aux staples (staples.js)
   return jobs;
 }
 

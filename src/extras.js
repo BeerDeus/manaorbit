@@ -1,63 +1,148 @@
-/* ── extras.js : panier acheté (« J'ai acheté »), decks montés (cartes engagées), synchro de ces données et de l'historique de valeur ──────
-   · Après « Remplir le panier », les cartes réellement mises au panier sont gardées sur l'appareil : une bannière propose de les ajouter à la
-     collection une fois l'achat fait sur CardTrader (quantités ajustables si une partie seulement a été prise).
+/* ── extras.js : historique des paniers CardTrader, decks montés (cartes engagées), synchro de ces données et de l'historique de valeur ──────
+   · Après « Remplir le panier », les offres réellement mises au panier forment un panier de l'historique (impression exacte : édition, numéro, langue, foil,
+     état, prix ; core.js › cartNew), gardé sur l'appareil et dans le compte (users/{uid}/meta/carts : { c, updatedAt }, 20 paniers, 6 mois).
+     « Paniers CardTrader » (Mon compte, Prix d'une liste) : chaque panier se modifie (− / +, ✕, édition, rangement du panier ou de la ligne) puis
+     « Ajouter à la collection » ; il reste ensuite dans l'historique, marqué ajouté. ✕ sur un panier : supprimé (annulable).
    · Un deck « monté » réserve les exemplaires de la collection qu'il contient : les autres decks ne les comptent plus comme possédés.
    · Engagés et historique de valeur passent par le compte (users/{uid}/meta/engaged et /history) ; sans les règles Firestore à jour,
      tout reste sur l'appareil et un message le dit une fois. */
-const BUY_KEY = 'deckdeal:buy:v1', ENG_KEY = 'deckdeal:eng:v1';
-const XS = { buy: null, eng: {}, engU: '', warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
+const BUY_KEY = 'deckdeal:buy:v1', CARTS_KEY = 'deckdeal:carts:v1', ENG_KEY = 'deckdeal:eng:v1';      // BUY_KEY : ancien panier unique (« J'ai acheté »), repris dans l'historique
+const XS = { carts: [], cartsU: '', eng: {}, engU: '', warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, carts: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
 
 function xsRead() {
-  try { XS.buy = buyClean(JSON.parse(localStorage.getItem(BUY_KEY) || 'null')); } catch (e) { XS.buy = null; }
+  try { const r = JSON.parse(localStorage.getItem(CARTS_KEY) || 'null'); XS.carts = cartsClean(r && r.c); XS.cartsU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.carts = []; }
+  try {      // ancien panier en attente (« J'ai acheté ») : premier panier de l'historique
+    const raw = localStorage.getItem(BUY_KEY), b = raw && buyClean(JSON.parse(raw));
+    if (b) { const c = cartNew(b.items, '', b.at); if (c) { XS.carts = cartsMerge(XS.carts, [c]); cartsWrite(); } }
+    if (raw) localStorage.removeItem(BUY_KEY);
+  } catch (e) { /* illisible : oublié */ }
   try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); XS.engU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.eng = {}; }
 }
-function buyWrite() { try { if (XS.buy) localStorage.setItem(BUY_KEY, JSON.stringify(XS.buy)); else localStorage.removeItem(BUY_KEY); } catch (e) { /* stockage indisponible : le panier à valider ne survivra pas au rechargement */ } }
+function cartsWrite() { lsSet(CARTS_KEY, JSON.stringify({ c: XS.carts, ...(XS.cartsU ? { u: XS.cartsU } : {}) }), { msg: T('Stockage plein : l\'historique des paniers n\'a pas pu être enregistré') }); }
 function engWrite() { lsSet(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) }), { msg: T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées') }); }      // plein : caches vidés d'abord (core.js › lsSet)
 
-/* ── « J'ai acheté » ──────────────────────────────────────────────────────────────────────────── */
-/** Après un remplissage de panier : garde les cartes réellement ajoutées (replace : panier vidé avant). */
-function buyRemember(added, replace) {
-  if (!added || !added.length) return;
-  XS.buy = buyMerge(XS.buy, added, replace); buyWrite(); buyPaint();
+/* ── Historique des paniers CardTrader ─────────────────────────────────────────────────────────── */
+const cartsLive = () => XS.carts.filter(c => !c.x);
+const cartOf = id => XS.carts.find(c => c.id === id && !c.x) || null;
+/** Après un remplissage de panier : les offres réellement ajoutées deviennent un panier de l'historique (src : nom de la liste). */
+function buyRemember(added, src) {
+  const c = cartNew(added, src); if (!c) return;
+  XS.carts = cartsMerge(XS.carts, [c]); cartsSaved();
 }
-function buyPaint() {
-  const el = $('#buyBar'); if (!el) return;
-  const b = XS.buy;
-  if (!b) { el.hidden = true; el.innerHTML = ''; return; }
-  const cards = b.items.length, copies = b.items.reduce((a, i) => a + i.q, 0);
-  el.hidden = false;
-  el.innerHTML = `<span class="ib-ico" aria-hidden="true"><svg class="i"><use href="#i-cart"/></svg></span>
-    <span class="ib-txt"><b>${TN(cards, 'Panier rempli · {n} carte', 'Panier rempli · {n} cartes')}</b><span>${TN(copies, '{n} exemplaire · {when}. Achetées sur CardTrader ?', '{n} exemplaires · {when}. Achetées sur CardTrader ?', { when: esc(relTime(b.at)) })}</span></span>
-    <button class="btn small" type="button" data-act="buy">${T('J\'ai acheté')}</button>
-    <button class="ib-x" type="button" data-act="buyx" aria-label="${T('Ignorer ce panier')}"><svg class="i"><use href="#i-close"/></svg></button>`;
+function cartsSaved() { cartsWrite(); xsPushSoon('carts'); cartsPaint(); }
+/** Panier modifié (fn le change en place sur une copie) : enregistré, envoyé au compte. */
+function cartEdit(id, fn) {
+  const i = XS.carts.findIndex(c => c.id === id && !c.x); if (i < 0) return null;
+  const c = { ...XS.carts[i], items: XS.carts[i].items.map(x => ({ ...x })) }; fn(c); c.u = Math.max(Date.now(), XS.carts[i].u + 1);
+  if (!c.items.length) { cartDrop(id); return null; }      // plus aucune ligne : le panier part
+  XS.carts = XS.carts.map((x, j) => (j === i ? c : x)); cartsSaved(); return c;
 }
-function buyDrop(msg) { XS.buy = null; buyWrite(); buyPaint(); if (msg) toast(msg); }
-function openBuySheet() {
-  const b = XS.buy; if (!b) return;
-  const rows = b.items.map(i => ({ ...i, a: i.q, have: collQty(i.k) }));
-  openSheet(T('J\'ai acheté'), T('Panier du {date}', { date: new Date(b.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) }), api => {
-    const total = () => rows.reduce((a, r) => a + r.a, 0);
+/** Supprime un panier (trace gardée pour les autres appareils) ; annulable par le toast. */
+function cartDrop(id, undo) {
+  const prev = cartOf(id); if (!prev) return;
+  XS.carts = cartsClean(XS.carts.map(c => (c.id === id ? { id, at: c.at, u: Math.max(Date.now(), c.u + 1), x: 1 } : c))); cartsSaved();
+  if (undo) toast(T('Panier supprimé'), { label: tUndo(), fn: () => { XS.carts = cartsClean(XS.carts.map(c => (c.id === id ? { ...prev, u: Date.now() } : c))); cartsSaved(); } });
+}
+/** Repeint ce qui montre l'historique (bouton de Prix d'une liste, feuilles ouvertes). */
+function cartsPaint() {
+  const off = !cartsLive().length || (typeof mkUs === 'function' && mkUs());      // marché TCGplayer : pas de CardTrader
+  for (const b of $$('.carts-btn')) b.hidden = off;
+  for (const f of CARTS.paint) f();
+}
+const CARTS = { paint: new Set() };
+/** Ligne « Paniers CardTrader » de Mon compte : paniers pas encore ajoutés à la collection. */
+function cartsMeRow() {
+  if (typeof mkUs === 'function' && mkUs()) return '';
+  const n = cartsLive().filter(c => !c.d).length;
+  return meRow('carts', T('Paniers CardTrader'), n ? TN(n, '{n} à ajouter', '{n} à ajouter') : '');
+}
+const cartDate = t => dateShort(t);
+/** Rangement affiché ('' : non rangé, ou places.js absent). */
+const cartPlcName = p => (typeof plcName === 'function' ? plcName(p && COLL.places[p] ? p : '') : T('Non rangé'));
+const cartPlcColor = p => (typeof plcColor === 'function' ? plcColor(p && COLL.places[p] ? p : '') : '#4a4f66');
+
+/** « Paniers CardTrader » : les paniers de l'historique, du plus récent au plus ancien. */
+function openCartsSheet() {
+  openSheet(T('Paniers CardTrader'), T('Les cartes mises au panier depuis Mana Orbit'), api => {
+    api.wrap.classList.add('carts-sheet');
     const paint = () => {
-      api.body.innerHTML = `<p class="hint">${T('Ajuste les quantités si tu n\'as pas tout pris. Les cartes ajoutées seront déduites des prochaines recherches.')}</p>
-        <div class="buy-list">${rows.map((r, i) => `<div class="buy-row${r.a ? '' : ' off'}" data-i="${i}"><span class="b-n"><b>${esc(r.n)}</b><small>${r.l ? flag(r.l) : ''}${r.have ? T('{n} déjà dans ta collection', { n: nf0(r.have) }) : T('nouvelle dans ta collection')}</small></span>
-          <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Moins de {name}', { name: esc(r.n) })}">−</button><b>${r.a}</b><button type="button" data-d="1" aria-label="${T('Plus de {name}', { name: esc(r.n) })}"${r.a >= r.q ? ' disabled' : ''}>+</button></span></div>`).join('')}</div>`;
-      const n = total();
-      api.setFoot(`<button class="btn ghost" type="button" id="buyNone">${T('Rien acheté')}</button><button class="btn" type="button" id="buyGo"${n ? '' : ' disabled'}>${TN(n, 'Ajouter {n} exemplaire', 'Ajouter {n} exemplaires')}</button>`);
-      $('#buyNone', api.foot).onclick = () => { api.close(); buyDrop(T('Panier ignoré')); };
-      $('#buyGo', api.foot).onclick = () => {
-        const add = rows.filter(r => r.a > 0).map(r => ({ k: r.k, n: r.n, q: r.a, ...(r.l ? { l: r.l } : {}) })); if (!add.length) return;
-        const before = COLL.map, prevBuy = XS.buy, n = add.reduce((a, x) => a + x.q, 0);
-        collAdd(add, 'add'); collEnrich(); XS.buy = null; buyWrite(); buyPaint(); api.close(); haptic('ok');
-        toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); XS.buy = prevBuy; buyWrite(); buyPaint(); } });
-      };
+      if (!sheets.includes(api)) { CARTS.paint.delete(paint); return; }
+      const l = cartsLive();
+      api.body.innerHTML = !l.length ? `<p class="hint listempty">${T('Aucun panier pour l\'instant : remplis ton panier CardTrader depuis Prix d\'une liste, les cartes ajoutées apparaîtront ici.')}</p>`
+        : `<p class="hint">${T('Une fois la commande passée sur CardTrader, ouvre le panier pour ajouter ses cartes à ta collection (édition, langue, foil, état et rangement).')}</p><div class="carts">${l.map(c => {
+          const m = cartSum(c);
+          return `<div class="cart-h${c.d ? ' done' : ''}" data-id="${esc(c.id)}"><button type="button" class="cart-o" data-act="open"><span class="cart-t"><b>${esc(c.s || T('Panier du {date}', { date: cartDate(c.at) }))}</b>
+            <small>${esc([c.s ? cartDate(c.at) : '', TN(m.cards, '{n} carte', '{n} cartes'), TN(m.q, '{n} exemplaire', '{n} exemplaires'), m.tot ? fmt(m.tot, m.cu) : ''].filter(Boolean).join(' · '))}</small></span>
+            <span class="tag ${c.d ? 'good' : 'accent'}">${c.d ? T('Ajouté le {date}', { date: cartDate(c.d) }) : T('À ajouter')}</span></button>
+            <button type="button" class="ib-x" data-act="del" aria-label="${esc(T('Supprimer ce panier'))}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+        }).join('')}</div>`;
     };
-    paint();
-    api.body.onclick = e => {
-      const btn = e.target.closest('.qstep button'), row = e.target.closest('.buy-row'); if (!btn || !row || btn.disabled) return;
-      const r = rows[Number(row.dataset.i)]; r.a = Math.max(0, Math.min(r.q, r.a + Number(btn.dataset.d))); haptic('tap');
-      const sc = api.body.scrollTop; paint(); api.body.scrollTop = sc;
-    };
+    CARTS.paint.add(paint); paint();
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'), row = e.target.closest('.cart-h'); if (!b || !row) return;
+      haptic('tap');
+      if (b.dataset.act === 'del') cartDrop(row.dataset.id, true); else openCartOne(row.dataset.id);
+    });
   });
+}
+/** Un panier : lignes (− / +, ✕, édition, rangement), puis « Ajouter à la collection ». Un panier déjà ajouté se consulte seulement. */
+function openCartOne(id) {
+  const c0 = cartOf(id); if (!c0) return;
+  openSheet(c0.s || T('Panier du {date}', { date: cartDate(c0.at) }), T('Rempli le {date}', { date: cartDate(c0.at) }), api => {
+    api.wrap.classList.add('cart-sheet');
+    const edit = fn => { const sc = api.body.scrollTop; cartEdit(id, fn); paint(); api.body.scrollTop = sc; };
+    const paint = () => {
+      if (!sheets.includes(api)) { CARTS.paint.delete(paint); return; }
+      const c = cartOf(id); if (!c) { api.close(); return; }
+      const m = cartSum(c), ro = !!c.d, places = typeof plcPick === 'function';
+      const row = (it, i) => {
+        const nm = typeof cardName === 'function' ? cardName(it.k, it.n) : it.n, have = collQty(it.k), own = it.p && it.p !== c.P;
+        const meta = [it.l ? flag(it.l) : '', it.f ? '<span class="tag accent">Foil ✦</span>' : '', it.c ? `<span class="tag">${esc(it.c.toUpperCase())}</span>` : '', it.pr ? `<span>${esc(fmt(it.pr, it.cu))}</span>` : ''].filter(Boolean).join('');
+        return `<div class="buy-row cart-row${it.q ? '' : ' off'}" data-i="${i}"><span class="b-n"><b>${esc(nm)}</b>
+          <small>${ro ? `<span class="tag">${esc(it.e ? edLabel(it.e) : T('Sans édition'))}</span>` : `<button type="button" class="tag cart-ed" data-act="ed" aria-label="${esc(T('Édition de {name}', { name: nm }))}">${esc(it.e ? edLabel(it.e) : T('Sans édition'))}</button>`}${meta}</small>
+          ${ro ? '' : `<small>${places ? `<button type="button" class="link-btn cart-p${own ? ' on' : ''}" data-act="lp"><i style="--c:${cartPlcColor(it.p || c.P)}"></i>${esc(own ? cartPlcName(it.p) : T('Rangement du panier'))}</button>` : ''}<span>${have ? T('{n} déjà dans ta collection', { n: nf0(have) }) : T('nouvelle dans ta collection')}</span></small>`}</span>
+          ${ro ? `<b class="cart-q">${nf0(it.q)}</b>` : `<span class="qstep"><button type="button" data-d="-1" aria-label="${esc(T('Moins de {name}', { name: nm }))}"${it.q ? '' : ' disabled'}>−</button><b>${it.q}</b><button type="button" data-d="1" aria-label="${esc(T('Plus de {name}', { name: nm }))}"${it.q >= it.q0 ? ' disabled' : ''}>+</button></span>
+          <button type="button" class="ib-x" data-act="x" aria-label="${esc(T('Retirer {name} de ce panier', { name: nm }))}"><svg class="i"><use href="#i-close"/></svg></button>`}</div>`;
+      };
+      api.body.innerHTML = (ro ? `<div class="status" data-ok="1"><span class="dot"></span><span>${T('Ajouté à ta collection le {date}.', { date: cartDate(c.d) })}</span></div>`
+        : `<p class="hint">${T('Une carte retirée du panier sur CardTrader ou pas reçue : baisse sa quantité ou retire la ligne (✕). Touche l\'édition pour la corriger.')}</p>
+          ${places ? `<button type="button" class="plc-cur" data-act="cp"><i style="--c:${cartPlcColor(c.P)}"></i><span><small>${T('Ranger dans')}</small><b>${esc(cartPlcName(c.P))}</b></span><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>` : ''}`)
+        + `<div class="buy-list">${c.items.map(row).join('')}</div>
+        <p class="hint">${esc([TN(m.cards, '{n} carte', '{n} cartes'), TN(m.q, '{n} exemplaire', '{n} exemplaires'), m.tot ? fmt(m.tot, m.cu) : ''].filter(Boolean).join(' · '))}</p>`;
+      api.setFoot(ro ? `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`
+        : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" id="cartAdd"${m.q ? '' : ' disabled'}>${TN(m.q, 'Ajouter {n} exemplaire', 'Ajouter {n} exemplaires')}</button>`);
+      const go = $('#cartAdd', api.foot); if (go) go.onclick = () => cartToCollection(id, api);
+    };
+    CARTS.paint.add(paint); paint();
+    api.body.addEventListener('click', e => {
+      const c = cartOf(id); if (!c || c.d) return;
+      if (e.target.closest('[data-act="cp"]')) { plcPick({ title: T('Ranger dans'), sub: T('Tout le panier (sauf les lignes rangées ailleurs)'), cur: c.P || '', onPick: p => edit(x => { if (p) x.P = p; else delete x.P; }) }); return; }
+      const rowEl = e.target.closest('.cart-row'); if (!rowEl) return;
+      const i = Number(rowEl.dataset.i), it = c.items[i]; if (!it) return;
+      const st = e.target.closest('.qstep button');
+      if (st && !st.disabled) { haptic('tap'); edit(x => { const y = x.items[i]; y.q = Math.max(0, Math.min(y.q0, y.q + Number(st.dataset.d))); }); return; }
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      haptic('tap');
+      if (b.dataset.act === 'x') edit(x => { x.items.splice(i, 1); });
+      else if (b.dataset.act === 'lp') plcPick({ title: T('Ranger dans'), sub: it.n, cur: it.p || c.P || '', onPick: p => edit(x => { const y = x.items[i]; if (p && p !== x.P) y.p = p; else delete y.p; }) });
+      else if (b.dataset.act === 'ed') {
+        const nm = typeof cardName === 'function' ? cardName(it.k, it.n) : it.n;
+        edSheet({ name: nm, sub: TN(it.q0, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + langCode(it.l) : ''), cur: it.e || '', foil: !!it.f,
+          load: () => scryArtPrints(it.n, it.l || 'en'), find: q => scryPrintsFind(it.n, it.l || 'en', q),
+          onPick: p => edit(x => { const y = x.items[i]; if (!y || y.k !== it.k) return; const e2 = p ? edKey(p.set, p.num) : ''; if (e2) y.e = e2; else delete y.e; }) });
+      }
+    });
+  });
+}
+/** « Ajouter à la collection » : chaque ligne avec sa langue, son édition, sa finition, son état et son rangement ; le panier reste, marqué ajouté (annulable). */
+function cartToCollection(id, api) {
+  const c = cartOf(id); if (!c || c.d) return;
+  const add = cartToColl(c); if (!add.length) return;
+  const before = COLL.map, n = add.reduce((a, x) => a + x.q, 0);
+  collAdd(add, 'add'); collEnrich();
+  cartEdit(id, x => { x.d = Date.now(); });
+  if (api) api.close(); haptic('ok');
+  toast(TN(n, '{n} exemplaire ajouté à ta collection', '{n} exemplaires ajoutés à ta collection'), { label: tUndo(), fn: () => { COLL.map = before; collChanged(); cartEdit(id, x => { delete x.d; }); } });
 }
 
 /* ── Decks montés : cartes de la collection réservées ─────────────────────────────────────────── */
@@ -182,6 +267,10 @@ function xsUser(user) {
     if (XS.engU && Object.keys(XS.eng).length) { XS.eng = {}; engApplied(); }
     XS.engU = user.uid; engWrite();
   }
+  if (user && XS.cartsU !== user.uid) {      // paniers d'un autre compte : restent dans ce compte-là ; ceux d'avant toute connexion partent dans ce compte
+    if (XS.cartsU && XS.carts.length) { XS.carts = []; cartsPaint(); }
+    XS.cartsU = user.uid; cartsWrite();
+  }
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   for (const id in XS.docs) {
     const d = XS.docs[id]; d.state = 'sync'; d.uid = user.uid;
@@ -197,6 +286,10 @@ function xsRemote(id, uid, data, pending, fromCache) {
     if (!engSame(merged, XS.eng)) { XS.eng = merged; engWrite(); engApplied(); }
     if (!engSame(merged, remote)) xsPushSoon('engaged');
     engSweepSoon();      // réservations du compte lues : celles des decks qui n'existent plus sont rendues
+  } else if (id === 'carts') {      // historique des paniers : chaque panier dans sa version la plus récente (core.js › cartsMerge)
+    const remote = cartsClean(data && data.c), merged = cartsMerge(XS.carts, remote);
+    if (!cartsSame(merged, XS.carts)) { XS.carts = merged; cartsWrite(); cartsPaint(); }
+    if (!cartsSame(merged, remote)) xsPushSoon('carts');
   } else if (id === 'prices') {
     if (mkUs()) return;                                                     // prix du jour partagés : Cardmarket seulement (le document n'a pas de devise)
     if (data && prcApply(data)) return;                                     // prix plus récents lus par un autre appareil : pris tels quels
@@ -223,7 +316,7 @@ async function xsPush(id) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   if (id === 'history' && !XS.hOther) return;      // relevés de l'autre marché pas encore lus : xsRemote renverra s'il le faut
   if (id === 'prices' && mkUs()) return;
-  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : histDoc();      // reset : règles Firestore du 21 octobre
+  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'carts' ? { c: XS.carts, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : histDoc();      // reset : règles Firestore du 21 octobre
   if (!doc) return;
   try { await D.cloud.saveMeta(d.uid, id, doc); d.state = 'ok'; acctSaw(id, d.uid); } catch (err) { xsFail(id, err); }
 }
@@ -236,7 +329,6 @@ function histDoc() {
   return { pts: [...other, ...mine].sort((a, b) => a.t - b.t), ...(reset ? { reset } : {}), updatedAt: Date.now() };
 }
 function xsInit() {
-  xsRead(); buyPaint();
-  const bar = $('#buyBar');
-  if (bar) bar.addEventListener('click', e => { const b = e.target.closest('button[data-act]'); if (!b) return; haptic('tap'); if (b.dataset.act === 'buy') openBuySheet(); else buyDrop(); });
+  xsRead(); cartsPaint();
+  for (const b of $$('.carts-btn')) b.onclick = () => { haptic('tap'); openCartsSheet(); };
 }

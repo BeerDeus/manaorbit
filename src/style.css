@@ -1213,13 +1213,27 @@ button,.btn,select,summary{touch-action:manipulation}
 @keyframes fan2{50%{transform:rotate(19deg) translateX(22px)}}
 @keyframes fan3{50%{transform:translateY(-6px)}}
 
-/* ── Panier à valider (« J'ai acheté »), decks montés ── */
-.buybar{border-color:transparent;background:var(--good-soft)}
-.buybar .ib-ico{background:var(--surface);color:var(--good)}
-.buybar .ib-ico .i{width:20px;height:20px}
-.buybar .ib-txt b{color:var(--ink)}
-.buybar[hidden]{display:none}
-@media (max-width:420px){.buybar{display:grid;grid-template-columns:40px minmax(0,1fr) 34px;row-gap:10px}.buybar .btn{grid-column:2/-1;grid-row:2;justify-self:start}.buybar .ib-x{grid-column:3;grid-row:1;align-self:start}}      /* bouton sous le texte : à côté, il ne lui laissait que ~120 px (quatre lignes) */
+/* ── Historique des paniers CardTrader (extras.js), decks montés ── */
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel-h .link-btn{display:inline-flex;align-items:center;gap:4px;font-size:13px}
+.panel-h .link-btn .i{width:16px;height:16px}
+.carts{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.cart-h{display:flex;align-items:center;gap:4px;padding-right:6px;border-top:1px solid var(--line)}
+.cart-h:first-child{border-top:0}
+.cart-o{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:12px 8px 12px 14px;border:0;background:none;color:var(--ink);text-align:left;font:inherit}
+.cart-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cart-t b{font-size:14.5px;font-weight:620;overflow-wrap:anywhere}
+.cart-t small{font-size:12px;color:var(--ink-3)}
+.cart-o .tag{flex:none;white-space:nowrap}
+.cart-h.done .cart-t b{color:var(--ink-2)}
+.cart-row .b-n small{flex-wrap:wrap}
+.cart-row .cart-ed{border:0;font:inherit;font-size:11.5px;cursor:pointer}
+.cart-row .cart-p{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-3);padding:0}
+.cart-row .cart-p.on{color:var(--ink)}
+.cart-row .cart-p i{width:8px;height:8px;border-radius:2px;background:var(--c,#4a4f66)}
+.cart-row .cart-q{font-size:15px;min-width:28px;text-align:right}
+.cart-row .ib-x{margin-right:-8px}
+.cart-sheet .plc-cur{margin-bottom:12px}
 .buy-list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
 .buy-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);transition:opacity .2s}
 .buy-row:first-child{border-top:0}

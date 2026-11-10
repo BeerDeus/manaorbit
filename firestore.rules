@@ -70,6 +70,9 @@ service cloud.firestore {
     //  · progress   : niveau et badges ({ c: { compteur: nombre } ≤ 140 }) : cartes scannées, langues lues, victoires à 5 PV ou moins… (src/progress.js)
     //  · events     : événements saisonniers ({ e: { 'halloween-2026': { n, jours: { 'AAAA-MM-JJ': [cachettes] }, sig: { jour: reçu du serveur } } } ≤ 24 éditions) :
     //                 copie de la progression validée par le serveur (event-srv.mjs), compteurs qui ne baissent jamais (src/event.js)
+    //  · carts      : historique des paniers CardTrader ({ c: [{ id, at, u, s?, d?, P?, items: [{ k, n, q, q0, l?, e?, f?, c?, p?, pr?, cu? }] } | { id, at, u, x }] ≤ 60 },
+    //                 src/extras.js : 20 paniers et 40 traces de paniers supprimés au plus)
+    //  · staples    : historique de la Chasse aux staples ({ h: [{ id, at, u, o, l: [cartes], … }] ≤ 10 }, src/staples.js, compte de l'éditeur)
     //  · prices     : prix du jour partagés entre les appareils ({ at, p: { carte: [eu, ef] }, e: { 'set|num': [eu, ef] } }, centimes) : la même valeur partout (src/value.js)
     match /users/{uid}/meta/{docId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
@@ -128,6 +131,14 @@ service cloud.firestore {
             && request.resource.data.at is number
             && request.resource.data.p is map && request.resource.data.p.size() <= 30000
             && request.resource.data.e is map && request.resource.data.e.size() <= 30000)
+          || (docId == 'carts'
+            && request.resource.data.keys().hasOnly(['c', 'updatedAt'])
+            && request.resource.data.c is list
+            && request.resource.data.c.size() <= 60)
+          || (docId == 'staples'
+            && request.resource.data.keys().hasOnly(['h', 'updatedAt'])
+            && request.resource.data.h is list
+            && request.resource.data.h.size() <= 10)
           || (docId == 'masterset'
             && request.resource.data.keys().hasOnly(['o', 'updatedAt'])
             && request.resource.data.o is map

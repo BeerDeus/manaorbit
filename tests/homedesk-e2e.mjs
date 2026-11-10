@@ -24,7 +24,7 @@ const { p, errs } = await newPage(browser, world, { init, ctx: { viewport: { wid
 await p.waitForSelector('.hm-cols'); await sets()(p); await p.waitForTimeout(1000);      // fin de l'arrivée animée des extensions (hmDeal)
 const lay = await p.evaluate(() => ({ cols: [...document.querySelectorAll('.hm-col')].map(c => [...c.children].map(x => x.id || x.className.split(' ')[0]).join(',')), over: document.documentElement.scrollHeight - innerHeight,
   tops: ['.hm-hero', '.hm-dk-acts', '#hmSets'].map(q => Math.round(document.querySelector(q).getBoundingClientRect().top)), head: document.querySelector('.hm-cols > .hm-dk-head') ? Math.round(document.querySelector('.hm-dk-head').getBoundingClientRect().bottom) : -1 }));
-assert.deepEqual(lay.cols, ['hm-hero,hmStart,hm-dk', 'hm-dk,hmTrade,hmPartie,hmDiscord,hmStores', 'installWrap,buyBar,hmSets,btnHelp'], JSON.stringify(lay.cols));
+assert.deepEqual(lay.cols, ['hm-hero,hmStart,hm-dk', 'hm-dk,hmTrade,hmPartie,hmDiscord,hmStores', 'installWrap,hmSets,btnHelp'], JSON.stringify(lay.cols));
 assert.deepEqual(await p.evaluate(() => [hmStart.hidden, document.querySelector('.hm-dk-val').hidden, document.querySelector('#hmTrade .hm-tr-acts').hidden, hmTradeNote.hidden]), [true, false, false, true], 'collection remplie : ni « Pour commencer » ni phrase, courbe et QR code / Partager');
 assert.ok(lay.over <= 0, 'rien à faire défiler (' + lay.over + ' px de trop)');
 assert.equal(new Set(lay.tops).size, 1, 'orbe, raccourcis et extensions (barre d\'installation fermée) à la même hauteur : ' + lay.tops); assert.ok(lay.head > 0 && lay.head < lay.tops[0], 'salutation au-dessus, sur toute la largeur');
@@ -67,7 +67,7 @@ ok('Google Play : la fiche (appli publiée, RATE_ASK) ; App Store : fenêtre « 
 
 await p.setViewportSize({ width: 900, height: 900 }); await p.waitForFunction(() => !document.querySelector('.hm-cols'));
 assert.deepEqual(await p.evaluate(() => [...document.querySelector('#viewHome').children].map(x => x.id || x.className.split(' ')[0])),
-  ['installWrap', 'buyBar', 'hm-dk', 'hm-hero', 'hmStart', 'hm-dk', 'hm-dk', 'hmTrade', 'hmPartie', 'hmDiscord', 'hmSets', 'hmStores', 'btnHelp'], 'ordre du téléphone rendu');
+  ['installWrap', 'hm-dk', 'hm-hero', 'hmStart', 'hm-dk', 'hm-dk', 'hmTrade', 'hmPartie', 'hmDiscord', 'hmSets', 'hmStores', 'btnHelp'], 'ordre du téléphone rendu');
 assert.equal(await p.$$eval('#hmSetsList > li', l => l.length), 4, 'de nouveau 4 extensions');
 await p.setViewportSize({ width: 1890, height: 900 }); await p.waitForSelector('.hm-cols');
 ok('fenêtre étroite : colonnes défaites, ordre d\'origine ; élargie : tableau de bord de retour');

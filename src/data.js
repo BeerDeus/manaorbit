@@ -1060,6 +1060,7 @@ async function cartClear(items, signal, onItem) {
 async function cartFill(parts, mode, address, signal, onItem, demo) {
   const failed = [], replaced = [], gone = [], added = []; let ok = 0, streak = 0, noAlt = false;
   const fatal = e => e.name === 'AbortError' || e.code === 'auth' || e.code === 'network' || e.code === 'notoken';
+  const got = (part, o, q) => ({ k: part.key, n: part.name, q, l: o.lang || '', set: o.sset || o.set || '', num: o.num || '', f: o.foil ? 1 : 0, cond: o.cond || '', pr: o.price || 0, cu: o.cur || 'EUR' });      // historique des paniers (core.js › cartLines) : l'impression exacte
   const add = async (offer, n) => {
     if (demo) { await sleep(70, signal); if (hash32(String(offer.id)) % 23 === 0) throw netErr('gone', T('Plus disponible')); return; }
     const body = { product_id: offer.productId, quantity: n, via_cardtrader_zero: mode === 'zero' };
@@ -1068,7 +1069,7 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
   };
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i], { offer, n, name } = part;
-    try { await add(offer, n); ok++; added.push({ k: part.key, n: name, q: n, l: offer.lang || '' }); }
+    try { await add(offer, n); ok++; added.push(got(part, offer, n)); }
     catch (e) {
       if (fatal(e)) throw e;
       let handled = false;
@@ -1078,7 +1079,7 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
           const cand = part.alt(tried, need); if (!cand.length) break;
           for (const c of cand) {
             tried.add(c.offer.productId);
-            try { await add(c.offer, c.n); used.push(c); need -= c.n; added.push({ k: part.key, n: name, q: c.n, l: c.offer.lang || '' }); }
+            try { await add(c.offer, c.n); used.push(c); need -= c.n; added.push(got(part, c.offer, c.n)); }
             catch (e2) { if (fatal(e2)) throw e2; lastMsg = e2.message; altFailed++; break; }   // on recalcule avec ce qui reste
           }
         }

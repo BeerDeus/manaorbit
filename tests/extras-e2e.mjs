@@ -1,4 +1,4 @@
-// E2E : « J'ai acheté » (panier → collection), decks montés (cartes réservées), synchro compte (engagés + historique, faux Firestore),
+// E2E : historique des paniers CardTrader (panier → collection), decks montés (cartes réservées), synchro compte (engagés + historique, faux Firestore),
 // scan « prix rapide ». Faux CardTrader / Scryfall (e2e-world), vrai proxy.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -10,37 +10,67 @@ const coll = p => p.evaluate(() => Object.fromEntries(Object.entries(COLL.map).m
 const seed = (collText, decks) => `try { ${collText ? `localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: ${JSON.stringify(collText)}, u: 1, s: '', b: null }));` : ''} ${decks ? `localStorage.setItem('deckdeal:decks:v1', JSON.stringify(${JSON.stringify(decks)}));` : ''} } catch (e) {}`;
 const errsOf = [];
 
-/* ── A) « J'ai acheté » ───────────────────────────────────────────────────────────────────── */
+/* ── A) Historique des paniers CardTrader ─────────────────────────────────────────────────── */
 {
-  const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *EN*') }); errsOf.push(errs);
-  assert.equal(await p.$eval('#buyBar', e => e.hidden), true, 'rien à valider au départ');
+  const old = { at: Date.now() - 86400000, items: [{ k: 'command tower', n: 'Command Tower', q: 1 }] };      // ancien « J'ai acheté » : repris dans l'historique
+  const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *EN*') + `try { if (!sessionStorage.getItem('e2eBuy')) { sessionStorage.setItem('e2eBuy', '1'); localStorage.setItem('deckdeal:buy:v1', ${JSON.stringify(JSON.stringify(old))}); } } catch (e) {}` }); errsOf.push(errs);
+  assert.equal(await p.locator('#buyBar').count(), 0, 'plus de bannière à l\'accueil');
+  assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:buy:v1')), null, 'ancien panier repris puis effacé');
+  assert.deepEqual(await p.evaluate(() => XS.carts.map(c => c.items.map(i => i.n))), [['Command Tower']]);
   await toInput(p); await p.fill('#deckText', '1 Sol Ring\n1 Swords to Plowshares\n2 Arcane Signet'); await p.waitForTimeout(300);
+  assert.equal(await p.$eval('#btnCartsIn', b => b.hidden), false, 'Prix d\'une liste : « Paniers CardTrader »');
   await toInput(p); await p.click('#btnRun'); await done(p);
   await p.click('#btnCart'); await p.waitForSelector('#btnGo'); await p.click('#btnGo');
   await p.waitForFunction(() => /offres? ajoutée/.test(document.querySelector('.sheet-body').textContent), null, { timeout: 20000 });
   assert.equal(world.carted.length, 2, 'Sol Ring possédé : seulement Swords + Arcane Signet envoyés au panier : ' + JSON.stringify(world.carted));
-  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
-  await p.click('#btnBack'); await p.waitForSelector('#viewInput:not([hidden])');
-  assert.equal(await p.$eval('#buyBar', e => e.hidden), false, 'bannière « Panier rempli »');
-  assert.match(await txt(p, '#buyBar'), /2 cartes/); assert.match(await txt(p, '#buyBar'), /3 exemplaires/);
+  const c0 = await p.evaluate(() => XS.carts[0]);
+  assert.deepEqual(c0.items.map(i => [i.n, i.q, i.l, !!i.e]), [['Arcane Signet', 2, 'fr', true], ['Swords to Plowshares', 1, 'fr', true]], 'impression exacte gardée : ' + JSON.stringify(c0.items));
+  assert.ok(c0.items.every(i => i.c && i.pr > 0), 'état et prix de l\'offre');
+  await p.click('#cfCarts'); await p.waitForSelector('.cart-h');
+  assert.equal(await p.locator('.cart-h').count(), 2); assert.match(await txt(p, '.cart-h:first-child'), /2 cartes · 3 exemplaires/); assert.match(await txt(p, '.cart-h:first-child'), /À ajouter/);
   await p.reload(); await p.waitForTimeout(600);
-  assert.equal(await p.$eval('#buyBar', e => e.hidden), false, 'le panier à valider survit au rechargement');
-  await p.click('#buyBar [data-act="buy"]'); await p.waitForSelector('.buy-row');
-  assert.deepEqual(await p.$$eval('.buy-row .b-n b', e => e.map(x => x.textContent)), ['Arcane Signet', 'Swords to Plowshares']);
-  assert.match(await txt(p, '#buyGo'), /Ajouter 3 exemplaires/);
-  await p.click('.buy-row[data-i="0"] [data-d="-1"]');            // une seule Arcane Signet prise
-  assert.match(await txt(p, '#buyGo'), /Ajouter 2 exemplaires/);
-  assert.equal(await p.$eval('.buy-row[data-i="0"] [data-d="1"]', b => b.disabled), false); await p.click('.buy-row[data-i="0"] [data-d="1"]');
-  assert.equal(await p.$eval('.buy-row[data-i="0"] [data-d="1"]', b => b.disabled), true, 'jamais plus que ce qui était au panier');
-  await p.click('.buy-row[data-i="0"] [data-d="-1"]'); await p.click('.buy-row[data-i="0"] [data-d="-1"]'); await p.click('.buy-row[data-i="1"] [data-d="-1"]'); assert.equal(await p.$eval('#buyGo', b => b.disabled), true, 'plus rien à ajouter'); await p.click('.buy-row[data-i="0"] [data-d="1"]'); await p.click('.buy-row[data-i="1"] [data-d="1"]');
-  await p.click('#buyGo'); await p.waitForFunction(() => document.querySelector('#buyBar').hidden);
-  assert.deepEqual(await coll(p), { 'sol ring': '1/en', 'arcane signet': '1/fr', 'swords to plowshares': '1/fr' }, 'ajoutées avec la langue de l\'offre achetée');
-  assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:buy:v1')), null, 'panier à valider effacé');
+  assert.equal(await p.evaluate(() => XS.carts.length), 2, 'l\'historique survit au rechargement');
+  await p.evaluate(() => { plcCreate('box', 'Boîte achats'); plcCreate('binder', 'Classeur'); });
+  const [box, bind] = await p.evaluate(() => ['Boîte achats', 'Classeur'].map(n => Object.keys(COLL.places).find(k => COLL.places[k].n === n)));
+  await p.evaluate(() => openCartsSheet()); await p.waitForSelector('.cart-h');
+  await p.click('.cart-h:first-child [data-act="open"]'); await p.waitForSelector('.cart-row');
+  assert.deepEqual(await p.$$eval('.cart-row .b-n b', e => e.map(x => x.textContent)), ['Arcane Signet', 'Swords to Plowshares']);
+  assert.match(await txt(p, '#cartAdd'), /Ajouter 3 exemplaires/);
+  await p.click('.cart-row[data-i="0"] [data-d="-1"]');            // une Arcane Signet retirée du panier sur CardTrader
+  assert.match(await txt(p, '#cartAdd'), /Ajouter 2 exemplaires/);
+  assert.equal(await p.$eval('.cart-row[data-i="0"] [data-d="1"]', b => b.disabled), false); await p.click('.cart-row[data-i="0"] [data-d="1"]');
+  assert.equal(await p.$eval('.cart-row[data-i="0"] [data-d="1"]', b => b.disabled), true, 'jamais plus que ce qui était au panier');
+  await p.click('.cart-row[data-i="0"] [data-d="-1"]');
+  assert.equal(await p.evaluate(() => XS.carts[0].items[0].q), 1, 'modification gardée');
+  // rangement du panier, puis une ligne ailleurs
+  await p.click('.cart-sheet [data-act="cp"]'); await p.waitForSelector(`.plc-opt[data-p="${box}"]`); await p.click(`.plc-opt[data-p="${box}"]`);
+  await p.waitForFunction(b => XS.carts[0].P === b, box);
+  await p.click('.cart-row[data-i="1"] [data-act="lp"]'); await p.waitForSelector(`.plc-opt[data-p="${bind}"]`); await p.click(`.plc-opt[data-p="${bind}"]`);
+  await p.waitForFunction(b => XS.carts[0].items[1].p === b, bind);
+  assert.match(await txt(p, '.cart-row[data-i="1"] .cart-p'), /Classeur/);
+  const lines = await p.evaluate(() => XS.carts[0].items.map(i => i.l + '|' + i.e + (i.f ? '*' : '') + '#c' + i.c));
+  await p.click('#cartAdd'); await p.waitForFunction(() => XS.carts[0].d > 0);
+  const x = await p.evaluate(() => ({ a: COLL.map['arcane signet'].x || { [COLL.map['arcane signet'].l]: COLL.map['arcane signet'].q }, s: COLL.map['swords to plowshares'].x || { [COLL.map['swords to plowshares'].l]: COLL.map['swords to plowshares'].q } }));
+  assert.deepEqual(Object.keys(x.a), [lines[0].replace('#c', `#p${box}-c`)], 'édition, langue, état, rangement du panier : ' + JSON.stringify(x));
+  assert.deepEqual(Object.keys(x.s), [lines[1].replace('#c', `#p${bind}-c`)], 'rangement propre à la ligne');
+  assert.deepEqual(Object.values(x.a), [1]);
   await p.click('#toast [data-fn], #toast button'); await p.waitForTimeout(300);
-  assert.deepEqual(await coll(p), { 'sol ring': '1/en' }, 'Annuler : collection comme avant'); assert.equal(await p.$eval('#buyBar', e => e.hidden), false, 'Annuler : la bannière revient');
-  await p.click('#buyBar [data-act="buyx"]'); assert.equal(await p.$eval('#buyBar', e => e.hidden), true, 'croix : panier ignoré');
-  assert.deepEqual(await coll(p), { 'sol ring': '1/en' });
-  ok('« J\'ai acheté » : bannière après remplissage, survit au rechargement, quantités ajustables, langue de l\'offre, Annuler, ignorer');
+  assert.deepEqual(await coll(p), { 'sol ring': '1/en' }, 'Annuler : collection comme avant'); assert.equal(await p.evaluate(() => XS.carts[0].d || 0), 0, 'Annuler : panier à nouveau à ajouter');
+  // ✕ d'une ligne, puis panier ajouté : consultable, plus modifiable ; ✕ du panier (annulable)
+  await p.evaluate(() => openCartOne(XS.carts[0].id)); await p.waitForSelector('.cart-row');
+  await p.click('.cart-sheet .cart-row[data-i="0"] [data-act="x"]'); await p.waitForFunction(() => XS.carts[0].items.length === 1);
+  await p.click('.cart-sheet #cartAdd'); await p.waitForFunction(() => XS.carts[0].d > 0);
+  assert.deepEqual(await coll(p), { 'sol ring': '1/en', 'swords to plowshares': '1/fr' });
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForTimeout(400);
+  await p.evaluate(() => openCartsSheet()); await p.waitForSelector('.cart-h');
+  assert.match(await txt(p, '.cart-h:first-child'), /Ajouté le/);
+  await p.click('.cart-h:first-child [data-act="open"]'); await p.waitForSelector('.cart-sheet .cart-row');
+  assert.equal(await p.locator('.cart-sheet .qstep').count(), 0, 'panier ajouté : en lecture seule'); assert.equal(await p.locator('#cartAdd').count(), 0);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  await p.click('.cart-h:last-child [data-act="del"]'); await p.waitForFunction(() => XS.carts.filter(c => !c.x).length === 1);
+  assert.equal(await p.locator('.cart-h').count(), 1);
+  await p.click('#toast [data-fn], #toast button'); await p.waitForFunction(() => XS.carts.filter(c => !c.x).length === 2);
+  ok('Paniers CardTrader : ancien « J\'ai acheté » repris, impression exacte gardée, survit au rechargement, − / + / ✕, rangement du panier et par ligne, ajout avec édition, langue, état, Annuler, lecture seule une fois ajouté, suppression annulable');
   await p.context().close();
 }
 
@@ -106,7 +136,7 @@ const errsOf = [];
     D.user = { uid: 'u1', email: 'x@y.z' }; D.uid = 'u1';
     xsUser(D.user);
   });
-  assert.deepEqual(await p.evaluate(() => Object.keys(window.__w).sort()), ['engaged', 'history', 'prices'], 'écoute des documents annexes (decks montés, historique, prix partagés)');
+  assert.deepEqual(await p.evaluate(() => Object.keys(window.__w).sort()), ['carts', 'engaged', 'history', 'prices'], 'écoute des documents annexes (paniers, decks montés, historique, prix partagés)');
   // l'autre appareil a monté « Deck Z » ; ce n'est pas du cache : fusion
   const T = Date.now();
   await p.evaluate(t => window.__w.engaged({ decks: { deckZ: { n: 'Deck Z', at: t, q: { 'sol ring': 1 } } }, updatedAt: t }, false, false), T);
@@ -129,11 +159,21 @@ const errsOf = [];
   const hs = await p.evaluate(() => window.__saved.filter(s => s[1] === 'history').pop());
   assert.deepEqual(hs[2].pts.map(x => x.v), [1000, 1200, 1300], 'l\'historique complet repart dans le compte (le compte n\'avait pas le plus ancien)');
   assert.ok(hs[2].pts.every(x => !Array.isArray(x) && Object.keys(x).join() === 't,v,n,q'), 'relevés envoyés en objets : Firestore refuse les tableaux imbriqués');
+  // paniers CardTrader : un panier rempli sur l'autre appareil arrive ; celui d'ici part ; supprimé ailleurs : la trace l'emporte
+  const tc = Date.now();
+  await p.evaluate(t => { window.__saved.length = 0; buyRemember([{ n: 'Sol Ring', q: 1, l: 'fr', set: 'cmm', num: '400', cond: 'Near Mint', pr: 150 }], 'Ici'); window.__w.carts({ c: [{ id: 'other1', at: t - 5000, u: t - 5000, s: 'Là-bas', items: [{ k: 'opt', n: 'Opt', q: 2, q0: 2 }] }], updatedAt: t }, false, false); }, tc);
+  assert.deepEqual(await p.evaluate(() => XS.carts.map(c => c.s)), ['Ici', 'Là-bas'], 'paniers des deux appareils réunis');
+  await p.waitForTimeout(1300);
+  const cs = await p.evaluate(() => window.__saved.filter(s => s[1] === 'carts').pop());
+  assert.deepEqual(cs[2].c.map(c => c.s), ['Ici', 'Là-bas'], 'renvoyés au compte'); assert.equal(cs[2].c[0].items[0].e, 'cmm|400');
+  await p.evaluate(t => window.__w.carts({ c: [{ id: 'other1', at: t - 5000, u: t + 5000, x: 1 }], updatedAt: t + 5000 }, false, false), tc);
+  assert.deepEqual(await p.evaluate(() => XS.carts.filter(c => !c.x).map(c => c.s)), ['Ici'], 'supprimé sur l\'autre appareil');
+  assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:carts:v1')).u), 'u1', 'rattaché au compte');
   // règles refusées : message une seule fois, rien ne casse
   await p.evaluate(() => { D.cloud.saveMeta = async () => { throw Object.assign(new Error('denied'), { code: 'permission-denied' }); }; engSet('deckA', 'Deck A', '1 Sol Ring'); });
   await p.waitForTimeout(1300); assert.match(await txt(p, '#toast'), /Règles Firestore à publier/);
   assert.equal(await p.evaluate(() => engIsOn('deckA')), true, 'les cartes réservées restent sur l\'appareil');
-  ok('synchro compte : engagés fusionnés deck par deck, cache et échos ignorés, historique fusionné et renvoyé, règles manquantes signalées sans casser');
+  ok('synchro compte : paniers CardTrader fusionnés panier par panier, engagés fusionnés deck par deck, cache et échos ignorés, historique fusionné et renvoyé, règles manquantes signalées sans casser');
   await p.context().close();
 }
 
@@ -318,6 +358,35 @@ const errsOf = [];
   await rcGo(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
   assert.deepEqual(await p.evaluate(() => COLL.map['sol ring'].x), { fr: 4, en: 1 }, '1 FR déjà là + 3 FR scannés, 1 EN scannée : une ligne par langue');
   ok('scan : même carte en FR et en EN = deux lignes (quantités séparées), langue changée → fusion, ajout à la collection par ligne, fiche récap sans doublon de carte');
+  await p.context().close();
+}
+
+/* ── G) Chasse aux staples : historique des recherches (compte de l'éditeur) ───────────────────── */
+{
+  const now = Date.now();
+  const mk = (id, u, l) => ({ id, at: u, u, o: { n: 150, q: 2, max: 15, ct: true, tol: 5, cols: 'G', roles: ['ramp'] }, bal: true, pool: 900, rep: 2, l });
+  const hist = { h: [mk('recent1', now - 1000, [{ k: 'sol ring', n: 'Sol Ring', q: 1, e: 120, c: 130, g: 'C', s: 1, w: 'raison' }, { k: 'llanowar elves', n: 'Llanowar Elves', q: 2, e: 20, c: -1, ci: 'G', g: 'G', s: 0.8 }, { k: 'arcane signet', n: 'Arcane Signet', q: 1, e: 30, g: 'C', s: 0.5 }]),
+    mk('older1', now - 5000, [{ k: 'opt', n: 'Opt', q: 1, e: 5, ci: 'U', g: 'U', s: 1 }])], u: now };
+  const { p, errs } = await newPage(browser, world, { init: seed('2 Sol Ring\n1 Llanowar Elves') + `try { localStorage.setItem('deckdeal:stp:h', ${JSON.stringify(JSON.stringify(hist))}); } catch (e) {}` }); errsOf.push(errs);
+  await p.evaluate(() => { EV.uid = 'admin'; EV.adm = 'admin'; stpOpen(); }); await p.waitForSelector('.stp-h');
+  assert.equal(await p.locator('.stp-h').count(), 2, 'deux recherches dans l\'historique');
+  const first = await txt(p, '.stp-h:first-child .stp-ho');
+  assert.match(first, /150 cartes/); assert.match(first, /2 ex\. par carte/); assert.match(first, /Rampe/); assert.match(first, /CardTrader \+ 0,05/); assert.match(first, /3 cartes/);
+  await p.click('.stp-h:first-child [data-stp="h"]'); await p.waitForSelector('.stp-row');
+  assert.deepEqual(await p.$$eval('.stp-row', r => r.map(x => x.dataset.n + ' ' + (x.querySelector('em') ? x.querySelector('em').textContent : '1'))), ['Llanowar Elves 1', 'Arcane Signet 1'], 'Sol Ring possédée : retirée ; Llanowar : une seule à acheter');
+  assert.match(await txt(p, '.stp-sum'), /1 quantité baissée/);
+  assert.match(await txt(p, '.stp-sum'), /1 carte retirée/); assert.match(await txt(p, '.stp-sum'), /non revérifiés/);
+  assert.equal(await p.evaluate(() => STP.run), null, 'aucune vérification CardTrader relancée');
+  const h1 = await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:stp:h')).h[0]);
+  assert.deepEqual([h1.id, h1.l.map(c => c.n + ':' + c.q)], ['recent1', ['Llanowar Elves:1', 'Arcane Signet:1']], 'l\'entrée suit la liste recontrôlée');
+  await p.click('.stp-row[data-k="arcane signet"] [data-stp="x"]');
+  assert.deepEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:stp:h')).h[0].l.map(c => c.n)), ['Llanowar Elves'], '✕ : l\'entrée suit');
+  await p.click('[data-stp="edit"]'); await p.waitForSelector('.stp-h');
+  assert.deepEqual(await p.evaluate(() => [STP.o.cols, STP.o.roles]), ['G', ['ramp']], 'réglages de la recherche repris');
+  await p.click('.stp-h:last-child [data-stp="hx"]'); await p.waitForFunction(() => document.querySelectorAll('.stp-h').length === 1);
+  assert.deepEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:stp:h')).h.map(h => h.id)), ['recent1'], '✕ : retirée de l\'historique');
+  await p.click('#toast [data-fn], #toast button'); await p.waitForFunction(() => document.querySelectorAll('.stp-h').length === 2);
+  ok('Chasse aux staples : historique (réglages en clair, date, cartes), rouverte sans revérifier, cartes possédées retirées ou quantité baissée, l\'entrée suit la liste, réglages repris, ✕ annulable');
   await p.context().close();
 }
 

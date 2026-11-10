@@ -1836,22 +1836,10 @@ function pxMovers(items, ref, thr = 25) {
   return out;
 }
 
-/* ── Achats (« J'ai acheté »), cartes engagées dans des decks, fusion des données annexes du compte ──────────────── */
+/* ── Historique des paniers CardTrader, cartes engagées dans des decks, fusion des données annexes du compte ──────────────── */
 const BUY_MAX = 800;
-/** Panier en attente de validation : { at, items:[{k, n, q, l?}] } (k : clé de collection). added : cartes qui viennent d'être mises au panier CardTrader ({ n, q, l? }) ; replace : le panier avait été vidé avant, on repart de zéro. null si rien. */
-function buyMerge(cart, added, replace, now) {
-  const by = new Map();
-  if (cart && !replace) for (const it of cart.items || []) if (it && it.k && it.q > 0) by.set(it.k, { ...it });
-  for (const a of added || []) {
-    const name = String((a && a.n) || '').trim(), k = ownKey(name), q = Math.floor(Number(a && a.q));
-    if (!name || !k || !(q > 0)) continue;
-    const cur = by.get(k), l = a.l ? cardLang(a.l) : '';
-    by.set(k, { k, n: (cur && cur.n) || name, q: Math.min(999, (cur ? cur.q : 0) + q), ...(l ? { l } : cur && cur.l ? { l: cur.l } : {}) });
-  }
-  const items = [...by.values()].sort((x, y) => EN_CMP(x.n, y.n)).slice(0, BUY_MAX);
-  return items.length ? { at: Number.isFinite(now) ? now : Date.now(), items } : null;
-}
-/** Lecture tolérante du panier en attente (stockage local) ; null si illisible, vide ou vieux de plus de 30 jours. */
+/** Ancien panier en attente de « J'ai acheté » (deckdeal:buy:v1, avant l'historique) : { at, items:[{k, n, q, l?}] } ; null si illisible, vide ou vieux de plus de 30 jours.
+ *  Lu une fois pour devenir le premier panier de l'historique (extras.js › xsRead). */
 function buyClean(raw, now) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.items) || !Number.isFinite(raw.at)) return null;
   if ((Number.isFinite(now) ? now : Date.now()) - raw.at > 30 * 86400000) return null;
@@ -1859,6 +1847,72 @@ function buyClean(raw, now) {
     .map(i => ({ k: ownKey(i.n), n: i.n.slice(0, 150), q: Math.min(999, Math.floor(i.q)), ...(cardLang(i.l) ? { l: cardLang(i.l) } : {}) }));
   return items.length ? { at: raw.at, items } : null;
 }
+/** Historique des paniers : 20 paniers au plus, 6 mois ; un panier supprimé laisse une trace ({ id, at, u, x: 1 }, 40 au plus) pour que les autres appareils l'apprennent. */
+const CART_MAX = 20, CART_KEEP = 183 * 86400000, CART_ITEMS = 500, CART_TOMBS = 40;
+/** État CardTrader → état Cardmarket des détails d'un exemplaire (COND_CM). */
+const COND_CT_CM = { 'Mint': 'mt', 'Near Mint': 'nm', 'Slightly Played': 'ex', 'Moderately Played': 'gd', 'Played': 'lp', 'Heavily Played': 'pl', 'Poor': 'po' };
+/** Ligne d'un panier : { k, n (nom anglais), q (à ajouter à la collection), q0 (mis au panier : q ≤ q0), l? (langue), e? ('set|num'), f? (foil), c? (état Cardmarket),
+ *  p? (rangement de la ligne), pr? (prix unitaire, centimes), cu? (devise) } ; null si illisible. */
+function cartItem(i) {
+  if (!i || typeof i !== 'object') return null;
+  const n = String(i.n == null ? '' : i.n).trim().slice(0, 150), k = ownKey(n); if (!n || !k) return null;
+  const q0 = Math.min(999, Math.floor(Number(i.q0 != null ? i.q0 : i.q))), q = Math.min(q0, Math.max(0, Math.floor(Number(i.q))));
+  if (!(q0 > 0) || !Number.isFinite(q)) return null;
+  const l = cardLang(i.l), e = i.e ? edKey(edSet(i.e), edNum(i.e)) : '', c = COND_CM.includes(i.c) ? i.c : '', p = PLACE_ID_RE.test(String(i.p || '')) ? i.p : '', pr = Math.floor(Number(i.pr));
+  return { k, n, q, q0, ...(l ? { l } : {}), ...(e ? { e } : {}), ...(i.f ? { f: 1 } : {}), ...(c ? { c } : {}), ...(p ? { p } : {}), ...(pr > 0 ? { pr, cu: /^[A-Z]{3}$/.test(String(i.cu || '')) ? i.cu : 'EUR' } : {}) };
+}
+/** Même impression, même état : une seule ligne. */
+const cartLineId = it => [it.k, it.l || '', it.e || '', it.f ? 1 : 0, it.c || ''].join('|');
+/** Cartes mises au panier (data.js › cartFill › added : { n, q, l?, set?, num?, f?, cond? (CardTrader), pr?, cu? }) → lignes du panier, les mêmes impressions regroupées, par nom. */
+function cartLines(added) {
+  const by = new Map();
+  for (const a of added || []) {
+    if (!a) continue;
+    const it = cartItem({ n: a.n, q: a.q, l: a.l, e: edKey(a.set, a.num), f: a.f, c: COND_CT_CM[a.cond] || a.c || '', pr: a.pr, cu: a.cu });
+    if (!it) continue;
+    const id = cartLineId(it), cur = by.get(id);
+    if (cur) { cur.q0 = Math.min(999, cur.q0 + it.q0); cur.q = cur.q0; } else by.set(id, it);
+  }
+  return [...by.values()].sort((x, y) => EN_CMP(x.n, y.n) || cartLineId(x).localeCompare(cartLineId(y))).slice(0, CART_ITEMS);
+}
+/** Nouveau panier de l'historique (src : nom de la liste) ; null si rien n'a été mis au panier. */
+function cartNew(added, src, now, id) {
+  const items = cartLines(added); if (!items.length) return null;
+  const t = Number.isFinite(now) ? now : Date.now();
+  return { id: id || t.toString(36) + Math.floor(Math.random() * 1e8).toString(36), at: t, u: t, ...(src ? { s: String(src).trim().slice(0, 80) } : {}), items };
+}
+/** Panier lu (stockage, compte) : { id, at, u (dernière modification), s? (liste d'origine), d? (ajouté à la collection le…), P? (rangement du panier), items } ;
+ *  trace d'un panier supprimé : { id, at, u, x: 1 } ; null si illisible, vide ou plus vieux que 6 mois. */
+function cartClean(raw, now) {
+  if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !/^[a-z0-9]{4,24}$/.test(raw.id) || !Number.isFinite(raw.at)) return null;
+  const t = Number.isFinite(now) ? now : Date.now(), u = Number.isFinite(raw.u) ? raw.u : raw.at;
+  if (t - raw.at > CART_KEEP) return null;
+  if (raw.x) return { id: raw.id, at: raw.at, u, x: 1 };
+  const items = (Array.isArray(raw.items) ? raw.items : []).map(cartItem).filter(Boolean).slice(0, CART_ITEMS);
+  if (!items.length) return null;
+  const P = PLACE_ID_RE.test(String(raw.P || '')) ? raw.P : '';
+  return { id: raw.id, at: raw.at, u, ...(typeof raw.s === 'string' && raw.s.trim() ? { s: raw.s.trim().slice(0, 80) } : {}), ...(Number.isFinite(raw.d) && raw.d > 0 ? { d: raw.d } : {}), ...(P ? { P } : {}), items };
+}
+/** Historique lu ou fusionné (deux appareils : chaque panier pris dans sa version la plus récente, u) : les plus récents d'abord, 20 paniers et 40 traces au plus. */
+function cartsClean(list, now) {
+  const by = new Map();
+  for (const r of Array.isArray(list) ? list : []) { const c = cartClean(r, now); if (c && !(by.has(c.id) && by.get(c.id).u >= c.u)) by.set(c.id, c); }
+  const all = [...by.values()].sort((a, b) => b.at - a.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const live = all.filter(c => !c.x).slice(0, CART_MAX), tombs = all.filter(c => c.x).slice(0, CART_TOMBS), keep = new Set([...live, ...tombs]);
+  return all.filter(c => keep.has(c));
+}
+const cartsMerge = (a, b, now) => cartsClean([...(a || []), ...(b || [])], now);
+const cartsSame = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || []);
+/** Exemplaires d'un panier : { lines, cards (cartes différentes), q (à ajouter), q0 (mis au panier), tot (prix des exemplaires à ajouter, centimes), cu }. */
+function cartSum(c) {
+  const its = (c && c.items) || [], ks = new Set(its.filter(i => i.q > 0).map(i => i.k));
+  return { lines: its.length, cards: ks.size, q: its.reduce((a, i) => a + i.q, 0), q0: its.reduce((a, i) => a + i.q0, 0), tot: its.reduce((a, i) => a + (i.pr || 0) * i.q, 0), cu: (its.find(i => i.cu) || {}).cu || 'EUR' };
+}
+/** Lignes de collection d'un panier à ajouter (collection.js › collAdd) : langue, édition, foil, état et rangement (celui de la ligne, sinon celui du panier). */
+const cartToColl = c => (c.items || []).filter(i => i.q > 0).map(i => {
+  const p = i.p || c.P || '', a = { ...(p ? { p } : {}), ...(i.c ? { c: i.c } : {}) };
+  return { k: i.k, n: i.n, q: i.q, l: lineKey(i.l || '', i.e || '', !!i.f, a) };
+});
 
 const ENG_DECKS_MAX = 80, ENG_CARDS_MAX = 400, ENG_KEEP = 60 * 86400000;
 /** Cartes engagées : { [idDeck]: { n: nom du deck, at: ms, q: { cléCarte: exemplaires } } }. q vide = deck démonté (la trace est gardée 60 jours pour que les autres appareils l'apprennent). */
@@ -2863,7 +2917,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, dateShort, dayIso, newDeckId, HISTORY_MAX, lsSet, LS_CACHES, LS_WARNED,
     sanitizeSnap, newestSnap, typeBucket, landKind, landGroupNote, landMdfcText, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, canCommand, deckModel, dkCompOut, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, deckColors, deckColorInfo, colorFit, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, histRule, baseRoll, baseRef, pxMovers, buyClean, COND_CT_CM, cartItem, cartLines, cartNew, cartClean, cartsClean, cartsMerge, cartsSame, cartSum, cartToColl, CART_MAX, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame, engOwnFor,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 

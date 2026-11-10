@@ -1335,16 +1335,38 @@ test('baseRoll / baseRef / pxMovers : variations de prix carte par carte', () =>
   assert.deepEqual(C.pxMovers(items, ref, 5).list.map(x => x.k), ['a', 'b', 'c'], 'seuil 5 % : b compte ; d (−10 c/ex.) reste ignoré, sous 20 centimes'); assert.deepEqual(C.pxMovers(items, null), { total: 0, list: [], all: 0 });
 });
 
-test('achats « J\'ai acheté » : fusion des paniers, remplacement après vidage, lecture tolérante', () => {
+test('historique des paniers CardTrader : lignes (impression exacte), lecture tolérante, fusion entre appareils, ajout à la collection', () => {
   const t0 = 1_700_000_000_000;
-  let b = C.buyMerge(null, [{ n: 'Sol Ring', q: 1, l: 'fr' }, { n: 'Llanowar Elves', q: 2 }, { n: '', q: 3 }, { n: 'Rien', q: 0 }], false, t0);
-  assert.deepEqual(b.items.map(i => [i.k, i.q, i.l || '']), [['llanowar elves', 2, ''], ['sol ring', 1, 'fr']]);
-  assert.equal(b.at, t0);
-  b = C.buyMerge(b, [{ n: 'Sol Ring', q: 2, l: 'en' }, { n: 'Arcane Signet', q: 1 }], false, t0 + 1);
-  assert.deepEqual(b.items.map(i => [i.k, i.q, i.l || '']), [['arcane signet', 1, ''], ['llanowar elves', 2, ''], ['sol ring', 3, 'en']], 'même carte : quantités additionnées, dernière langue');
-  assert.deepEqual(C.buyMerge(b, [{ n: 'Command Tower', q: 1 }], true, t0 + 2).items.map(i => i.k), ['command tower'], 'panier vidé avant : on repart de zéro');
-  assert.equal(C.buyMerge(b, [], true), null, 'rien d\'ajouté après un vidage : plus de panier en attente');
-  assert.equal(C.buyMerge(null, [{ n: 'X', q: 5000 }]).items[0].q, 999, 'plafonné');
+  const added = [{ n: 'Sol Ring', q: 1, l: 'fr', set: 'cmm', num: '400', f: 0, cond: 'Near Mint', pr: 120, cu: 'EUR' }, { n: 'Sol Ring', q: 2, l: 'fr', set: 'CMM', num: '400', cond: 'Near Mint', pr: 120 },
+    { n: 'Sol Ring', q: 1, l: 'en', set: 'c21', num: '263', f: 1, cond: 'Slightly Played', pr: 300 }, { n: 'Llanowar Elves', q: 2 }, { n: '', q: 3 }, { n: 'Rien', q: 0 }];
+  const c = C.cartNew(added, 'Krenko', t0, 'abcd1');
+  assert.equal(c.id, 'abcd1'); assert.equal(c.at, t0); assert.equal(c.s, 'Krenko');
+  assert.deepEqual(c.items.map(i => [i.k, i.q, i.q0, i.l || '', i.e || '', !!i.f, i.c || '']), [['llanowar elves', 2, 2, '', '', false, ''], ['sol ring', 1, 1, 'en', 'c21|263', true, 'ex'], ['sol ring', 3, 3, 'fr', 'cmm|400', false, 'nm']], 'même impression : une ligne ; état CardTrader → Cardmarket');
+  assert.equal(C.cartNew([], 'x', t0), null, 'rien au panier : pas de panier');
+  assert.equal(C.cartItem({ n: 'X', q: 5000 }).q0, 999, 'plafonné');
+  assert.deepEqual(C.cartItem({ n: 'Sol Ring', q: 7, q0: 3, e: 'CMM|400', c: 'zz', p: 'Bad id!' }), { k: 'sol ring', n: 'Sol Ring', q: 3, q0: 3, e: 'cmm|400' }, 'jamais plus que ce qui était au panier ; état et rangement illisibles ignorés');
+  assert.equal(C.cartItem({ n: 'Sol Ring', q: 0, q0: 2 }).q, 0, 'une ligne à 0 reste (pas prise)');
+  const sum = C.cartSum(c); assert.deepEqual([sum.cards, sum.q, sum.q0, sum.tot], [2, 6, 6, 660]);
+  // lecture : illisible, trop vieux, trace d'un panier supprimé
+  assert.equal(C.cartClean({ id: 'abcd1', at: t0, items: [] }, t0), null, 'vide');
+  assert.equal(C.cartClean({ ...c }, t0 + 184 * 86400000), null, 'plus de 6 mois');
+  assert.equal(C.cartClean({ ...c, id: 'X!' }, t0), null);
+  assert.deepEqual(C.cartClean({ id: 'abcd2', at: t0, u: t0 + 5, x: 1, items: [1] }, t0), { id: 'abcd2', at: t0, u: t0 + 5, x: 1 });
+  assert.equal(C.cartClean({ ...c, d: t0 + 9, P: 'box1' }, t0).P, 'box1');
+  // fusion : chaque panier dans sa version la plus récente, suppression comprise ; 20 paniers au plus
+  const edited = { ...c, u: t0 + 10, items: c.items.slice(1) }, gone = { id: 'abcd1', at: t0, u: t0 + 20, x: 1 };
+  assert.equal(C.cartsMerge([c], [edited], t0)[0].items.length, 2, 'version modifiée gagne');
+  assert.equal(C.cartsMerge([edited], [c], t0)[0].items.length, 2, 'dans les deux sens');
+  assert.deepEqual(C.cartsMerge([edited], [gone], t0), [gone], 'supprimé ailleurs : la trace l\'emporte');
+  const many = Array.from({ length: 25 }, (_, i) => C.cartNew([{ n: 'Sol Ring', q: 1 }], '', t0 + i, 'cart' + i));
+  const kept = C.cartsClean(many, t0 + 30); assert.equal(kept.length, C.CART_MAX); assert.equal(kept[0].id, 'cart24', 'les plus récents d\'abord');
+  assert.ok(C.cartsSame(kept, C.cartsClean(kept, t0 + 30)));
+  // ajout à la collection : langue, édition, foil, état, rangement de la ligne sinon du panier ; lignes à 0 ignorées
+  const col = { ...c, P: 'box1', items: c.items.map((i, j) => (j === 0 ? { ...i, q: 0 } : j === 1 ? { ...i, p: 'bind2' } : i)) };
+  assert.deepEqual(C.cartToColl(col), [{ k: 'sol ring', n: 'Sol Ring', q: 1, l: 'en|c21|263*#pbind2-cex' }, { k: 'sol ring', n: 'Sol Ring', q: 3, l: 'fr|cmm|400#pbox1-cnm' }]);
+  const m = C.mergeColl({}, C.cartToColl(col), 'add', 1);
+  assert.deepEqual(m['sol ring'].x, { 'en|c21|263*#pbind2-cex': 1, 'fr|cmm|400#pbox1-cnm': 3 }, 'chaque impression sur sa ligne de collection');
+  // ancien panier « J'ai acheté »
   assert.equal(C.buyClean({ at: t0, items: [{ n: 'Sol Ring', q: 2, l: 'FR' }, { n: 5, q: 1 }, { n: 'Zéro', q: 0 }] }, t0 + 1000).items.length, 1);
   assert.equal(C.buyClean({ at: t0, items: [{ n: 'Sol Ring', q: 2 }] }, t0 + 31 * 86400000), null, 'plus de 30 jours : abandonné');
   assert.equal(C.buyClean('x'), null); assert.equal(C.buyClean({ at: 1, items: 'x' }), null);

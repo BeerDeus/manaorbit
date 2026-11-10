@@ -125,6 +125,7 @@ const PL_KEEP = {
   'Réservée par {n} decks montés': 'montré seulement au-delà de 1 deck',
   '{n} relevés · de {min} à {max}': 'courbe montrée à partir de 2 relevés',
   '{n} exemplaires et +': 'filtre « Doublons » réglé au-delà de 2 (2 : « Doublons »)',
+  'analyse : {n} decks': 'Chasse aux staples : decks analysés, choix de 200 à 2 000 (STP_ND)',
 };
 
 test('pluriels : pas de T(\'… {n} mots…s\') (« 1 cartes ») : TN(n, singulier, pluriel), sauf nombre jamais égal à 1 (PL_KEEP)', () => {

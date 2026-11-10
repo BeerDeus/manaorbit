@@ -15,7 +15,9 @@
    · vérification CardTrader (facultative, longue : offres réelles carte par carte, data.js › runLive comme collection.js › pxRun) : une carte dont l'offre la moins chère
      (critères de la recherche : état, mode, langue, repli anglais) n'est pas sous prix maximum + marge est remplacée par la suivante du classement (même couleur).
      Prix lus gardés 2 jours sur l'appareil (deckdeal:stp:ct) ; la vérification continue si la fiche est fermée (pastille flottante).
-   Sortie : « Copier » (« 1 Nom » par ligne) ou « Envoyer dans Prix d'une liste » (app.js › putDeckText). ✕ sur une ligne : écartée de cette liste seulement. */
+   Sortie : « Copier » (« 1 Nom » par ligne) ou « Envoyer dans Prix d'une liste » (app.js › putDeckText). ✕ sur une ligne : écartée de cette liste seulement.
+   Historique : les 10 dernières recherches (réglages et liste) en tête des réglages, sur l'appareil et dans le compte ; ✕ en retire une ; rouverte, ses cartes
+   sont recontrôlées sur la collection seulement (pas de nouvelle vérification CardTrader : Prix d'une liste relit tous les prix). */
 const STP_KEY = 'deckdeal:stp', STP_CT_KEY = 'deckdeal:stp:ct', STP_CT_TTL = 2 * 864e5;
 const STP_N = [50, 100, 150, 200, 300], STP_ND = [200, 500, 1000, 2000], STP_ND_MAX = 2000,      // decks analysés sans commandant : choix proposés, et plafond absolu (jamais plus, quel que soit le réglage enregistré)
   STP_MAXS = [10, 15, 25, 50], STP_CMD_MAX = 10;
@@ -34,7 +36,7 @@ function stpGrp(R) {
   if (m === 'role') return { m, key: x => x.r1 || 'none', order: [...STP_ROLES.map(r => r[0]), 'none'] };
   return R.bal ? { m: '', key: x => x.g, order: R.order || STP_GROUPS } : null;
 }
-const STP = { o: null, api: null, q: '', res: null, run: null, pop: null, ct: null, task: null, prog: null, stop: false, deep: null };
+const STP = { o: null, api: null, q: '', res: null, run: null, pop: null, ct: null, task: null, prog: null, stop: false, deep: null, h: null, hu: 0, hw: '', hdoc: { uid: '', unsub: null, pushT: 0 } };      // h : historique (stpHLoad)
 const STP_DEEP_MS = 40000, STP_GEN_MS = 12000;      // analyse approfondie : temps donné au coach pour construire les decks d'un commandant choisi (4 versions, 3 tirages) / d'un commandant de l'échantillon (1 version)
 
 /* ── Calcul (sans DOM : tests/test-staples.mjs) ───────────────────────────────────────────────────── */
@@ -120,11 +122,7 @@ const stpDefaults = () => ({ n: 150, q: 1, max: 15, ct: true, tol: 5, cols: '', 
 function stpLoad() {
   if (STP.o) return STP.o;
   let o = {}; try { o = JSON.parse(localStorage.getItem(STP_KEY) || '{}') || {}; } catch (e) { o = {}; }
-  const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
-  STP.o = { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, cart: o.cart !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
-    cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
-    tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
-  return STP.o;
+  return (STP.o = stpNorm(o));
 }
 function stpSave() { try { localStorage.setItem(STP_KEY, JSON.stringify(STP.o)); } catch (e) { /* stockage refusé : pour cette session */ } }
 
@@ -389,7 +387,7 @@ async function stpGo() {
   } catch (e) {
     STP.busy = ''; STP.err = (e && e.message) || T('Échec de la génération.');
     if (STP.atask) { STP.atask.finish(T('Chasse aux staples'), 'bad', STP.err); STP.atask = null; } STP.prog = null;
-  } finally { STP.busy = ''; stpPaint(); haptic(STP.res ? 'ok' : 'bad'); }
+  } finally { STP.busy = ''; if (STP.res && !STP.err) stpHPut(STP.res); stpPaint(); haptic(STP.res ? 'ok' : 'bad'); }      // historique : la liste obtenue (vérifiée si demandé)
 }
 /** Complète la liste jusqu'au nombre demandé (après des ✕), en respectant les quotas, puis vérifie les nouvelles cartes. */
 async function stpFill() {
@@ -401,11 +399,13 @@ async function stpFill() {
   }
   stpPaint();
   if (R.o.ct && R.list.some(x => x.ct === undefined)) { await stpVerify(R); stpPaint(); }
+  stpHPut(R);
 }
 function stpDrop(k) {
   const R = STP.res; if (!R) return;
   const i = R.list.findIndex(x => x.k === k); if (i < 0) return;
   R.list.splice(i, 1); haptic('tap'); stpPaint();
+  if (!STP.run) stpHPut(R);      // l'historique suit la liste (pendant une vérification : enregistrée à la fin)
 }
 function stpSend() {
   const R = STP.res; if (!R || !R.list.length) return;
@@ -414,6 +414,128 @@ function stpSend() {
   while (sheets.length) sheets[sheets.length - 1].close();
   if (typeof navCloseSections === 'function') navCloseSections();
   putDeckText(text, T('Chasse aux staples'));
+}
+
+/* ── Historique des recherches (10 au plus : réglages et liste obtenue ; sur l'appareil, deckdeal:stp:h, et dans le compte, users/{uid}/meta/staples) ──
+   Une recherche rouverte n'est pas revérifiée sur CardTrader (« Prix d'une liste » relit tous les prix) : seules les cartes que tu as maintenant en
+   exemplaires libres sont retirées, ou leur quantité baissée. L'entrée suit la liste (✕, Compléter, vérification) et remonte en tête. */
+const STP_H_KEY = 'deckdeal:stp:h', STP_H_MAX = 10, STP_H_SIZE = 800000;      // STP_H_SIZE : taille du document du compte (Firestore : 1 Mo au plus)
+/** Réglages lus (stockage, historique) et bornés. */
+function stpNorm(o) {
+  o = o && typeof o === 'object' ? o : {};
+  const d = stpDefaults(), int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : def);
+  return { n: int(o.n, 10, 500, d.n), q: int(o.q, 1, 4, d.q), max: int(o.max, 1, 500, d.max), ct: o.ct !== false, deep: o.deep !== false, cart: o.cart !== false, grp: ['type', 'role'].includes(o.grp) ? o.grp : '', nd: STP_ND.includes(+o.nd) ? +o.nd : d.nd, tol: int(o.tol, 0, 100, d.tol),
+    cols: String(o.cols || '').replace(/[^WUBRG]/g, ''), cless: o.cless !== false, cmds: (Array.isArray(o.cmds) ? o.cmds : typeof o.cmd === 'string' && o.cmd ? [o.cmd] : []).filter(x => typeof x === 'string' && x).slice(0, STP_CMD_MAX),      // cmd : un seul commandant (version d'avant)
+    tags: Array.isArray(o.tags) ? o.tags.filter(t => typeof t === 'string').slice(0, 12) : [], roles: Array.isArray(o.roles) ? o.roles.filter(r => STP_ROLES.some(x => x[0] === r)) : [] };
+}
+/** Entrée de l'historique pour la liste R (id : celle qu'elle remplace) : réglages, commandants, bilan, et chaque carte en abrégé
+ *  { k, n, q (exemplaires à acheter), e (Cardmarket, centimes), c? (CardTrader : centimes, -1 aucune offre ; absent : pas vérifiée), ci?, g, t?, r?, s, w? (raison affichée) }. */
+function stpHEntry(R, id, now, why) {
+  const A = R.A && R.A.n ? { n: R.A.n | 0, nc: R.A.nc | 0, nr: R.A.nr | 0, cmds: R.A.cmds | 0, m: R.A.notes ? (R.A.notes.length ? Math.round(R.A.notes.reduce((a, x) => a + x, 0) / R.A.notes.length) : 0) : R.A.m | 0 } : null;
+  return { id, at: R.at || now, u: now, o: stpNorm(R.o), ...(R.cmd ? { cmd: String(R.cmd).slice(0, 300) } : {}), bal: !!R.bal, pool: R.pool | 0, rep: R.rep | 0, cartN: R.cartN | 0,
+    ...(R.order && R.order.length ? { order: R.order.slice(), gn: Object.fromEntries(R.order.filter(s => R.gn && R.gn[s]).map(s => [s, { short: String(R.gn[s].short || ''), name: String(R.gn[s].name || ''), ci: String(R.gn[s].ci || '') }])) } : {}),
+    ...(A ? { A } : {}), ...(R.stopped ? { stopped: 1 } : {}),
+    l: R.list.map(x => { const w = why ? String(why(x, R) || '').slice(0, 90) : x.w || ''; return { k: x.k, n: x.name, q: x.need, e: x.eur, ...(x.ct !== undefined ? { c: x.ct == null ? -1 : x.ct } : {}), ...(x.ci ? { ci: x.ci } : {}), g: x.g, ...(x.ty ? { t: x.ty } : {}), ...(x.r1 ? { r: x.r1 } : {}), s: Math.round((x.s || 0) * 1000) / 1000, ...(w ? { w } : {}) }; }) };
+}
+/** Entrée lue (stockage, compte) ; null si illisible. */
+function stpHClean(h) {
+  if (!h || typeof h !== 'object' || typeof h.id !== 'string' || !/^[a-z0-9]{4,24}$/.test(h.id) || !Number.isFinite(h.at) || !Array.isArray(h.l)) return null;
+  const str = v => (typeof v === 'string' ? v : ''), l = h.l.filter(c => c && typeof c.n === 'string' && c.n && typeof c.k === 'string' && c.k && c.q > 0 && Number.isFinite(c.e))
+    .map(c => ({ k: c.k, n: c.n.slice(0, 150), q: Math.min(4, Math.floor(c.q)), e: c.e, ...(Number.isFinite(c.c) ? { c: c.c } : {}), ...(str(c.ci) ? { ci: str(c.ci).replace(/[^WUBRG]/g, '') } : {}), g: str(c.g) || 'C', ...(c.t > 0 ? { t: c.t | 0 } : {}), ...(str(c.r) ? { r: str(c.r) } : {}), s: Number(c.s) || 0, ...(str(c.w) ? { w: str(c.w).slice(0, 90) } : {}) }));
+  const gn = h.gn && typeof h.gn === 'object' ? Object.fromEntries(Object.entries(h.gn).filter(([, v]) => v && typeof v === 'object').map(([s, v]) => [s, { short: str(v.short), name: str(v.name), ci: str(v.ci) }])) : null;
+  return { id: h.id, at: h.at, u: Number.isFinite(h.u) ? h.u : h.at, o: stpNorm(h.o), ...(str(h.cmd) ? { cmd: str(h.cmd) } : {}), bal: !!h.bal, pool: h.pool | 0, rep: h.rep | 0, cartN: h.cartN | 0,
+    ...(Array.isArray(h.order) && gn ? { order: h.order.filter(s => typeof s === 'string' && gn[s]), gn } : {}), ...(h.A && typeof h.A === 'object' ? { A: { n: h.A.n | 0, nc: h.A.nc | 0, nr: h.A.nr | 0, cmds: h.A.cmds | 0, m: h.A.m | 0 } } : {}), ...(h.stopped ? { stopped: 1 } : {}), l };
+}
+/** Historique lu : les plus récemment utilisées d'abord, 10 au plus. */
+const stpHAll = list => (Array.isArray(list) ? list : []).map(stpHClean).filter(Boolean).sort((a, b) => b.u - a.u).filter((h, i, a) => a.findIndex(x => x.id === h.id) === i).slice(0, STP_H_MAX);
+/** Entrée ajoutée ou remplacée (en tête). */
+const stpHPutIn = (list, h) => [h, ...list.filter(x => x.id !== h.id)].slice(0, STP_H_MAX);
+/** Document du compte : les plus anciennes retirées tant qu'il dépasse STP_H_SIZE. */
+function stpHDoc(list) { let l = list.slice(); while (l.length > 1 && JSON.stringify(l).length > STP_H_SIZE) l = l.slice(0, -1); return l; }
+/** Liste rouverte : chaque carte recontrôlée sur la collection (freeOf(k) : exemplaires libres maintenant) ; prix d'alors, sans nouvelle vérification.
+ *  → R (comme stpGo, sans réserve de remplacement) ; R.gone : cartes retirées (assez d'exemplaires maintenant), R.less : quantités baissées. */
+function stpHRestore(h, freeOf) {
+  const list = []; let gone = 0, less = 0;
+  for (const c of h.l) {
+    const q = Math.min(c.q, h.o.q - Math.max(0, freeOf(c.k) || 0));
+    if (q <= 0) { gone++; continue; }
+    if (q < c.q) less++;
+    list.push({ k: c.k, name: c.n, need: q, eur: c.e, ...(c.c !== undefined ? { ct: c.c < 0 ? null : c.c } : {}), ci: c.ci || '', g: c.g, ty: c.t || 0, r1: c.r || '', s: c.s || 0, w: c.w || '', roles: [], also: [] });
+  }
+  return { o: { ...h.o }, list, rest: [], out: [], rep: h.rep, bal: h.bal, quotas: null, order: h.order || null, gn: h.gn || {}, cmd: h.cmd || '', pool: h.pool, A: h.A || null, stopped: !!h.stopped, cartN: h.cartN, note: '', warn: '', at: h.at, hid: h.id, gone, less };
+}
+
+function stpHLoad() {
+  if (STP.h) return STP.h;
+  let r = null; try { r = JSON.parse(localStorage.getItem(STP_H_KEY) || 'null'); } catch (e) { r = null; }
+  STP.h = stpHAll(r && r.h); STP.hu = Number(r && r.u) || 0; STP.hw = (r && typeof r.w === 'string' && r.w) || '';
+  return STP.h;
+}
+function stpHWrite() { try { localStorage.setItem(STP_H_KEY, JSON.stringify({ h: STP.h, u: STP.hu, ...(STP.hw ? { w: STP.hw } : {}) })); } catch (e) { /* stockage plein : gardé pour la session (et le compte) */ } }
+function stpHSet(list) { STP.h = list; STP.hu = Math.max(Date.now(), (STP.hu || 0) + 1); stpHWrite(); stpHPushSoon(); }
+/** La liste en cours entre dans l'historique (ou y remplace son entrée). */
+function stpHPut(R) {
+  if (!R || !R.list.length) return;
+  stpHLoad(); R.hid = R.hid || Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  stpHSet(stpHPutIn(STP.h, stpHEntry(R, R.hid, Date.now(), stpWhy)));
+}
+/** Rouvre une recherche : réglages repris (« Modifier les réglages » relance la même), cartes que tu as maintenant retirées, prix d'alors. */
+function stpHOpen(id) {
+  const h = stpHLoad().find(x => x.id === id); if (!h || STP.run || STP.busy) return;
+  const R = stpHRestore(h, k => ownFree(k, null));
+  R.warn = [T('Recherche du {date} : prix d\'alors, non revérifiés (Prix d\'une liste relit tous les prix).', { date: stpHDate(h.at) }),
+    R.gone ? TN(R.gone, '{n} carte retirée : tu l\'as maintenant dans ta collection.', '{n} cartes retirées : tu les as maintenant dans ta collection.') : '',
+    R.less ? TN(R.less, '{n} quantité baissée (exemplaires déjà là).', '{n} quantités baissées (exemplaires déjà là).') : ''].filter(Boolean).join(' ');
+  STP.o = { ...h.o, grp: STP.o ? STP.o.grp : h.o.grp }; stpSave(); STP.res = R; STP.edit = false; STP.err = ''; STP.metaSig = '';
+  if (!R.list.length) { STP.res = null; stpHSet(STP.h.filter(x => x.id !== id)); toast(T('Toutes les cartes de cette recherche sont maintenant dans ta collection')); stpPaint(); return; }
+  if (R.gone || R.less) stpHPut(R); else stpHSet(stpHPutIn(STP.h, { ...h, u: Date.now() }));      // remonte en tête
+  haptic('tap'); stpPaint(); if (STP.api) STP.api.body.scrollTop = 0;
+}
+function stpHDrop(id) {
+  const prev = stpHLoad().slice(), h = prev.find(x => x.id === id); if (!h) return;
+  stpHSet(prev.filter(x => x.id !== id)); if (STP.res && STP.res.hid === id) STP.res.hid = '';
+  haptic('tap'); stpPaint();
+  toast(T('Recherche retirée de l\'historique'), { label: tUndo(), fn: () => { stpHSet(stpHAll([...STP.h, h])); stpPaint(); } });
+}
+const stpHDate = t => dateShort(t) + ' ' + new Date(t).toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' });
+/** Réglages d'une recherche, en clair (HTML) : « 150 cartes · < 0,15 € · CardTrader + 0,05 € · Krenko · Rampe · analyse : 1 000 decks ». */
+function stpHParams(h) {
+  const o = h.o, esc2 = typeof esc === 'function' ? esc : x => x;
+  const out = [esc2(TN(o.n, '{n} carte', '{n} cartes')), o.q > 1 ? esc2(T('{n} ex. par carte', { n: o.q })) : '', '&lt; ' + esc2(stpEuro(o.max)), o.ct ? 'CardTrader + ' + esc2(stpEuro(o.tol)) : esc2(T('sans CardTrader')),
+    h.cmd ? esc2(h.cmd) : (o.cols ? stpPipsHtml(o.cols) : esc2(T('toutes couleurs'))) + (o.cless ? '' : ' ' + esc2(T('sans incolores'))),
+    o.roles.length ? esc2(o.roles.map(r => T((STP_ROLES.find(x => x[0] === r) || [r, r])[1])).join(', ')) : '',
+    o.tags.length && typeof dmxLabel === 'function' ? esc2(o.tags.map(dmxLabel).join(', ')) : '',
+    o.deep ? esc2(h.cmd ? T('analyse approfondie') : T('analyse : {n} decks', { n: nf0(o.nd) })) : ''];
+  return out.filter(Boolean).join(' · ');
+}
+function stpHistHtml() {
+  const l = stpHLoad(); if (!l.length) return '';
+  return `<div class="stp-hist">${`<h3 class="dkf-h">${T('Dernières recherches')} <small>${T('({n} au plus)', { n: STP_H_MAX })}</small></h3>`}<div class="stp-hl">${l.map(h => {
+    const n = h.l.length, cm = h.l.reduce((a, c) => a + c.e * c.q, 0), cv = h.l.filter(c => c.c >= 0), ct = cv.reduce((a, c) => a + c.c * c.q, 0);
+    return `<div class="stp-h"><button type="button" class="stp-ho" data-stp="h" data-v="${esc(h.id)}"><b>${stpHParams(h)}</b><small>${esc([stpHDate(h.at), TN(n, '{n} carte', '{n} cartes'), '≈ ' + stpEuro(cm), cv.length ? 'CT ≈ ' + stpEuro(ct) : ''].filter(Boolean).join(' · '))}</small></button>
+      <button type="button" class="icon-btn stp-hx" data-stp="hx" data-v="${esc(h.id)}" aria-label="${esc(T('Retirer cette recherche de l\'historique'))}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+  }).join('')}</div></div>`;
+}
+/* Synchro avec le compte (compte de l'éditeur : abonnement à l'ouverture de la fiche) ; le plus récent l'emporte. */
+function stpHSync() {
+  const d = STP.hdoc, uid = (typeof D !== 'undefined' && D.uid) || '';
+  if (d.uid === uid) return;
+  if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.uid = '';
+  if (!uid || !D.cloud || !D.cloud.watchMeta) return;
+  stpHLoad(); if (STP.hw && STP.hw !== uid) { STP.h = []; STP.hu = 0; }      // historique d'un autre compte : reste dans ce compte-là
+  STP.hw = uid; stpHWrite(); d.uid = uid;
+  d.unsub = D.cloud.watchMeta(uid, 'staples', (data, pending, fromCache) => {
+    if (pending || fromCache || D.uid !== uid) return;
+    const ru = Number(data && data.updatedAt) || 0;
+    if (data && ru > STP.hu) { STP.h = stpHAll(data.h); STP.hu = ru; stpHWrite(); if (!STP.busy && !STP.run && (!STP.res || STP.edit)) stpPaint(); }
+    else if (STP.hu > ru) stpHPushSoon();
+  }, () => { /* règles pas encore publiées : historique gardé sur l'appareil */ });
+}
+function stpHPushSoon() { const d = STP.hdoc; if (!d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(stpHPush, 1500); }
+async function stpHPush() {
+  const d = STP.hdoc; clearTimeout(d.pushT); d.pushT = 0;      // non nul : envoi en attente (decks.js › syncFlush)
+  if (!d.uid || d.uid !== D.uid || (typeof acctHeld === 'function' && acctHeld(d.uid)) || !cloudOn() || !D.cloud.saveMeta) return;
+  try { await D.cloud.saveMeta(d.uid, 'staples', { h: stpHDoc(STP.h), updatedAt: STP.hu || Date.now() }); } catch (e) { /* hors ligne, règles : renvoyé au prochain changement */ }
 }
 
 /* ── Affichage ────────────────────────────────────────────────────────────────────────────────────── */
@@ -429,7 +551,7 @@ function stpFormHtml() {
   const mine = stpMyCmds();
   const cmdChip = x => chip('cmd', x.slug, o.cmds.includes(x.slug), esc(stpCmdNm(x)) + ` <small>${stpPipsHtml(x.ci)}</small>`);
   const allMine = mine.length > 1 && mine.slice(0, STP_CMD_MAX).every(x => o.cmds.includes(x.slug)), ciAll = [...new Set(cs.flatMap(x => [...dwCiOf(x.keys, x.ci)]))].sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
-  return `<div class="dkf stp">
+  return `${stpHistHtml()}<div class="dkf stp">
     ${h(T('Nombre de cartes'))}<div class="fopts" role="group">${STP_N.map(n => chip('n', n, o.n === n, nf0(n))).join('')}
       <label class="stp-in">${T('Autre')} <input type="number" id="stpN" inputmode="numeric" min="10" max="500" step="10" value="${o.n}"></label></div>
     ${h(T('Exemplaires par carte'))}<div class="fopts" role="group">${[1, 2, 3, 4].map(q => chip('q', q, o.q === q, String(q))).join('')}</div>
@@ -478,6 +600,7 @@ function stpRunHtml() {
       <p class="hint">${T('Les offres sont lues carte par carte : ça peut prendre plusieurs minutes. Tu peux fermer cette fiche, la vérification continue.')}</p>` : '<span class="stp-bar indet"><i></i></span>'}</div>`;
 }
 function stpWhy(x, R) {
+  if (x.w) return x.w;      // liste rouverte de l'historique : la raison telle qu'affichée à l'époque
   const out = [];
   const gc = R.gn && R.gn[x.g], who = gc ? gc.short : R.cmd;      // plusieurs commandants : celui de la carte
   if (x.x) { if (x.x.incl >= 1) out.push(gc ? T('{p} des decks de {name}', { p: pct(Math.round(x.x.incl)), name: who }) : T('{p} des decks du commandant', { p: pct(Math.round(x.x.incl)) })); else if (x.x.ai >= 2) out.push(T('conseillée pour {name}', { name: who })); else if (x.x.m >= 0.4) out.push(T('sert le plan')); }
@@ -496,7 +619,7 @@ function stpRowHtml(x, i, R) {
 }
 /** Bilan de l'analyse : decks analysés (coach, joueurs), note moyenne, commandants. */
 function stpABil(R) {
-  const A = R.A, m = A.notes.length ? Math.round(A.notes.reduce((a, x) => a + x, 0) / A.notes.length) : 0;
+  const A = R.A, m = A.notes ? (A.notes.length ? Math.round(A.notes.reduce((a, x) => a + x, 0) / A.notes.length) : 0) : A.m || 0;      // m : liste rouverte de l'historique
   return [TN(A.n, '{n} deck analysé', '{n} decks analysés') + ` (${T('coach {a} · joueurs {b}', { a: nf0(A.nc), b: nf0(A.nr) })})`, m ? T('note moyenne {m} / 100', { m }) : '',
     !R.cmd && A.cmds ? TN(A.cmds, '{n} commandant', '{n} commandants') : '', R.stopped ? T('analyse arrêtée avant la fin') : ''].filter(Boolean).join(' · ');
 }
@@ -569,11 +692,13 @@ function stpClick(e) {
   else if (a === 'col') o.cols = 'WUBRG'.split('').filter(c => (c === v ? !o.cols.includes(c) : o.cols.includes(c))).join('');
   else if (a === 'role') o.roles = tog(o.roles, v); else if (a === 'tag') o.tags = tog(o.tags, v);
   else if (a === 'go') { STP.edit = false; STP.err = ''; stpGo(); return; }
+  else if (a === 'h') { stpHOpen(v); return; }      // historique : rouvrir
+  else if (a === 'hx') { stpHDrop(v); return; }
   else if (a === 'edit') { STP.edit = true; haptic('tap'); stpPaint(); return; }
   else if (a === 'x') { stpDrop(v); return; }
   else if (a === 'fill') { haptic('tap'); stpFill(); return; }
   else if (a === 'verify') {
-    haptic('tap'); const R = STP.res, go = () => { R.note = ''; stpVerify(R).then(stpPaint); stpPaint(); };
+    haptic('tap'); const R = STP.res, go = () => { R.note = ''; stpVerify(R).then(() => { stpPaint(); stpHPut(R); }); stpPaint(); };
     if (!(typeof mkUs === 'function' && mkUs()) && !ctReady()) ctGetSheet(go); else go();      // CardTrader pas configuré : l'encart du token, puis la vérification
     return;
   }
@@ -599,7 +724,7 @@ function stpInput(e) {
 /** Fiche « Chasse aux staples » (compte de l'éditeur seulement) : réglages, puis la liste ; une vérification en cours se retrouve en rouvrant la fiche. */
 function stpOpen() {
   if (!stpOn()) return;
-  stpLoad();
+  stpLoad(); stpHLoad(); stpHSync();      // historique du compte (compte de l'éditeur seulement)
   if (STP.api && sheets.indexOf(STP.api) >= 0) return;
   openSheet(T('Chasse aux staples'), T('Admin · ton compte seulement'), api => {
     STP.api = api; api.wrap.classList.add('dkf-sheet', 'stp-sheet');
@@ -619,4 +744,4 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.stp = th => {
   const row = th.closest('.stp-row'); if (!row || !STP.api) return null;
   return zoomFrom(STP.api.body.querySelectorAll('.stp-row'), row, r => zoomNamed(r.dataset.k, stpNm(r.dataset.n), r.dataset.n, typeof wantLang === 'function' ? wantLang() : ''));      // en grand : l'impression dans la langue voulue, cherchée par le viewer
 };
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STP, stpTypeOf, stpNoteW, stpFreq, stpSample, stpPopScore, stpMask, stpGroup, stpPopIndex, stpQuotas, stpPick, stpNext, stpSorted, stpText, stpCtOk, stpGroupsOf });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STP, stpTypeOf, stpNoteW, stpFreq, stpSample, stpPopScore, stpMask, stpGroup, stpPopIndex, stpQuotas, stpPick, stpNext, stpSorted, stpText, stpCtOk, stpGroupsOf, stpNorm, stpHEntry, stpHClean, stpHAll, stpHPutIn, stpHDoc, stpHRestore, STP_H_MAX });

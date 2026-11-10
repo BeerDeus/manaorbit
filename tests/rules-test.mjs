@@ -150,6 +150,19 @@ await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), msDoc({ o: 'x' })
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), msDoc({ o: Object.fromEntries(Array.from({ length: 13 }, (_, i) => ['k' + i, 1])) })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), drop(msDoc(), 'updatedAt')));
 ok('options du masterset : le compte seul, un objet « o » de 12 champs au plus, rien d\'autre');
+// historique des paniers CardTrader (extras.js) et de la Chasse aux staples (staples.js)
+const cartDoc = (n = 1, extra = {}) => ({ c: Array.from({ length: n }, (_, i) => ({ id: 'c' + i + 'aaaa', at: 1, u: 1, items: [{ k: 'sol ring', n: 'Sol Ring', q: 1, q0: 1, e: 'cmm|400', f: 1, c: 'nm' }] })), updatedAt: Date.now(), ...extra });
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/carts'), cartDoc()));
+await T.assertSucceeds(getDoc(doc(u1, 'users/u1/meta/carts')));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/carts'), cartDoc()));
+await T.assertFails(getDoc(doc(u2, 'users/u1/meta/carts')));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/carts'), cartDoc(61)));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/carts'), cartDoc(1, { x: 1 })));
+const stpDoc = (n = 1) => ({ h: Array.from({ length: n }, (_, i) => ({ id: 's' + i, at: 1, u: 1, o: { n: 150 }, l: [{ n: 'Sol Ring', q: 1, e: 10 }] })), updatedAt: Date.now() });
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/staples'), stpDoc()));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/staples'), stpDoc()));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/staples'), stpDoc(11)));
+ok('historique des paniers (60 au plus) et des staples (10 au plus) : le compte seul, rien d\'autre');
 
 const pxDoc = (extra = {}) => ({ at: Date.now(), p: { 'sol ring': [150, 420], "jace, the mind sculptor": [2500, 0] }, e: { 'cmm|400': [180, 0] }, updatedAt: Date.now(), ...extra });      // prix partagés (value.js)
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/prices'), pxDoc()));

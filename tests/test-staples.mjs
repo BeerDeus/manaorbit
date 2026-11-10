@@ -188,3 +188,31 @@ test('Chasse aux staples : une carte déjà au panier compte comme déjà là', 
   assert.deepEqual(run(2, new Map([['opt', 1]])), ['Negate 2', 'Opt 1'], '2 voulues, 1 au panier : 1 à acheter');
   assert.deepEqual(run(1, null), ['Negate 1', 'Opt 1']);
 });
+
+test('historique des recherches : entrée compacte, lecture tolérante, 10 au plus, liste rouverte recontrôlée sur la collection seulement', () => {
+  const o = S.stpNorm({ n: 150, q: 2, max: 15, ct: true, tol: 5, cmds: ['krenko-mob-boss'], roles: ['ramp', 'bad'], grp: 'type' });
+  assert.deepEqual([o.n, o.q, o.max, o.roles, o.cmds, o.grp], [150, 2, 15, ['ramp'], ['krenko-mob-boss'], 'type']);
+  const R = { o, at: 1000, cmd: 'Krenko', bal: false, pool: 900, rep: 3, cartN: 1, A: { n: 40, nc: 8, nr: 32, cmds: 1, notes: [80, 90] }, order: null, gn: {},
+    list: [{ k: 'sol ring', name: 'Sol Ring', need: 2, eur: 120, ct: 130, ci: '', g: 'C', ty: 4, r1: 'ramp', s: 1.23456 }, { k: 'opt', name: 'Opt', need: 1, eur: 3, ct: null, ci: 'U', g: 'U', s: 0.5 }, { k: 'negate', name: 'Negate', need: 2, eur: 8, ci: 'U', g: 'U', s: 0.4 }] };
+  const h = S.stpHEntry(R, 'abcd1', 2000, x => 'raison ' + x.name);
+  assert.deepEqual(h.l[0], { k: 'sol ring', n: 'Sol Ring', q: 2, e: 120, c: 130, g: 'C', t: 4, r: 'ramp', s: 1.235, w: 'raison Sol Ring' });
+  assert.equal(h.l[1].c, -1, 'aucune offre CardTrader'); assert.equal('c' in h.l[2], false, 'pas vérifiée');
+  assert.deepEqual(h.A, { n: 40, nc: 8, nr: 32, cmds: 1, m: 85 }, 'bilan : note moyenne gardée');
+  const back = S.stpHClean(JSON.parse(JSON.stringify(h)));
+  assert.deepEqual(back.l, h.l, 'relu tel quel'); assert.equal(back.o.q, 2);
+  assert.equal(S.stpHClean({ ...h, id: 'X' }), null); assert.equal(S.stpHClean({ ...h, l: 'x' }), null);
+  assert.equal(S.stpHClean({ ...h, l: [{ n: 'Sol Ring', q: 1 }] }).l.length, 0, 'carte sans clé ni prix : ignorée');
+  // rouverte : cartes possédées maintenant (exemplaires libres) retirées ou quantité baissée ; prix d'alors, sans vérification
+  const free = { 'sol ring': 1, opt: 5 };
+  const R2 = S.stpHRestore(back, k => free[k] || 0);
+  assert.deepEqual(R2.list.map(x => [x.name, x.need, x.ct]), [['Sol Ring', 1, 130], ['Negate', 2, undefined]]);
+  assert.deepEqual([R2.gone, R2.less, R2.hid, R2.rest.length], [1, 1, 'abcd1', 0]);
+  assert.equal(S.stpHRestore(back, () => 0).list[0].need, 2, 'rien de nouveau : la quantité d\'alors (panier CardTrader déjà déduit)');
+  // 10 au plus, la plus récente en tête ; une entrée remplacée remonte
+  let l = []; for (let i = 0; i < 12; i++) l = S.stpHPutIn(l, { ...h, id: 'entry' + i, u: i });
+  assert.equal(l.length, S.STP_H_MAX); assert.equal(l[0].id, 'entry11');
+  l = S.stpHPutIn(l, { ...l[5], u: 99 }); assert.equal(l[0].id, 'entry6'); assert.equal(l.length, 10);
+  assert.deepEqual(S.stpHAll([...l, { bad: 1 }, l[0]]).map(x => x.id), l.map(x => x.id), 'doublons et illisibles retirés, triées');
+  const big = Array.from({ length: 3 }, (_, i) => ({ ...h, id: 'big' + i, l: Array.from({ length: 4000 }, () => h.l[0]) }));
+  assert.ok(S.stpHDoc(big).length < 3 && S.stpHDoc(big).length >= 1, 'document du compte : les plus anciennes retirées au-delà de 800 Ko');
+});

@@ -60,6 +60,7 @@ function mePaint() {
     typeof ibMeRow === 'function' ? ibMeRow() : '',      // messages de l'équipe (inbox.js) : seulement s'il y en a
     amMeRow(),      // amis (friends.js) : vide si le serveur ne les a pas
     typeof dlMeRow === 'function' ? dlMeRow() : '',      // compte Discord lié (dsclink.js) : vide si le serveur ne sait pas lier
+    typeof cartsMeRow === 'function' ? cartsMeRow() : '',      // historique des paniers CardTrader (extras.js) : pas en marché TCGplayer
     typeof stpMeRow === 'function' ? stpMeRow() : '',      // Chasse aux staples (staples.js) : compte de l'éditeur seulement
   ]) : '';
   const prefs = meGroup(T('Préférences'), [
@@ -125,6 +126,7 @@ function meSub(k) {
   else if (k === 'decks') leave(() => navGo('decks'));
   else if (k === 'valeur') leave(() => navOpen(() => openCollection('stats')));
   else if (k === 'opn' && typeof opnSheet === 'function') opnSheet();
+  else if (k === 'carts' && typeof openCartsSheet === 'function') openCartsSheet();
   else if (k === 'staples' && typeof stpOpen === 'function') stpOpen();      // compte de l'éditeur seulement (staples.js › stpOn)
   else if (k === 'out') meSignOut();
 }
