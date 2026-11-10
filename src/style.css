@@ -1314,6 +1314,18 @@ button,.btn,select,summary{touch-action:manipulation}
 .bd-bar i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .25s}
 .bd-bar.full i{background:var(--good)}
 .bd-bar.over i{background:var(--bad)}
+.bd-bar.two{position:relative}      /* deux tons : plein = déjà là (collection, terrains de base), hachuré = à acheter */
+.bd-bar.two i{position:absolute;top:0;bottom:0;left:0;height:auto;border-radius:99px 0 0 99px}
+.bd-bar.two i:only-child{border-radius:99px}
+.bd-bar.two .bd-need{--c:var(--accent);border-radius:0 99px 99px 0;background:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--c) 55%,transparent) 0 3px,color-mix(in srgb,var(--c) 20%,transparent) 3px 6px)}
+.bd-bar.two.full .bd-need{--c:var(--good)}
+.bd-leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:-3px 0 0;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.bd-k{display:inline-flex;align-items:center;gap:6px}
+.bd-k i{--c:var(--accent);box-sizing:border-box;width:10px;height:10px;border-radius:50%;background:var(--c)}
+.bd-sum:has(.bd-bar.full) .bd-k i{--c:var(--good)}
+.bd-k.need i{background:color-mix(in srgb,var(--c) 22%,transparent);border:2px solid var(--c)}      /* ○ à acheter, ● possédées */
+.bd-vals{display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-left:auto}
+.bd-buyw .bd-buy{color:var(--accent)}
 .bd-issues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
 .bd-issues li{position:relative;padding-left:15px;font-size:13px;line-height:1.3;color:var(--ink-2)}
 .bd-issues li::before{content:"";position:absolute;left:1px;top:.45em;width:7px;height:7px;border-radius:50%;background:var(--warn)}

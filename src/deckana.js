@@ -36,18 +36,18 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   const val = k => { const o = info.get(k); return o ? dwVal(o) + (trapOk(k) ? dwW().trap : 0) : 0; };
   const known = !!pack && info.size >= 40;      // commandant connu de la base : sinon aucun avis sur les cartes « faibles »
   const out = [], used = new Set(), skip = new Set(), Xs = { ...X, skip, info, wiz: { ...set, bud: 0 } };      // budget compté ici, échange par échange
-  const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
+  const lim = set.bud > 0 ? set.bud : 0; let total = dwSpent(prof, set);      // budget « en plus de ma collection » (bx) : ce qui reste à acheter
   const gaugeRoles = [...DW_GAUGES.map(g => g[0]).filter(r => r !== 'land'), 'wincon'];      // condition de victoire : un rôle comme les autres (jamais retirée pour une carte « mieux jouée » d'un autre rôle)
   const mainRole = r => gaugeRoles.find(g => r & DW_RB[g]) || '';
-  const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x, true), roles: x.roles } : null; }).filter(Boolean);
+  const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x, true), roles: x.roles } : null; }).filter(Boolean).map(c => ({ ...c, bp: dwBudPx(c.k, c.price, set, X.id) }));      // bp : prix pour le budget (bx : 0 si possédée)
   const nonland = cards.filter(c => !(c.roles & DW_RB.land));
-  const fits = (W, C) => !lim || C.price <= W.price || total - W.price + C.price <= lim;
-  const take = (W, C, why) => { out.push({ out: W, in: C, why }); used.add(W.k); skip.add(C.k); total += C.price - W.price; };
+  const fits = (W, C) => !lim || C.bp <= W.bp || total - W.bp + C.bp <= lim;
+  const take = (W, C, why) => { out.push({ out: W, in: C, why }); used.add(W.k); skip.add(C.k); total += C.bp - W.bp; };
   const best = (role, W, cond) => dwSuggest(role, cmd, pack, prof, tgt, 60, Xs).find(C => !skip.has(C.k) && C.k !== W.k && fits(W, C) && cond(C));
   // 1) au-dessus de la limite : les cartes chères qui pèsent peu, remplacées par une carte du même rôle au moins deux fois moins chère
-  if (lim && total > lim) for (const W of [...nonland].sort((a, b) => b.price - a.price)) {
-    if (total <= lim || out.length >= max) break; if (W.price < 300 || used.has(W.k)) continue;
-    const C = best(mainRole(W.roles), W, C => C.price <= W.price * 0.5 && C.v >= W.v - 0.25); if (C) take(W, C, 'budget');
+  if (lim && total > lim) for (const W of [...nonland].sort((a, b) => b.bp - a.bp)) {
+    if (total <= lim || out.length >= max) break; if (W.bp < 300 || used.has(W.k)) continue;
+    const C = best(mainRole(W.roles), W, C => C.bp <= W.bp * 0.5 && C.v >= W.v - 0.25); if (C) take(W, C, 'budget');
   }
   if (known) {
     const weakest = nonland.filter(c => !used.has(c.k)).sort((a, b) => a.v - b.v || b.price - a.price);
@@ -164,7 +164,8 @@ function daActions(prof, tgt, cmd, set, swaps, pack) {
   if (bad.has('xt')) out.push({ k: 'xt', sg: '−', t: TN(prof.xt.length - R.xt, 'Retirer {n} tour supplémentaire', 'Retirer {n} tours supplémentaires'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: R.xt }), gain: 3, issue: T('trop fort pour le bracket visé') });
   if (bad.has('c2')) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
   else if (bad.has('c3')) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 3 cartes'), s: T('À éviter en bracket {b}', { b: b[0] }), gain: 3, issue: T('trop fort pour le bracket visé') });
-  if (set.bud > 0 && prof.cents > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
+  const spent = dwSpent(prof, set);
+  if (set.bud > 0 && spent > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(spent - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((spent - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
   if (prof.nonland && prof.mv > tgt.mv[2]) out.push({ k: 'curve', sg: '−', t: T('Baisser la courbe de mana'), s: T('Coût moyen {v}, repère {m}', { v: dsNum(prof.mv), m: dsNum(tgt.mv[1], 1) }), gain: Math.min(1, (prof.mv - tgt.mv[2]) / 0.6) * 10, issue: T('la courbe est un peu haute') });
   if (sw) out.push({ k: 'swap', sg: '⇄', t: T('Échanger {a} → {b}', { a: bdLabel(sw.out.k, sw.out.name), b: bdLabel(sw.in.k, sw.in.name) }), s: daWhy(sw, cmd), gain: swGain, issue: sw.issue || '' });
   return out.sort((a, c) => c.gain - a.gain);
@@ -189,9 +190,9 @@ const daActHtml = (a, i) => `<button type="button" class="cb-act" data-cb-act="$
 /** Ligne de réglages (bas du bilan) : « bracket 4 (estimé) · limite 580 € · thèmes » et « Modifier ». */
 function daSetLine(cmd, pack, set, est) {
   const cur = mkCur(), th = dwThemeChoices(cmd, pack, set);
-  const txt = [T('bracket {n}', { n: DA.brAuto ? est : set.br }) + (DA.brAuto ? ' (' + T('estimé') + ')' : ''), set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) + (DA.budAuto ? ' (' + T('valeur actuelle') + ')' : '') : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : [])].join(' · ');
+  const txt = [T('bracket {n}', { n: DA.brAuto ? est : set.br }) + (DA.brAuto ? ' (' + T('estimé') + ')' : ''), set.bud > 0 ? (set.bx ? T('limite {p} en plus de ta collection', { p: fmt(set.bud, cur) }) : T('limite {p}', { p: fmt(set.bud, cur) })) + (DA.budAuto ? ' (' + T('valeur actuelle') + ')' : '') : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : [])].join(' · ');
   return `<button class="dw-set-h cb-set" type="button" data-da-edit aria-expanded="${!!DA.setOpen}"><span><b>${T('Réglages')}</b><small>${esc(txt)}</small></span><span class="me-v">${DA.setOpen ? T('Fermer') : T('Modifier')}</span></button>`
-    + (DA.setOpen ? daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? DA.ctx.prof.cents : 0, pfx: 'da' }) : '');
+    + (DA.setOpen ? daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? dwSpent(DA.ctx.prof, set) : 0, pfx: 'da' }) : '');
 }
 /** Détail replié : note partie par partie, équilibre, mana, bracket, budget, simulation de parties, rapport. */
 function daDetailHtml(sc, prof, tgt, cmd, pack, set) {
@@ -222,14 +223,14 @@ function daPaint() {
   for (const t of X.wiz.th) if (DW.core && !DW.th.has(t)) { dwPack('t', t).then(daPaint); return wait(T('Chargement des cartes conseillées…')); }
   const prof = dwProfile(X), est = dwBracketOf(prof), set = X.wiz, mode = DA.mode = !DA.mine ? 'peek' : prof.n < 100 ? 'build' : 'bilan';
   if (DA.brAuto) set.br = est;
-  if (DA.budAuto) set.bud = mode === 'build' ? 0 : prof.cents;      // bilan : budget = valeur actuelle (les échanges ne font pas monter le prix) ; à compléter : sans limite
+  if (DA.budAuto) set.bud = mode === 'build' ? 0 : dwSpent(prof, set);      // bilan : budget = valeur actuelle (les échanges ne font pas monter le prix) ; à compléter : sans limite
   const tgt = dwTargets(prof, cmd, pack, set); DA.ctx = { prof, tgt };
   let h = DW.err ? `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>` : '';
   const keep = body.scrollTop, done = label => { body.innerHTML = h; thumbsReady(body); body.scrollTop = keep; if (go) { go.disabled = false; go.textContent = label; } };
   if (mode === 'build') {      // « Compléter le deck » : réglages courts, puis la construction de l'éditeur
     const cur = mkCur();
     h += `<div class="cb-head cb-build"><div class="cb-n"><b>${prof.n}</b><small>/100<br>${T('cartes')}</small></div><div class="cb-t"><b>${esc(TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes'))}</b><span>${esc(T('Bracket {n} · {name}', { n: est, name: (DW_BRACKETS.find(b => b[0] === est) || DW_BRACKETS[2])[1] }) + ' · ' + T('estimé'))}<br>${esc(fmt(prof.cents, cur))}</span></div></div>`;
-    h += `<div class="sec-title">${T('Compléter le deck')}</div><p class="hint">${T('Le coach ajoute les cartes qui manquent : rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains. Les cartes déjà là restent ; annulable.')}</p>` + daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? DA.ctx.prof.cents : 0, pfx: 'da' });
+    h += `<div class="sec-title">${T('Compléter le deck')}</div><p class="hint">${T('Le coach ajoute les cartes qui manquent : rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains. Les cartes déjà là restent ; annulable.')}</p>` + daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? dwSpent(DA.ctx.prof, set) : 0, pfx: 'da' });
     return done(T('Compléter le deck'));
   }
   const sc = DW.core && typeof dsScore === 'function' ? dsScore(X, { cmd, pack }) : null; DA.sc = sc;
@@ -390,7 +391,8 @@ function daSetFormHtml(cmd, pack, set, o = {}) {
   const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr} aria-pressed="${on}">${label}</button>`;
   return `<div class="dw-set ds-form"><p class="label">${T('Bracket visé')}</p><div class="dw-chips">${chip(auto, 'data-ds-br="auto"', esc(o.est ? T('Auto · {n}', { n: o.est }) : T('Auto')))}${DW_BRACKETS.map(b => chip(!auto && set.br === b[0], `data-ds-br="${b[0]}"`, `${b[0]} · ${esc(b[1])}`)).join('')}</div>
     <p class="hint">${esc(auto ? T('Le bracket estimé d\'après la liste, mis à jour quand elle change.') : T((DW_BRACKETS.find(b => b[0] === br) || DW_BRACKETS[2])[2]))}</p>
-    <div class="field-in"><label class="label" for="${p}Bud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="${p}Bud" data-ds-bud inputmode="decimal" min="0" step="10" placeholder="${esc(set.bv && o.val ? T('Valeur actuelle : {p}', { p: fmt(o.val, cur) }) : T('Sans limite'))}" value="${set.bud > 0 && !set.bv ? Math.round(set.bud / 100) : ''}"></div>${set.bv && o.val ? `<p class="hint">${T('Vide : la valeur actuelle du deck, les échanges ne le font pas monter.')}</p>` : ''}
+    <div class="field-in"><label class="label" for="${p}Bud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="${p}Bud" data-ds-bud inputmode="decimal" min="0" step="10" placeholder="${esc(set.bv && o.val ? T('Valeur actuelle : {p}', { p: fmt(o.val, cur) }) : T('Sans limite'))}" value="${set.bud > 0 && !set.bv ? Math.round(set.bud / 100) : ''}"></div>${set.bv && o.val ? `<p class="hint">${set.bx ? T('Vide : ce qui reste à acheter aujourd\'hui, les échanges ne le font pas monter.') : T('Vide : la valeur actuelle du deck, les échanges ne le font pas monter.')}</p>` : ''}
+    ${set.bud > 0 || set.bv ? dwBxHtml(set.bx, v => `data-ds-bx="${v}"`) : ''}
     ${th.length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.map(([slug, label]) => chip(set.th.includes(slug), `data-ds-th="${esc(slug)}"`, esc(label))).join('')}</div>` : cmd && !pack && o.loading ? `<p class="hint">${T('Chargement des thèmes…')}</p>` : ''}
     <label class="me-row switch-row" for="${p}Own"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="${p}Own" data-ds-own ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
 }
@@ -399,6 +401,8 @@ function daSetFormBind(box, set, change) {
   box.addEventListener('click', e => {
     const b = e.target.closest('[data-ds-br]');
     if (b) { const v = b.dataset.dsBr; if (v === 'auto') set.ba = 1; else { delete set.ba; set.br = Number(v) || 3; } haptic('tap'); change('br'); return; }
+    const x = e.target.closest('[data-ds-bx]');
+    if (x) { if (x.dataset.dsBx === '1') set.bx = 1; else delete set.bx; haptic('tap'); change('bud'); return; }      // budget « en plus de ma collection »
     const t = e.target.closest('[data-ds-th]');
     if (t) { const v = t.dataset.dsTh, i = set.th.indexOf(v); if (i >= 0) set.th.splice(i, 1); else if (set.th.length < 3) set.th.push(v); else { toast(T('3 thèmes au plus')); return; } haptic('tap'); change('th'); }
   });
@@ -415,5 +419,5 @@ function daSetCtx(text, ready) {
   const cmd = dwCmdOf(X), has = DW.cmd.has(cmd.slug);
   if (!has) dwPack('c', cmd.slug).then(ready, () => {});
   const prof = dwProfile(X);
-  return { X, cmd, pack: has ? DW.cmd.get(cmd.slug) : null, est: dwBracketOf(prof), val: prof.cents, loading: !has };
+  return { X, cmd, pack: has ? DW.cmd.get(cmd.slug) : null, est: dwBracketOf(prof), val: dwSpent(prof, X.wiz), loading: !has };
 }

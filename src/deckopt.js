@@ -73,7 +73,8 @@ function dsScore(X = BD, ctx = {}) {
   rule(brBad.has('c2'), 5, T('Combo à 2 cartes interdit en bracket {b}', { b: b[0] }));
   rule(brBad.has('c3'), 3, T('Combo à 3 cartes à éviter en bracket {b}', { b: b[0] }));
   rule(!prof.wincon && prof.n >= 60, 3, T('Aucune condition de victoire : ajoute une carte qui peut finir la partie'));      // obligatoire, thème ou pas
-  if (set.bud > 0 && prof.cents > set.bud) rule(true, Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), T('Au-dessus du budget de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }));
+  const spent = dwSpent(prof, set);      // budget « en plus de ma collection » (bx) : ce qui reste à acheter
+  if (set.bud > 0 && spent > set.bud) rule(true, Math.min(5, Math.ceil((spent - set.bud) / set.bud * 20)), T('Au-dessus du budget de {p}', { p: fmt(spent - set.bud, mkCur()) }));
   if (prof.n !== 100) rule(true, Math.min(5, Math.abs(100 - prof.n)), prof.n < 100 ? TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes') : TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'));
   const pRules = Math.max(0, pr);
   const raw = pRoles + pMana + pCurve + pSyn + pRules, vals = { roles: pRoles, mana: pMana, curve: pCurve, syn: pSyn, rules: pRules };
@@ -273,7 +274,7 @@ async function dsMake(o = {}) {
       const v = list[i];
       let bud = wiz0.bud;
       if (v.eco) {      // moins chère : 55 % de la version équilibrée, sauf si ce budget ne laisse presque rien après le commandant
-        const eqv = res[0] ? res[0].prof.cents : 0, cc = res[0] ? res[0].prof.cmdCents || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
+        const eqv = res[0] ? dwSpent(res[0].prof, wiz0) : 0, cc = res[0] ? (wiz0.bx ? res[0].prof.cmdBuy : res[0].prof.cmdCents) || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
         if (!(eqv > 3000) || cc >= bud * 0.5) { step(v, 'skip', 1, 0); continue; }
       }
       // plusieurs tirages (graines) par version, chacun construit et amélioré, jugés sur la note et la partie jouée ; le meilleur continue (essais en partie).
@@ -319,7 +320,7 @@ async function dsMake(o = {}) {
   return res;
 }
 /** Prix du ou des commandants (même prix que le coach : relevé du jour, impression la moins chère). */
-const dsCmdCents = () => BD.cmdr.reduce((a, c) => a + Math.max(0, dwPrice(c.key, dwCard(c.key)) || 0), 0);
+const dsCmdCents = () => BD.cmdr.reduce((a, c) => a + dwBudPx(c.key, Math.max(0, dwPrice(c.key, dwCard(c.key)) || 0), BD.wiz, BD.id), 0);      // budget « en plus de ma collection » : un commandant possédé ne compte pas
 /** Commandant qui coûte au moins la moitié du budget : sans réponse, le coach construisait un deck incomplet (Vorinclex 35 € pour 25 € : le commandant et
  *  36 terrains, aucun sort). Avant la construction, le joueur choisit : le budget pour les 99 autres cartes (budget total = budget + commandant) ou un autre
  *  budget (prérempli). Le choix est gardé avec le deck (wiz.budAck = budget accepté : plus de question tant qu'il ne change pas). Vrai si la question est ouverte ;

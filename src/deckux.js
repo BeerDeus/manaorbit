@@ -13,7 +13,7 @@ const dwRoleNames = bits => DW_GAUGES.filter(([r]) => r !== 'land' && bits & DW_
  *  → [{ k, name, why, s }] (s : plus bas = à retirer d'abord). Terrains de base proposés quand il y a trop de terrains. */
 function dwCuts(X, cmd, pack, prof, tgt, n) {
   const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], nm = cmd ? cmd.names[0].split(',')[0] : '';
-  const R = DWB.brRule(b[0]), gcOver = prof.gc.length > R.gc, xtOver = prof.xt.length > R.xt, over = set.bud > 0 && prof.cents > set.bud, out = [];
+  const R = DWB.brRule(b[0]), gcOver = prof.gc.length > R.gc, xtOver = prof.xt.length > R.xt, over = set.bud > 0 && dwSpent(prof, set) > set.bud, out = [];
   for (const c of X.main.values()) {
     if (BASIC_NAMES.has(c.key)) continue;
     const x = dwCard(c.key); if (!x || x.roles & DW_RB.land) continue;
@@ -45,7 +45,7 @@ function dwNextSteps(prof, tgt, cmd, set) {
   if (n > 100) st.push({ t: TN(n - 100, '{n} carte de trop', '{n} cartes de trop'), b: T('Que retirer ?'), act: 'dw-goto', v: 'cuts' });
   if (bad.some(x => x.k === 'gc')) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: R.gc, b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
   if (bad.some(x => x.k !== 'gc')) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
-  if (set.bud > 0 && prof.cents > set.bud && n >= 60) st.push({ t: T('Au-dessus du budget : {a} pour {b}', { a: fmt(prof.cents, mkCur()), b: fmt(set.bud, mkCur()) }), b: T('Voir les échanges'), act: 'dw-goto', v: 'swaps' });
+  if (set.bud > 0 && dwSpent(prof, set) > set.bud && n >= 60) st.push({ t: T('Au-dessus du budget : {a} pour {b}', { a: fmt(dwSpent(prof, set), mkCur()), b: fmt(set.bud, mkCur()) }), b: T('Voir les échanges'), act: 'dw-goto', v: 'swaps' });
   if (n < 100) st.push({ t: TN(100 - n, 'Il manque {n} carte', 'Il manque {n} cartes'), b: n <= BD.cmdr.length ? T('Générer le deck') : T('Compléter'), act: 'dw-auto' });
   const def = DW_GAUGES.filter(([r]) => r !== 'land' && (r !== 'counter' || cmd.ci.includes('U')) && prof[r] < tgt[r][0]).map(([r, l]) => ({ r, l, miss: tgt[r][1] - prof[r], k: (tgt[r][1] - prof[r]) / Math.max(1, tgt[r][1]) })).sort((a, b) => b.k - a.k);
   for (const d of def.slice(0, 2)) st.push({ t: T('{r} : il en manque {n}', { r: T(d.l), n: d.miss }), b: T('Voir les suggestions'), act: 'dw-goto', v: 'gauge:' + d.r });

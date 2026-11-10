@@ -138,6 +138,16 @@ const DW_SET = 'deckdeal:dw:';
  *  plus de trouvailles), graine des tirages (seed : « Autre proposition »), style de la version choisie (style, arch). */
 const DW_ORIG0 = 30;
 const dwDefaults = () => ({ th: [], br: 3, bud: 0, own: true, mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0 });
+/** Budget « en plus de ma collection » (bx) : seules les cartes à acheter comptent (prof.buy : pas dans la collection, ou réservées par un autre deck monté) ;
+ *  sinon (défaut) toute la valeur du deck, cartes possédées comprises. LA règle du budget : coach, génération, échanges, note, analyse. */
+const dwSpent = (prof, set) => set && set.bx ? prof.buy : prof.cents;
+/** Prix d'une carte pour le budget : 0 si le budget est « en plus de ma collection » et qu'un exemplaire libre est dans la collection (ownFree, comme prof.buy). */
+const dwBudPx = (k, price, set, id) => set && set.bx && price > 0 && ownFree(k, id != null ? id : null) > 0 ? 0 : price;
+/** Ce que compte le budget (assistant, réglages du Coach, de l'analyse) : « Collection comprise » (défaut) ou « En plus de ma collection » (bx). attr(v) : attributs du bouton (v : 0 ou 1). */
+function dwBxHtml(on, attr) {
+  const chip = (v, label) => `<button type="button" class="chip${!!on === !!v ? ' on' : ''}" ${attr(v)} aria-pressed="${!!on === !!v}">${esc(label)}</button>`;
+  return `<div class="dw-chips dw-bx" role="group" aria-label="${esc(T('Ce que compte le budget'))}">${chip(0, T('Collection comprise'))}${chip(1, T('En plus de ma collection'))}</div><p class="hint">${esc(on ? T('Seules les cartes à acheter comptent : celles de ta collection sont en plus.') : T('Toute la valeur du deck compte, cartes de ta collection comprises.'))}</p>`;
+}
 const dwArr = (v, n) => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x).slice(0, n) : [];
 /** Réglages lus (stockage, assistant) : formes et bornes vérifiées. */
 function dwSane(o) {
@@ -191,7 +201,7 @@ function dwPips(mc) {
 }
 /** Profil d'un deck (X : { main: Map, cmdr: [] }, l'éditeur par défaut) : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
 function dwProfile(X = BD) {
-  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
+  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, cmdBuy: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
   let mvSum = 0; const all = [...X.main.values()], did = X.id != null ? X.id : null;      // deck de Mes decks (BD.id, DA.X.id) : ses propres exemplaires lui restent
   for (const c of all) {
@@ -212,7 +222,7 @@ function dwProfile(X = BD) {
     }
     if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
   }
-  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (dwGC(c.key, x)) p.gc.push(x ? x.name : c.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (dwGC(c.key, x)) p.gc.push(x ? x.name : c.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (ownFree(c.key, did) < 1) { p.buy += e; p.cmdBuy += e; } } }
   const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
   if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
@@ -430,7 +440,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const set = X.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k) || (X.skip && X.skip.has(k));
   const R = DWB.brRule(set.br), gcLeft = R.gc - prof.gc.length, xtLeft = R.xt - prof.xt.length;      // règles du bracket (brackets.js) : Game Changers et tours supplémentaires encore permis
   const must = role === 'wincon' && !prof.wincon;      // la première condition de victoire passe avant tout (rythme et part des terrains)
-  const budLeft = set.bud > 0 ? set.bud - prof.cents - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
+  const budLeft = set.bud > 0 ? set.bud - dwSpent(prof, set) - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
   const C = X.info || dwInfo(pack, set, cmd), w = dwW();
   const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
   const noCombo = (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // combo interdit ou à éviter dans ce bracket (brackets.js : 1-2), ou combos évités : jamais la carte qui le complète
@@ -445,8 +455,9 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 2 && xtLeft <= 0) return;
     const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && (noCombo || (dwCombo3(cw.c) ? R.c3 === 'avoid' : R.c2 === 'no'))) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
-    const price = dwPrice(k, x), own = ownFree(k, X.id != null ? X.id : null) > 0;      // « dans ta collection » : un exemplaire libre (pas réservé par un autre deck monté), règle de ownFor
-    if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
+    const price0 = dwPrice(k, x), own = ownFree(k, X.id != null ? X.id : null) > 0;      // « dans ta collection » : un exemplaire libre (pas réservé par un autre deck monté), règle de ownFor
+    const price = set.bx && own ? 0 : price0;      // prix pour le budget : budget « en plus de ma collection » (bx), une carte possédée ne coûte rien
+    if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € ») ; bx : ce qui reste à acheter
     if (X.pace && set.bud > 0) {      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places ; plus le budget par place est petit, plus l'écart permis est faible
       const per = budLeft / slots, kk = per < 50 ? 2 : per < 150 ? 4 : 8, floor = Math.min(10, per * 0.5);
       if (price > (must ? budLeft - (slots - 1) * floor : Math.max(Math.min(60, per * 2), Math.min(per * kk, budLeft - (slots - 1) * floor)))) return;
@@ -476,7 +487,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
       if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a * (C.npack >= 40 ? 2.5 : 0.35); }      // déjà dans une autre version : recule (versions vraiment différentes ; écart à la mesure des valeurs : listes du commandant, ou réserve plate)
     }
     if (seed && (X.pace || X.gen)) s += tau * dwNoiseOf(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
-    out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
+    out.push({ k, name: x.name, s, v, o, own, price: price0, bp: price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
   };
   for (const [k, o, x, isLand] of dwSugPool(C, ci, set)) rate(k, o, x, isLand);
   if (fallback) for (const [k, o, x, isLand] of dwSugPool(C, ci, set, true)) rate(k, o, x, isLand);      // cartes de secours (rang)
@@ -643,13 +654,14 @@ function dwBalSum(prof, tgt, cmd) {
 function dwSetHtml(cmd, pack) {
   const s = BD.wiz, th = dwThemeChoices(cmd, pack), cur = mkCur();
   const brName = (DW_BRACKETS.find(b => b[0] === s.br) || DW_BRACKETS[2])[1];
-  const sum = [s.th.length ? s.th.map(t => dwThemeLabel(t, th)).join(', ') : T('aucun thème'), T('bracket {n}', { n: s.br }) + ' · ' + brName, s.bud > 0 ? T('budget {p}', { p: fmt(s.bud, cur) }) : T('sans budget'), dwPersoSum(s)].filter(Boolean).join(' · ');
+  const sum = [s.th.length ? s.th.map(t => dwThemeLabel(t, th)).join(', ') : T('aucun thème'), T('bracket {n}', { n: s.br }) + ' · ' + brName, s.bud > 0 ? (s.bx ? T('budget {p} en plus de ta collection', { p: fmt(s.bud, cur) }) : T('budget {p}', { p: fmt(s.bud, cur) })) : T('sans budget'), dwPersoSum(s)].filter(Boolean).join(' · ');
   let h = `<button class="dw-set-h" type="button" data-act="dw-set" aria-expanded="${DW.setOpen}"><span><b>${T('Réglages du coach')}</b><small>${esc(sum)}</small></span><span class="me-v">${DW.setOpen ? '−' : '+'}</span></button>`;
   if (!DW.setOpen) return h;
   h += `<div class="dw-set"><p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.length ? th.map(([slug, label]) => `<button type="button" class="chip${s.th.includes(slug) ? ' on' : ''}" data-act="dw-th" data-v="${esc(slug)}" aria-pressed="${s.th.includes(slug)}">${esc(label)}</button>`).join('') : `<span class="hint">${T('Thèmes pas encore chargés.')}</span>`}</div>
     <p class="label">${T('Bracket')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${s.br === b[0] ? ' on' : ''}" data-act="dw-br" data-v="${b[0]}" aria-pressed="${s.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
     <p class="hint">${esc(T((DW_BRACKETS.find(b => b[0] === s.br) || DW_BRACKETS[2])[2]))}</p>
     <div class="field-in"><label class="label" for="dwBud">${T('Budget du deck ({c})', { c: cur })}</label><input type="number" id="dwBud" inputmode="decimal" min="0" step="10" placeholder="${T('Sans limite')}" value="${s.bud > 0 ? Math.round(s.bud / 100) : ''}"></div>
+    ${s.bud > 0 ? dwBxHtml(s.bx, v => `data-act="dw-bx" data-v="${v}"`) : ''}
     <label class="me-row switch-row" for="dwOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwOwn" ${s.own ? 'checked' : ''}><i></i></span></label>
     <div class="dw-perso" data-perso="coach">${dwPersoHtml(s, cmd, 'dwp')}</div></div>`;
   return h;
@@ -790,11 +802,18 @@ function dwBracketHtml(prof, s = BD.wiz) {
 }
 function dwBudgetHtml(prof, s = BD.wiz) {
   const cur = mkCur(); if (!(s.bud > 0) && !prof.cents) return '';
-  const pct = s.bud > 0 ? Math.min(100, Math.round(prof.cents / s.bud * 100)) : 0, over = s.bud > 0 && prof.cents > s.bud;
-  const cc = prof.cmdCents || 0, dear = s.bud > 0 && cc >= s.bud * 0.6 ? `<p class="hint warn">${esc(T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(s.bud, cur) }))}</p>` : '';
+  const bx = !!s.bx && s.bud > 0, spent = bx ? prof.buy : prof.cents, over = s.bud > 0 && spent > s.bud, have = Math.max(0, prof.cents - prof.buy);
+  const cc = (bx ? prof.cmdBuy : prof.cmdCents) || 0, dear = s.bud > 0 && cc >= s.bud * 0.6 ? `<p class="hint warn">${esc(T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(s.bud, cur) }))}</p>` : '';
   const small = !dear && s.bud > 0 && s.bud < 7500 ? `<p class="hint">${esc(T('Petit budget : le coach garde l\'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu\'avec des terrains plus chers.'))}</p>` : '';
-  return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}">${dear}${small}<p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>
-    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas, ou réservées par un autre deck monté).', { p: fmt(prof.buy, cur) }))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
+  // barre en deux tons (cartes possédées, puis à acheter) sur le budget (ou la valeur du deck sans budget) ; budget « en plus de ma collection » (bx) : seule la part à acheter compte
+  const scale = Math.max(1, s.bud > 0 ? Math.max(s.bud, spent) : prof.cents), w = v => Math.round(Math.min(100, v / scale * 1000)) / 10;
+  const wHave = bx ? 0 : w(have), wBuy = Math.min(100 - wHave, w(prof.buy));
+  const bar = `<span class="dw-bar dw-split" role="img" aria-label="${esc(T('Dans ta collection : {a} · à acheter : {b}', { a: fmt(have, cur), b: fmt(prof.buy, cur) }))}">${wHave ? `<i class="dw-have" style="width:${wHave}%"></i>` : ''}${wBuy ? `<i class="dw-buy" style="left:${wHave}%;width:${wBuy}%"></i>` : ''}</span>`;
+  const leg = `<p class="dw-leg"><span class="dw-k have"><i></i>${esc(bx ? T('Dans ta collection (hors budget)') : T('Dans ta collection'))} <b>${esc(fmt(have, cur))}</b></span><span class="dw-k buy"><i></i>${esc(T('À acheter'))} <b>${esc(fmt(prof.buy, cur))}</b></span></p>`;
+  const head = bx ? `<p class="dw-line"><span>${T('À acheter')}</span><b>${esc(fmt(prof.buy, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p><p class="dw-line dw-sub"><span>${T('Valeur du deck')}</span><small>${esc(fmt(prof.cents, cur))}</small></p>`
+    : `<p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>`;
+  return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}">${dear}${small}${head}
+    ${bar}${leg}<p class="hint">${esc(T('À acheter : cartes que ta collection n\'a pas, ou réservées par un autre deck monté.'))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
 }
 function dwPlanHtml(cmd, pack, prof, tgt) {
   const open = DW.open === 'plan';
@@ -876,7 +895,7 @@ function* dwAutoBuildGen(undoTo, quiet) {
   const landsNow = () => prof.land, nonland = () => size() - landsNow();
   const L0 = Math.max(tgt.land[1], prof.land), cap = () => slots - Math.max(L0, landsNow());
   const pick = role => { let x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; if (!x && !(role === 'wincon' && pack && (pack.cards || []).length >= 40)) { BD.wide = true; x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; BD.wide = false; } return x; };      // cartes du commandant, sinon les plus jouées dans ses couleurs (petit budget : les cartes conseillées sont vite trop chères)
-  const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - prof.cents) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
+  const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - dwSpent(prof, BD.wiz)) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
   for (const r of ['wincon', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'tutor', 'recursion']) {      // de quoi gagner d'abord : même à petit budget, le deck doit pouvoir finir la partie
     if (!tgt[r]) continue;
     while (prof[r] < tgt[r][1] && nonland() < cap()) { const x = pick(r); if (!x) break; add(x); prof = dwProfile(); yield; }
@@ -924,6 +943,7 @@ function dwClick(b) {
   else if (act === 'dw-more') { DW.shown += 8; bdList(); }
   else if (act === 'dw-set') { DW.setOpen = !DW.setOpen; haptic('tap'); bdList(); }
   else if (act === 'dw-th') { const v = b.dataset.v, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) { s.th.push(v); dwPack('t', v); } else { toast(T('3 thèmes au plus')); return true; } haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
+  else if (act === 'dw-bx') { if (b.dataset.v === '1') s.bx = 1; else delete s.bx; haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }      // budget « en plus de ma collection »
   else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
   else if (act === 'dw-fold') { if (b.dataset.v === 'bal') DW.balOpen = DW.balOpen === false; haptic('tap'); bdList(); }      // « Équilibre du deck » replié ou déplié
   else if (act === 'dw-keep') { DW.changed = false; haptic('tap'); bdList(); }
@@ -958,9 +978,9 @@ function openDeckPaste(name, fmt) {
 }
 
 /* ── Assistant « Deck à construire » (Commander) ──────────────────────────────────────────────────── */
-const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
+const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, bx: false, own: true, auto: true, name: '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
 function openDeckWiz(name) {
-  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
+  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, bx: false, own: true, auto: true, name: name || '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
@@ -1024,7 +1044,10 @@ function openDeckWiz2() {
         <p class="label">${T('Bracket')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${DWZ.br === b[0] ? ' on' : ''}" data-br="${b[0]}" aria-pressed="${DWZ.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
         <p class="hint">${esc(T((DW_BRACKETS.find(b => b[0] === DWZ.br) || DW_BRACKETS[2])[2]))}</p>
         <p class="label">${T('Budget du deck ({c})', { c: cur })}</p><div class="dw-chips">${[0, 5000, 10000, 25000, 50000, 100000].map(v => `<button type="button" class="chip${DWZ.bud === v ? ' on' : ''}" data-bud="${v}" aria-pressed="${DWZ.bud === v}">${v ? esc(fmt(v, cur).replace(/[.,]00(?=\D*$)/, '')) : T('Sans limite')}</button>`).join('')}</div>
-        ${(() => { const cc = cm.names.reduce((a, n, i) => a + dwPrice(cm.keys[i] || ownKey(n), dwCard(cm.keys[i] || ownKey(n))), 0); return cc > 0 ? `<p class="hint${DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? ' warn' : ''}">${esc(DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(DWZ.bud, cur) }) : T('Le commandant compte dans le budget ({p}).', { p: fmt(cc, cur) }))}</p>` : ''; })()}
+        ${DWZ.bud > 0 ? dwBxHtml(DWZ.bx, v => `data-bx="${v}"`) : ''}
+        ${(() => { const ks = cm.names.map((n, i) => cm.keys[i] || ownKey(n)), cc0 = ks.reduce((a, k) => a + dwPrice(k, dwCard(k)), 0), cc = DWZ.bx ? ks.reduce((a, k) => a + dwBudPx(k, dwPrice(k, dwCard(k)), DWZ, null), 0) : cc0;      // budget « en plus de ma collection » : un commandant possédé ne compte pas
+          if (DWZ.bx && DWZ.bud > 0 && cc0 > 0 && !cc) return `<p class="hint">${esc(T('Ton commandant est dans ta collection : il ne compte pas dans le budget.'))}</p>`;
+          return cc > 0 ? `<p class="hint${DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? ' warn' : ''}">${esc(DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(DWZ.bud, cur) }) : T('Le commandant compte dans le budget ({p}).', { p: fmt(cc, cur) }))}</p>` : ''; })()}
         <label class="me-row switch-row" for="dwzOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwzOwn" ${DWZ.own ? 'checked' : ''}><i></i></span></label>
         <label class="me-row switch-row" for="dwzAuto"><span class="me-t">${T('Générer les 100 cartes tout de suite')}<small>${T('Le coach construit le deck avec ces réglages ; tu ajustes ensuite')}</small></span><span class="switch"><input type="checkbox" id="dwzAuto" ${DWZ.auto ? 'checked' : ''}><i></i></span></label>
         <button class="dw-set-h" type="button" data-perso-t aria-expanded="${DWZ.perso}"><span><b>${T('Personnaliser (facultatif)')}</b><small>${esc(dwPersoSum(DWZ) || T('mécaniques, type de créature, cartes fétiches, exclusions, originalité'))}</small></span><span class="me-v">${DWZ.perso ? '−' : '+'}</span></button>
@@ -1040,13 +1063,14 @@ function openDeckWiz2() {
       if (e.target.closest('.dw-perso') && dwPersoClick(e, DWZ)) { const y = api.body.scrollTop; paint(); api.body.scrollTop = y; return; }
       const t = e.target.closest('[data-th]'); if (t) { const v = t.dataset.th, i = DWZ.th.indexOf(v); if (i >= 0) DWZ.th.splice(i, 1); else if (DWZ.th.length < 3) DWZ.th.push(v); else { toast(T('3 thèmes au plus')); return; } haptic('tap'); paint(); return; }
       const b = e.target.closest('[data-br]'); if (b) { DWZ.br = Number(b.dataset.br); haptic('tap'); paint(); return; }
-      const u = e.target.closest('[data-bud]'); if (u) { DWZ.bud = Number(u.dataset.bud) || 0; haptic('tap'); paint(); }
+      const u = e.target.closest('[data-bud]'); if (u) { DWZ.bud = Number(u.dataset.bud) || 0; haptic('tap'); paint(); return; }
+      const x = e.target.closest('[data-bx]'); if (x) { DWZ.bx = x.dataset.bx === '1'; haptic('tap'); const y = api.body.scrollTop; paint(); api.body.scrollTop = y; }
     });
     api.setFoot(`<button class="btn ghost" type="button" id="dwzBack">${T('Retour')}</button><button class="btn" type="button" id="dwzGo">${T('Créer et ouvrir le coach')}</button>`);
     $('#dwzBack', api.foot).onclick = () => { api.close(); setTimeout(() => openDeckWiz(DWZ.name), 200); };
     $('#dwzGo', api.foot).onclick = () => {
       const name = (DWZ.name || cm.names[0].split(',')[0]).trim().slice(0, 120); api.close(); haptic('ok'); DW.autoNext = DWZ.auto;      // génération dès que la base et les cartes du commandant sont là (dwCoachHtml)
-      setTimeout(() => openBuilder({ name, fmt: 'commander', cmdr: cm.names.map((n, i) => ({ key: cm.keys[i] || ownKey(n), name: n })), wiz: dwSane({ th: DWZ.th.slice(0, 3), br: DWZ.br, bud: DWZ.bud, own: DWZ.own, mech: DWZ.mech, tribe: DWZ.tribe, pets: DWZ.pets, ban: DWZ.ban, avoid: DWZ.avoid, orig: DWZ.orig }), tab: 'coach' }), 200);
+      setTimeout(() => openBuilder({ name, fmt: 'commander', cmdr: cm.names.map((n, i) => ({ key: cm.keys[i] || ownKey(n), name: n })), wiz: dwSane({ th: DWZ.th.slice(0, 3), br: DWZ.br, bud: DWZ.bud, ...(DWZ.bx && DWZ.bud > 0 ? { bx: 1 } : {}), own: DWZ.own, mech: DWZ.mech, tribe: DWZ.tribe, pets: DWZ.pets, ban: DWZ.ban, avoid: DWZ.avoid, orig: DWZ.orig }), tab: 'coach' }), 200);
     };
     paint();
     const again = () => { if (api.body.isConnected) paint(); };      // prix du commandant (indication de budget) : base et relevé du jour arrivés après l'ouverture

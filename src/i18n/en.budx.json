@@ -1,0 +1,17 @@
+{
+ "Dans ta collection : {a} · à acheter : {b}": "In your collection: {a} · to buy: {b}",
+ "Dans ta collection (hors budget)": "In your collection (outside the budget)",
+ "À acheter : cartes que ta collection n'a pas, ou réservées par un autre deck monté.": "To buy: cards your collection doesn't have, or reserved by another built deck.",
+ "Ton commandant est dans ta collection : il ne compte pas dans le budget.": "Your commander is in your collection: it doesn't count toward the budget.",
+ "budget {p} en plus de ta collection": "budget {p} on top of your collection",
+ "limite {p} en plus de ta collection": "limit {p} on top of your collection",
+ "Vide : ce qui reste à acheter aujourd'hui, les échanges ne le font pas monter.": "Empty: what's left to buy today, swaps won't raise it.",
+ "Terrains de base comptés comme possédés": "Basic lands counted as owned",
+ "{n} carte à acheter": "{n} card to buy",
+ "{n} cartes à acheter": "{n} cards to buy",
+ "Ce que compte le budget": "What the budget counts",
+ "Collection comprise": "Collection included",
+ "En plus de ma collection": "On top of my collection",
+ "Seules les cartes à acheter comptent : celles de ta collection sont en plus.": "Only the cards to buy count: the ones in your collection come on top.",
+ "Toute la valeur du deck compte, cartes de ta collection comprises.": "The deck's whole value counts, cards from your collection included."
+}

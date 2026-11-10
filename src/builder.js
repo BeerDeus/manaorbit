@@ -423,15 +423,27 @@ function bdHead() {
   const sv = $('#bdSave', el), need = !ck.n || (BD.fmt === 'commander' && !BD.cmdr.length);
   sv.disabled = need; sv.title = need ? (BD.fmt === 'commander' && !BD.cmdr.length ? T('Choisis un commandant') : T('Ajoute des cartes')) : '';
 }
+/** Cartes du deck déjà là ou à acheter (règle unique ownFor, comme les pastilles « Possédée » / « À acheter » et le coach) : { have, need, buy (centimes, dkPx) } ;
+ *  terrains de base comptés comme là. null si la collection est vide (rien à distinguer : la barre reste d'un seul ton). */
+function bdOwnSplit() {
+  if (!collCount()) return null;
+  let have = 0, need = 0, buy = 0, unk = 0;
+  const one = (k, q) => { if (BASIC_NAMES.has(k)) { have += q; return; } const f = Math.min(q, ownFor(k, BD.id).free); have += f; if (q > f) { const u = dkPx(k); need += q - f; buy += u * (q - f); if (!(u > 0)) unk++; } };
+  for (const c of BD.main.values()) one(c.key, c.qty);
+  for (const c of BD.cmdr) one(c.key, 1);
+  return { have, need, buy: Math.round(buy), unk };      // unk : cartes à acheter sans prix connu (« ≈ 12 €+ », comme la valeur estimée)
+}
 function bdSumHtml() {
   const ck = bdCheck(), pct = Math.max(0, Math.min(100, Math.round(ck.n / ck.size * 100)));
   const st = ck.n === ck.size ? 'full' : ck.n > ck.size ? 'over' : '';
+  const sp = st !== 'over' && ck.n ? bdOwnSplit() : null, pHave = sp ? Math.max(0, Math.min(pct, Math.round(sp.have / ck.size * 1000) / 10)) : pct;      // barre en deux tons : plein = déjà là, hachuré = à acheter
   const bad = ck.issues.filter(i => i.lv === 'bad').length;
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
   const ev = dkEst(dkBuildText(bdData())), val = ev.ready ? dkValueText(ev) : '';      // règle unique (dkPx) : le même chiffre que le coach, Mes decks et le viewer, dès l'ouverture (pas d'attente de la base du coach)
   const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
-  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-valw"><span>${T('valeur estimée')}</span><b class="bd-val" title="${valT}">${esc(val)}</b></div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
-    <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
+  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-vals"><div class="bd-valw"><span>${T('valeur estimée')}</span><b class="bd-val" title="${valT}">${esc(val)}</b></div>${sp && sp.need && (sp.buy || !sp.unk) ? `<div class="bd-valw bd-buyw"><span>${T('à acheter')}</span><b class="bd-val bd-buy">${esc('≈ ' + fmt(sp.buy, mkCur()) + (sp.unk ? '+' : ''))}</b></div>` : ''}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
+    <div class="bd-bar ${st}${sp ? ' two' : ''}"><i style="width:${pHave}%"></i>${sp && pct > pHave ? `<i class="bd-need" style="left:${pHave}%;width:${Math.round((pct - pHave) * 10) / 10}%"></i>` : ''}</div>
+    ${sp ? `<p class="bd-leg"><span class="bd-k have" title="${esc(T('Terrains de base comptés comme possédés'))}"><i></i>${esc(sp.need ? TN(sp.have, '{n} possédée', '{n} possédées') : T('Tout est dans ta collection'))}</span>${sp.need ? `<span class="bd-k need"><i></i>${esc(TN(sp.need, '{n} carte à acheter', '{n} cartes à acheter'))}</span>` : ''}</p>` : ''}
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : TN(ck.issues.length - 3, 'Voir l\'autre alerte', 'Voir les {n} autres alertes')}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }

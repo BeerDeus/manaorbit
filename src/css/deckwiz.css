@@ -56,6 +56,18 @@
 .dw-br li:not(.bad):not(.warn):not(.ok)::before{background:var(--ink-3,var(--line))}
 .dw-bud .dw-bar{margin:4px 0}
 .dw-bud.over .dw-val{background:var(--bad)}
+.dw-bar.dw-split{height:9px}      /* budget en deux tons : dans ta collection (vert), à acheter (accent ; au-dessus du budget : rouge) */
+.dw-split .dw-have{background:var(--good);border-radius:99px 0 0 99px}
+.dw-split .dw-buy{background:var(--accent);border-radius:0 99px 99px 0}
+.dw-split i:only-child{border-radius:99px}
+.dw-bud.over .dw-split .dw-buy{background:var(--bad)}
+.dw-leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 2px;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.dw-k{display:inline-flex;align-items:center;gap:6px}
+.dw-k b{color:var(--ink);font-weight:650}
+.dw-k i{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+.dw-k.have i{background:var(--good)}
+.dw-bud.over .dw-k.buy i{background:var(--bad)}
+.dw-line.dw-sub{margin-top:-2px}
 .dw-src.hint,.dw-src + .hint{margin-top:4px}
 .hint.dw-src{margin-top:14px}
 .dw-empty{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:8px 0}

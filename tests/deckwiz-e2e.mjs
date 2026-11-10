@@ -405,6 +405,50 @@ ok('coach : prochaines étapes, à retirer (raisons, terrains en trop), échange
 }
 ok('échanges : « bien plus jouée » seulement si c\'est vrai ; commandant qui coûte presque tout le budget : question avant la construction (99 autres cartes ou autre budget), choix gardé');
 
+/* ── 6 ter) Budget « Collection comprise » / « En plus de ma collection » (bx) ; éditeur : barre en deux tons (possédées, à acheter) et prix de ce qui manque ── */
+{
+  const coll0 = await p.evaluate(() => COLL.map);
+  await p.evaluate(() => { COLL.map = collFromText('1 Edgar Markov\n1 Gilded Removal\n1 Swords to Plowshares'); collChanged(); });
+  await p.evaluate(() => openBuilder({ name: 'Budget collection', fmt: 'commander', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Gilded Removal\n1 Swords to Plowshares\n1 Phyrexian Arena\n30 Plains', wiz: dwSane({ br: 2, bud: 2000 }) })); await p.waitForSelector('.bd.on');
+  await p.click('#bdSeg .seg-opt[data-v="coach"]'); await p.waitForSelector('.dw-bud', { timeout: 15000 });
+  assert.ok(await p.$('.dw-bud.over'), 'collection comprise : 910,90 € pour 20 € → au-dessus du budget');
+  assert.match(await txt(p, '.dw-bud'), /Valeur du deck 910,90 € \/ 20,00 € Dans ta collection 906,90 € À acheter 4,00 €/);
+  assert.equal(await p.$$eval('.dw-bud .dw-split i', l => l.map(i => i.className).join()), 'dw-have,dw-buy', 'barre en deux tons');
+  await p.click('#bdSeg .seg-opt[data-v="deck"]'); await p.waitForSelector('.bd-leg');
+  assert.match(await txt(p, '.bd-leg'), /^33 possédées 1 carte à acheter$/, 'terrains de base comptés comme là');
+  assert.match(await txt(p, '.bd-buyw'), /^à acheter ≈ 4,00 €$/);
+  assert.equal(await p.$$eval('.bd-bar.two i', l => l.length), 2, 'éditeur : plein (possédées) + hachuré (à acheter)');
+  await p.click('#bdSeg .seg-opt[data-v="coach"]'); await p.waitForSelector('.dw-bud');
+  await p.click('[data-act="dw-set"]'); await p.waitForSelector('[data-act="dw-bx"][data-v="1"]');
+  assert.equal(await p.$eval('[data-act="dw-bx"][data-v="0"]', b => b.getAttribute('aria-pressed')), 'true', 'défaut : collection comprise');
+  await p.click('[data-act="dw-bx"][data-v="1"]'); await p.waitForFunction(() => BD.wiz.bx === 1);
+  assert.equal(await p.$('.dw-bud.over'), null, 'en plus de ma collection : 4 € à acheter pour 20 €');
+  assert.match(await txt(p, '.dw-bud'), /À acheter 4,00 € \/ 20,00 € Valeur du deck 910,90 € Dans ta collection \(hors budget\) 906,90 € À acheter 4,00 €/);
+  assert.match(await txt(p, '.dw-set-h'), /budget 20,00 € en plus de ta collection/);
+  // suggestions : une carte possédée ne coûte rien au budget « en plus » (Gilded Removal, 900 €)
+  await p.evaluate(() => { bdChange('main', 'gilded removal', 'Gilded Removal', -1); bdChange('main', 'swords to plowshares', 'Swords to Plowshares', -1); });
+  const sug = () => p.evaluate(() => { const cmd = dwCmdOf(), pack = DW.cmd.get('edgar-markov'), prof = dwProfile(); return dwSuggest('removal', cmd, pack, prof, dwTargets(prof, cmd, pack), 10).map(x => x.k); });
+  assert.ok((await sug()).includes('gilded removal'), 'en plus : la carte possédée (900 €) proposée');
+  await p.click('[data-act="dw-bx"][data-v="0"]'); await p.waitForFunction(() => !BD.wiz.bx);
+  assert.ok(!(await sug()).includes('gilded removal'), 'collection comprise : trop chère pour 20 €');
+  assert.equal(await p.evaluate(() => [dwSpent({ cents: 9, buy: 4 }, { bx: 1 }), dwSpent({ cents: 9, buy: 4 }, {})].join()), '4,9');
+  await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
+  // assistant : le choix suit le deck créé
+  await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
+  await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.waitForSelector('.nd-go[data-v="wiz"]', { state: 'visible' }); await one(p);
+  await p.click('.nd-go[data-v="wiz"]'); await p.waitForSelector('#dwzQ'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]', { timeout: 15000 });
+  await p.click('.dw-cmd[data-slug="edgar-markov"]'); await p.waitForSelector('#dwzGo');
+  assert.equal(await p.$('[data-bx]'), null, 'sans limite : pas de choix');
+  await p.click('[data-bud="5000"]'); await p.waitForSelector('[data-bx="1"]');
+  await p.click('[data-bx="1"]'); await p.waitForSelector('[data-bx="1"].on');
+  assert.match(await txt(p, '.sheet-wrap:last-child .sheet-body'), /Ton commandant est dans ta collection : il ne compte pas dans le budget\./);
+  await p.click('label[for="dwzAuto"]'); await p.click('#dwzGo'); await p.waitForSelector('.bd.on');
+  assert.deepEqual(await p.evaluate(() => [BD.wiz.bud, BD.wiz.bx]), [5000, 1]);
+  await p.evaluate(() => bdClose(true)); await closeSheets(p);
+  await p.evaluate(c => { COLL.map = c; collChanged(); }, coll0);
+}
+ok('budget « en plus de ma collection » : coach, suggestions, assistant ; éditeur : possédées / à acheter, prix de ce qui manque');
+
 /* ── 7) Base du coach indisponible : modèle de base, pas de suggestions ── */
 dkwOff = true;
 await p.evaluate(() => { DW.core = null; DW.byKey = null; DW.err = ''; DW.cmd.clear(); return Cache.set('dkw:core', null); });

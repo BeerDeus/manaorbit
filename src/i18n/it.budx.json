@@ -1,0 +1,17 @@
+{
+ "Dans ta collection : {a} · à acheter : {b}": "Nella tua collezione: {a} · da comprare: {b}",
+ "Dans ta collection (hors budget)": "Nella tua collezione (fuori budget)",
+ "À acheter : cartes que ta collection n'a pas, ou réservées par un autre deck monté.": "Da comprare: carte che la tua collezione non ha, o riservate da un altro mazzo montato.",
+ "Ton commandant est dans ta collection : il ne compte pas dans le budget.": "Il tuo comandante è nella tua collezione: non conta nel budget.",
+ "budget {p} en plus de ta collection": "budget {p} in più rispetto alla tua collezione",
+ "limite {p} en plus de ta collection": "limite {p} in più rispetto alla tua collezione",
+ "Vide : ce qui reste à acheter aujourd'hui, les échanges ne le font pas monter.": "Vuoto: ciò che resta da comprare oggi, gli scambi non lo alzano.",
+ "Terrains de base comptés comme possédés": "Terre base contate come possedute",
+ "{n} carte à acheter": "{n} carta da comprare",
+ "{n} cartes à acheter": "{n} carte da comprare",
+ "Ce que compte le budget": "Cosa conta il budget",
+ "Collection comprise": "Collezione compresa",
+ "En plus de ma collection": "In più rispetto alla mia collezione",
+ "Seules les cartes à acheter comptent : celles de ta collection sont en plus.": "Contano solo le carte da comprare: quelle della tua collezione sono in più.",
+ "Toute la valeur du deck compte, cartes de ta collection comprises.": "Conta tutto il valore del mazzo, comprese le carte della tua collezione."
+}

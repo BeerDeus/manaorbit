@@ -1341,6 +1341,18 @@ button,.btn,select,summary{touch-action:manipulation}
 .bd-bar i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .25s}
 .bd-bar.full i{background:var(--good)}
 .bd-bar.over i{background:var(--bad)}
+.bd-bar.two{position:relative}      /* deux tons : plein = déjà là (collection, terrains de base), hachuré = à acheter */
+.bd-bar.two i{position:absolute;top:0;bottom:0;left:0;height:auto;border-radius:99px 0 0 99px}
+.bd-bar.two i:only-child{border-radius:99px}
+.bd-bar.two .bd-need{--c:var(--accent);border-radius:0 99px 99px 0;background:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--c) 55%,transparent) 0 3px,color-mix(in srgb,var(--c) 20%,transparent) 3px 6px)}
+.bd-bar.two.full .bd-need{--c:var(--good)}
+.bd-leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:-3px 0 0;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.bd-k{display:inline-flex;align-items:center;gap:6px}
+.bd-k i{--c:var(--accent);box-sizing:border-box;width:10px;height:10px;border-radius:50%;background:var(--c)}
+.bd-sum:has(.bd-bar.full) .bd-k i{--c:var(--good)}
+.bd-k.need i{background:color-mix(in srgb,var(--c) 22%,transparent);border:2px solid var(--c)}      /* ○ à acheter, ● possédées */
+.bd-vals{display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-left:auto}
+.bd-buyw .bd-buy{color:var(--accent)}
 .bd-issues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
 .bd-issues li{position:relative;padding-left:15px;font-size:13px;line-height:1.3;color:var(--ink-2)}
 .bd-issues li::before{content:"";position:absolute;left:1px;top:.45em;width:7px;height:7px;border-radius:50%;background:var(--warn)}
@@ -2774,6 +2786,18 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dw-br li:not(.bad):not(.warn):not(.ok)::before{background:var(--ink-3,var(--line))}
 .dw-bud .dw-bar{margin:4px 0}
 .dw-bud.over .dw-val{background:var(--bad)}
+.dw-bar.dw-split{height:9px}      /* budget en deux tons : dans ta collection (vert), à acheter (accent ; au-dessus du budget : rouge) */
+.dw-split .dw-have{background:var(--good);border-radius:99px 0 0 99px}
+.dw-split .dw-buy{background:var(--accent);border-radius:0 99px 99px 0}
+.dw-split i:only-child{border-radius:99px}
+.dw-bud.over .dw-split .dw-buy{background:var(--bad)}
+.dw-leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 2px;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.dw-k{display:inline-flex;align-items:center;gap:6px}
+.dw-k b{color:var(--ink);font-weight:650}
+.dw-k i{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+.dw-k.have i{background:var(--good)}
+.dw-bud.over .dw-k.buy i{background:var(--bad)}
+.dw-line.dw-sub{margin-top:-2px}
 .dw-src.hint,.dw-src + .hint{margin-top:4px}
 .hint.dw-src{margin-top:14px}
 .dw-empty{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:8px 0}
@@ -8227,8 +8251,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '8408d5c8';
-const I18N_FILES = {"de":"i18n/de.e7366e4c.js","en":"i18n/en.b10f7e81.js","es":"i18n/es.95539be2.js","it":"i18n/it.0062af21.js","pt":"i18n/pt.79c7c5f7.js"};
+const DD_BUILD = '11d2748a';
+const I18N_FILES = {"de":"i18n/de.2d2746b5.js","en":"i18n/en.6a26235f.js","es":"i18n/es.b48c633d.js","it":"i18n/it.caf3a891.js","pt":"i18n/pt.b0700ac5.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -29408,15 +29432,27 @@ function bdHead() {
   const sv = $('#bdSave', el), need = !ck.n || (BD.fmt === 'commander' && !BD.cmdr.length);
   sv.disabled = need; sv.title = need ? (BD.fmt === 'commander' && !BD.cmdr.length ? T('Choisis un commandant') : T('Ajoute des cartes')) : '';
 }
+/** Cartes du deck déjà là ou à acheter (règle unique ownFor, comme les pastilles « Possédée » / « À acheter » et le coach) : { have, need, buy (centimes, dkPx) } ;
+ *  terrains de base comptés comme là. null si la collection est vide (rien à distinguer : la barre reste d'un seul ton). */
+function bdOwnSplit() {
+  if (!collCount()) return null;
+  let have = 0, need = 0, buy = 0, unk = 0;
+  const one = (k, q) => { if (BASIC_NAMES.has(k)) { have += q; return; } const f = Math.min(q, ownFor(k, BD.id).free); have += f; if (q > f) { const u = dkPx(k); need += q - f; buy += u * (q - f); if (!(u > 0)) unk++; } };
+  for (const c of BD.main.values()) one(c.key, c.qty);
+  for (const c of BD.cmdr) one(c.key, 1);
+  return { have, need, buy: Math.round(buy), unk };      // unk : cartes à acheter sans prix connu (« ≈ 12 €+ », comme la valeur estimée)
+}
 function bdSumHtml() {
   const ck = bdCheck(), pct = Math.max(0, Math.min(100, Math.round(ck.n / ck.size * 100)));
   const st = ck.n === ck.size ? 'full' : ck.n > ck.size ? 'over' : '';
+  const sp = st !== 'over' && ck.n ? bdOwnSplit() : null, pHave = sp ? Math.max(0, Math.min(pct, Math.round(sp.have / ck.size * 1000) / 10)) : pct;      // barre en deux tons : plein = déjà là, hachuré = à acheter
   const bad = ck.issues.filter(i => i.lv === 'bad').length;
   const list = BD.issuesOpen ? ck.issues : ck.issues.slice(0, 3);
   const ev = dkEst(dkBuildText(bdData())), val = ev.ready ? dkValueText(ev) : '';      // règle unique (dkPx) : le même chiffre que le coach, Mes decks et le viewer, dès l'ouverture (pas d'attente de la base du coach)
   const valT = T('Prix du jour de l\'impression la moins chère (comme le coach), cartes possédées comprises, terrains de base exclus');
-  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-valw"><span>${T('valeur estimée')}</span><b class="bd-val" title="${valT}">${esc(val)}</b></div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
-    <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
+  return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-vals"><div class="bd-valw"><span>${T('valeur estimée')}</span><b class="bd-val" title="${valT}">${esc(val)}</b></div>${sp && sp.need && (sp.buy || !sp.unk) ? `<div class="bd-valw bd-buyw"><span>${T('à acheter')}</span><b class="bd-val bd-buy">${esc('≈ ' + fmt(sp.buy, mkCur()) + (sp.unk ? '+' : ''))}</b></div>` : ''}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
+    <div class="bd-bar ${st}${sp ? ' two' : ''}"><i style="width:${pHave}%"></i>${sp && pct > pHave ? `<i class="bd-need" style="left:${pHave}%;width:${Math.round((pct - pHave) * 10) / 10}%"></i>` : ''}</div>
+    ${sp ? `<p class="bd-leg"><span class="bd-k have" title="${esc(T('Terrains de base comptés comme possédés'))}"><i></i>${esc(sp.need ? TN(sp.have, '{n} possédée', '{n} possédées') : T('Tout est dans ta collection'))}</span>${sp.need ? `<span class="bd-k need"><i></i>${esc(TN(sp.need, '{n} carte à acheter', '{n} cartes à acheter'))}</span>` : ''}</p>` : ''}
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : TN(ck.issues.length - 3, 'Voir l\'autre alerte', 'Voir les {n} autres alertes')}</button>` : ''}`
       : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
@@ -30054,6 +30090,16 @@ const DW_SET = 'deckdeal:dw:';
  *  plus de trouvailles), graine des tirages (seed : « Autre proposition »), style de la version choisie (style, arch). */
 const DW_ORIG0 = 30;
 const dwDefaults = () => ({ th: [], br: 3, bud: 0, own: true, mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0 });
+/** Budget « en plus de ma collection » (bx) : seules les cartes à acheter comptent (prof.buy : pas dans la collection, ou réservées par un autre deck monté) ;
+ *  sinon (défaut) toute la valeur du deck, cartes possédées comprises. LA règle du budget : coach, génération, échanges, note, analyse. */
+const dwSpent = (prof, set) => set && set.bx ? prof.buy : prof.cents;
+/** Prix d'une carte pour le budget : 0 si le budget est « en plus de ma collection » et qu'un exemplaire libre est dans la collection (ownFree, comme prof.buy). */
+const dwBudPx = (k, price, set, id) => set && set.bx && price > 0 && ownFree(k, id != null ? id : null) > 0 ? 0 : price;
+/** Ce que compte le budget (assistant, réglages du Coach, de l'analyse) : « Collection comprise » (défaut) ou « En plus de ma collection » (bx). attr(v) : attributs du bouton (v : 0 ou 1). */
+function dwBxHtml(on, attr) {
+  const chip = (v, label) => `<button type="button" class="chip${!!on === !!v ? ' on' : ''}" ${attr(v)} aria-pressed="${!!on === !!v}">${esc(label)}</button>`;
+  return `<div class="dw-chips dw-bx" role="group" aria-label="${esc(T('Ce que compte le budget'))}">${chip(0, T('Collection comprise'))}${chip(1, T('En plus de ma collection'))}</div><p class="hint">${esc(on ? T('Seules les cartes à acheter comptent : celles de ta collection sont en plus.') : T('Toute la valeur du deck compte, cartes de ta collection comprises.'))}</p>`;
+}
 const dwArr = (v, n) => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x).slice(0, n) : [];
 /** Réglages lus (stockage, assistant) : formes et bornes vérifiées. */
 function dwSane(o) {
@@ -30107,7 +30153,7 @@ function dwPips(mc) {
 }
 /** Profil d'un deck (X : { main: Map, cmdr: [] }, l'éditeur par défaut) : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
 function dwProfile(X = BD) {
-  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, buy: 0, unk: 0, cards: 0 };
+  const p = { combos: [], n: 0, nonland: 0, mdfc: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, cmdCents: 0, cmdBuy: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
   let mvSum = 0; const all = [...X.main.values()], did = X.id != null ? X.id : null;      // deck de Mes decks (BD.id, DA.X.id) : ses propres exemplaires lui restent
   for (const c of all) {
@@ -30128,7 +30174,7 @@ function dwProfile(X = BD) {
     }
     if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
   }
-  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (dwGC(c.key, x)) p.gc.push(x ? x.name : c.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (dwGC(c.key, x)) p.gc.push(x ? x.name : c.name); const e = dwPrice(c.key, x, true); if (e > 0) { p.cents += e; p.cmdCents += e; if (ownFree(c.key, did) < 1) { p.buy += e; p.cmdBuy += e; } } }
   const wk = dwWinKeys(X);      // conditions de victoire au sens du plan : cartes de la fiche du commandant qui finissent la partie dans CE deck, et le commandant lui-même quand il gagne par le combat ou le drain
   if (wk) { for (const c of all) if (wk.cards.has(c.key) && !((dwCard(c.key) || {}).roles & DW_RB.wincon)) { p.wincon += c.qty; p.winPlan = (p.winPlan || 0) + c.qty; } if (wk.cmdr) { p.wincon++; p.winCmdr = 1; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
@@ -30346,7 +30392,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const set = X.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k) || (X.skip && X.skip.has(k));
   const R = DWB.brRule(set.br), gcLeft = R.gc - prof.gc.length, xtLeft = R.xt - prof.xt.length;      // règles du bracket (brackets.js) : Game Changers et tours supplémentaires encore permis
   const must = role === 'wincon' && !prof.wincon;      // la première condition de victoire passe avant tout (rythme et part des terrains)
-  const budLeft = set.bud > 0 ? set.bud - prof.cents - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
+  const budLeft = set.bud > 0 ? set.bud - dwSpent(prof, set) - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
   const C = X.info || dwInfo(pack, set, cmd), w = dwW();
   const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
   const noCombo = (set.avoid || []).includes('combo'), combo = !!(DW.core && (DW.core.combos || DW.core.combos3)), pairs = dwPairIdx(), wPair = w.pair;      // combo interdit ou à éviter dans ce bracket (brackets.js : 1-2), ou combos évités : jamais la carte qui le complète
@@ -30361,8 +30407,9 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 2 && xtLeft <= 0) return;
     const cw = combo ? dwComboWith(k, inDeck) : null; if (cw && (noCombo || (dwCombo3(cw.c) ? R.c3 === 'avoid' : R.c2 === 'no'))) return;
     const combo2 = cw ? cw.o : null;      // les autres pièces du combo, déjà dans le deck
-    const price = dwPrice(k, x), own = ownFree(k, X.id != null ? X.id : null) > 0;      // « dans ta collection » : un exemplaire libre (pas réservé par un autre deck monté), règle de ownFor
-    if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
+    const price0 = dwPrice(k, x), own = ownFree(k, X.id != null ? X.id : null) > 0;      // « dans ta collection » : un exemplaire libre (pas réservé par un autre deck monté), règle de ownFor
+    const price = set.bx && own ? 0 : price0;      // prix pour le budget : budget « en plus de ma collection » (bx), une carte possédée ne coûte rien
+    if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € ») ; bx : ce qui reste à acheter
     if (X.pace && set.bud > 0) {      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places ; plus le budget par place est petit, plus l'écart permis est faible
       const per = budLeft / slots, kk = per < 50 ? 2 : per < 150 ? 4 : 8, floor = Math.min(10, per * 0.5);
       if (price > (must ? budLeft - (slots - 1) * floor : Math.max(Math.min(60, per * 2), Math.min(per * kk, budLeft - (slots - 1) * floor)))) return;
@@ -30392,7 +30439,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
       if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a * (C.npack >= 40 ? 2.5 : 0.35); }      // déjà dans une autre version : recule (versions vraiment différentes ; écart à la mesure des valeurs : listes du commandant, ou réserve plate)
     }
     if (seed && (X.pace || X.gen)) s += tau * dwNoiseOf(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
-    out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
+    out.push({ k, name: x.name, s, v, o, own, price: price0, bp: price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
   };
   for (const [k, o, x, isLand] of dwSugPool(C, ci, set)) rate(k, o, x, isLand);
   if (fallback) for (const [k, o, x, isLand] of dwSugPool(C, ci, set, true)) rate(k, o, x, isLand);      // cartes de secours (rang)
@@ -30559,13 +30606,14 @@ function dwBalSum(prof, tgt, cmd) {
 function dwSetHtml(cmd, pack) {
   const s = BD.wiz, th = dwThemeChoices(cmd, pack), cur = mkCur();
   const brName = (DW_BRACKETS.find(b => b[0] === s.br) || DW_BRACKETS[2])[1];
-  const sum = [s.th.length ? s.th.map(t => dwThemeLabel(t, th)).join(', ') : T('aucun thème'), T('bracket {n}', { n: s.br }) + ' · ' + brName, s.bud > 0 ? T('budget {p}', { p: fmt(s.bud, cur) }) : T('sans budget'), dwPersoSum(s)].filter(Boolean).join(' · ');
+  const sum = [s.th.length ? s.th.map(t => dwThemeLabel(t, th)).join(', ') : T('aucun thème'), T('bracket {n}', { n: s.br }) + ' · ' + brName, s.bud > 0 ? (s.bx ? T('budget {p} en plus de ta collection', { p: fmt(s.bud, cur) }) : T('budget {p}', { p: fmt(s.bud, cur) })) : T('sans budget'), dwPersoSum(s)].filter(Boolean).join(' · ');
   let h = `<button class="dw-set-h" type="button" data-act="dw-set" aria-expanded="${DW.setOpen}"><span><b>${T('Réglages du coach')}</b><small>${esc(sum)}</small></span><span class="me-v">${DW.setOpen ? '−' : '+'}</span></button>`;
   if (!DW.setOpen) return h;
   h += `<div class="dw-set"><p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.length ? th.map(([slug, label]) => `<button type="button" class="chip${s.th.includes(slug) ? ' on' : ''}" data-act="dw-th" data-v="${esc(slug)}" aria-pressed="${s.th.includes(slug)}">${esc(label)}</button>`).join('') : `<span class="hint">${T('Thèmes pas encore chargés.')}</span>`}</div>
     <p class="label">${T('Bracket')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${s.br === b[0] ? ' on' : ''}" data-act="dw-br" data-v="${b[0]}" aria-pressed="${s.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
     <p class="hint">${esc(T((DW_BRACKETS.find(b => b[0] === s.br) || DW_BRACKETS[2])[2]))}</p>
     <div class="field-in"><label class="label" for="dwBud">${T('Budget du deck ({c})', { c: cur })}</label><input type="number" id="dwBud" inputmode="decimal" min="0" step="10" placeholder="${T('Sans limite')}" value="${s.bud > 0 ? Math.round(s.bud / 100) : ''}"></div>
+    ${s.bud > 0 ? dwBxHtml(s.bx, v => `data-act="dw-bx" data-v="${v}"`) : ''}
     <label class="me-row switch-row" for="dwOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwOwn" ${s.own ? 'checked' : ''}><i></i></span></label>
     <div class="dw-perso" data-perso="coach">${dwPersoHtml(s, cmd, 'dwp')}</div></div>`;
   return h;
@@ -30706,11 +30754,18 @@ function dwBracketHtml(prof, s = BD.wiz) {
 }
 function dwBudgetHtml(prof, s = BD.wiz) {
   const cur = mkCur(); if (!(s.bud > 0) && !prof.cents) return '';
-  const pct = s.bud > 0 ? Math.min(100, Math.round(prof.cents / s.bud * 100)) : 0, over = s.bud > 0 && prof.cents > s.bud;
-  const cc = prof.cmdCents || 0, dear = s.bud > 0 && cc >= s.bud * 0.6 ? `<p class="hint warn">${esc(T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(s.bud, cur) }))}</p>` : '';
+  const bx = !!s.bx && s.bud > 0, spent = bx ? prof.buy : prof.cents, over = s.bud > 0 && spent > s.bud, have = Math.max(0, prof.cents - prof.buy);
+  const cc = (bx ? prof.cmdBuy : prof.cmdCents) || 0, dear = s.bud > 0 && cc >= s.bud * 0.6 ? `<p class="hint warn">${esc(T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(s.bud, cur) }))}</p>` : '';
   const small = !dear && s.bud > 0 && s.bud < 7500 ? `<p class="hint">${esc(T('Petit budget : le coach garde l\'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu\'avec des terrains plus chers.'))}</p>` : '';
-  return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}">${dear}${small}<p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>
-    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas, ou réservées par un autre deck monté).', { p: fmt(prof.buy, cur) }))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
+  // barre en deux tons (cartes possédées, puis à acheter) sur le budget (ou la valeur du deck sans budget) ; budget « en plus de ma collection » (bx) : seule la part à acheter compte
+  const scale = Math.max(1, s.bud > 0 ? Math.max(s.bud, spent) : prof.cents), w = v => Math.round(Math.min(100, v / scale * 1000)) / 10;
+  const wHave = bx ? 0 : w(have), wBuy = Math.min(100 - wHave, w(prof.buy));
+  const bar = `<span class="dw-bar dw-split" role="img" aria-label="${esc(T('Dans ta collection : {a} · à acheter : {b}', { a: fmt(have, cur), b: fmt(prof.buy, cur) }))}">${wHave ? `<i class="dw-have" style="width:${wHave}%"></i>` : ''}${wBuy ? `<i class="dw-buy" style="left:${wHave}%;width:${wBuy}%"></i>` : ''}</span>`;
+  const leg = `<p class="dw-leg"><span class="dw-k have"><i></i>${esc(bx ? T('Dans ta collection (hors budget)') : T('Dans ta collection'))} <b>${esc(fmt(have, cur))}</b></span><span class="dw-k buy"><i></i>${esc(T('À acheter'))} <b>${esc(fmt(prof.buy, cur))}</b></span></p>`;
+  const head = bx ? `<p class="dw-line"><span>${T('À acheter')}</span><b>${esc(fmt(prof.buy, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p><p class="dw-line dw-sub"><span>${T('Valeur du deck')}</span><small>${esc(fmt(prof.cents, cur))}</small></p>`
+    : `<p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>`;
+  return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}">${dear}${small}${head}
+    ${bar}${leg}<p class="hint">${esc(T('À acheter : cartes que ta collection n\'a pas, ou réservées par un autre deck monté.'))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
 }
 function dwPlanHtml(cmd, pack, prof, tgt) {
   const open = DW.open === 'plan';
@@ -30792,7 +30847,7 @@ function* dwAutoBuildGen(undoTo, quiet) {
   const landsNow = () => prof.land, nonland = () => size() - landsNow();
   const L0 = Math.max(tgt.land[1], prof.land), cap = () => slots - Math.max(L0, landsNow());
   const pick = role => { let x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; if (!x && !(role === 'wincon' && pack && (pack.cards || []).length >= 40)) { BD.wide = true; x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; BD.wide = false; } return x; };      // cartes du commandant, sinon les plus jouées dans ses couleurs (petit budget : les cartes conseillées sont vite trop chères)
-  const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - prof.cents) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
+  const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - dwSpent(prof, BD.wiz)) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
   for (const r of ['wincon', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'tutor', 'recursion']) {      // de quoi gagner d'abord : même à petit budget, le deck doit pouvoir finir la partie
     if (!tgt[r]) continue;
     while (prof[r] < tgt[r][1] && nonland() < cap()) { const x = pick(r); if (!x) break; add(x); prof = dwProfile(); yield; }
@@ -30840,6 +30895,7 @@ function dwClick(b) {
   else if (act === 'dw-more') { DW.shown += 8; bdList(); }
   else if (act === 'dw-set') { DW.setOpen = !DW.setOpen; haptic('tap'); bdList(); }
   else if (act === 'dw-th') { const v = b.dataset.v, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) { s.th.push(v); dwPack('t', v); } else { toast(T('3 thèmes au plus')); return true; } haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
+  else if (act === 'dw-bx') { if (b.dataset.v === '1') s.bx = 1; else delete s.bx; haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }      // budget « en plus de ma collection »
   else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
   else if (act === 'dw-fold') { if (b.dataset.v === 'bal') DW.balOpen = DW.balOpen === false; haptic('tap'); bdList(); }      // « Équilibre du deck » replié ou déplié
   else if (act === 'dw-keep') { DW.changed = false; haptic('tap'); bdList(); }
@@ -30874,9 +30930,9 @@ function openDeckPaste(name, fmt) {
 }
 
 /* ── Assistant « Deck à construire » (Commander) ──────────────────────────────────────────────────── */
-const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
+const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, bx: false, own: true, auto: true, name: '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
 function openDeckWiz(name) {
-  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
+  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, bx: false, own: true, auto: true, name: name || '', cols: new Set(), colsEq: false, pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
@@ -30940,7 +30996,10 @@ function openDeckWiz2() {
         <p class="label">${T('Bracket')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${DWZ.br === b[0] ? ' on' : ''}" data-br="${b[0]}" aria-pressed="${DWZ.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
         <p class="hint">${esc(T((DW_BRACKETS.find(b => b[0] === DWZ.br) || DW_BRACKETS[2])[2]))}</p>
         <p class="label">${T('Budget du deck ({c})', { c: cur })}</p><div class="dw-chips">${[0, 5000, 10000, 25000, 50000, 100000].map(v => `<button type="button" class="chip${DWZ.bud === v ? ' on' : ''}" data-bud="${v}" aria-pressed="${DWZ.bud === v}">${v ? esc(fmt(v, cur).replace(/[.,]00(?=\D*$)/, '')) : T('Sans limite')}</button>`).join('')}</div>
-        ${(() => { const cc = cm.names.reduce((a, n, i) => a + dwPrice(cm.keys[i] || ownKey(n), dwCard(cm.keys[i] || ownKey(n))), 0); return cc > 0 ? `<p class="hint${DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? ' warn' : ''}">${esc(DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(DWZ.bud, cur) }) : T('Le commandant compte dans le budget ({p}).', { p: fmt(cc, cur) }))}</p>` : ''; })()}
+        ${DWZ.bud > 0 ? dwBxHtml(DWZ.bx, v => `data-bx="${v}"`) : ''}
+        ${(() => { const ks = cm.names.map((n, i) => cm.keys[i] || ownKey(n)), cc0 = ks.reduce((a, k) => a + dwPrice(k, dwCard(k)), 0), cc = DWZ.bx ? ks.reduce((a, k) => a + dwBudPx(k, dwPrice(k, dwCard(k)), DWZ, null), 0) : cc0;      // budget « en plus de ma collection » : un commandant possédé ne compte pas
+          if (DWZ.bx && DWZ.bud > 0 && cc0 > 0 && !cc) return `<p class="hint">${esc(T('Ton commandant est dans ta collection : il ne compte pas dans le budget.'))}</p>`;
+          return cc > 0 ? `<p class="hint${DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? ' warn' : ''}">${esc(DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(DWZ.bud, cur) }) : T('Le commandant compte dans le budget ({p}).', { p: fmt(cc, cur) }))}</p>` : ''; })()}
         <label class="me-row switch-row" for="dwzOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwzOwn" ${DWZ.own ? 'checked' : ''}><i></i></span></label>
         <label class="me-row switch-row" for="dwzAuto"><span class="me-t">${T('Générer les 100 cartes tout de suite')}<small>${T('Le coach construit le deck avec ces réglages ; tu ajustes ensuite')}</small></span><span class="switch"><input type="checkbox" id="dwzAuto" ${DWZ.auto ? 'checked' : ''}><i></i></span></label>
         <button class="dw-set-h" type="button" data-perso-t aria-expanded="${DWZ.perso}"><span><b>${T('Personnaliser (facultatif)')}</b><small>${esc(dwPersoSum(DWZ) || T('mécaniques, type de créature, cartes fétiches, exclusions, originalité'))}</small></span><span class="me-v">${DWZ.perso ? '−' : '+'}</span></button>
@@ -30956,13 +31015,14 @@ function openDeckWiz2() {
       if (e.target.closest('.dw-perso') && dwPersoClick(e, DWZ)) { const y = api.body.scrollTop; paint(); api.body.scrollTop = y; return; }
       const t = e.target.closest('[data-th]'); if (t) { const v = t.dataset.th, i = DWZ.th.indexOf(v); if (i >= 0) DWZ.th.splice(i, 1); else if (DWZ.th.length < 3) DWZ.th.push(v); else { toast(T('3 thèmes au plus')); return; } haptic('tap'); paint(); return; }
       const b = e.target.closest('[data-br]'); if (b) { DWZ.br = Number(b.dataset.br); haptic('tap'); paint(); return; }
-      const u = e.target.closest('[data-bud]'); if (u) { DWZ.bud = Number(u.dataset.bud) || 0; haptic('tap'); paint(); }
+      const u = e.target.closest('[data-bud]'); if (u) { DWZ.bud = Number(u.dataset.bud) || 0; haptic('tap'); paint(); return; }
+      const x = e.target.closest('[data-bx]'); if (x) { DWZ.bx = x.dataset.bx === '1'; haptic('tap'); const y = api.body.scrollTop; paint(); api.body.scrollTop = y; }
     });
     api.setFoot(`<button class="btn ghost" type="button" id="dwzBack">${T('Retour')}</button><button class="btn" type="button" id="dwzGo">${T('Créer et ouvrir le coach')}</button>`);
     $('#dwzBack', api.foot).onclick = () => { api.close(); setTimeout(() => openDeckWiz(DWZ.name), 200); };
     $('#dwzGo', api.foot).onclick = () => {
       const name = (DWZ.name || cm.names[0].split(',')[0]).trim().slice(0, 120); api.close(); haptic('ok'); DW.autoNext = DWZ.auto;      // génération dès que la base et les cartes du commandant sont là (dwCoachHtml)
-      setTimeout(() => openBuilder({ name, fmt: 'commander', cmdr: cm.names.map((n, i) => ({ key: cm.keys[i] || ownKey(n), name: n })), wiz: dwSane({ th: DWZ.th.slice(0, 3), br: DWZ.br, bud: DWZ.bud, own: DWZ.own, mech: DWZ.mech, tribe: DWZ.tribe, pets: DWZ.pets, ban: DWZ.ban, avoid: DWZ.avoid, orig: DWZ.orig }), tab: 'coach' }), 200);
+      setTimeout(() => openBuilder({ name, fmt: 'commander', cmdr: cm.names.map((n, i) => ({ key: cm.keys[i] || ownKey(n), name: n })), wiz: dwSane({ th: DWZ.th.slice(0, 3), br: DWZ.br, bud: DWZ.bud, ...(DWZ.bx && DWZ.bud > 0 ? { bx: 1 } : {}), own: DWZ.own, mech: DWZ.mech, tribe: DWZ.tribe, pets: DWZ.pets, ban: DWZ.ban, avoid: DWZ.avoid, orig: DWZ.orig }), tab: 'coach' }), 200);
     };
     paint();
     const again = () => { if (api.body.isConnected) paint(); };      // prix du commandant (indication de budget) : base et relevé du jour arrivés après l'ouverture
@@ -31308,18 +31368,18 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   const val = k => { const o = info.get(k); return o ? dwVal(o) + (trapOk(k) ? dwW().trap : 0) : 0; };
   const known = !!pack && info.size >= 40;      // commandant connu de la base : sinon aucun avis sur les cartes « faibles »
   const out = [], used = new Set(), skip = new Set(), Xs = { ...X, skip, info, wiz: { ...set, bud: 0 } };      // budget compté ici, échange par échange
-  const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
+  const lim = set.bud > 0 ? set.bud : 0; let total = dwSpent(prof, set);      // budget « en plus de ma collection » (bx) : ce qui reste à acheter
   const gaugeRoles = [...DW_GAUGES.map(g => g[0]).filter(r => r !== 'land'), 'wincon'];      // condition de victoire : un rôle comme les autres (jamais retirée pour une carte « mieux jouée » d'un autre rôle)
   const mainRole = r => gaugeRoles.find(g => r & DW_RB[g]) || '';
-  const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x, true), roles: x.roles } : null; }).filter(Boolean);
+  const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x, true), roles: x.roles } : null; }).filter(Boolean).map(c => ({ ...c, bp: dwBudPx(c.k, c.price, set, X.id) }));      // bp : prix pour le budget (bx : 0 si possédée)
   const nonland = cards.filter(c => !(c.roles & DW_RB.land));
-  const fits = (W, C) => !lim || C.price <= W.price || total - W.price + C.price <= lim;
-  const take = (W, C, why) => { out.push({ out: W, in: C, why }); used.add(W.k); skip.add(C.k); total += C.price - W.price; };
+  const fits = (W, C) => !lim || C.bp <= W.bp || total - W.bp + C.bp <= lim;
+  const take = (W, C, why) => { out.push({ out: W, in: C, why }); used.add(W.k); skip.add(C.k); total += C.bp - W.bp; };
   const best = (role, W, cond) => dwSuggest(role, cmd, pack, prof, tgt, 60, Xs).find(C => !skip.has(C.k) && C.k !== W.k && fits(W, C) && cond(C));
   // 1) au-dessus de la limite : les cartes chères qui pèsent peu, remplacées par une carte du même rôle au moins deux fois moins chère
-  if (lim && total > lim) for (const W of [...nonland].sort((a, b) => b.price - a.price)) {
-    if (total <= lim || out.length >= max) break; if (W.price < 300 || used.has(W.k)) continue;
-    const C = best(mainRole(W.roles), W, C => C.price <= W.price * 0.5 && C.v >= W.v - 0.25); if (C) take(W, C, 'budget');
+  if (lim && total > lim) for (const W of [...nonland].sort((a, b) => b.bp - a.bp)) {
+    if (total <= lim || out.length >= max) break; if (W.bp < 300 || used.has(W.k)) continue;
+    const C = best(mainRole(W.roles), W, C => C.bp <= W.bp * 0.5 && C.v >= W.v - 0.25); if (C) take(W, C, 'budget');
   }
   if (known) {
     const weakest = nonland.filter(c => !used.has(c.k)).sort((a, b) => a.v - b.v || b.price - a.price);
@@ -31436,7 +31496,8 @@ function daActions(prof, tgt, cmd, set, swaps, pack) {
   if (bad.has('xt')) out.push({ k: 'xt', sg: '−', t: TN(prof.xt.length - R.xt, 'Retirer {n} tour supplémentaire', 'Retirer {n} tours supplémentaires'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: R.xt }), gain: 3, issue: T('trop fort pour le bracket visé') });
   if (bad.has('c2')) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
   else if (bad.has('c3')) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 3 cartes'), s: T('À éviter en bracket {b}', { b: b[0] }), gain: 3, issue: T('trop fort pour le bracket visé') });
-  if (set.bud > 0 && prof.cents > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
+  const spent = dwSpent(prof, set);
+  if (set.bud > 0 && spent > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(spent - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((spent - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
   if (prof.nonland && prof.mv > tgt.mv[2]) out.push({ k: 'curve', sg: '−', t: T('Baisser la courbe de mana'), s: T('Coût moyen {v}, repère {m}', { v: dsNum(prof.mv), m: dsNum(tgt.mv[1], 1) }), gain: Math.min(1, (prof.mv - tgt.mv[2]) / 0.6) * 10, issue: T('la courbe est un peu haute') });
   if (sw) out.push({ k: 'swap', sg: '⇄', t: T('Échanger {a} → {b}', { a: bdLabel(sw.out.k, sw.out.name), b: bdLabel(sw.in.k, sw.in.name) }), s: daWhy(sw, cmd), gain: swGain, issue: sw.issue || '' });
   return out.sort((a, c) => c.gain - a.gain);
@@ -31461,9 +31522,9 @@ const daActHtml = (a, i) => `<button type="button" class="cb-act" data-cb-act="$
 /** Ligne de réglages (bas du bilan) : « bracket 4 (estimé) · limite 580 € · thèmes » et « Modifier ». */
 function daSetLine(cmd, pack, set, est) {
   const cur = mkCur(), th = dwThemeChoices(cmd, pack, set);
-  const txt = [T('bracket {n}', { n: DA.brAuto ? est : set.br }) + (DA.brAuto ? ' (' + T('estimé') + ')' : ''), set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) + (DA.budAuto ? ' (' + T('valeur actuelle') + ')' : '') : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : [])].join(' · ');
+  const txt = [T('bracket {n}', { n: DA.brAuto ? est : set.br }) + (DA.brAuto ? ' (' + T('estimé') + ')' : ''), set.bud > 0 ? (set.bx ? T('limite {p} en plus de ta collection', { p: fmt(set.bud, cur) }) : T('limite {p}', { p: fmt(set.bud, cur) })) + (DA.budAuto ? ' (' + T('valeur actuelle') + ')' : '') : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : [])].join(' · ');
   return `<button class="dw-set-h cb-set" type="button" data-da-edit aria-expanded="${!!DA.setOpen}"><span><b>${T('Réglages')}</b><small>${esc(txt)}</small></span><span class="me-v">${DA.setOpen ? T('Fermer') : T('Modifier')}</span></button>`
-    + (DA.setOpen ? daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? DA.ctx.prof.cents : 0, pfx: 'da' }) : '');
+    + (DA.setOpen ? daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? dwSpent(DA.ctx.prof, set) : 0, pfx: 'da' }) : '');
 }
 /** Détail replié : note partie par partie, équilibre, mana, bracket, budget, simulation de parties, rapport. */
 function daDetailHtml(sc, prof, tgt, cmd, pack, set) {
@@ -31494,14 +31555,14 @@ function daPaint() {
   for (const t of X.wiz.th) if (DW.core && !DW.th.has(t)) { dwPack('t', t).then(daPaint); return wait(T('Chargement des cartes conseillées…')); }
   const prof = dwProfile(X), est = dwBracketOf(prof), set = X.wiz, mode = DA.mode = !DA.mine ? 'peek' : prof.n < 100 ? 'build' : 'bilan';
   if (DA.brAuto) set.br = est;
-  if (DA.budAuto) set.bud = mode === 'build' ? 0 : prof.cents;      // bilan : budget = valeur actuelle (les échanges ne font pas monter le prix) ; à compléter : sans limite
+  if (DA.budAuto) set.bud = mode === 'build' ? 0 : dwSpent(prof, set);      // bilan : budget = valeur actuelle (les échanges ne font pas monter le prix) ; à compléter : sans limite
   const tgt = dwTargets(prof, cmd, pack, set); DA.ctx = { prof, tgt };
   let h = DW.err ? `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>` : '';
   const keep = body.scrollTop, done = label => { body.innerHTML = h; thumbsReady(body); body.scrollTop = keep; if (go) { go.disabled = false; go.textContent = label; } };
   if (mode === 'build') {      // « Compléter le deck » : réglages courts, puis la construction de l'éditeur
     const cur = mkCur();
     h += `<div class="cb-head cb-build"><div class="cb-n"><b>${prof.n}</b><small>/100<br>${T('cartes')}</small></div><div class="cb-t"><b>${esc(TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes'))}</b><span>${esc(T('Bracket {n} · {name}', { n: est, name: (DW_BRACKETS.find(b => b[0] === est) || DW_BRACKETS[2])[1] }) + ' · ' + T('estimé'))}<br>${esc(fmt(prof.cents, cur))}</span></div></div>`;
-    h += `<div class="sec-title">${T('Compléter le deck')}</div><p class="hint">${T('Le coach ajoute les cartes qui manquent : rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains. Les cartes déjà là restent ; annulable.')}</p>` + daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? DA.ctx.prof.cents : 0, pfx: 'da' });
+    h += `<div class="sec-title">${T('Compléter le deck')}</div><p class="hint">${T('Le coach ajoute les cartes qui manquent : rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains. Les cartes déjà là restent ; annulable.')}</p>` + daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? dwSpent(DA.ctx.prof, set) : 0, pfx: 'da' });
     return done(T('Compléter le deck'));
   }
   const sc = DW.core && typeof dsScore === 'function' ? dsScore(X, { cmd, pack }) : null; DA.sc = sc;
@@ -31662,7 +31723,8 @@ function daSetFormHtml(cmd, pack, set, o = {}) {
   const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr} aria-pressed="${on}">${label}</button>`;
   return `<div class="dw-set ds-form"><p class="label">${T('Bracket visé')}</p><div class="dw-chips">${chip(auto, 'data-ds-br="auto"', esc(o.est ? T('Auto · {n}', { n: o.est }) : T('Auto')))}${DW_BRACKETS.map(b => chip(!auto && set.br === b[0], `data-ds-br="${b[0]}"`, `${b[0]} · ${esc(b[1])}`)).join('')}</div>
     <p class="hint">${esc(auto ? T('Le bracket estimé d\'après la liste, mis à jour quand elle change.') : T((DW_BRACKETS.find(b => b[0] === br) || DW_BRACKETS[2])[2]))}</p>
-    <div class="field-in"><label class="label" for="${p}Bud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="${p}Bud" data-ds-bud inputmode="decimal" min="0" step="10" placeholder="${esc(set.bv && o.val ? T('Valeur actuelle : {p}', { p: fmt(o.val, cur) }) : T('Sans limite'))}" value="${set.bud > 0 && !set.bv ? Math.round(set.bud / 100) : ''}"></div>${set.bv && o.val ? `<p class="hint">${T('Vide : la valeur actuelle du deck, les échanges ne le font pas monter.')}</p>` : ''}
+    <div class="field-in"><label class="label" for="${p}Bud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="${p}Bud" data-ds-bud inputmode="decimal" min="0" step="10" placeholder="${esc(set.bv && o.val ? T('Valeur actuelle : {p}', { p: fmt(o.val, cur) }) : T('Sans limite'))}" value="${set.bud > 0 && !set.bv ? Math.round(set.bud / 100) : ''}"></div>${set.bv && o.val ? `<p class="hint">${set.bx ? T('Vide : ce qui reste à acheter aujourd\'hui, les échanges ne le font pas monter.') : T('Vide : la valeur actuelle du deck, les échanges ne le font pas monter.')}</p>` : ''}
+    ${set.bud > 0 || set.bv ? dwBxHtml(set.bx, v => `data-ds-bx="${v}"`) : ''}
     ${th.length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.map(([slug, label]) => chip(set.th.includes(slug), `data-ds-th="${esc(slug)}"`, esc(label))).join('')}</div>` : cmd && !pack && o.loading ? `<p class="hint">${T('Chargement des thèmes…')}</p>` : ''}
     <label class="me-row switch-row" for="${p}Own"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="${p}Own" data-ds-own ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
 }
@@ -31671,6 +31733,8 @@ function daSetFormBind(box, set, change) {
   box.addEventListener('click', e => {
     const b = e.target.closest('[data-ds-br]');
     if (b) { const v = b.dataset.dsBr; if (v === 'auto') set.ba = 1; else { delete set.ba; set.br = Number(v) || 3; } haptic('tap'); change('br'); return; }
+    const x = e.target.closest('[data-ds-bx]');
+    if (x) { if (x.dataset.dsBx === '1') set.bx = 1; else delete set.bx; haptic('tap'); change('bud'); return; }      // budget « en plus de ma collection »
     const t = e.target.closest('[data-ds-th]');
     if (t) { const v = t.dataset.dsTh, i = set.th.indexOf(v); if (i >= 0) set.th.splice(i, 1); else if (set.th.length < 3) set.th.push(v); else { toast(T('3 thèmes au plus')); return; } haptic('tap'); change('th'); }
   });
@@ -31687,7 +31751,7 @@ function daSetCtx(text, ready) {
   const cmd = dwCmdOf(X), has = DW.cmd.has(cmd.slug);
   if (!has) dwPack('c', cmd.slug).then(ready, () => {});
   const prof = dwProfile(X);
-  return { X, cmd, pack: has ? DW.cmd.get(cmd.slug) : null, est: dwBracketOf(prof), val: prof.cents, loading: !has };
+  return { X, cmd, pack: has ? DW.cmd.get(cmd.slug) : null, est: dwBracketOf(prof), val: dwSpent(prof, X.wiz), loading: !has };
 }
 
 
@@ -31845,7 +31909,7 @@ const dwRoleNames = bits => DW_GAUGES.filter(([r]) => r !== 'land' && bits & DW_
  *  → [{ k, name, why, s }] (s : plus bas = à retirer d'abord). Terrains de base proposés quand il y a trop de terrains. */
 function dwCuts(X, cmd, pack, prof, tgt, n) {
   const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], nm = cmd ? cmd.names[0].split(',')[0] : '';
-  const R = DWB.brRule(b[0]), gcOver = prof.gc.length > R.gc, xtOver = prof.xt.length > R.xt, over = set.bud > 0 && prof.cents > set.bud, out = [];
+  const R = DWB.brRule(b[0]), gcOver = prof.gc.length > R.gc, xtOver = prof.xt.length > R.xt, over = set.bud > 0 && dwSpent(prof, set) > set.bud, out = [];
   for (const c of X.main.values()) {
     if (BASIC_NAMES.has(c.key)) continue;
     const x = dwCard(c.key); if (!x || x.roles & DW_RB.land) continue;
@@ -31877,7 +31941,7 @@ function dwNextSteps(prof, tgt, cmd, set) {
   if (n > 100) st.push({ t: TN(n - 100, '{n} carte de trop', '{n} cartes de trop'), b: T('Que retirer ?'), act: 'dw-goto', v: 'cuts' });
   if (bad.some(x => x.k === 'gc')) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: R.gc, b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
   if (bad.some(x => x.k !== 'gc')) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
-  if (set.bud > 0 && prof.cents > set.bud && n >= 60) st.push({ t: T('Au-dessus du budget : {a} pour {b}', { a: fmt(prof.cents, mkCur()), b: fmt(set.bud, mkCur()) }), b: T('Voir les échanges'), act: 'dw-goto', v: 'swaps' });
+  if (set.bud > 0 && dwSpent(prof, set) > set.bud && n >= 60) st.push({ t: T('Au-dessus du budget : {a} pour {b}', { a: fmt(dwSpent(prof, set), mkCur()), b: fmt(set.bud, mkCur()) }), b: T('Voir les échanges'), act: 'dw-goto', v: 'swaps' });
   if (n < 100) st.push({ t: TN(100 - n, 'Il manque {n} carte', 'Il manque {n} cartes'), b: n <= BD.cmdr.length ? T('Générer le deck') : T('Compléter'), act: 'dw-auto' });
   const def = DW_GAUGES.filter(([r]) => r !== 'land' && (r !== 'counter' || cmd.ci.includes('U')) && prof[r] < tgt[r][0]).map(([r, l]) => ({ r, l, miss: tgt[r][1] - prof[r], k: (tgt[r][1] - prof[r]) / Math.max(1, tgt[r][1]) })).sort((a, b) => b.k - a.k);
   for (const d of def.slice(0, 2)) st.push({ t: T('{r} : il en manque {n}', { r: T(d.l), n: d.miss }), b: T('Voir les suggestions'), act: 'dw-goto', v: 'gauge:' + d.r });
@@ -32045,7 +32109,8 @@ function dsScore(X = BD, ctx = {}) {
   rule(brBad.has('c2'), 5, T('Combo à 2 cartes interdit en bracket {b}', { b: b[0] }));
   rule(brBad.has('c3'), 3, T('Combo à 3 cartes à éviter en bracket {b}', { b: b[0] }));
   rule(!prof.wincon && prof.n >= 60, 3, T('Aucune condition de victoire : ajoute une carte qui peut finir la partie'));      // obligatoire, thème ou pas
-  if (set.bud > 0 && prof.cents > set.bud) rule(true, Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), T('Au-dessus du budget de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }));
+  const spent = dwSpent(prof, set);      // budget « en plus de ma collection » (bx) : ce qui reste à acheter
+  if (set.bud > 0 && spent > set.bud) rule(true, Math.min(5, Math.ceil((spent - set.bud) / set.bud * 20)), T('Au-dessus du budget de {p}', { p: fmt(spent - set.bud, mkCur()) }));
   if (prof.n !== 100) rule(true, Math.min(5, Math.abs(100 - prof.n)), prof.n < 100 ? TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes') : TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'));
   const pRules = Math.max(0, pr);
   const raw = pRoles + pMana + pCurve + pSyn + pRules, vals = { roles: pRoles, mana: pMana, curve: pCurve, syn: pSyn, rules: pRules };
@@ -32245,7 +32310,7 @@ async function dsMake(o = {}) {
       const v = list[i];
       let bud = wiz0.bud;
       if (v.eco) {      // moins chère : 55 % de la version équilibrée, sauf si ce budget ne laisse presque rien après le commandant
-        const eqv = res[0] ? res[0].prof.cents : 0, cc = res[0] ? res[0].prof.cmdCents || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
+        const eqv = res[0] ? dwSpent(res[0].prof, wiz0) : 0, cc = res[0] ? (wiz0.bx ? res[0].prof.cmdBuy : res[0].prof.cmdCents) || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
         if (!(eqv > 3000) || cc >= bud * 0.5) { step(v, 'skip', 1, 0); continue; }
       }
       // plusieurs tirages (graines) par version, chacun construit et amélioré, jugés sur la note et la partie jouée ; le meilleur continue (essais en partie).
@@ -32291,7 +32356,7 @@ async function dsMake(o = {}) {
   return res;
 }
 /** Prix du ou des commandants (même prix que le coach : relevé du jour, impression la moins chère). */
-const dsCmdCents = () => BD.cmdr.reduce((a, c) => a + Math.max(0, dwPrice(c.key, dwCard(c.key)) || 0), 0);
+const dsCmdCents = () => BD.cmdr.reduce((a, c) => a + dwBudPx(c.key, Math.max(0, dwPrice(c.key, dwCard(c.key)) || 0), BD.wiz, BD.id), 0);      // budget « en plus de ma collection » : un commandant possédé ne compte pas
 /** Commandant qui coûte au moins la moitié du budget : sans réponse, le coach construisait un deck incomplet (Vorinclex 35 € pour 25 € : le commandant et
  *  36 terrains, aucun sort). Avant la construction, le joueur choisit : le budget pour les 99 autres cartes (budget total = budget + commandant) ou un autre
  *  budget (prérempli). Le choix est gardé avec le deck (wiz.budAck = budget accepté : plus de question tant qu'il ne change pas). Vrai si la question est ouverte ;
