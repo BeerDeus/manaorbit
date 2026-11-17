@@ -171,6 +171,35 @@ assert.match(await txt(p, '.sheet-wrap.open .sheet-head p'), /4 cartes/);
   assert.match(d2.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.txt$/); assert.equal((await import('node:fs')).readFileSync(await d2.path(), 'utf8').trim().split('\n').length, 4); }
 await p.waitForTimeout(400); if (await p.$('.coll .fpanel[hidden]')) await p.click('.coll .fbtn'); await p.waitForSelector('.coll .fpanel:not([hidden])'); await p.click('.coll .freset'); await p.click('.coll .fbtn');
 console.log('✓ export : texte ou CSV au format Moxfield, relu par l\'import ; avec les filtres en cours ou toute la collection');
+// appli Android : la WebView ignore les liens de téléchargement blob: (rien ne se passait, toast « Collection exportée » compris) → native.js › fileOut :
+// APK 1.1.4 → ManaOrbit.saveFile (Téléchargements), « Partager » du toast → shareFile ; Android 9 et moins (saveFile refusé) → shareFile ;
+// APK plus ancienne → le texte au menu « Partager » (ManaOrbit.share), copié s'il est trop long
+{
+  const r = await p.evaluate(async () => {
+    const C0 = window.Capacitor, calls = [], toastTxt = () => document.querySelector('#toast').textContent, out = {};
+    const nat = mo => { window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'ManaOrbit', Plugins: { ManaOrbit: mo } }; };
+    const saveFile = async o => { calls.push(['saveFile', o.name, o.mime, o.data.split('\n')[0]]); return { ok: true, uri: 'content://media/1' }; }, shareFile = async o => { calls.push(['shareFile', o.name, o.mime, o.title]); return { ok: true }; };
+    nat({ saveFile, shareFile, share: async () => calls.push(['share']) });
+    out.saved = await collDownload(collToCsv(COLL.map), 'csv', 'text/csv'); out.savedToast = toastTxt();
+    document.querySelector('#toast .toast-act').click(); await new Promise(r => setTimeout(r, 0));
+    nat({ saveFile: async () => { throw new Error('saveFile : Android 10 et plus'); }, shareFile, share: async () => calls.push(['share']) });
+    out.android9 = await collDownload(collToText(COLL.map), 'txt', 'text/plain');
+    nat({ share: async o => { calls.push(['share', o.title, o.text.split('\n')[0]]); return { ok: true }; } });      // APK 1.1.3 et avant
+    out.old = await collDownload(collToCsv(COLL.map), 'csv', 'text/csv');
+    let clip = ''; try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async t => { clip = t; } } }); } catch (e) { /* tant pis */ }
+    out.big = await fileOut('x'.repeat(FILE_TEXT_MAX + 1), 'gros.csv', 'text/csv', 'ok'); out.bigToast = toastTxt(); out.clip = clip.length;
+    window.Capacitor = C0;
+    return { out, calls };
+  });
+  const day = /\d{4}-\d{2}-\d{2}/.source, H = 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number';
+  assert.equal(r.out.saved, 'saved'); assert.match(r.out.savedToast, /^Collection exportée \(4 cartes\) · dans Téléchargements\s*Partager$/, 'toast : où est le fichier, et « Partager »');
+  assert.deepEqual(r.calls[0].slice(2), ['text/csv', H]); assert.match(r.calls[0][1], new RegExp(`^ma-collection-${day}\\.csv$`));
+  assert.equal(r.calls[1][0], 'shareFile', '« Partager » du toast → shareFile'); assert.equal(r.calls[1][2], 'text/csv');
+  assert.equal(r.out.android9, 'shared'); assert.deepEqual(r.calls[2].slice(0, 1).concat(r.calls[2].slice(2, 3)), ['shareFile', 'text/plain'], 'Android 9 : saveFile refusé → shareFile');
+  assert.equal(r.out.old, 'text'); assert.deepEqual(r.calls[3].slice(2), [H], 'APK sans saveFile : le CSV en texte au menu « Partager »');
+  assert.equal(r.out.big, 'copied'); assert.equal(r.out.clip, await p.evaluate(() => FILE_TEXT_MAX + 1)); assert.match(r.out.bigToast, /mets à jour l'appli/, 'trop long pour le partage : copié, mise à jour demandée');
+  ok('export dans l\'appli Android : Téléchargements (saveFile), partage du fichier (shareFile), APK plus ancienne : texte partagé ou copié');
+}
 await p.screenshot({ path: 'shots/coll-sync-local.png' });
 await p.evaluate(() => { D.user = { uid: 'u1' }; D.uid = 'u1'; COLL.cloud = 'ok'; COLL.s = 'u1'; collPaintHead(); });
 assert.equal(await p.$eval('.coll-sync', e => e.hidden), true, 'sauvegardée : plus de bandeau…');

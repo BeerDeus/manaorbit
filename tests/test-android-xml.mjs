@@ -32,9 +32,11 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   const dir = (/static final String SHARE_DIR = "([^"]+)"/.exec(java) || [])[1]; assert.ok(dir, 'ManaOrbitPlugin.SHARE_DIR');
   const paths = readFileSync(join(root, 'res/xml/file_paths.xml'), 'utf8'), cache = [...paths.matchAll(/<cache-path\b[^>]*path="([^"]*)"/g)].map(m => m[1].replace(/^\.?\/?/, '').replace(/\/$/, ''));
   assert.ok(cache.some(p => p === '' || p === dir || dir.startsWith(p + '/')), `file_paths.xml : un cache-path couvre le dossier « ${dir} » du cache (${JSON.stringify(cache)})`);
-  for (const m of ['shareImage', 'saveImage']) { assert.match(java, new RegExp(`@PluginMethod\\s+public void ${m}\\(PluginCall call\\)`), `méthode ${m}`); assert.match(java, new RegExp(` \\* - ${m}\\(\\{`), `${m} décrite dans l'en-tête du plugin`); }
+  for (const m of ['shareImage', 'saveImage', 'saveFile', 'shareFile']) { assert.match(java, new RegExp(`@PluginMethod\\s+public void ${m}\\(PluginCall call\\)`), `méthode ${m}`); assert.match(java, new RegExp(` \\* - ${m}\\(\\{`), `${m} décrite dans l'en-tête du plugin`); }
   assert.match(java, /Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.Q\)[\s\S]{0,80}reject/, 'saveImage : refusé avant Android 10 (MediaStore sans autorisation)');
-  console.log(`✓ FileProvider ${auth} : dossier « ${dir} » du cache couvert, shareImage / saveImage déclarées et décrites`);
+  assert.match(java, /public void saveFile\(PluginCall call\) \{\s+if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.Q\)[\s\S]{0,80}reject/, 'saveFile : refusé avant Android 10 (MediaStore.Downloads)');
+  assert.match(java, /MediaStore\.Downloads\.EXTERNAL_CONTENT_URI/, 'saveFile : Téléchargements');
+  console.log(`✓ FileProvider ${auth} : dossier « ${dir} » du cache couvert, shareImage / saveImage / saveFile / shareFile déclarées et décrites`);
 }
 
 // App Links (APK 1.0.5) : les liens https://manaorbit.app/ (?p=, ?troc=…) s'ouvrent dans l'appli. Filtre vérifié (autoVerify) sur MainActivity, page de l'appli

@@ -1198,11 +1198,7 @@ function collBigInfo() {
 /** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte.
  *  n : cartes exportées (message) ; part : vrai pour une partie de la collection (nom du fichier). */
 function collDownload(body, ext, type, n = collCount(), part = false) {
-  try {
-    const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = (part ? 'ma-collection-filtree-' : 'ma-collection-') + dayIso(Date.now()) + '.' + ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast(TN(n, 'Collection exportée ({n} carte)', 'Collection exportée ({n} cartes)'));
-  } catch (e) { toast(T('Export impossible sur ce navigateur')); }
+  return fileOut(body, (part ? 'ma-collection-filtree-' : 'ma-collection-') + dayIso(Date.now()) + '.' + ext, type, TN(n, 'Collection exportée ({n} carte)', 'Collection exportée ({n} cartes)'));      // native.js : téléchargement, ou Téléchargements du téléphone dans l'APK
 }
 /** La collection telle qu'affichée : recherche, filtres (couleur, type, rareté, prix, langue, finition…), emplacement ouvert (Rangement, deck), extension ;
  *  pour chaque carte, seulement ses lignes affichées (mêmes règles que collRowItems). → { map, n (cartes), c (exemplaires) }, ou null si tout est affiché. */

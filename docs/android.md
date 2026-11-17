@@ -214,6 +214,29 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.1.4 (versionCode 20) : export de la collection enregistré dans Téléchargements (17 novembre 2026)
+
+**Pourquoi** : signalement « je n'arrive pas à télécharger le csv de ma collection » (APK 1.1.3). La WebView de l'appli ignore les liens de téléchargement `blob:` du site (aucun `DownloadListener`) : Exporter › Fichier CSV / Fichier texte, et « Exporter » d'une session d'ouverture, n'enregistraient rien, toast « Collection exportée » compris.
+
+**Ce qui change** :
+- Plugin local `ManaOrbit` : `saveFile({ data, name, mime })` écrit le fichier dans **Téléchargements › Mana Orbit** (`MediaStore.Downloads`, Android 10 et plus, aucune autorisation) ; `shareFile({ data, name, mime, title, chooser })` l'offre au menu « Partager » (cache `share/`, FileProvider, comme `shareImage`). Types acceptés : `text/csv`, `text/plain`.
+- Côté site (déjà en ligne, aucune APK nécessaire) : `src/native.js` › `fileOut`. APK 1.1.4 : Téléchargements, toast avec « Partager » ; Android 9 et moins : menu « Partager » avec le fichier. APK 1.1.3 et avant : le texte du fichier au menu « Partager » (Drive, e-mail…), copié au-delà de 100 000 caractères, avec « mets à jour l'appli ».
+- `versionCode 20`, `versionName "1.1.4"` ; `tests/test-android-xml.mjs` vérifie les méthodes, `tests/coll-e2e.mjs` le parcours (APK simulée).
+
+**À faire (propriétaire)** : comme la 1.1.2 (`git pull`, `npm run setup`, Sync Gradle, `.aab` signé, test interne), en vérifiant en plus :
+- [ ] Collection › … › Exporter ma collection › Fichier CSV : toast « Collection exportée (n cartes) · dans Téléchargements » ; le fichier est dans l'appli Fichiers › Téléchargements › Mana Orbit et s'ouvre ; « Partager » du toast ouvre le menu avec le fichier.
+- [ ] même chose avec « Fichier texte ».
+- [ ] bas des Réglages : « APK : 1.1.4 (20) ».
+Notes de version :
+```
+<fr-FR>
+Export de la collection : le fichier CSV ou texte est enregistré dans Téléchargements.
+</fr-FR>
+<en-US>
+Collection export: the CSV or text file is now saved to Downloads.
+</en-US>
+```
+
 ### APK 1.1.3 (versionCode 19) : « Activer les notifications » ouvre les réglages d'Android (9 novembre 2026)
 
 **Pourquoi** : notifications refusées pour de bon, Android ne montre plus sa demande ; Réglages › Notifications de l'appli n'avait qu'un texte (« autorise-les dans les réglages d'Android… »).

@@ -333,13 +333,7 @@ function opnHistOpen(rec, after) {
     });
   });
 }
-function opnDownload(body, name) {
-  try {
-    const url = URL.createObjectURL(new Blob([body], { type: 'text/plain;charset=utf-8' })), a = document.createElement('a');
-    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast(T('Liste exportée'));
-  } catch (e) { toast(T('Export impossible sur ce navigateur')); }
-}
+const opnDownload = (body, name) => fileOut(body, name, 'text/plain', T('Liste exportée'));      // native.js : téléchargement, ou Téléchargements du téléphone dans l'APK
 
 /* ── « Ma collection » pendant la session (crochets de collection.js) ──────────────────────────────────────────────────────── */
 /** En-tête : note « Session en cours » (cartes ajoutées à la fin) ; mode streamer : titre et carte de valeur de la session seule. true : l'en-tête habituel n'est pas peint. */

@@ -77,6 +77,11 @@ import org.json.JSONObject;
  *   méthode, le site partage le lien ou montre l'image en grand (appui long pour l'enregistrer).
  * - saveImage({ data, name }) → { ok: true, uri } : la même image enregistrée dans Photos (Pictures/Mana Orbit, MediaStore, sans autorisation),
  *   Android 10 et plus (avant : refusé, le site montre l'image en grand). APK 1.0.4 et plus.
+ * - saveFile({ data, name, mime }) → { ok: true, uri } : fichier texte (export CSV ou texte de la collection, liste d'une session d'ouverture ; data en
+ *   texte, mime text/csv ou text/plain) enregistré dans Téléchargements (Download/Mana Orbit, MediaStore, sans autorisation), Android 10 et plus (avant :
+ *   refusé, le site passe par shareFile). La WebView ignore les liens de téléchargement blob: du site (src/native.js › fileOut). APK 1.1.4 et plus.
+ * - shareFile({ data, name, mime, title, chooser }) → { ok: true } : le même fichier écrit dans le cache (dossier share/, comme shareImage) et offert au menu
+ *   « Partager » d'Android (Drive, e-mail, Fichiers…). APK 1.1.4 et plus ; plus ancienne : pas de méthode, le site partage le texte ou le copie.
  * - detectText({ base64Image, rotation, script }) → { text, blocks: [{ text, lines: [{ text }] }], script } : texte lu par ML Kit sur le téléphone (scan des cartes,
  *   src/scan.js › natLines), écriture script = latin | chinese | japanese | korean (chacun de ces modèles lit aussi l'alphabet latin ; chinese : simplifié et
  *   traditionnel). Mêmes champs que detectText du plugin ML Kit (latin), qui reste utilisé pour le latin. Modèles des services Google Play (non embarqués :
@@ -253,16 +258,7 @@ public class ManaOrbitPlugin extends Plugin {
         String title = call.getString("title", "");
         Uri uri;
         try {
-            File dir = new File(getContext().getCacheDir(), SHARE_DIR);
-            if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("dossier du cache");
-            File[] old = dir.listFiles();
-            long now = System.currentTimeMillis();
-            if (old != null) for (File f : old) if (now - f.lastModified() > 3600000L) f.delete(); // images partagées il y a plus d'une heure
-            File file = new File(dir, safeName(call.getString("name", "")));
-            try (FileOutputStream out = new FileOutputStream(file)) {
-                out.write(png);
-            }
-            uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", file);
+            uri = cacheUri(png, safeName(call.getString("name", "")));
         } catch (IOException | IllegalArgumentException e) {
             call.reject("shareImage : " + e.getMessage());
             return;
@@ -284,6 +280,125 @@ public class ManaOrbitPlugin extends Plugin {
             getActivity().startActivity(chooser);
         } catch (RuntimeException e) {
             call.reject("shareImage : " + e.getMessage()); // le site montre l'image en grand à la place
+            return;
+        }
+        JSObject ret = new JSObject();
+        ret.put("ok", true);
+        call.resolve(ret);
+    }
+
+    /** Fichier écrit dans le dossier SHARE_DIR du cache (vidé de ce qui a plus d'une heure) → adresse content:// du FileProvider, lisible par l'appli choisie. */
+    private Uri cacheUri(byte[] bytes, String name) throws IOException {
+        File dir = new File(getContext().getCacheDir(), SHARE_DIR);
+        if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("dossier du cache");
+        File[] old = dir.listFiles();
+        long now = System.currentTimeMillis();
+        if (old != null) for (File f : old) if (now - f.lastModified() > 3600000L) f.delete(); // fichiers partagés il y a plus d'une heure
+        File file = new File(dir, name);
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            out.write(bytes);
+        }
+        return FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", file);
+    }
+
+    /** Fichier texte reçu au plus (caractères) : une collection de 20 000 lignes fait ≈ 1,5 Mo en CSV. */
+    static final int FILE_MAX = 16000000;
+
+    /** Extension d'un type de fichier accepté par saveFile / shareFile ; null : refusé. */
+    static String fileExt(String mime) {
+        if ("text/csv".equals(mime)) return "csv";
+        if ("text/plain".equals(mime)) return "txt";
+        return null;
+    }
+
+    /** Texte reçu (data) en UTF-8 ; null après avoir refusé l'appel s'il manque, s'il est trop gros ou si le type n'est pas accepté. */
+    private static byte[] textOf(PluginCall call) {
+        String data = call.getString("data", "");
+        if (data == null || data.isEmpty() || data.length() > FILE_MAX) {
+            call.reject("fichier : data manquante ou trop grosse");
+            return null;
+        }
+        if (fileExt(call.getString("mime", "")) == null) {
+            call.reject("fichier : type refusé");
+            return null;
+        }
+        return data.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /** Fichier texte enregistré dans Téléchargements (Download/Mana Orbit) par le MediaStore : aucune autorisation à partir d'Android 10 ; avant, refusé (le site partage le fichier). */
+    @PluginMethod
+    public void saveFile(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            call.reject("saveFile : Android 10 et plus");
+            return;
+        }
+        byte[] bytes = textOf(call);
+        if (bytes == null) return; // déjà refusé
+        String mime = call.getString("mime", "");
+        ContentResolver cr = getContext().getContentResolver();
+        ContentValues v = new ContentValues();
+        v.put(MediaStore.MediaColumns.DISPLAY_NAME, safeName(call.getString("name", ""), fileExt(mime)));
+        v.put(MediaStore.MediaColumns.MIME_TYPE, mime);
+        v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Mana Orbit");
+        v.put(MediaStore.MediaColumns.IS_PENDING, 1);
+        Uri uri = null;
+        try {
+            uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+            if (uri == null) throw new IOException("MediaStore refuse le fichier");
+            try (OutputStream out = cr.openOutputStream(uri)) {
+                if (out == null) throw new IOException("écriture impossible");
+                out.write(bytes);
+            }
+            ContentValues ready = new ContentValues();
+            ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
+            cr.update(uri, ready, null, null);
+        } catch (IOException | RuntimeException e) {
+            if (uri != null) {
+                try {
+                    cr.delete(uri, null, null); // pas de fichier à moitié écrit dans Téléchargements
+                } catch (RuntimeException ignored) {
+                    // rien de plus à faire
+                }
+            }
+            call.reject("saveFile : " + e.getMessage());
+            return;
+        }
+        JSObject ret = new JSObject();
+        ret.put("ok", true);
+        ret.put("uri", uri.toString());
+        call.resolve(ret);
+    }
+
+    /** Menu « Partager » d'Android pour un fichier texte (CSV, liste) : écrit dans le cache, passé par le FileProvider. Mana Orbit retiré de la liste. Résolu dès le menu ouvert. */
+    @PluginMethod
+    public void shareFile(PluginCall call) {
+        byte[] bytes = textOf(call);
+        if (bytes == null) return; // déjà refusé
+        String mime = call.getString("mime", "");
+        String title = call.getString("title", "");
+        Uri uri;
+        try {
+            uri = cacheUri(bytes, safeName(call.getString("name", ""), fileExt(mime)));
+        } catch (IOException | IllegalArgumentException e) {
+            call.reject("shareFile : " + e.getMessage());
+            return;
+        }
+        Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType(mime);
+        send.putExtra(Intent.EXTRA_STREAM, uri);
+        if (title != null && !title.isEmpty()) {
+            send.putExtra(Intent.EXTRA_SUBJECT, title);
+            send.putExtra(Intent.EXTRA_TITLE, title);
+        }
+        send.setClipData(ClipData.newRawUri(title == null ? "" : title, uri));
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        Intent chooser = Intent.createChooser(send, call.getString("chooser", "Partager"));
+        chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, new ComponentName[] {new ComponentName(getContext(), MainActivity.class)});
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            getActivity().startActivity(chooser);
+        } catch (RuntimeException e) {
+            call.reject("shareFile : " + e.getMessage());
             return;
         }
         JSObject ret = new JSObject();
@@ -357,9 +472,14 @@ public class ManaOrbitPlugin extends Plugin {
 
     /** Nom de fichier sûr (lettres, chiffres, « . _ - »), terminé par .png, 80 caractères au plus. */
     static String safeName(String n) {
+        return safeName(n, "png");
+    }
+
+    /** Nom de fichier sûr (lettres, chiffres, « . _ - »), terminé par .ext, 80 caractères au plus. */
+    static String safeName(String n, String ext) {
         String s = (n == null ? "" : n).replaceAll("[^A-Za-z0-9._-]", "_");
         if (s.isEmpty() || s.startsWith(".")) s = "mana-orbit" + s;
-        if (!s.toLowerCase(Locale.ROOT).endsWith(".png")) s = s + ".png";
+        if (!s.toLowerCase(Locale.ROOT).endsWith("." + ext)) s = s + "." + ext;
         return s.length() > 80 ? s.substring(s.length() - 80) : s;
     }
 
