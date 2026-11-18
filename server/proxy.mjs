@@ -282,7 +282,7 @@ const PUB_JOBS_MAX = Number(process.env.CT_PUB_JOBS_MAX) || 4;      // recherche
 
 // Cache mémoire des catalogues (lourds, quasi statiques) : 24 h, comme le cache de CardTrader lui-même (CACHE_TTL : fenêtre « token accepté »).
 const CACHE_TTL = 6 * 3600 * 1000, CAT_TTL = Number(process.env.CT_CATALOG_TTL_MS ?? 24 * 3600e3);
-const CACHE_MAX = (Number(process.env.CACHE_MAX_MB) || 48) * 1024 * 1024; // plafond mémoire : évite qu'un hébergeur tue le process
+const CACHE_MAX = (Number(process.env.CACHE_MAX_MB) || 256) * 1024 * 1024; // plafond mémoire : évite qu'un hébergeur tue le process
 const cache = new Map(); let cacheBytes = 0;
 function cacheSet(k, body) {
   if (body.length > CACHE_MAX) return;

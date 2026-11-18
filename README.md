@@ -19,7 +19,7 @@ Page (`deck-deal.html`) + serveur (`server/proxy.mjs`, zéro dépendance, Node �
 | `PRICES_SOURCE_URL` | Relevé des prix « à partir de » (défaut : branche `data` du dépôt, régénérée chaque jour par `gen-prices.mjs`) ; vide = désactivé |
 | `PRICES_HIST_SOURCE_URL`, `HIST_RATE_PER_MIN` | Historique des prix sur 30 jours (voir « Prix ») : défaut, `prices-hist.bin.gz` à côté de `PRICES_SOURCE_URL` (vide = désactivé ; `PRICES_SOURCE_URL` vide le coupe aussi) · lectures de `/api/hist` par minute et par IP (120) |
 | `JOB_MAX_RUNNING`, `ALERT_MAX_SUBS`, `UP_CONC` | Plafonds : recherches CardTrader simultanées (8), appareils abonnés aux alertes (500), requêtes simultanées vers CardTrader (12) |
-| `CACHE_MAX_MB`, `BAD_KEY_DELAY_MS` | Plafond mémoire du cache des catalogues CardTrader (48 Mo) · délai après une clé ou un jeton de connexion invalide (400 ms) |
+| `CACHE_MAX_MB`, `BAD_KEY_DELAY_MS` | Plafond mémoire du cache des catalogues CardTrader (256 Mo) · délai après une clé ou un jeton de connexion invalide (400 ms) |
 | `JOBS`, `JOB_RATE`, `OFFER_TTL_MS`, `OFFER_TTL_EMPTY_MS`, `OFFERS_CACHE_MB`, `JOB_KEEP_MS` | Recherches en tâche de fond (voir « Lecture des offres en tâche de fond ») |
 | `JOB_MAX_PER_TOKEN`, `JOB_RESULTS_MB` | Recherches en cours par token d'utilisateur (2) · mémoire des résultats de toutes les recherches (64 Mo) |
 | `USER_RATE_PER_MIN`, `USER_JOBS_PER_H` | Token d'un utilisateur, par IP : relais vers CardTrader par minute (360) · recherches lancées par heure (120) |
@@ -172,7 +172,7 @@ L'ancienne adresse `card.m2s-photo.fr` doit rester reliée au même site Hosting
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `CACHE_MAX_MB` | 48 | Plafond mémoire du cache des catalogues |
+| `CACHE_MAX_MB` | 256 | Plafond mémoire du cache des catalogues |
 | `UP_CONC` | 12 | Requêtes simultanées max vers CardTrader |
 
 - Clé invalide : délai de 400 ms, puis blocage 5 min de l'IP après 15 essais (nécessite `X-Forwarded-For`). `/__me` compte les mauvaises clés de la même façon (sinon on y devinerait `APP_KEY` sans frein) ; IP bloquée → `{ server: false }`.

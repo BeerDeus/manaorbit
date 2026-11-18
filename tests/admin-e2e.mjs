@@ -1189,7 +1189,7 @@ const hidden = (p, on) => p.evaluate(on => { Object.defineProperty(document, 'vi
   const mem = await txt(p, '#hcMem');
   assert.match(mem, /^Mémoire plafond inconnu Mémoire du processus \(rss\) [\d,]+ Mo /); assert.match(mem, /Mémoire de Node \(tas\) [\d,]+ Mo \/ [\d,]+ Mo utilisé \/ réservé · limite de Node/);
   for (const [l, v] of [['Catalogues CardTrader', 'CACHE_MAX_MB'], ['Offres CardTrader', 'OFFERS_CACHE_MB'], ['Résultats des recherches', 'JOB_RESULTS_MB'], ['Listes des échanges en direct', 'TROC_MB'], ['Parties en cours (au plus)', 'PARTIE_LIVE_KB'], ['Historiques des parties', 'PARTIE_CACHE_MB'], ['Amis', 'FRIENDS_CACHE_MB']]) assert.ok(mem.includes(l) && mem.includes(v), 'cache ' + l);
-  assert.match(mem, /Catalogues CardTrader 0 o \/ 48 Mo/); assert.equal(await p.$eval('#hcMem [data-k="c-ct"] .hbar i', i => i.style.width), '0%');
+  assert.match(mem, /Catalogues CardTrader 0 o \/ 256 Mo/); assert.equal(await p.$eval('#hcMem [data-k="c-ct"] .hbar i', i => i.style.width), '0%');
   const boot = await txt(p, '#hcBoot'); assert.ok(boot.includes('Version servie ' + ping.build), 'version de /__ping'); assert.match(boot, /Node v\d+/); assert.match(boot, /Dernier démarrage \d+ \S+ \d\d:\d\d en marche depuis \d+ min/); assert.match(boot, /Redémarrages imprévus \(24 h\) 0 /);
   assert.equal(await p.$$eval('#hcReq .hf', e => e.length), 9, '9 familles de routes');
   assert.match(await txt(p, '#hcReq'), /Page et fichiers \d+ Prix et recherches CardTrader \d+ Alertes de prix \d+ Échange en direct \d+ Parties \(compteur de vie\) \d+ Carte mystère \d+ Discord et avis \d+ Administration [1-9]\d* Autres/);
