@@ -368,6 +368,7 @@ function openDeckSheet(id) {
       <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Mettre dans Je recherche')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
       <div class="dk-val" id="dkVal"></div>
       <div class="mo-acts dk-acts">${typeof plcFetchSheet === 'function' ? `<button class="mo-act dk-find" type="button" id="dkFind"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><b>${T('Où trouver mes cartes')}</b><small>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes')}</small></span></button>` : ''}
+        ${typeof shareDeck === 'function' ? `<button class="mo-act dk-share" type="button" id="dkShare"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg><span><b>${T('Partager ce deck')}</b><small>${T('Un lien en lecture seule : le deck s\'ouvre même sans compte et suit tes modifications')}</small></span></button>` : ''}
         <button class="mo-act" type="button" id="dkDup"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span><b>${T('Dupliquer ce deck')}</b></span></button>
         <button class="mo-act" type="button" id="dkOwn"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span><b>${T('Ajouter ses cartes à ma collection')}</b></span></button>
         <button class="mo-act danger" type="button" id="dkDel"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg><span><b>${T('Supprimer ce deck')}</b><small>${T('Annulable quelques secondes')}</small></span></button></div>
@@ -376,6 +377,7 @@ function openDeckSheet(id) {
       ${rows ? `<div class="hist">${rows}</div>` : '<p class="hint">' + T('Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.') + '</p>'}`;      // actions du deck en liste (Où trouver mes cartes, Dupliquer, Ajouter ses cartes, Supprimer en rouge) avant l'historique : visibles sans défiler
     api.setFoot(`<button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
     $('#dkOpen', api.foot).onclick = () => { api.close(); loadDeck(id); };
+    const shr = $('#dkShare', api.body); if (shr) shr.onclick = () => { haptic('tap'); shareDeck({ id }); };      // par-dessus la feuille du deck (share.js)
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // « Infos du deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/'), fk = deckFmt(cur), tg = dkTags(cur.text);

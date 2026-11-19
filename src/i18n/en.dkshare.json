@@ -1,0 +1,11 @@
+{
+  "Quiconque a ce lien voit le deck, même sans compte ni appli : ses images, sa courbe de mana, sa valeur ; il peut copier la liste ou tirer une main de départ. Il ne peut rien modifier.": "Anyone with this link can see the deck, even without an account or the app: its images, mana curve and value; they can copy the list or draw an opening hand. They can't change anything.",
+  "Copier la liste": "Copy list",
+  "La liste complète (commandant, cartes, réserve), à coller dans Moxfield, Archidekt, MTG Arena…": "The full list (commander, cards, sideboard), to paste into Moxfield, Archidekt, MTG Arena…",
+  "Deck partagé": "Shared deck",
+  "Deck partagé par {name}": "Deck shared by {name}",
+  "mis à jour {when}": "updated {when}",
+  "Lecture seule, sans compte : touche une carte pour la voir en grand. Enregistre le deck pour le garder ou le modifier.": "Read-only, no account needed: tap a card to see it large. Save the deck to keep or edit it.",
+  "Partager ce deck": "Share this deck",
+  "Un lien en lecture seule : le deck s'ouvre même sans compte et suit tes modifications": "A read-only link: the deck opens even without an account and follows your changes"
+}

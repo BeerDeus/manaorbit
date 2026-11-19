@@ -128,7 +128,7 @@ await pb.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open .am-d
 assert.deepEqual(await pb.$$eval('.sheet-wrap.open .am-deck .deck-pips .pip', n => n.map(x => x.className.replace('pip ', ''))), ['W', 'B', 'R'], 'Edgar avec 30 Plaines : pastilles W B R (identité), comme dans Mes decks');
 await shot(pb, '07-decks-ami');
 await pb.click('.sheet-wrap.open .am-deck'); await pb.waitForFunction(() => DV.pub && document.querySelector('.dv.on:not(.pubv) .dv-title b'));
-assert.equal(await tc(pb, '.dv.on:not(.pubv) .dv-title b'), 'Edgar Vampires'); assert.match(await tc(pb, '.dv.on:not(.pubv) .dv-title span'), /partagé par Alice/);
+assert.equal(await tc(pb, '.dv.on:not(.pubv) .dv-title b'), 'Edgar Vampires'); assert.match(await tc(pb, '.dv.on:not(.pubv) .dv-title span'), /lecture seule/); assert.match(await tc(pb, '.dv.on:not(.pubv) .dv-pubin b'), /Deck partagé par Alice/);
 await pb.evaluate(() => closeDeckViewer()); await pb.waitForFunction(() => !document.querySelector('.dv.on:not(.pubv)'));
 await pb.click('.pubv [data-am="coll"]'); await pb.waitForSelector('.am-coll-sheet .am-crow');
 assert.deepEqual(await pb.$$eval('.am-coll-sheet .am-crow', r => r.map(x => x.dataset.k)), ['craterhoof behemoth', 'llanowar elves', 'sol ring', 'swords to plowshares']);

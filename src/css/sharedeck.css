@@ -1,2 +1,13 @@
 /* Viewer d'un deck venu d'ailleurs (lien partagé, EDHREC) : « ✓ Dans mes decks » est un état acquis, pas un bouton grisé */
 .dv-foot .btn.dv-done[disabled]{opacity:1;color:var(--good);cursor:default}
+/* Visiteur d'un lien (viewer.js › dvPubIntro) : qui a partagé, quand, format et couleurs, lecture seule sans compte ; le commandant suit, avant la valeur */
+.dv-pubin{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.dv-pubin .pub-av,.dv-pubic{width:40px;height:40px;border-radius:12px;flex:none}
+.dv-pubic{display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.dv-pubic .i{width:20px;height:20px}
+.dv-pubt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dv-pubt b{font-size:15px;overflow-wrap:anywhere}
+.dv-pubt small{display:flex;align-items:center;flex-wrap:wrap;gap:6px;color:var(--muted);font-size:13px}
+.dv-pubro{color:var(--muted);font-size:12.5px;line-height:1.4}
+.dv-side #dvCmd:empty{display:none}
+.dvw .dv-side .dv-cmds{display:flex}      /* ordinateur : colonne de gauche trop étroite pour la grille des commandants */

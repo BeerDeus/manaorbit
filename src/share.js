@@ -265,7 +265,7 @@ async function shareDeck({ id, text, name }) {
   } catch (err) { if (!TR.sig[sid]) delete TR.dsh[key]; toast(err && err.code === 'too-big' ? T('Deck trop long pour un lien.') : err && err.code === 'permission-denied' ? T('Règles Firestore à publier pour le partage (voir README)') : T('Partage impossible : réessaie en ligne')); return; }
   openSheet(T('Partager le deck'), d ? T('Lecture seule · le lien suit les modifications du deck') : T('Lecture seule · le deck est partagé tel qu\'il est maintenant'), api => {
     api.body.innerHTML = `<div class="tr-link"><input type="text" readonly value="${esc(shareUrl(sid))}" aria-label="${T('Lien du deck')}"></div>
-      <p class="hint">${T('Quiconque a ce lien voit le deck, ses images, sa courbe de mana et peut tirer une main de départ. Il ne peut rien modifier.')}</p>
+      <p class="hint">${T('Quiconque a ce lien voit le deck, même sans compte ni appli : ses images, sa courbe de mana, sa valeur ; il peut copier la liste ou tirer une main de départ. Il ne peut rien modifier.')}</p>
       ${img}
       <button class="link-btn link-inline" type="button" data-act="dstop">${T('Arrêter ce partage')}</button>`;
     api.setFoot(`<button class="btn ghost" type="button" data-act="dcopy">${T('Copier')}</button><button class="btn" type="button" data-act="dsend">${T('Partager')}</button>`);
@@ -555,7 +555,7 @@ async function openPublicLink(id) {
     openSheet(T('Partage'), '', api => { api.body.innerHTML = `<p>${esc(msg)}</p>`; api.setFoot('<button class="btn" type="button" data-close>' + T('Fermer') + '</button>'); });
     return;
   }
-  try { if (sh.kind === 'deck') openDeckViewer({ text: sh.text, name: sh.name, pub: true, at: sh.at, by: sh.by, sid: id }); else openPublicTrade(sh, false, id); }      // sid : identifiant du partage (« Signaler ce partage », trReportHref)
+  try { if (sh.kind === 'deck') openDeckViewer({ text: sh.text, name: sh.name, pub: true, at: sh.at, by: sh.by, bp: sh.bp, sid: id }); else openPublicTrade(sh, false, id); }      // sid : identifiant du partage (« Signaler ce partage », trReportHref)
   catch (e) {      // jamais l'accueil sans explication : le message aide à comprendre ce qui coince
     console.error(e);
     openSheet(T('Partage'), '', api => { api.body.innerHTML = `<p>${T('Ce partage n\'a pas pu s\'afficher. Recharge la page ; si ça recommence, signale ce message :')}</p><p class="hint">${esc(String(e && e.message || e))}</p>`; api.setFoot('<button class="btn" type="button" data-close>' + T('Fermer') + '</button>'); });

@@ -600,7 +600,8 @@ function dvActs() {
   const A = [], mine = !DV.pub && !!DV.deckId && !DV.live;
   if (mine && typeof openBuilder === 'function') A.push({ act: 'builder', cls: 'dv-bld', ic: 'edit', l: T('Éditer le deck'), main: 1 });
   if (typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander()) A.push({ act: 'analyse', cls: 'dv-ana', ic: 'sliders', l: T('Coach'), t: T('Note, échanges conseillés et simulation de parties'), main: 1 });
-  if (typeof plcFetchSheet === 'function') A.push({ act: 'fetch', cls: 'dv-fetch', ic: 'check', l: T('Où trouver mes cartes'), t: DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement'), main: 1 });
+  if (DV.pub) A.push({ act: 'copy', cls: 'dv-copy', ic: 'copy', l: T('Copier la liste'), t: T('La liste complète (commandant, cartes, réserve), à coller dans Moxfield, Archidekt, MTG Arena…'), main: 1 });      // visiteur d'un lien : reprendre le deck ailleurs, sans compte
+  if (typeof plcFetchSheet === 'function' && !dvNoColl()) A.push({ act: 'fetch', cls: 'dv-fetch', ic: 'check', l: T('Où trouver mes cartes'), t: DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; réserver ses cartes') : T('Les cartes de ce deck que tu as, emplacement par emplacement'), main: 1 });
   A.push({ act: 'hand', cls: 'dv-hand', ic: 'stack', l: T('Main de départ'), t: T('7 cartes au hasard et les chances d\'avoir 2 à 4 terrains') });
   if (dvPubOk()) A.push({ act: 'pub', cls: 'dv-pubb', ic: 'globe', l: typeof dvPubOn === 'function' && dvPubOn() ? '✓ ' + T('Publié') : T('Publier'), t: T('Publier ce deck dans la communauté (Decks › Idées de decks)') });
   if (dvMissing().length) A.push({ act: 'cm', cls: 'dv-cm', ic: 'copy', l: T('Copier pour Cardmarket'), t: T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket') });
@@ -609,6 +610,19 @@ function dvActs() {
   const main = A.filter(a => a.main).slice(0, 2), rest = A.filter(a => !main.includes(a)), light = rest.filter(a => a.main), menu = rest.filter(a => !a.main);
   if (menu.length === 1) light.push(menu.pop());      // une seule action de plus : dans la rangée, pas derrière « Plus »
   return { main, light, menu };
+}
+/** Visiteur d'un lien sans collection sur cet appareil : rien à chercher chez lui (« Où trouver mes cartes », « De ta collection pour ce deck » cachés). */
+const dvNoColl = () => DV.pub && !(typeof collCount === 'function' && collCount());
+/** Liste du deck à copier (visiteur) : telle quelle, sans les lignes « // Deck Deal … » de l'appli (format, image, tags, suivi). */
+const dvListText = () => String(DV.text || '').split(/\r?\n/).filter(l => !/^\s*\/\/\s*Deck Deal\b/i.test(l)).join('\n').replace(/^\s+|\s+$/g, '') + '\n';
+/** Bandeau d'un deck reçu par un lien : qui l'a partagé, quand, format et couleurs ; lecture seule, sans compte. */
+function dvPubIntro() {
+  const fk = typeof dkFmtOf === 'function' ? dkFmtOf(DV.text) : '', fl = fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
+  const who = DV.by ? T('Deck partagé par {name}', { name: esc(DV.by) }) : T('Deck partagé');
+  const when = DV.at ? T('mis à jour {when}', { when: esc(relTime(DV.at)) }) : '';
+  return `<section class="dv-pubin" aria-label="${T('Deck partagé')}">${DV.bp ? `<img class="pub-av" src="${DV.bp}" alt="">` : `<span class="dv-pubic" aria-hidden="true"><svg class="i"><use href="#i-share"/></svg></span>`}
+    <span class="dv-pubt"><b>${who}</b><small>${[fl ? esc(fl) : '', when].filter(Boolean).join(' · ')}${typeof pips === 'function' ? pips(DV.text) : ''}</small>
+    <span class="dv-pubro">${T('Lecture seule, sans compte : touche une carte pour la voir en grand. Enregistre le deck pour le garder ou le modifier.')}</span></span></section>`;
 }
 /** Bouton d'action (rangée principale : plein pour Coach, sinon le premier ; rangée légère : texte seul). */
 const dvActBtn = (a, cls) => `<button class="${cls}${a.cls ? ' ' + a.cls : ''}" type="button" data-act="${a.act}"${a.t ? ` title="${esc(a.t)}"` : ''}><svg class="i" aria-hidden="true"><use href="#i-${a.ic}"/></svg><span>${esc(a.l)}</span></button>`;
@@ -637,16 +651,17 @@ function dvFrame(snap) {
   const sbN = DV.sb.reduce((a, i) => a + i.q, 0), sbTxt = sbN ? ' · ' + T('réserve {n}', { n: sbN }) : '';
   const todo = ref ? items.reduce((a, i) => a + (i.s === 'basic' ? 0 : Math.max(0, i.q - (i.ow || 0))), 0) : 0;
   const cardsTxt = dkCountText(DV.text, copies);      // « 7/100 cartes » pour un deck Commander, comme Mes decks et la feuille du deck
-  $('.dv-title span', el).textContent = DV.pub ? `${cardsTxt}${sbTxt} · ${DV.by ? T('partagé par {name}', { name: DV.by }) : T('partagé, lecture seule')}` : ref ? `${cardsTxt} · ${todo ? T('{n} à trouver', { n: todo }) : T('toutes possédées')}${none ? ' · ' + T('{n} sans prix', { n: none }) : ''}${sbTxt}`
+  $('.dv-title span', el).textContent = DV.pub ? `${cardsTxt}${sbTxt} · ${T('lecture seule')}`      // qui l'a partagé : bandeau du haut (dvPubIntro)
+    : ref ? `${cardsTxt} · ${todo ? T('{n} à trouver', { n: todo }) : T('toutes possédées')}${none ? ' · ' + T('{n} sans prix', { n: none }) : ''}${sbTxt}`
     : `${cardsTxt}${own ? ' · ' + TN(own, '{n} possédée', '{n} possédées') : ''}${miss ? ' · ' + TN(miss, '{n} introuvable', '{n} introuvables') : ''}${none ? ' · ' + T('{n} sans offre', { n: none }) : ''}${sbTxt}`;
-  $('.dv-body', el).innerHTML = `<div class="dv-side"><section class="dv-sum">
+  $('.dv-body', el).innerHTML = `<div class="dv-side">${DV.pub ? dvPubIntro() + '<div id="dvCmd"></div>' : ''}<section class="dv-sum">
       <div class="dv-total"><span class="dv-eur">${ref ? '≈ ' : ''}<span class="dv-amt">${esc(dvFmt(total))}</span>${ref && none ? '+' : ''}</span><span class="dv-crit">${ref ? '' : T('Articles') + ' · '}${esc(crit)}</span></div>
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvIllHtml(items)}${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
       ${dvActsHtml()}
-    </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
-    <div class="dv-main"><div id="dvCmd"></div>
+    </section>${typeof dfSecHtml === 'function' && !dvNoColl() ? dfSecHtml() : ''}</div>
+    <div class="dv-main">${DV.pub ? '' : '<div id="dvCmd"></div>'}
     <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
     <div id="dvF"></div>
     <div class="dv-groups"></div>${DV.pub && DV.sid ? `<p class="pub-report"><a href="${esc(trReportHref(DV.sid))}" rel="noopener">${T('Signaler ce partage')}</a></p>` : ''}</div>`;      // deck reçu par un lien : contenu choisi par quelqu'un d'autre (règles Google Play) ; dv-side / dv-main : deux colonnes sur ordinateur (zz-desktop.css), l'une sous l'autre ailleurs
@@ -837,10 +852,10 @@ function dvFetchId() {
 /** Ouvre le viewer d'un deck enregistré ({ id }), de la recherche en cours ({ live: true }) ou d'une liste quelconque ({ text, name } : deck EDHREC ;
  *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name ;
  *  back : ouvert depuis Prix d'une liste, « Revenir à la liste » en pied ; sinon « Ouvrir dans Prix d'une liste » dans le menu « Plus »). */
-function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from, back } = {}) {
+function openDeckViewer({ id, live, text, name, pub, by, bp, at, sid, saveAs, from, back } = {}) {
   closeDeckViewer(); closeCardImage();
   const adhoc = !id && !live && typeof text === 'string', d = id ? findDeck(id) : null;
-  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null; DV.back = !!back && !!id && !live;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
+  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.at = pub && Number(at) > 0 ? Number(at) : 0; DV.bp = pub && typeof bp === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(bp) ? bp : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null; DV.back = !!back && !!id && !live;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
   DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }
@@ -891,6 +906,7 @@ function dvAct(act) {
   else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
   else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
   else if (act === 'cm') cmCopy(dvMissing());
+  else if (act === 'copy') { haptic('tap'); copyText(dvListText()); }
   else if (act === 'ctw') ctWishSheet({ text: DV.text, name: DV.name, owned: DV.pub ? null : k => ownFree(k, DV.deckId) });      // liste de souhaits CardTrader (ctwish.js)
   else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
   else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }

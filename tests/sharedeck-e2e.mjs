@@ -34,8 +34,19 @@ const shot = async (pg, f) => { await pg.waitForTimeout(450); await pg.screensho
   await p.route('https://www.gstatic.com/**', r => r.abort()); await routeRest(p);
   await p.goto(world.url + '?p=' + SID); await p.waitForSelector('.dv.on .dv-sum');
   await p.waitForFunction(() => D.authReady); await p.waitForFunction(() => document.querySelectorAll('.dv.on .dvc img.ok').length >= 5, null, { timeout: 8000 });
-  assert.match(await txt(p, '.dv.on .dv-title'), /Edgar partagé.*réserve 1 · partagé par Martin/);
+  assert.match(await txt(p, '.dv.on .dv-title'), /Edgar partagé.*réserve 1 · lecture seule/);
   assert.deepEqual(await foot(p), UNSAVED, 'deck partagé : « Enregistrer dans mes decks » en action principale, « Fermer » discret');
+  // visiteur : bandeau (qui, format, lecture seule sans compte), commandant avant la valeur, « Copier la liste » ; rien sur sa collection (vide)
+  assert.match(await txt(p, '.dv.on .dv-pubin'), /^Deck partagé par Martin Commander · mis à jour .+Lecture seule, sans compte/);
+  assert.deepEqual(await p.$$eval('.dv.on .dv-side > *', a => a.map(x => x.className || x.id)), ['dv-pubin', 'dvCmd', 'dv-sum'], 'bandeau, commandant, puis la valeur');
+  assert.match(await txt(p, '.dv.on #dvCmd'), /Edgar Markov/);
+  assert.deepEqual(await p.$$eval('.dv.on .dv-acts button', b => b.map(x => x.dataset.act)), ['analyse', 'copy'], 'Coach et Copier la liste');
+  assert.ok(!(await p.$('.dv.on [data-act="fetch"]')) && !(await p.$('.dv.on #dfSec')), 'collection vide : ni « Où trouver mes cartes », ni « De ta collection »');
+  await p.evaluate(() => { window.__cp = null; navigator.clipboard.writeText = t => { window.__cp = t; return Promise.resolve(); }; });
+  await p.click('.dv.on [data-act="copy"]'); await p.waitForFunction(() => window.__cp != null);
+  assert.equal(await p.evaluate(() => window.__cp), TEXT + '\n', 'liste complète copiée (commandant, cartes, réserve)');
+  assert.equal(await p.evaluate(() => (DV.text = '// Deck Deal : commander\n// Deck Deal cover : Sol Ring\n' + DV.text, dvListText())), TEXT + '\n', 'lignes « // Deck Deal » retirées');
+  await p.evaluate(t => { DV.text = t; }, TEXT);
   await shot(p, 'sharedeck-1-lien.png');
   await p.evaluate(() => { S.opts.lang = 'en'; S.opts.cond = 'Near Mint'; });      // critères de ce visiteur (le partage n'en porte pas)
   await p.click('.dv.on [data-act="save"]');
@@ -51,7 +62,7 @@ const shot = async (pg, f) => { await pg.waitForTimeout(450); await pg.screensho
   // « Voir » : le viewer se ferme, Mes decks s'ouvre avec le deck
   await p.click('#toast .toast-act'); await p.waitForSelector('.dks.on .deck', { timeout: 4000 });
   assert.equal(await txt(p, '.dks.on .deck-name'), 'Edgar partagé'); assert.ok(!(await p.$('.dv.on:not(.dks)')), 'viewer du lien fermé'); assert.equal(new URL(p.url()).search, '', '?p= retiré');
-  ok('lien partagé : « Enregistrer dans mes decks » → nom et liste exacts (réserve comprise), critères du visiteur, toast « Voir » → Mes decks');
+  ok('lien partagé : bandeau du visiteur (qui, format, lecture seule sans compte), commandant en tête, « Copier la liste » (sans les lignes « // Deck Deal »), rien sur sa collection vide ; « Enregistrer dans mes decks » → nom et liste exacts (réserve comprise), critères du visiteur, toast « Voir » → Mes decks');
 
   // lien rouvert : copie reconnue d'emblée (même liste), « Ouvrir » → le viewer du deck enregistré
   await p.goto(world.url + '?p=' + SID); await p.waitForSelector('.dv.on .dv-sum'); await p.waitForFunction(() => D.authReady);
@@ -143,8 +154,13 @@ const shot = async (pg, f) => { await pg.waitForTimeout(450); await pg.screensho
   assert.deepEqual(await foot(p), SAVED, 'enregistré par la feuille : le viewer le sait');
   await p.click('.dv.on [data-act="open"]'); await p.waitForSelector('.dv.on [data-act="share"]'); assert.equal(await p.evaluate(() => DV.name), avg.save);
   assert.equal((await decks(p)).length, 2, 'deux decks, pas de doublon');
+  // Mes decks › feuille ⋯ : « Partager ce deck » ouvre le partage du deck enregistré (lien qui suit ses modifications : share.js › shareDeck)
+  await p.evaluate(() => closeDeckViewer()); await p.waitForTimeout(300);
+  const did = (await decks(p))[0].id; await p.evaluate(id => { window.__sd = []; shareDeck = o => window.__sd.push(o); openDeckSheet(id); }, did);
+  await p.waitForSelector('.sheet-wrap.open #dkShare'); assert.match(await txt(p, '#dkShare'), /^Partager ce deck Un lien en lecture seule : le deck s'ouvre même sans compte/);
+  await p.click('#dkShare'); assert.deepEqual(await p.evaluate(() => window.__sd), [{ id: did }], 'partage du deck enregistré');
   await p.close();
-  ok('deck EDHREC : viewer de la feuille → « Enregistrer dans mes decks » (nom de la feuille, texte identique), copie reconnue par la feuille et par le viewer, « Ouvrir »');
+  ok('deck EDHREC : viewer de la feuille → « Enregistrer dans mes decks » (nom de la feuille, texte identique), copie reconnue par la feuille et par le viewer, « Ouvrir » ; Mes decks › ⋯ › « Partager ce deck »');
 }
 
 for (const e of errsOf) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));

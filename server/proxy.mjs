@@ -15,7 +15,8 @@ import { promisify } from 'node:util';
 import { existsSync, readFileSync, readdirSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';      // santé du serveur (/admin › Serveur)
+import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';
+import { ogMake } from './og-srv.mjs';      // aperçu des liens partagés (?p=, ?pd=) pour les robots des messageries      // santé du serveur (/admin › Serveur)
 import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createHmac, createECDH, createCipheriv, createDecipheriv, hkdfSync } from 'node:crypto';
 
 const SRV = dirname(fileURLToPath(import.meta.url)), here = dirname(SRV);      // server/ et la racine du dépôt (page, pwa/, src/, .data/)
@@ -3900,6 +3901,17 @@ async function pubDeckName(id) {
   const j = r.ok ? await r.json().catch(() => null) : null, n = j ? fsFields(j).name : '';
   return typeof n === 'string' ? n : '';
 }
+/* ── Aperçu des liens partagés (og-srv.mjs) : / ?p=<id> (deck, liste d'échange) et / ?pd=<id> (deck de la communauté), pour les robots des messageries seulement.
+   OG_PREVIEW=0 : coupé (la page de l'appli pour tout le monde, comme avant). */
+const OG = process.env.OG_PREVIEW === '0' || !NM_CORE ? null : ogMake({
+  core: NM_CORE, fsBase: FS_BASE, scry: SCRY_UP, site: SITE_URL,
+  pubDeck: PUB_ON ? async id => {
+    const d = await pubDeckOf(id); if (!d) return null;
+    let name = ''; try { name = await pubDeckName(id); } catch (e) { /* le commandant à la place */ }
+    if (name && NM_CORE.pubBad && NM_CORE.pubBad(name)) name = '';      // même filtre de mots que la liste publique
+    return { name, cmd: d.cmd || [], n: (d.cards || []).reduce((a, c) => a + (Number(c[1]) || 0), 0), by: d.by || '' };
+  } : null,
+});
 let DSC_DECK = null;
 if (DSC_ON && PUB_ON && DSC.kit) {
   try {
@@ -4222,6 +4234,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/' || url.pathname === '/index.html') {
       if (!PAGE) return json(res, 404, { error: 'page_missing', message: 'Place deck-deal.html à côté de proxy.mjs.' });
+      if (OG && (url.searchParams.has('p') || url.searchParams.has('pd')) && await OG.handle(req, res, url)) return;      // robot d'aperçu de lien : titre, description et image du partage
       return await sendFile(req, res, PAGE, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' }, true);
     }
     { const m = (req.method === 'GET' || req.method === 'HEAD') && I18N_RE.exec(url.pathname);      // dictionnaire d'une langue
