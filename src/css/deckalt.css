@@ -1,0 +1,25 @@
+/* « Remplacer… » (deckalt.js) : bouton de la carte en grand, feuille des propositions du coach */
+.imgv-alt{color:#fff;border-color:rgba(255,255,255,.35)}
+.imgv-alt[hidden]{display:none}
+.imgv-alt .i{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
+.dalt-w{margin:0 0 10px;font-size:13px;color:var(--ink-2)}
+.dalt-trap{margin-top:-4px}
+.dalt-list{display:flex;flex-direction:column;gap:8px}
+.dalt-row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:start;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md)}
+.dalt-row .thumb{cursor:zoom-in}
+.dalt-row .row-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dalt-row .row-top{display:flex;align-items:baseline;gap:8px}
+.dalt-row .row-name{flex:1;min-width:0;font-weight:600;overflow-wrap:break-word}
+.dalt-px{display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dalt-px small{font-size:11.5px;font-weight:600}
+.dalt-px small.dn{color:var(--good)}
+.dalt-px small.up{color:var(--ink-3)}
+.dalt-head{font-size:13px;font-weight:600;color:var(--accent)}
+.dalt-why{font-size:12px;line-height:1.35;color:var(--ink-2)}
+.dalt-row .row-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.dalt-acts{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:6px}
+.dalt-acts .i{width:15px;height:15px;margin-right:5px;vertical-align:-3px}
+.dalt-wish .i{margin:0}
+.dalt-wish.on{border-color:var(--warn);color:var(--warn)}
+.dalt-wish.on .i{fill:currentColor}
+.dalt-sheet .sheet-foot .i{width:16px;height:16px;margin-right:8px;vertical-align:-3px}

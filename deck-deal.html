@@ -2593,6 +2593,32 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dly-nickb{display:block;margin:10px auto 0}
 .dly-vf{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}      /* adresse à vérifier : recevoir le lien, j'ai cliqué */
 
+/* « Remplacer… » (deckalt.js) : bouton de la carte en grand, feuille des propositions du coach */
+.imgv-alt{color:#fff;border-color:rgba(255,255,255,.35)}
+.imgv-alt[hidden]{display:none}
+.imgv-alt .i{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
+.dalt-w{margin:0 0 10px;font-size:13px;color:var(--ink-2)}
+.dalt-trap{margin-top:-4px}
+.dalt-list{display:flex;flex-direction:column;gap:8px}
+.dalt-row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:start;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md)}
+.dalt-row .thumb{cursor:zoom-in}
+.dalt-row .row-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dalt-row .row-top{display:flex;align-items:baseline;gap:8px}
+.dalt-row .row-name{flex:1;min-width:0;font-weight:600;overflow-wrap:break-word}
+.dalt-px{display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dalt-px small{font-size:11.5px;font-weight:600}
+.dalt-px small.dn{color:var(--good)}
+.dalt-px small.up{color:var(--ink-3)}
+.dalt-head{font-size:13px;font-weight:600;color:var(--accent)}
+.dalt-why{font-size:12px;line-height:1.35;color:var(--ink-2)}
+.dalt-row .row-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.dalt-acts{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:6px}
+.dalt-acts .i{width:15px;height:15px;margin-right:5px;vertical-align:-3px}
+.dalt-wish .i{margin:0}
+.dalt-wish.on{border-color:var(--warn);color:var(--warn)}
+.dalt-wish.on .i{fill:currentColor}
+.dalt-sheet .sheet-foot .i{width:16px;height:16px;margin-right:8px;vertical-align:-3px}
+
 /* ── deckcoach.css : « Modifier le deck » (decks.js › openDeckEdit), tags des decks, bilan du coach (deckana.js) ───────────────────── */
 .deck-tag{flex:none;font-size:10.5px;font-weight:600;line-height:1;padding:3px 7px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dke-sheet .seg{margin:4px 0 12px}
@@ -8262,8 +8288,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '020a6dce';
-const I18N_FILES = {"de":"i18n/de.0cf56454.js","en":"i18n/en.7f065da3.js","es":"i18n/es.57e6ef7b.js","it":"i18n/it.8a1941ce.js","pt":"i18n/pt.6aac4532.js"};
+const DD_BUILD = '8b9e69c2';
+const I18N_FILES = {"de":"i18n/de.124f9b03.js","en":"i18n/en.b651ddbb.js","es":"i18n/es.999e4a2e.js","it":"i18n/it.b2622cf4.js","pt":"i18n/pt.88f54612.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -19661,7 +19687,7 @@ function openCardViewer(items, index) {
     ${multi ? '<span class="imgv-count" aria-live="polite"></span><button class="imgv-nav prev" type="button" aria-label="' + T('Carte précédente') + '"><svg class="i"><use href="#i-back"/></svg></button><button class="imgv-nav next" type="button" aria-label="' + T('Carte suivante') + '"><svg class="i"><use href="#i-back"/></svg></button>' : ''}
     <div class="imgv-card tilt" data-busy="1"><img class="imgv-ph" alt="" hidden><img class="imgv-img" alt="" hidden><span class="foil-stars" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => { const r = hash32('foil' + i); return `<i style="--x:${6 + (r % 88)}%;--y:${5 + ((r >> 7) % 90)}%;--s:${7 + ((r >> 14) % 9)}px;--d:${2.2 + ((r >> 18) % 20) / 10}s;--w:${-((r >> 23) % 40) / 10}s"></i>`; }).join('')}</span><span class="imgv-spin"></span></div>
     <div class="imgv-cap"><b></b><span class="imgv-sub"></span><span class="imgv-extra" hidden></span><img class="imgv-shot" alt="${T('Ta photo')}" hidden><div class="imgv-cnt" hidden><span></span><span class="qstep"><button type="button" data-d="-1" aria-label="${T('Moins')}">−</button><b></b><button type="button" data-d="1" aria-label="${T('Plus')}">+</button></span><small></small></div><button class="imgv-rep" type="button" hidden></button></div>
-    <div class="imgv-acts"><button class="btn ghost small imgv-wish" type="button" hidden aria-pressed="false"></button><button class="btn ghost small imgv-flip" type="button" hidden>${T('Retourner la carte')}</button><button class="imgv-art" type="button" hidden aria-expanded="false">${T('Illustrations')}</button><button class="btn ghost small imgv-cex" type="button" hidden></button></div>
+    <div class="imgv-acts"><button class="btn ghost small imgv-wish" type="button" hidden aria-pressed="false"></button><button class="btn ghost small imgv-alt" type="button" hidden><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span></span></button><button class="btn ghost small imgv-flip" type="button" hidden>${T('Retourner la carte')}</button><button class="imgv-art" type="button" hidden aria-expanded="false">${T('Illustrations')}</button><button class="btn ghost small imgv-cex" type="button" hidden></button></div>
     <div class="imgv-vars" hidden><div class="imgv-vh" aria-live="polite"></div><div class="imgv-q"></div><div class="imgv-vl"></div></div>`;
   const card = $('.imgv-card', wrap), img = $('.imgv-img', wrap), ph = $('.imgv-ph', wrap), sub = $('.imgv-sub', wrap), flipB = $('.imgv-flip', wrap), title = $('.imgv-cap b', wrap), extra = $('.imgv-extra', wrap), shotEl = $('.imgv-shot', wrap);
   const countEl = $('.imgv-count', wrap), prevB = $('.imgv-nav.prev', wrap), nextB = $('.imgv-nav.next', wrap);
@@ -19675,6 +19701,8 @@ function openCardViewer(items, index) {
     repB.textContent = a.labelOf && !a.off ? a.labelOf(a.n || 1) : a.label;
   };
   cntEl.addEventListener('click', e => { const b = e.target.closest('[data-d]'), a = it && it.act; if (!b || !a || !(a.max > 1)) return; a.n = Math.max(1, Math.min(a.max, (a.n || 1) + Number(b.dataset.d))); haptic('tap'); actPaint(); });
+  const altB = $('.imgv-alt', wrap);      // it.alt : { label, fn } : « Remplacer… » d'une carte de l'éditeur (deckalt.js), la carte se ferme d'abord
+  altB.onclick = () => { const a = it && it.alt; if (!a) return; haptic('tap'); a.fn(); };
   const cexB = $('.imgv-cex', wrap), wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap), varsQ = $('.imgv-q', wrap);
   let vq = '', vqOf = null;      // recherche d'une extension dans les illustrations (2 ou plus) ; vqOf : la carte à qui elle s'applique (repart de zéro à chaque carte)
   const prevFocus = document.activeElement, from = pressOrigin(), fromEl = from ? MO.press : null, idx0 = Math.max(0, Math.min(items.length - 1, index | 0));
@@ -19737,7 +19765,7 @@ function openCardViewer(items, index) {
     clearTimeout(varT); vars = []; canSave = false; pickAt = -1; artB.hidden = true; artB.setAttribute('aria-expanded', 'false'); if (!wantOpen) { varsEl.hidden = true; wrap.classList.remove('has-vars'); } else { varsL.innerHTML = ''; varsH.textContent = ''; }
     extra.textContent = it.extra || ''; extra.hidden = !it.extra;
     card.classList.toggle('foil', !!it.foil);      // exemplaire foil de la collection : étincelles animées sur l'image (foil.css)
-    actPaint();
+    actPaint(); altB.hidden = !it.alt; if (it.alt) $('span', altB).textContent = it.alt.label;
     if (it.shot) shotEl.src = it.shot; else shotEl.removeAttribute('src'); shotEl.hidden = !it.shot; wrap.classList.toggle('has-shot', !!it.shot);      // photo prise au scan (cartes à vérifier) : sous la carte, pour comparer
     if (multi) { countEl.textContent = (n + 1) + ' / ' + items.length; prevB.disabled = n === 0; nextB.disabled = n === items.length - 1; }
     (async () => {
@@ -20552,7 +20580,7 @@ const ZOOM_LISTS = {
   /* Éditeur de deck : cartes du deck et résultats de la recherche, dans l'ordre affiché. */
   bd: th => {
     const row = th.closest('.bd-row'); if (!row || !BD.el) return null;
-    return zoomFrom($$('.bd-row', BD.el), row, r => bdViewItem(r) || zoomNamed(r.dataset.k, bdLabel(r.dataset.k, r.dataset.n), r.dataset.n, viewLang(r.dataset.k, true)));
+    return zoomFrom($$('.bd-row', BD.el), row, r => bdViewItem(r) || { ...zoomNamed(r.dataset.k, bdLabel(r.dataset.k, r.dataset.n), r.dataset.n, viewLang(r.dataset.k, true)), alt: r.dataset.t === 'main' && typeof daltAct === 'function' ? daltAct(r.dataset.k) : null });      // carte du deck : « Remplacer… » (deckalt.js)
   },
 };
 /** Ouvre la carte de cette vignette en grand ; false si rien à montrer (la ligne garde alors son action). */
@@ -29553,7 +29581,8 @@ function bdCompHtml() {
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
     extra: (it.own ? TN(it.own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.own }) : T('Pas dans ta collection')) + (it.held ? ' · ' + it.held : ''),      // possédés, et ceux engagés dans un autre deck monté
-    act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } } }));
+    act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } },
+    alt: it.tgt === 'main' && typeof daltAct === 'function' ? daltAct(it.key) : null }));      // « Remplacer… » : propositions du coach (deckalt.js)
   if (list[i]) openCardViewer(list, i);
 }
 function bdDeckHtml() {
@@ -29663,6 +29692,7 @@ function bdViewItem(row) {
   const k = row.dataset.k, m = bdMeta(k); if (!m || !m.im) return null;
   const x = COLL.map[k], l = x ? x.l : '', im = collImage(k, l, m.im, row.dataset.n), own = collQty(k);
   return { key: k, lid: k + '|' + row.dataset.t, name: bdLabel(k, row.dataset.n), ln: row.dataset.n, wl: viewLang(k, true), small: im.src, lang: im.lang, plain: true,
+    alt: row.dataset.t === 'main' && typeof daltAct === 'function' ? daltAct(k) : null,      // carte du deck : « Remplacer… » (deckalt.js)
     extra: `${own ? TN(own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: own }) : T('Pas dans ta collection')}${dkPx(k) ? ' · ' + T('valeur estimée {p}', { p: fmt(dkPx(k), mkCur()) }) : ''}` };      // même prix que l'en-tête et le viewer (dkPx)
 }
 
@@ -32525,6 +32555,162 @@ function dsApply(r, before, empty) {
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { DS_PARTS });
 // détail de la note ouvert ou fermé dans le Coach : gardé d'un rafraîchissement à l'autre
 if (typeof document !== 'undefined') document.addEventListener('toggle', e => { const d = e.target; if (d && d.classList && d.classList.contains('ds-parts') && BD.el && BD.el.contains(d)) DW.scoreOpen = d.open; }, true);
+
+
+/* ── deckalt.js : « Remplacer… » depuis la carte en grand de l'éditeur (deck Commander) ─────────────────────────────────────────────
+   Le joueur choisit LA carte à retirer (le Coach, lui, choisit seul : deckana.js › dwSwaps). Même moteur : candidates du même rôle pour ce commandant
+   (deckwiz.js › dwSuggest : couleurs, bracket, exclusions, collection), budget du deck tenu échange par échange (comme dwSwaps), note du coach avant / après (deckopt.js › dsScore).
+   Jusqu'à 5 propositions sous des angles différents, chacune avec son prix, l'écart de prix et sa raison :
+       1. la meilleure du même rôle ;
+       2. une carte de la collection (exemplaire libre : rien à acheter) ;
+       3. une bien moins chère (au moins deux fois), aussi utile à peu près ;
+       4. un rôle sous la plage normale (rampe, pioche…) quand la carte n'en remplit aucun qui manque ;
+       puis les suivantes du même rôle.
+   « Remplacer » : l'échange dans l'éditeur (annulable) ; étoile : liste de souhaits. Vignette : la carte en grand. */
+const DALT = { api: null, k: '', list: null, seen: new Set() };      // seen : cartes déjà proposées, écartées par « Autres propositions »
+
+/** Rôles de jauge d'une carte (ordre des jauges), condition de victoire comprise. */
+const daltRoles = roles => [...DW_GAUGES.map(g => g[0]).filter(r => r !== 'land'), 'wincon'].filter(r => roles & DW_RB[r]);
+/** Le bouton « Remplacer… » a sa place : deck Commander de l'éditeur, carte du deck (pas le commandant, pas un terrain de base). */
+const daltOk = k => !!(typeof BD !== 'undefined' && BD.el && BD.fmt === 'commander' && BD.cmdr.length && BD.main.has(k) && !BASIC_NAMES.has(k));
+/** Action du viewer (viewer.js › it.alt) pour la carte k de l'éditeur, ou rien. */
+const daltAct = k => (daltOk(k) ? { label: T('Remplacer…'), fn: () => daltSheet(k) } : null);
+
+/** Propositions pour remplacer k dans le deck X (l'éditeur) : { W (carte retirée), list: [{ C (dwSuggest), kind, role, head, why, after }], base (note), cmd } ;
+ *  null sans commandant, sans la carte ou sans la base du coach. */
+function daltList(k, X = BD, max = 5, skip = null) {      // skip : clés à ne pas proposer (déjà montrées)
+  if (!DW.byKey) return null;
+  const c = X.main.get(k), cmd = dwCmdOf(X); if (!c || !cmd) return null;
+  const pack = DW.cmd.get(cmd.slug) || null, set = X.wiz || dwDefaults(), info = dwInfo(pack, set, cmd);
+  const prof = dwProfile(X), tgt = dwTargets(prof, cmd, pack, set), x = dwCard(k), o = info.get(k) || null;
+  const roles = x ? x.roles : 0, land = !!(roles & DW_RB.land), price = dwPrice(k, x, true);
+  const W = { k, name: c.name, x, o, roles, v: o ? dwVal(o) : 0, price, bp: dwBudPx(k, price, set, X.id), own: ownFree(k, X.id != null ? X.id : null) > 0 };
+  const Xs = { ...X, skip: new Set(skip || []), info, wiz: { ...set, bud: 0 } };      // budget compté ici : la place de la carte retirée est libre (comme dwSwaps)
+  const lim = set.bud > 0 ? set.bud : 0, total = dwSpent(prof, set), fits = C => !lim || C.bp <= W.bp || total - W.bp + C.bp <= lim;
+  const mine = land ? ['land'] : daltRoles(roles).slice(0, 2);      // ses deux premiers rôles ; sans rôle : le plan du commandant
+  const pool = new Map();
+  for (const r of mine.length ? mine : ['']) for (const C of dwSuggest(r, cmd, pack, prof, tgt, 40, Xs)) if (C.k !== k && fits(C)) { const p = pool.get(C.k); if (!p || C.s > p.C.s) pool.set(C.k, { C, role: r }); }
+  const same = [...pool.values()].sort((a, b) => b.C.s - a.C.s), out = [], used = new Set();
+  const add = (e, kind) => { if (!e || used.has(e.C.k) || out.length >= max) return; used.add(e.C.k); out.push({ ...e, kind }); };
+  add(same[0], 'best');
+  if (!W.own) add(same.find(e => !used.has(e.C.k) && e.C.own), 'own');
+  if (W.price >= 100) add(same.find(e => !used.has(e.C.k) && e.C.price > 0 && e.C.price <= W.price * 0.5 && e.C.v >= W.v - 0.3), 'cheap');
+  if (!land && !(typeof daRoleLow === 'function' && daRoleLow(roles, prof, tgt))) {      // retirer la carte ne creuse pas un manque : un rôle sous sa plage peut prendre sa place
+    const gap = [...DW_GAUGES.map(g => g[0]).filter(r => r !== 'land'), 'wincon'].filter(r => tgt[r] && prof[r] < tgt[r][0] && !(roles & DW_RB[r]) && !(r === 'counter' && !cmd.ci.includes('U')))
+      .sort((a, b) => (tgt[b][1] - prof[b]) - (tgt[a][1] - prof[a]))[0];
+    if (gap) { const C = dwSuggest(gap, cmd, pack, prof, tgt, 10, Xs).find(C => C.k !== k && !used.has(C.k) && fits(C)); if (C) add({ C, role: gap }, 'need'); }
+  }
+  for (const e of same) add(e, 'more');
+  // note du coach avec chaque échange, essayé seul sur une copie du deck
+  const base = typeof dsScore === 'function' ? dsScore(X, { cmd, pack, info }) : null;
+  for (const e of out) {
+    if (base) { const m = new Map([...X.main].map(([kk, cc]) => [kk, { ...cc }])), w = m.get(k); if (w.qty > 1) w.qty--; else m.delete(k); m.set(e.C.k, { key: e.C.k, name: e.C.name, qty: 1 }); const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz, id: X.id }, { cmd, pack, info }); e.after = sc ? sc.total : null; }
+    e.better = base && e.after != null ? e.after > base.total : null; e.head = daltHead(W, e, cmd); e.why = typeof dwWhy === 'function' ? dwWhy(e.C, cmd, Xs) : '';
+  }
+  return { W, list: out, base: base ? base.total : null, cmd, pack };
+}
+/** Raison principale d'une proposition, en clair (les mêmes mots que les échanges du coach quand ils disent la même chose). */
+function daltHead(W, e, cmd) {
+  const nm = cmd.names[0].split(',')[0], C = e.C, a = (W.o && W.o.incl) || 0, b = (C.o && C.o.incl) || 0;
+  if (e.kind === 'need') return T('Il manque : {r}', { r: dsRoleLabel(e.role) });
+  if (e.kind === 'own') return T('Dans ta collection : rien à acheter');
+  if (e.kind === 'cheap') return e.role ? T('Même rôle, bien moins chère') : T('Bien moins chère, presque aussi utile');      // carte sans rôle : pas de « même rôle »
+  const up = e.better != null ? e.better : C.v > W.v + 0.1;      // « plus utile » : la note du coach monte (sinon, à défaut de note, la valeur pour ce commandant)
+  if (!e.role) return up ? T('Sert mieux le plan de {name}', { name: nm }) : T('Autre carte du plan de {name}', { name: nm });
+  if (b >= a + 10) return T('Même rôle, bien plus jouée avec {name}', { name: nm });
+  if (up) return T('Même rôle, plus utile dans ce deck avec {name}', { name: nm });
+  return T('Même rôle, autre option');
+}
+
+/* ── Feuille ─────────────────────────────────────────────────────────────────────────────────────── */
+function daltSheet(k) {
+  const c = BD.main.get(k); if (!c) return;
+  closeCardImage();
+  if (!BD.wiz && typeof dwSettingsFor === 'function') BD.wiz = dwSettingsFor(BD.id);
+  if (DALT.api) DALT.api.close();
+  openSheet(T('Remplacer {name}', { name: bdLabel(k, c.name) }), T('Propositions du coach pour ce deck'), api => {
+    Object.assign(DALT, { api, k, list: null, seen: new Set() }); api.wrap.classList.add('dalt-sheet'); dwImgs(api.body);
+    const close0 = api.close; api.close = () => { if (DALT.api === api) DALT.api = null; close0(); };
+    api.body.addEventListener('click', daltClick);
+    api.foot.addEventListener('click', e => { if (e.target.closest('[data-dalt-more]')) daltMore(); });
+    daltLoad();
+  });
+}
+/** Base du coach, données EDHREC (commandant), paquet du commandant : chargés au besoin, la feuille se repeint à chaque arrivée. */
+function daltLoad() {
+  const api = DALT.api; if (!api) return;
+  const again = () => { if (DALT.api === api) daltLoad(); };
+  if (typeof EDH !== 'undefined' && !EDH.data && typeof edhEnsure === 'function') { edhEnsure(); if (EDH.p) { daltWait(T('Chargement des cartes conseillées…')); EDH.p.then(again, again); return; } }
+  if (!DW.core) { if (DW.err && !DW.p) return daltMsg(DW.err); daltWait(T('Chargement de la base du coach…')); dwLoad().then(again, again); return; }
+  const cmd = dwCmdOf(); if (!cmd) return daltMsg(T('Choisis d\'abord ton commandant : le coach s\'appuie sur les decks qui le jouent.'));
+  if (!DW.cmd.has(cmd.slug)) { daltWait(T('Chargement des cartes conseillées…')); dwPack('c', cmd.slug).then(again, again); return; }
+  daltPaint();
+}
+const daltWait = t => { if (DALT.api) DALT.api.body.innerHTML = `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(t)}</span></div>`; };
+const daltMsg = t => { if (DALT.api) DALT.api.body.innerHTML = `<p class="hint">${esc(t)}</p>`; };
+function daltPaint() {
+  const api = DALT.api; if (!api) return;
+  const r = DALT.list || (DALT.list = daltList(DALT.k, BD, 5, DALT.seen));
+  if (!r) return daltMsg(T('Cette carte n\'est plus dans le deck.'));
+  const { W, cmd } = r, nm = cmd.names[0].split(',')[0], cur = mkCur();
+  const rl = daltRoles(W.roles).map(dsRoleLabel), bits = [W.roles & DW_RB.land ? T('rôle : {r}', { r: T('Terrains') }) : rl.length ? T('rôle : {r}', { r: rl.join(', ') }) : T('rôle : plan de jeu')];
+  if (W.price > 0) bits.push(fmt(W.price, cur));
+  bits.push(W.o && W.o.incl ? T('{p} % des decks de {name}', { p: W.o.incl, name: nm }) : T('absente des decks de {name} étudiés', { name: nm }));
+  if (W.own) bits.push(T('dans ta collection'));
+  let h = `<p class="dalt-w">${esc(bits.join(' · '))}</p>`;
+  if (W.o && W.o.trap) h += `<p class="hint dalt-trap">${esc(T('{card} marche mal avec {name}', { card: bdLabel(W.k, W.name), name: nm }))}</p>`;
+  if (!r.pack) h += `<p class="hint">${esc(T('Ce commandant n\'est pas encore dans la base du coach : propositions d\'après les cartes les plus jouées en Commander.'))}</p>`;
+  h += r.list.length ? `<div class="dalt-list">${r.list.map((e, i) => daltRow(e, i, W, r.base)).join('')}</div>`
+    : `<p class="hint">${esc(T('Rien à proposer dans tes couleurs, ton bracket et ton budget.'))}</p>`;
+  api.body.innerHTML = h;
+  api.setFoot(r.list.length ? `<button class="btn ghost block" type="button" data-dalt-more><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg>${esc(T('Autres propositions'))}</button>` : '');
+  if (typeof dmMissing === 'function' && typeof bdMetaSoon === 'function' && dmMissing(r.list.map(e => ({ key: e.C.k, name: e.C.name }))).length) { BD.want = r.list.map(e => ({ key: e.C.k, name: e.C.name })); bdMetaSoon(); }      // fiches (images) des propositions
+}
+function daltRow(e, i, W, base) {
+  const C = e.C, k = C.k, nm = bdLabel(k, C.name), cur = mkCur(), d = C.price - W.price;
+  const px = C.price > 0 ? fmt(C.price, cur) : '', dl = Math.abs(d) >= 1 ? (d > 0 ? '+' : '−') + fmt(Math.abs(d), cur) : '';
+  const w = typeof TR !== 'undefined' && TR.wish ? TR.wish[k] : null;
+  const tags = [C.own ? `<span class="tag good">${esc(T('Dans ta collection'))}</span>` : '',
+    base != null && e.after != null && e.after !== base ? `<span class="tag${e.after > base ? ' good' : ' warn'}">${esc(T('note {a} → {b}', { a: base, b: e.after }))}</span>` : ''].filter(Boolean).join('');
+  return `<div class="dalt-row" data-k="${esc(k)}" data-n="${esc(C.name)}">${typeof daThumb === 'function' ? daThumb(k, C.name).replace('data-zoom="da"', 'data-zoom="dalt"') : ''}
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${px ? `<span class="dalt-px">${esc(px)}${dl ? `<small class="${d < 0 ? 'dn' : 'up'}">${esc(dl)}</small>` : ''}</span>` : ''}</span>
+      <b class="dalt-head">${esc(e.head)}</b>${e.why ? `<span class="dalt-why">${esc(e.why)}</span>` : ''}${tags ? `<span class="row-meta">${tags}</span>` : ''}
+      <span class="dalt-acts"><button class="icon-btn dalt-wish${w ? ' on' : ''}" type="button" data-dalt="wish" data-i="${i}" aria-pressed="${!!w}" aria-label="${esc(w ? T('Retirer {name} de ta liste de souhaits', { name: nm }) : T('Ajouter {name} à ta liste de souhaits', { name: nm }))}" title="${esc(w ? T('Dans ta liste de souhaits') : T('Liste de souhaits'))}"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></button><button class="btn small" type="button" data-dalt="swap" data-i="${i}"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg>${esc(T('Remplacer'))}</button></span></span></div>`;
+}
+/** « Autres propositions » : les cartes montrées sont écartées, le coach propose les suivantes ; plus rien : retour aux premières. */
+function daltMore() {
+  const r = DALT.list; if (!DALT.api || !r) return;
+  for (const e of r.list) DALT.seen.add(e.C.k);
+  DALT.list = daltList(DALT.k, BD, 5, DALT.seen); haptic('tap');
+  if (DALT.list && !DALT.list.list.length) { DALT.seen.clear(); DALT.list = null; toast(T('Plus d\'autres propositions : retour aux premières')); }
+  daltPaint(); DALT.api.body.scrollTop = 0;
+}
+function daltClick(ev) {
+  const b = ev.target.closest('[data-dalt]'), r = DALT.list; if (!b || !r) return;
+  const e = r.list[Number(b.dataset.i)]; if (!e) return;
+  const C = e.C, W = r.W;
+  if (b.dataset.dalt === 'swap') {
+    if (!BD.main.has(W.k)) { DALT.list = null; return daltPaint(); }
+    const before = new Map([...BD.main].map(([kk, c]) => [kk, { ...c }])), c = BD.main.get(W.k);
+    if (c.qty > 1) c.qty--; else BD.main.delete(W.k);
+    const had = BD.main.get(C.k); if (had) had.qty++; else BD.main.set(C.k, { key: C.k, name: C.name, qty: 1 });
+    BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
+    if (DALT.api) DALT.api.close();
+    toast(T('{a} → {b}', { a: bdLabel(W.k, W.name), b: bdLabel(C.k, C.name) }), { label: tUndo(), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+    return;
+  }
+  if (b.dataset.dalt === 'wish' && typeof TR !== 'undefined') {
+    const k = C.k, was = TR.wish[k], name = C.name;
+    if (was) { delete TR.wish[k]; haptic('tap'); toast(T('{name} retirée de ta liste de souhaits', { name }), { label: tUndo(), fn: () => { TR.wish[k] = was; trChanged(); daltPaint(); } }); }
+    else { TR.wish[k] = { n: name, q: 1 }; haptic('ok'); toast(T('{name} ajoutée à ta liste de souhaits', { name }), { label: tUndo(), fn: () => { delete TR.wish[k]; trChanged(); daltPaint(); } }); }
+    trChanged(); daltPaint();
+  }
+}
+/* Vignettes de la feuille : la carte proposée en grand, les autres en glissant. */
+if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.dalt = th => {
+  const row = th.closest('.dalt-row'); if (!row || !DALT.api) return null;
+  return zoomFrom($$('.dalt-row', DALT.api.body), row, r => zoomNamed(r.dataset.k, bdLabel(r.dataset.k, r.dataset.n), r.dataset.n, viewLang(r.dataset.k, true)));
+};
 
 
 /* ── decksim.js : 10 000 débuts de partie Commander joués par le coach face à une table de 3 adversaires (rapport du coach, construction) ──────────

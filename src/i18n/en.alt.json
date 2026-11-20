@@ -1,0 +1,14 @@
+{
+ "Remplacer…": "Replace…",
+ "Dans ta collection : rien à acheter": "In your collection: nothing to buy",
+ "Autre carte du plan de {name}": "Another card for {name}'s game plan",
+ "Même rôle, autre option": "Same role, another option",
+ "Remplacer {name}": "Replace {name}",
+ "Propositions du coach pour ce deck": "Coach suggestions for this deck",
+ "Cette carte n'est plus dans le deck.": "This card is no longer in the deck.",
+ "Ce commandant n'est pas encore dans la base du coach : propositions d'après les cartes les plus jouées en Commander.": "This commander isn't in the coach database yet: suggestions based on the most played cards in Commander.",
+ "Rien à proposer dans tes couleurs, ton bracket et ton budget.": "Nothing to suggest within your colors, bracket and budget.",
+ "Autres propositions": "Other suggestions",
+ "Plus d'autres propositions : retour aux premières": "No more suggestions: back to the first ones",
+ "Bien moins chère, presque aussi utile": "Much cheaper, almost as useful"
+}

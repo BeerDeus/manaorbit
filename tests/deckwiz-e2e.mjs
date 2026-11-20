@@ -449,6 +449,50 @@ ok('échanges : « bien plus jouée » seulement si c\'est vrai ; commandant qui
 }
 ok('budget « en plus de ma collection » : coach, suggestions, assistant ; éditeur : possédées / à acheter, prix de ce qui manque');
 
+/* ── 6 ter) « Remplacer… » : carte du deck en grand → propositions du coach (même rôle, prix, raison), échange annulable, liste de souhaits ── */
+await p.evaluate(id => openBuilder({ id }), id); await p.waitForSelector('.bd.on');
+await p.evaluate(() => { BD.view = 'list'; bdChange('main', 'nights whisper', "Night's Whisper", 1); bdChange('main', 'weak one', 'Weak One', 1); bdPaint(); });
+await p.waitForSelector('.bd-row[data-k="nights whisper"] .thumb');
+assert.deepEqual(await p.evaluate(() => [daltOk('nights whisper'), daltOk('plains'), daltOk('edgar markov'), daltOk('rhystic study'), (() => { BD.fmt = 'standard'; const r = daltOk('nights whisper'); BD.fmt = 'commander'; return r; })()]),
+  [true, false, false, false, false], 'carte du deck seulement : ni terrain de base, ni commandant, ni carte absente, ni deck Standard');
+await p.click('.bd-row[data-k="nights whisper"] .thumb'); await p.waitForSelector('.imgv.on .imgv-alt:not([hidden])');
+assert.equal(await txt(p, '.imgv-alt'), 'Remplacer…'); await p.waitForTimeout(500); await shot(p, 'remplacer-carte');
+await p.click('.imgv-alt'); await p.waitForSelector('.dalt-sheet .dalt-row', { timeout: 15000 });
+await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });      // la carte en grand se ferme
+assert.deepEqual(await p.$$eval('.dalt-sheet .dalt-row', r => r.map(x => x.dataset.k)), ['phyrexian arena'], 'pioche dans les couleurs d\'Edgar (Rhystic Study : bleu)');
+{ const t = (await txt(p, '.dalt-sheet .dalt-row')).replace(/\s+/g, ' ');
+  assert.match(t, /Phyrexian Arena 4,00 € \+3,70 €/, 'prix et écart : ' + t); assert.match(t, /Même rôle/); assert.match(t, /30 % des decks de Edgar Markov/, 'raison détaillée : ' + t); }
+assert.match(await txt(p, '.dalt-sheet .dalt-w'), /rôle : Pioche · 0,30 € · 40 % des decks de Edgar Markov/);
+await shot(p, 'remplacer');
+// « Autres propositions » : rien d'autre pour la pioche d'Edgar → message, retour aux premières
+await p.click('.dalt-sheet [data-dalt-more]'); await p.waitForFunction(() => /Plus d'autres propositions/.test(document.querySelector('#toast').textContent));
+assert.deepEqual(await p.$$eval('.dalt-sheet .dalt-row', r => r.map(x => x.dataset.k)), ['phyrexian arena']);
+await p.click('.dalt-row[data-k="phyrexian arena"] [data-dalt="wish"]'); await p.waitForSelector('.dalt-row[data-k="phyrexian arena"] .dalt-wish.on');
+assert.deepEqual(await p.evaluate(() => TR.wish['phyrexian arena']), { n: 'Phyrexian Arena', q: 1 });
+await p.click('.dalt-row[data-k="phyrexian arena"] [data-dalt="wish"]'); await p.waitForSelector('.dalt-row[data-k="phyrexian arena"] .dalt-wish:not(.on)');
+assert.equal(await p.evaluate(() => TR.wish['phyrexian arena']), undefined, 'retirée de la liste de souhaits');
+await p.click('.dalt-row[data-k="phyrexian arena"] [data-dalt="swap"]'); await p.waitForFunction(() => !document.querySelector('.dalt-sheet'));
+assert.deepEqual(await p.evaluate(() => [BD.main.has('nights whisper'), BD.main.has('phyrexian arena'), BD.dirty]), [false, true, true]);
+assert.match(await p.$eval('#toast', t => t.textContent), /Night's Whisper → Phyrexian Arena/);
+await p.evaluate(() => document.querySelector('#toast button').click()); await p.waitForFunction(() => BD.main.has('nights whisper') && !BD.main.has('phyrexian arena'));
+// carte sans rôle (plan) : un rôle sous sa plage peut prendre sa place ; la carte de la collection, rien à acheter
+await p.evaluate(() => daltSheet('weak one')); await p.waitForSelector('.dalt-sheet .dalt-row', { timeout: 15000 }); await p.waitForTimeout(600); await shot(p, 'remplacer-plan');
+{ const t = await txt(p, '.dalt-sheet .dalt-list'); assert.match(t, /Il manque : /, 'rôle qui manque : ' + t); assert.match(await txt(p, '.dalt-sheet .dalt-w'), /rôle : plan de jeu/);
+  assert.ok((await p.$$eval('.dalt-sheet .dalt-row', r => r.map(x => x.dataset.k))).includes('swords to plowshares'), 'la carte de la collection proposée');
+  assert.ok(!(await p.$$eval('.dalt-sheet .dalt-row', r => r.map(x => x.dataset.k))).includes('gilded removal'), 'au-dessus du budget : écartée'); }
+{ const first = await p.$$eval('.dalt-sheet .dalt-row', r => r.map(x => x.dataset.k));
+  await p.click('.dalt-sheet [data-dalt-more]'); await p.waitForFunction(f => [...document.querySelectorAll('.dalt-sheet .dalt-row')].map(x => x.dataset.k).join() !== f.join() || /Plus d'autres/.test(document.querySelector('#toast').textContent), first);
+  const next = await p.$$eval('.dalt-sheet .dalt-row', r => r.map(x => x.dataset.k));
+  if (!/Plus d'autres/.test(await p.$eval('#toast', t => t.textContent))) assert.ok(next.every(k => !first.includes(k)), 'autres propositions : aucune déjà montrée ' + first + ' / ' + next);
+  await shot(p, 'remplacer-autres');
+  while (!/Plus d'autres/.test(await p.$eval('#toast', t => t.textContent))) await p.click('.dalt-sheet [data-dalt-more]');
+  await p.waitForFunction(f => [...document.querySelectorAll('.dalt-sheet .dalt-row')].map(x => x.dataset.k).join() === f.join(), first); }      // au bout : retour aux premières
+await p.click('.dalt-sheet .dalt-row[data-k="swords to plowshares"] .thumb'); await p.waitForSelector('.imgv.on');
+assert.equal(await p.$eval('.imgv-alt', b => b.hidden), true, 'carte proposée en grand : pas de « Remplacer… »');
+await p.evaluate(() => closeCardImage()); await p.waitForFunction(() => !document.querySelector('.imgv'));
+await closeSheets(p); await p.evaluate(() => bdClose(true));
+ok('« Remplacer… » : propositions du coach (même rôle, prix, écart, raison), échange annulable, liste de souhaits, rôle qui manque, budget');
+
 /* ── 7) Base du coach indisponible : modèle de base, pas de suggestions ── */
 dkwOff = true;
 await p.evaluate(() => { DW.core = null; DW.byKey = null; DW.err = ''; DW.cmd.clear(); return Cache.set('dkw:core', null); });

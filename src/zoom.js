@@ -80,7 +80,7 @@ const ZOOM_LISTS = {
   /* Éditeur de deck : cartes du deck et résultats de la recherche, dans l'ordre affiché. */
   bd: th => {
     const row = th.closest('.bd-row'); if (!row || !BD.el) return null;
-    return zoomFrom($$('.bd-row', BD.el), row, r => bdViewItem(r) || zoomNamed(r.dataset.k, bdLabel(r.dataset.k, r.dataset.n), r.dataset.n, viewLang(r.dataset.k, true)));
+    return zoomFrom($$('.bd-row', BD.el), row, r => bdViewItem(r) || { ...zoomNamed(r.dataset.k, bdLabel(r.dataset.k, r.dataset.n), r.dataset.n, viewLang(r.dataset.k, true)), alt: r.dataset.t === 'main' && typeof daltAct === 'function' ? daltAct(r.dataset.k) : null });      // carte du deck : « Remplacer… » (deckalt.js)
   },
 };
 /** Ouvre la carte de cette vignette en grand ; false si rien à montrer (la ligne garde alors son action). */

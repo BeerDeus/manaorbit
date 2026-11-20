@@ -515,7 +515,8 @@ function bdCompHtml() {
 function bdVisualOpen(i) {
   const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
     extra: (it.own ? TN(it.own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.own }) : T('Pas dans ta collection')) + (it.held ? ' · ' + it.held : ''),      // possédés, et ceux engagés dans un autre deck monté
-    act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } } }));
+    act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } },
+    alt: it.tgt === 'main' && typeof daltAct === 'function' ? daltAct(it.key) : null }));      // « Remplacer… » : propositions du coach (deckalt.js)
   if (list[i]) openCardViewer(list, i);
 }
 function bdDeckHtml() {
@@ -625,6 +626,7 @@ function bdViewItem(row) {
   const k = row.dataset.k, m = bdMeta(k); if (!m || !m.im) return null;
   const x = COLL.map[k], l = x ? x.l : '', im = collImage(k, l, m.im, row.dataset.n), own = collQty(k);
   return { key: k, lid: k + '|' + row.dataset.t, name: bdLabel(k, row.dataset.n), ln: row.dataset.n, wl: viewLang(k, true), small: im.src, lang: im.lang, plain: true,
+    alt: row.dataset.t === 'main' && typeof daltAct === 'function' ? daltAct(k) : null,      // carte du deck : « Remplacer… » (deckalt.js)
     extra: `${own ? TN(own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: own }) : T('Pas dans ta collection')}${dkPx(k) ? ' · ' + T('valeur estimée {p}', { p: fmt(dkPx(k), mkCur()) }) : ''}` };      // même prix que l'en-tête et le viewer (dkPx)
 }
 
