@@ -1,0 +1,78 @@
+Génération : top 2000, Archidekt Budget / Premium (10 decks récents comparés) pour les 2000 premiers, cEDH pour 100 au plus, 1 commandant sur 8 relu
+  listes : 3186 commandants (3000 dans la liste du mois)
+   · forme : related_info,bracket_counts,header,description,container · cardlists 1 (header,tag,cardviews,total_pages,more) · carte id,name,sanitized,slug,url,image_version,num_decks,potential_decks,rank,trend_zscore
+   · commanders/month.json → 100 commandants · suite commanders/month-pastmonth-1.json
+   · commanders/month-pastmonth-1.json → 100 commandants · suite commanders/month-pastmonth-2.json
+   · commanders/month-pastmonth-2.json → 100 commandants · suite commanders/month-pastmonth-3.json
+   · forme : related_info,bracket_counts,header,description,container · cardlists 1 (header,tag,cardviews,total_pages,more) · carte id,name,sanitized,slug,url,image_version,num_decks,potential_decks,rank,trend_zscore
+   · commanders/year.json → 100 commandants · suite commanders/year-past2years-1.json
+   · commanders/year-past2years-1.json → 100 commandants · suite commanders/year-past2years-2.json
+   · commanders/year-past2years-2.json → 100 commandants · suite commanders/year-past2years-3.json
+3186 commandants au total ; decks moyens pour les 2000 premiers
+  thèmes (exemple) jace-multiverse-architect : Tokens 694, Planeswalkers 640, Control 179
+  decks moyens : 50 lus sur 50 essayés
+  decks moyens : 100 lus sur 100 essayés
+  decks moyens : 149 lus sur 150 essayés
+  decks moyens : 199 lus sur 200 essayés
+  decks moyens : 249 lus sur 250 essayés
+  decks moyens : 299 lus sur 300 essayés
+  decks moyens : 349 lus sur 350 essayés
+  decks moyens : 399 lus sur 400 essayés
+  decks moyens : 449 lus sur 450 essayés
+  decks moyens : 499 lus sur 500 essayés
+  decks moyens : 549 lus sur 550 essayés
+  decks moyens : 599 lus sur 600 essayés
+  decks moyens : 649 lus sur 650 essayés
+  decks moyens : 699 lus sur 700 essayés
+  decks moyens : 749 lus sur 750 essayés
+  decks moyens : 799 lus sur 800 essayés
+  decks moyens : 849 lus sur 850 essayés
+  decks moyens : 899 lus sur 900 essayés
+  decks moyens : 949 lus sur 950 essayés
+  decks moyens : 999 lus sur 1000 essayés
+  decks moyens : 1049 lus sur 1050 essayés
+  decks moyens : 1099 lus sur 1100 essayés
+  decks moyens : 1149 lus sur 1150 essayés
+  decks moyens : 1199 lus sur 1200 essayés
+  decks moyens : 1249 lus sur 1250 essayés
+  decks moyens : 1299 lus sur 1300 essayés
+  decks moyens : 1349 lus sur 1350 essayés
+  decks moyens : 1399 lus sur 1400 essayés
+  decks moyens : 1449 lus sur 1450 essayés
+  decks moyens : 1499 lus sur 1500 essayés
+  decks moyens : 1549 lus sur 1550 essayés
+  decks moyens : 1599 lus sur 1600 essayés
+  decks moyens : 1649 lus sur 1650 essayés
+  decks moyens : 1699 lus sur 1700 essayés
+  decks moyens : 1749 lus sur 1750 essayés
+  decks moyens : 1799 lus sur 1800 essayés
+  decks moyens : 1849 lus sur 1850 essayés
+  decks moyens : 1899 lus sur 1900 essayés
+  decks moyens : 1949 lus sur 1950 essayés
+  decks moyens : 1999 lus sur 2000 essayés
+  decks moyens : 1999 (dont 1979 avec des thèmes EDHREC) ; ignorés : 1
+   · whtz-the-bibliophile: 254 cartes
+  EDHTop16 : requête TopCommandersQuery 86fac9d8c2353944c65306a21cd17574 (lue sur le site)
+  cEDH (EDHTop16, 6 derniers mois) : 100 commandants, 100 retrouvés dans la liste
+   · archidekt malcolm-keen-eyed-navigator-tana-the-bloodsower HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Malcolm%2C+Keen-Eyed+Navigator&orderBy=-viewCount&edhBracket=5
+   · archidekt rakdos-the-muscle HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Rakdos%2C+the+Muscle&orderBy=-viewCount&edhBracket=5
+   · archidekt malcolm-keen-eyed-navigator-tymna-the-weaver HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Malcolm%2C+Keen-Eyed+Navigator&orderBy=-viewCount&edhBracket=5
+   · archidekt tevesh-szat-doom-of-fools-thrasios-triton-hero HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Tevesh+Szat%2C+Doom+of+Fools&orderBy=-viewCount&edhBracket=5
+  Archidekt : 1699 commandants gardés du fichier précédent, 300 à chercher (63 sans deck récent)
+   · archidekt eowyn-shieldmaiden HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=%C3%89owyn%2C+Shieldmaiden&orderBy=-viewCount
+  Archidekt : 100 commandants cherchés, 70 avec des decks récents, cedh 91, budget 1745, premium 1764, pop 49
+  Archidekt : 200 commandants cherchés, 170 avec des decks récents, cedh 91, budget 1745, premium 1764, pop 49
+  Archidekt : 300 commandants cherchés, 270 avec des decks récents, cedh 91, budget 1745, premium 1764, pop 49
+  decks Archidekt : 293 commandants à départager (Budget / Premium), déjà placés : cedh 91, budget 1745, premium 1764, pop 49 · 1371 lus, 414 déjà connus (323 commandants cherchés, 11 noms à deux faces corrigés, 8 erreurs, 490 écartés pour leur taille)
+Scryfall : prix de 24173 cartes
+  scryfall : 3000 / 23755 cartes
+  scryfall : 6000 / 23755 cartes
+  scryfall : 9000 / 23755 cartes
+  scryfall : 12000 / 23755 cartes
+  scryfall : 15000 / 23755 cartes
+  scryfall : 18000 / 23755 cartes
+  scryfall : 21000 / 23755 cartes
+  decks Archidekt (prix Scryfall) : cedh 91, budget 2032, premium 2051, pop 55
+  Game Changers « is:gamechanger » : 53 cartes (Ad Nauseam, Ancient Tomb, Aura Shards, Biorhythm, Bolas's Citadel, Braids, Cabal Minion…)
+3186 commandants, 6228 decks (dont 4229 Archidekt), 22386 prix → /home/runner/work/manaorbit/manaorbit/pwa/edh.bin.gz (1.30 Mo)
+-rw-r--r-- 1 runner runner 1366558 Nov 26 15:38 pwa/edh.bin.gz
