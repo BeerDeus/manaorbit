@@ -1,0 +1,19 @@
+Base du coach : budget 320 min ; corpus précédent : 578106 decks, 1594 pages EDHREC
+1500 commandants (pwa/edh.bin.gz)
+  Scryfall : 33262 cartes (fichier oracle-cards)
+  Scryfall : 926 fiches reprises du corpus
+  Tagger : 12164 cartes (passage du 2026-11-24)
+  EDHREC : 0 pages de commandant et 0 pages de thème relues
+  EDHREC : 0 thèmes généraux relus (66 connus)
+  Archidekt : 423 pages suivantes lues (commandants les plus joués)
+  Archidekt : 0 commandants cherchés, 423 recherches, 19146 decks lus, 18882 gardés, 0 erreurs ; corpus : 596926 decks
+  Scryfall : 4 cartes complétées sur 123 absentes du fichier
+  prix du jour : 33719 cartes (relevé de l'appli)
+  prix du jour : 10061 prix mis à jour
+  mécaniques : 32103 cartes classées (data/card-mech.json du 2026-11-04, taxonomie v2.1)
+  mécaniques : 32103 cartes de la table classées, 1170 sans classement (ancienne méthode)
+  Banc d'essai : 1200 decks jamais appris, 10 sorts retirés chacun · retrouvés dans les 10 / 20 / 40 premières suggestions : 13.9 / 21.4 / 31.6 % (poids d'origine gardés) · 247 s
+  paires de cartes : 10397 cartes avec des partenaires
+Terminé en 304 min : 33273 cartes (land 1248, ramp 1511, draw 3214, removal 4093, wipe 720, counter 479, tutor 439, protect 1003, recursion 1356, wincon 206), 567226 decks analysés, 1567 commandants, 64 thèmes
+  cibles (tous decks, médianes) : land 36 · ramp 11 · draw 10 · removal 7 · wipe 2 · counter 0 · tutor 1 · protect 4 · recursion 2 · wincon 1 · mv 3.16 · cheap 9 · gc 0
+  corpus (12 fichiers) 157.86 Mo · dkw.json.gz 11.48 Mo
